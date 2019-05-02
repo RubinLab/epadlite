@@ -101,4 +101,80 @@ describe('AIM Tests', () => {
         done(e);
       });
   });
+
+  it('aim update with changing the name to Lesion3 should be successful ', done => {
+    const jsonBuffer = JSON.parse(fs.readFileSync('test/data/recist_fake.json'));
+    const nameSplit = jsonBuffer.imageAnnotations.ImageAnnotationCollection.imageAnnotations.ImageAnnotation.name.value.split(
+      '~'
+    );
+    nameSplit[0] = 'Lesion3';
+    jsonBuffer.imageAnnotations.ImageAnnotationCollection.imageAnnotations.ImageAnnotation.name.value = nameSplit.join(
+      '~'
+    );
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put(
+        `/projects/lite/aims/${
+          jsonBuffer.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root
+        }`
+      )
+      .send(jsonBuffer)
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('aim returned for series 1.3.6.1.4.1.14519.5.2.1.1706.4996.125234324154032773868316308352 of patient MRI-DIR-T2_3 should be Lesion3', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get(
+        '/projects/lite/subjects/MRI-DIR-T2_3/studies/1.3.6.1.4.1.14519.5.2.1.1706.4996.267501199180251031414136865313/series/1.3.6.1.4.1.14519.5.2.1.1706.4996.125234324154032773868316308352/aims'
+      )
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(
+          res.body.imageAnnotations.ImageAnnotationCollection[0].imageAnnotations.ImageAnnotation.name.value.split(
+            '~'
+          )[0]
+        ).to.be.eql('Lesion3');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('aim delete with uid 2.25.2222222222222222222222 should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/projects/lite/aims/2.25.2222222222222222222222')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('aims should be empty for series 1.3.6.1.4.1.14519.5.2.1.1706.4996.125234324154032773868316308352 of patient MRI-DIR-T2_3', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get(
+        '/projects/lite/subjects/MRI-DIR-T2_3/studies/1.3.6.1.4.1.14519.5.2.1.1706.4996.267501199180251031414136865313/series/1.3.6.1.4.1.14519.5.2.1.1706.4996.125234324154032773868316308352/aims'
+      )
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.imageAnnotations.ImageAnnotationCollection).to.be.a('array');
+        expect(res.body.imageAnnotations.ImageAnnotationCollection.length).to.be.eql(0);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
 });

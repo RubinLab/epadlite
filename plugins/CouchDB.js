@@ -117,21 +117,64 @@ async function couchdb(fastify, options) {
   });
 
   fastify.decorate('saveAim', (request, reply) => {
-    // get the uid from the json and put as id in couch document
+    // get the uid from the json and check if it is same with param, then put as id in couch document
+    if (
+      request.params.aimuid &&
+      request.params.aimuid !==
+        request.body.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root
+    ) {
+      fastify.log.info(
+        'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
+      );
+      reply
+        .code(503)
+        .send(
+          'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
+        );
+    }
+
     const couchDoc = {
       _id: request.body.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root,
       aim: request.body,
     };
     const db = fastify.couch.db.use(config.db);
-    db.insert(couchDoc, couchDoc._id)
-      .then(() => {
-        reply.code(200).send('success');
-      })
-      .catch(err => {
-        // TODO Proper error reporting implementation required
-        fastify.log.info(`Error in save: ${err}`);
-        reply.code(503).send('error');
-      });
+    db.get(couchDoc._id, (error, existing) => {
+      if (!error) {
+        couchDoc._rev = existing._rev;
+        fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
+      }
+
+      db.insert(couchDoc, couchDoc._id)
+        .then(() => {
+          reply.code(200).send('Saving successful');
+        })
+        .catch(err => {
+          // TODO Proper error reporting implementation required
+          fastify.log.info(`Error in save: ${err}`);
+          reply.code(503).send(`Saving error: ${err}`);
+        });
+    });
+  });
+
+  fastify.decorate('deleteAim', (request, reply) => {
+    const db = fastify.couch.db.use(config.db);
+    db.get(request.params.aimuid, (error, existing) => {
+      if (error) {
+        fastify.log.info(`No document for aimuid ${request.params.aimuid}`);
+        // Is 404 the right thing to return?
+        reply.code(404).send(`No document for aimuid ${request.params.aimuid}`);
+      }
+
+      db.destroy(request.params.aimuid, existing._rev)
+        .then(() => {
+          reply.code(200).send('Deletion successful');
+        })
+        .catch(err => {
+          // TODO Proper error reporting implementation required
+          fastify.log.info(`Error in delete: ${err}`);
+          reply.code(503).send(`Deleting error: ${err}`);
+        });
+    });
   });
 
   // template accessors
