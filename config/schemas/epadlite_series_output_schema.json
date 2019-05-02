@@ -1,0 +1,116 @@
+{
+  "$id": "epadlite_series_schema",
+  "type": "object",
+  "properties": {
+    "ResultSet": {
+      "type": "object",
+      "properties": {
+        "Result": {
+          "type": "array",
+          "items": 
+            {
+              "type": "object",
+              "properties": {
+                "projectID": {
+                  "type": "string"
+                },
+                "patientID": {
+                  "type": "string"
+                },
+                "patientName": {
+                  "type": "string"
+                },
+                "studyUID": {
+                  "type": "string"
+                },
+                "seriesUID": {
+                  "type": "string"
+                },
+                "seriesDate": {
+                  "type": "string"
+                },
+                "seriesDescription": {
+                  "type": "string"
+                },
+                "examType": {
+                  "type": "string"
+                },
+                "bodyPart": {
+                  "type": "string"
+                },
+                "accessionNumber": {
+                  "type": "string"
+                },
+                "numberOfImages": {
+                  "type": "integer"
+                },
+                "numberOfSeriesRelatedInstances": {
+                  "type": "integer"
+                },
+                "numberOfAnnotations": {
+                  "type": "integer"
+                },
+                "institution": {
+                  "type": "string"
+                },
+                "stationName": {
+                  "type": "string"
+                },
+                "department": {
+                  "type": "string"
+                },
+                "createdTime": {
+                  "type": "string"
+                },
+                "firstImageUIDInSeries": {
+                  "type": "string"
+                },
+                "isDSO": {
+                  "type": "boolean"
+                },
+                "isNonDicomSeries": {
+                  "type": "boolean"
+                },
+                "seriesNo": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "projectID",
+                "patientID",
+                "patientName",
+                "studyUID",
+                "seriesUID",
+                "seriesDate",
+                "seriesDescription",
+                "examType",
+                "bodyPart",
+                "accessionNumber",
+                "numberOfImages",
+                "numberOfSeriesRelatedInstances",
+                "numberOfAnnotations",
+                "institution",
+                "stationName",
+                "department",
+                "createdTime",
+                "firstImageUIDInSeries",
+                "isDSO",
+                "isNonDicomSeries",
+                "seriesNo"
+              ]
+            }
+        },
+        "totalRecords": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "Result",
+        "totalRecords"
+      ]
+    }
+  },
+  "required": [
+    "ResultSet"
+  ]
+}

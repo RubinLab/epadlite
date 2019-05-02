@@ -1,0 +1,116 @@
+{
+  "$id": "epadlite_images_schema",
+  "type": "object",
+  "properties": {
+    "ResultSet": {
+      "type": "object",
+      "properties": {
+        "Result": {
+          "type": "array",
+          "items": 
+            {
+              "type": "object",
+              "properties": {
+                "projectID": {
+                  "type": "string"
+                },
+                "patientID": {
+                  "type": "string"
+                },
+                "studyUID": {
+                  "type": "string"
+                },
+                "seriesUID": {
+                  "type": "string"
+                },
+                "imageUID": {
+                  "type": "string"
+                },
+                "classUID": {
+                  "type": "string"
+                },
+                "insertDate": {
+                  "type": "string"
+                },
+                "imageDate": {
+                  "type": "string"
+                },
+                "sliceLocation": {
+                  "type": "string"
+                },
+                "instanceNumber": {
+                  "type": "integer"
+                },
+                "losslessImage": {
+                  "type": "string"
+                },
+                "lossyImage": {
+                  "type": "string"
+                },
+                "dicomElements": {
+                  "type": "object"
+                },
+                "defaultDICOMElements": {
+                  "type": "object"
+                },
+                "numberOfFrames": {
+                  "type": "integer"
+                },
+                "isDSO": {
+                  "type": "boolean"
+                },
+                "multiFrameImage": {
+                  "type": "boolean"
+                },
+                "isFlaggedImage": {
+                  "type": "boolean"
+                },
+                "rescaleIntercept": {
+                  "type": "integer"
+                },
+                "rescaleSlope": {
+                  "type": "integer"
+                },
+                "sliceOrder": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "projectID",
+                "patientID",
+                "studyUID",
+                "seriesUID",
+                "imageUID",
+                "classUID",
+                "insertDate",
+                "imageDate",
+                "sliceLocation",
+                "instanceNumber",
+                "losslessImage",
+                "lossyImage",
+                "dicomElements",
+                "defaultDICOMElements",
+                "numberOfFrames",
+                "isDSO",
+                "multiFrameImage",
+                "isFlaggedImage",
+                "rescaleIntercept",
+                "rescaleSlope",
+                "sliceOrder"
+              ]
+            }
+        },
+        "totalRecords": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "Result",
+        "totalRecords"
+      ]
+    }
+  },
+  "required": [
+    "ResultSet"
+  ]
+}

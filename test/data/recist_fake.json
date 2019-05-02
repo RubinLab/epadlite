@@ -1,0 +1,424 @@
+{
+    "imageAnnotations": {
+        "ImageAnnotationCollection": {
+            "person": {
+                "id": {
+                    "value": "MRI-DIR-T2_3"
+                },
+                "sex": {
+                    "value": "M"
+                },
+                "ethnicGroup": "",
+                "name": {
+                    "value": "MRI-DIR-T2_3"
+                },
+                "birthDate": {
+                    "value": 19441101000000
+                }
+            },
+            "imageAnnotations": {
+                "ImageAnnotation": {
+                    "imagingObservationEntityCollection": {
+                        "ImagingObservationEntity": {
+                            "imagingObservationCharacteristicCollection": {
+                                "ImagingObservationCharacteristic": {
+                                    "annotatorConfidence": {
+                                        "value": 0
+                                    },
+                                    "typeCode": {
+                                        "codeSystemVersion": "",
+                                        "codeSystemName": "RECIST-AMS",
+                                        "code": "S71",
+                                        "iso:displayName": {
+                                            "value": "target",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    },
+                                    "label": {
+                                        "value": "Type"
+                                    },
+                                    "comment": ""
+                                }
+                            },
+                            "annotatorConfidence": {
+                                "value": 0
+                            },
+                            "uniqueIdentifier": {
+                                "root": "2.25.12262020496875543458774018206171736111"
+                            },
+                            "typeCode": {
+                                "codeSystemVersion": "",
+                                "codeSystemName": "RECIST-AMS",
+                                "code": "S82",
+                                "iso:displayName": {
+                                    "value": "Lesion Followup Evaluation",
+                                    "xmlns:iso": "uri:iso.org:21090"
+                                }
+                            },
+                            "label": {
+                                "value": "Lesion"
+                            },
+                            "comment": ""
+                        }
+                    },
+                    "calculationEntityCollection": {
+                        "CalculationEntity": [
+                            {
+                                "description": {
+                                    "value": "Length"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": 0
+                                },
+                                "typeCode": {
+                                    "codeSystemName": "SRT",
+                                    "code": "G-D7FE",
+                                    "iso:displayName": {
+                                        "value": "Length",
+                                        "xmlns:iso": "uri:iso.org:21090"
+                                    }
+                                },
+                                "mathML": "",
+                                "calculationResultCollection": {
+                                    "CalculationResult": {
+                                        "dataType": {
+                                            "codeSystemVersion": 1,
+                                            "codeSystemName": "99EPAD",
+                                            "code": "99EPADD1",
+                                            "iso:displayName": {
+                                                "value": "Double",
+                                                "xmlns:iso": "uri:iso.org:21090"
+                                            }
+                                        },
+                                        "dimensionCollection": {
+                                            "Dimension": {
+                                                "index": {
+                                                    "value": 0
+                                                },
+                                                "label": {
+                                                    "value": "LineLength"
+                                                },
+                                                "size": {
+                                                    "value": 1
+                                                }
+                                            }
+                                        },
+                                        "xsi:type": "ExtendedCalculationResult",
+                                        "unitOfMeasure": {
+                                            "value": "linear"
+                                        },
+                                        "type": "Scalar",
+                                        "calculationDataCollection": {
+                                            "CalculationData": {
+                                                "coordinateCollection": {
+                                                    "Coordinate": {
+                                                        "position": {
+                                                            "value": 0
+                                                        },
+                                                        "dimensionIndex": {
+                                                            "value": 0
+                                                        }
+                                                    }
+                                                },
+                                                "value": {
+                                                    "value": 1.7595616055600842
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "algorithm": {
+                                    "name": {
+                                        "value": "LineLength"
+                                    },
+                                    "type": {
+                                        "codeSystemVersion": 3.2,
+                                        "codeSystemName": "RadLex",
+                                        "code": "RID12780",
+                                        "iso:displayName": {
+                                            "value": "Calculation",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    },
+                                    "version": {
+                                        "value": 1
+                                    }
+                                }
+                            },
+                            {
+                                "description": {
+                                    "value": "Standard Deviation"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": 0
+                                },
+                                "typeCode": {
+                                    "codeSystemName": "SRT",
+                                    "code": "R-10047",
+                                    "iso:displayName": {
+                                        "value": "Standard Deviation",
+                                        "xmlns:iso": "uri:iso.org:21090"
+                                    }
+                                },
+                                "mathML": "",
+                                "calculationResultCollection": {
+                                    "CalculationResult": {
+                                        "dataType": {
+                                            "codeSystemVersion": 1,
+                                            "codeSystemName": "99EPAD",
+                                            "code": "99EPADD1",
+                                            "iso:displayName": {
+                                                "value": "Double",
+                                                "xmlns:iso": "uri:iso.org:21090"
+                                            }
+                                        },
+                                        "dimensionCollection": {
+                                            "Dimension": {
+                                                "index": {
+                                                    "value": 0
+                                                },
+                                                "label": {
+                                                    "value": "Standard Deviation"
+                                                },
+                                                "size": {
+                                                    "value": 1
+                                                }
+                                            }
+                                        },
+                                        "xsi:type": "ExtendedCalculationResult",
+                                        "unitOfMeasure": {
+                                            "value": "HU"
+                                        },
+                                        "type": "Scalar",
+                                        "calculationDataCollection": {
+                                            "CalculationData": {
+                                                "coordinateCollection": {
+                                                    "Coordinate": {
+                                                        "position": {
+                                                            "value": 0
+                                                        },
+                                                        "dimensionIndex": {
+                                                            "value": 0
+                                                        }
+                                                    }
+                                                },
+                                                "value": {
+                                                    "value": 25.733452833090695
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "algorithm": {
+                                    "name": {
+                                        "value": "Standard Deviation"
+                                    },
+                                    "type": {
+                                        "codeSystemVersion": 3.2,
+                                        "codeSystemName": "RadLex",
+                                        "code": "RID12780",
+                                        "iso:displayName": {
+                                            "value": "Calculation",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    },
+                                    "version": {
+                                        "value": 1
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "imagingPhysicalEntityCollection": {
+                        "ImagingPhysicalEntity": [
+                            {
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.5877498986544018002510355468441790416"
+                                },
+                                "typeCode": {
+                                    "codeSystemVersion": "",
+                                    "codeSystemName": "RadLex",
+                                    "code": "RID58",
+                                    "iso:displayName": {
+                                        "value": "liver",
+                                        "xmlns:iso": "uri:iso.org:21090"
+                                    }
+                                },
+                                "label": {
+                                    "value": "Location"
+                                }
+                            },
+                            {
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.83627111796862519432211914496949771495"
+                                },
+                                "typeCode": {
+                                    "codeSystemVersion": "",
+                                    "codeSystemName": "RECIST-AMS",
+                                    "code": "S83",
+                                    "iso:displayName": {
+                                        "value": "tracked",
+                                        "xmlns:iso": "uri:iso.org:21090"
+                                    }
+                                },
+                                "label": {
+                                    "value": "Status"
+                                }
+                            }
+                        ]
+                    },
+                    "markupEntityCollection": {
+                        "MarkupEntity": {
+                            "lineOpacity": "",
+                            "lineColor": "",
+                            "includeFlag": {
+                                "value": true
+                            },
+                            "twoDimensionSpatialCoordinateCollection": {
+                                "TwoDimensionSpatialCoordinate": [
+                                    {
+                                        "y": {
+                                            "value": 207.77839335180056
+                                        },
+                                        "coordinateIndex": {
+                                            "value": 0
+                                        },
+                                        "x": {
+                                            "value": 191.46814404432132
+                                        }
+                                    },
+                                    {
+                                        "y": {
+                                            "value": 199.97783933518005
+                                        },
+                                        "coordinateIndex": {
+                                            "value": 1
+                                        },
+                                        "x": {
+                                            "value": 209.90581717451525
+                                        }
+                                    }
+                                ]
+                            },
+                            "shapeIdentifier": {
+                                "value": 1
+                            },
+                            "lineStyle": "",
+                            "uniqueIdentifier": {
+                                "root": "692.434783209.64439.34847367.68.3427590349.3491604.5621.3.537940"
+                            },
+                            "lineThickness": "",
+                            "xsi:type": "TwoDimensionMultiPoint",
+                            "imageReferenceUid": {
+                                "root": "1.2.840.113704.1.111.3844.1212776204.2784"
+                            },
+                            "referencedFrameNumber": {
+                                "value": 1
+                            }
+                        }
+                    },
+                    "dateTime": {
+                        "value": "02.10.2017T11:58:37PM.Zone:GMT"
+                    },
+                    "name": {
+                        "value": "Lesion2~sp1~-~sp1~-1~sp1~#FFFFFF"
+                    },
+                    "uniqueIdentifier": {
+                        "root": "3517748.224630.26258249.253.6514.809642489.21144.8.7980800236.52"
+                    },
+                    "imageReferenceEntityCollection": {
+                        "ImageReferenceEntity": {
+                            "uniqueIdentifier": {
+                                "root": "2.25.116592694708297052553791786262584584143"
+                            },
+                            "xsi:type": "DicomImageReferenceEntity",
+                            "imageStudy": {
+                                "startTime": {
+                                    "value": "12:16:00"
+                                },
+                                "startDate": {
+                                    "value": 20080606
+                                },
+                                "imageSeries": {
+                                    "modality": {
+                                        "codeSystemVersion": 20121129,
+                                        "codeSystemName": "DCM",
+                                        "code": "CT",
+                                        "iso:displayName": {
+                                            "value": "Computed Radiography",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    },
+                                    "imageCollection": {
+                                        "Image": {
+                                            "sopInstanceUid": {
+                                                "root": "1.3.6.1.4.1.14519.5.2.1.1706.4996.191148058068591314550251060242"
+                                            },
+                                            "sopClassUid": {
+                                                "root": "1.2.840.10008.5.1.4.1.1.2"
+                                            }
+                                        }
+                                    },
+                                    "instanceUid": {
+                                        "root": "1.3.6.1.4.1.14519.5.2.1.1706.4996.125234324154032773868316308352"
+                                    }
+                                },
+                                "instanceUid": {
+                                    "root": "1.3.6.1.4.1.14519.5.2.1.1706.4996.267501199180251031414136865313"
+                                }
+                            }
+                        }
+                    },
+                    "typeCode": {
+                        "codeSystemName": "Tumor assessment",
+                        "code": "RECIST",
+                        "iso:displayName": {
+                            "value": "Tumor assessment",
+                            "xmlns:iso": "uri:iso.org:21090"
+                        }
+                    },
+                    "comment": {
+                        "value": "CT / ABD / 23"
+                    }
+                }
+            },
+            "dateTime": {
+                "value": 20161127134811
+            },
+            "uniqueIdentifier": {
+                "root": "2.25.2222222222222222222222"
+            },
+            "aimVersion": "AIMv4_0",
+            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+            "equipment": {
+                "softwareVersion": {
+                    "value": "3.2.0"
+                },
+                "manufacturerName": {
+                    "value": "Philips"
+                },
+                "manufacturerModelName": {
+                    "value": "Mx8000 IDT 10"
+                }
+            },
+            "xmlns:rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+            "xmlns": "gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM",
+            "user": {
+                "name": {
+                    "value": "admin"
+                },
+                "roleInTrial": "",
+                "loginName": {
+                    "value": "admin"
+                }
+            },
+            "xsi:schemaLocation": "gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM AIM_v4_rv44_XML.xsd"
+        }
+    }
+}
