@@ -6,22 +6,37 @@ async function routes(fastify) {
     handler: fastify.saveTemplate,
   });
 
-  // TODO
-  // fastify.route({
-  //   method: 'PUT',
-  //   url: '/templates',
-  //   schema: {
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         uid: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //   },
-  //   handler: fastify.updateTemplate,
-  // });
+  fastify.route({
+    method: 'PUT',
+    url: '/templates/:uid',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          uid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveTemplate,
+  });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/templates/:uid',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          uid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteTemplate,
+  });
 
   // GET {s}/templates
   fastify.route({

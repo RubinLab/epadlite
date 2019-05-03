@@ -209,21 +209,59 @@ async function couchdb(fastify, options) {
   });
 
   fastify.decorate('saveTemplate', (request, reply) => {
-    // get the uid from the json and put as id in couch document
+    // get the uid from the json and check if it is same with param, then put as id in couch document
+    if (request.params.uid && request.params.uid !== request.body.Template.uid) {
+      fastify.log.info(
+        'Conflicting uids: the uid sent in the url should be the same with request.body.Template.uid'
+      );
+      reply
+        .code(503)
+        .send(
+          'Conflicting uids: the uid sent in the url should be the same with request.body.Template.uid'
+        );
+    }
     const couchDoc = {
       _id: request.body.Template.uid,
       template: request.body,
     };
     const db = fastify.couch.db.use(config.db);
-    db.insert(couchDoc, couchDoc._id)
-      .then(() => {
-        reply.code(200).send('success');
-      })
-      .catch(err => {
-        // TODO Proper error reporting implementation required
-        fastify.log.info(`Error in save: ${err}`);
-        reply.code(503).send('error');
-      });
+    db.get(couchDoc._id, (error, existing) => {
+      if (!error) {
+        couchDoc._rev = existing._rev;
+        fastify.log.info(`Updating document for uid ${couchDoc._id}`);
+      }
+
+      db.insert(couchDoc, couchDoc._id)
+        .then(() => {
+          reply.code(200).send('success');
+        })
+        .catch(err => {
+          // TODO Proper error reporting implementation required
+          fastify.log.info(`Error in save: ${err}`);
+          reply.code(503).send('error');
+        });
+    });
+  });
+
+  fastify.decorate('deleteTemplate', (request, reply) => {
+    const db = fastify.couch.db.use(config.db);
+    db.get(request.params.uid, (error, existing) => {
+      if (error) {
+        fastify.log.info(`No document for uid ${request.params.uid}`);
+        // Is 404 the right thing to return?
+        reply.code(404).send(`No document for uid ${request.params.uid}`);
+      }
+
+      db.destroy(request.params.uid, existing._rev)
+        .then(() => {
+          reply.code(200).send('Deletion successful');
+        })
+        .catch(err => {
+          // TODO Proper error reporting implementation required
+          fastify.log.info(`Error in delete: ${err}`);
+          reply.code(503).send(`Deleting error: ${err}`);
+        });
+    });
   });
 
   fastify.log.info(`Using db: ${config.db}`);
