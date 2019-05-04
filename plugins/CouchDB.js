@@ -1,5 +1,8 @@
 /* eslint-disable no-underscore-dangle */
 const fp = require('fastify-plugin');
+const fs = require('fs');
+const rimraf = require('rimraf');
+const archiver = require('archiver');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 
@@ -48,12 +51,63 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate(
+    'downloadAims',
+    async aims =>
+      new Promise((resolve, reject) => {
+        const timestamp = new Date().getTime();
+        const dir = `tmp_${timestamp}`;
+
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir);
+          fs.mkdirSync(`${dir}/annotations`);
+          aims.forEach(aim => {
+            fs.writeFileSync(
+              `${dir}/annotations/${
+                aim.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root
+              }.json`,
+              JSON.stringify(aim)
+            );
+          });
+          // create a file to stream archive data to.
+          const output = fs.createWriteStream(`${dir}/annotations.zip`);
+          const archive = archiver('zip', {
+            zlib: { level: 9 }, // Sets the compression level.
+          });
+
+          archive
+            .directory(`${dir}/annotations`, false)
+            .on('error', err => reject(err))
+            .pipe(output);
+
+          output.on('close', () => {
+            fastify.log.info(`Created zip in ./tmp_${timestamp}`);
+            const readStream = fs.createReadStream(`${dir}/annotations.zip`);
+            // delete tmp folder after the file is sent
+            readStream.once('end', () => {
+              readStream.destroy(); // make sure stream closed, not close if download aborted.
+              rimraf.sync(`./tmp_${timestamp}`);
+              fastify.log.info(`Deleted ./tmp_${timestamp}`);
+            });
+            resolve(readStream);
+          });
+          archive.finalize();
+        }
+      })
+  );
+
   // add accessor methods with decorate
   fastify.decorate(
     'getAims',
     (format, params) =>
       new Promise(async (resolve, reject) => {
         try {
+          // make sure there is value in all three even if empty
+          const myParams = params;
+          if (!params.subject) myParams.subject = '';
+          if (!params.study) myParams.study = '';
+          if (!params.series) myParams.series = '';
+
           // define which view to use according to the parameter format
           // default is json
           let view = 'aims_json';
@@ -66,11 +120,11 @@ async function couchdb(fastify, options) {
             'instances',
             view,
             {
-              startkey: [params.subject, params.study, params.series, ''],
+              startkey: [myParams.subject, myParams.study, myParams.series, ''],
               endkey: [
-                `${params.subject}\u9999`,
-                `${params.study}\u9999`,
-                `${params.series}\u9999`,
+                `${myParams.subject}\u9999`,
+                `${myParams.study}\u9999`,
+                `${myParams.series}\u9999`,
                 '{}',
               ],
               reduce: true,
@@ -80,12 +134,22 @@ async function couchdb(fastify, options) {
               if (!error) {
                 const res = [];
 
-                if (view === 'aims_summary') {
+                if (format === 'summary') {
                   body.rows.forEach(instance => {
                     // get the actual instance object (tags only)
                     res.push(instance.key[4]);
                   });
                   resolve({ ResultSet: { Result: res } });
+                } else if (format === 'stream') {
+                  body.rows.forEach(instance => {
+                    // get the actual instance object (tags only)
+                    // the first 3 keys are patient, study, series, image
+                    res.push(instance.key[4]);
+                  });
+                  fastify
+                    .downloadAims(res)
+                    .then(result => resolve(result))
+                    .catch(err => reject(err));
                 } else {
                   // the default is json! The old APIs were XML, no XML in epadlite
                   body.rows.forEach(instance => {
@@ -112,10 +176,40 @@ async function couchdb(fastify, options) {
   fastify.decorate('getSeriesAims', (request, reply) => {
     fastify
       .getAims(request.query.format, request.params)
-      .then(result => reply.code(200).send(result))
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        }
+        reply.code(200).send(result);
+      })
       .catch(err => reply.code(503).send(err));
   });
 
+  // add accessor methods with decorate
+  fastify.decorate('getStudyAims', (request, reply) => {
+    fastify
+      .getAims(request.query.format, request.params)
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        }
+        reply.code(200).send(result);
+      })
+      .catch(err => reply.code(503).send(err));
+  });
+
+  // add accessor methods with decorate
+  fastify.decorate('getSubjectAims', (request, reply) => {
+    fastify
+      .getAims(request.query.format, request.params)
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        }
+        reply.code(200).send(result);
+      })
+      .catch(err => reply.code(503).send(err));
+  });
   fastify.decorate('saveAim', (request, reply) => {
     // get the uid from the json and check if it is same with param, then put as id in couch document
     if (
