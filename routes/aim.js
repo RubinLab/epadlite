@@ -46,6 +46,9 @@ async function aimRoutes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/series/:series/aims',
     schema: {
+      querystring: {
+        format: { type: 'string' },
+      },
       params: {
         type: 'object',
         properties: {
@@ -73,6 +76,9 @@ async function aimRoutes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/aims',
     schema: {
+      querystring: {
+        format: { type: 'string' },
+      },
       params: {
         type: 'object',
         properties: {
@@ -97,6 +103,9 @@ async function aimRoutes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/aims',
     schema: {
+      querystring: {
+        format: { type: 'string' },
+      },
       params: {
         type: 'object',
         properties: {
