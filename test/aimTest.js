@@ -148,6 +148,110 @@ describe('AIM Tests', () => {
       });
   });
 
+  it('it should get zip file for downloading all aims', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/lite/aims')
+      .query({ format: 'stream' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('it should get zip file for downloading aims for the subject MRI-DIR-T2_3', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/lite/subjects/MRI-DIR-T2_3/aims')
+      .query({ format: 'stream' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('it should get zip file for downloading aims for the study 1.3.6.1.4.1.14519.5.2.1.1706.4996.267501199180251031414136865313', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get(
+        '/projects/lite/subjects/MRI-DIR-T2_3/studies/1.3.6.1.4.1.14519.5.2.1.1706.4996.267501199180251031414136865313/aims'
+      )
+      .query({ format: 'stream' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('it should get zip file for downloading aims for the series', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get(
+        '/projects/lite/subjects/MRI-DIR-T2_3/studies/1.3.6.1.4.1.14519.5.2.1.1706.4996.267501199180251031414136865313/series/1.3.6.1.4.1.14519.5.2.1.1706.4996.125234324154032773868316308352/aims'
+      )
+      .query({ format: 'stream' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it("it should fail getting zip file for downloading aims ['2.25.2222222222222222222222'] with no query params", done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/projects/lite/aims/download')
+      .send(['2.25.2222222222222222222222'])
+      .then(res => {
+        expect(res.statusCode).to.equal(400);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it("it should fail getting zip file for downloading aims ['2.25.2222222222222222222222'] with all query params as false", done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/projects/lite/aims/download?summary=false&aim=false')
+      .send(['2.25.2222222222222222222222'])
+      .then(res => {
+        expect(res.statusCode).to.equal(503);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it("it should get zip file for downloading aims ['2.25.2222222222222222222222'] with query params summary=true&aim=true", done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/projects/lite/aims/download?summary=false&aim=true')
+      .send(['2.25.2222222222222222222222'])
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('aim delete with uid 2.25.2222222222222222222222 should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

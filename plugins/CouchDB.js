@@ -1,5 +1,9 @@
 /* eslint-disable no-underscore-dangle */
 const fp = require('fastify-plugin');
+const fs = require('fs-extra');
+const archiver = require('archiver');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const dateFormatter = require('date-format');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 
@@ -48,12 +52,343 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('getOtherHeaders', (imageAnnotation, header) => {
+    // very clumsy, long code, but traverses once
+    // Imaging observation, imaging physical entity
+    if (imageAnnotation.imagingPhysicalEntityCollection) {
+      let ipes = [];
+      if (Array.isArray(imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity)) {
+        ipes = imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity;
+      } else {
+        ipes.push(imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity);
+      }
+      ipes.forEach(ipe => {
+        header.push({ id: ipe.label.value.toLowerCase(), title: ipe.label.value });
+        if (ipe.imagingPhysicalEntityCharacteristicCollection) {
+          let ipcs = [];
+          if (
+            Array.isArray(
+              ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
+            )
+          ) {
+            ipcs =
+              ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
+          } else {
+            ipcs.push(
+              ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
+            );
+          }
+          ipcs.forEach(ipc => {
+            header.push({
+              id: ipc.label.value.toLowerCase(),
+              title: ipc.label.value,
+            });
+          });
+        }
+      });
+    }
+
+    if (imageAnnotation.imagingObservationEntityCollection) {
+      let ioes = [];
+      if (
+        Array.isArray(imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity)
+      ) {
+        ioes = imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity;
+      } else {
+        ioes.push(imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity);
+      }
+      ioes.forEach(ioe => {
+        // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
+        header.push({ id: ioe.label.value.toLowerCase(), title: ioe.label.value });
+        if (ioe.imagingObservationEntityCharacteristicCollection) {
+          let iocs = [];
+          if (
+            Array.isArray(
+              ioe.imagingObservationEntityCharacteristicCollection
+                .ImagingObservationEntityCharacteristic
+            )
+          ) {
+            iocs = ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
+          } else {
+            isSecureContext.push(
+              ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic
+            );
+          }
+          iocs.forEach(ioc => {
+            header.push({
+              id: ioc.label.value.toLowerCase(),
+              title: ioc.label.value,
+            });
+          });
+        }
+        let ipcs = [];
+        if (ioe.imagingPhysicalEntityCharacteristicCollection) {
+          if (
+            Array.isArray(
+              ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
+            )
+          ) {
+            ipcs =
+              ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
+          } else {
+            ipcs.push(
+              ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
+            );
+          }
+          ipcs.forEach(ipc => {
+            header.push({
+              id: ipc.label.value.toLowerCase(),
+              title: ipc.label.value,
+            });
+          });
+        }
+      });
+    }
+    return header;
+  });
+
+  fastify.decorate('getOtherData', (imageAnnotation, rowIn) => {
+    // very clumsy, long code, but traverses once
+    const row = rowIn;
+    // add imagingPhysicalEntitys
+    if (imageAnnotation.imagingPhysicalEntityCollection) {
+      let ipes = [];
+      if (Array.isArray(imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity)) {
+        ipes = imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity;
+      } else {
+        ipes.push(imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity);
+      }
+      ipes.forEach(ipe => {
+        row[ipe.label.value.toLowerCase()] = ipe.typeCode['iso:displayName'].value;
+        if (ipe.imagingPhysicalEntityCharacteristicCollection) {
+          let ipcs = [];
+          if (
+            Array.isArray(
+              ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
+            )
+          ) {
+            ipcs =
+              ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
+          } else {
+            ipcs.push(
+              ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
+            );
+          }
+
+          ipcs.forEach(ipc => {
+            row[ipc.label.value.toLowerCase()] = ipc.typeCode['iso:displayName'].value;
+          });
+        }
+      });
+    }
+
+    // add imagingObservationEntitys
+    if (imageAnnotation.imagingObservationEntityCollection) {
+      let ioes = [];
+      if (
+        Array.isArray(imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity)
+      ) {
+        ioes = imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity;
+      } else {
+        ioes.push(imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity);
+      }
+      ioes.forEach(ioe => {
+        // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
+        row[ioe.label.value.toLowerCase()] = ioe.typeCode['iso:displayName'].value;
+        if (ioe.imagingObservationEntityCharacteristicCollection) {
+          let iocs = [];
+          if (
+            Array.isArray(
+              ioe.imagingObservationEntityCharacteristicCollection
+                .ImagingObservationEntityCharacteristic
+            )
+          ) {
+            iocs = ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
+          } else {
+            iocs.push(
+              ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic
+            );
+          }
+          iocs.forEach(ioc => {
+            row[ioc.label.value.toLowerCase()] = ioc.typeCode['iso:displayName'].value;
+          });
+        }
+        if (ioe.imagingPhysicalEntityCharacteristicCollection) {
+          let ipcs = [];
+          if (
+            Array.isArray(
+              ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
+            )
+          ) {
+            ipcs =
+              ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
+          } else {
+            ipcs.push(
+              ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
+            );
+          }
+          ipcs.forEach(ipc => {
+            row[ipc.label.value.toLowerCase()] = ipc.typeCode['iso:displayName'].value;
+          });
+        }
+      });
+    }
+    return row;
+  });
+
+  fastify.decorate(
+    'downloadAims',
+    async (params, aims) =>
+      new Promise((resolve, reject) => {
+        const timestamp = new Date().getTime();
+        const dir = `tmp_${timestamp}`;
+        // have a boolean just to avoid filesystem check for empty annotations directory
+        let isThereDataToWrite = false;
+
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir);
+          fs.mkdirSync(`${dir}/annotations`);
+          // create the header base
+          let header = [
+            // Date_Created	Patient_Name	Patient_ID	Reviewer	Name Comment	Points	Study_UID	Series_UID	Image_UID
+            { id: 'date', title: 'Date_Created' },
+            { id: 'patientName', title: 'Patient_Name' },
+            { id: 'patientId', title: 'Patient_ID' },
+            { id: 'reviewer', title: 'Reviewer' },
+            { id: 'name', title: 'Name' },
+            { id: 'comment', title: 'Comment' },
+            { id: 'userComment', title: 'User_Comment' },
+            { id: 'points', title: 'Points' },
+            { id: 'studyUid', title: 'Study_UID' },
+            { id: 'seriedUid', title: 'Series_UID' },
+            { id: 'imageUid', title: 'Image_UID' },
+          ];
+
+          const data = [];
+          aims.forEach(aim => {
+            if (params.summary && params.summary.toLowerCase() === 'true') {
+              let imageAnnotations = [];
+              if (
+                Array.isArray(
+                  aim.imageAnnotations.ImageAnnotationCollection.imageAnnotations.ImageAnnotation
+                )
+              ) {
+                imageAnnotations =
+                  aim.imageAnnotations.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
+              } else {
+                imageAnnotations.push(
+                  aim.imageAnnotations.ImageAnnotationCollection.imageAnnotations.ImageAnnotation
+                );
+              }
+
+              imageAnnotations.forEach(imageAnnotation => {
+                const commentSplit = imageAnnotation.comment.value.split('~~');
+                const points = [];
+                if (imageAnnotation.markupEntityCollection) {
+                  imageAnnotation.markupEntityCollection.MarkupEntity.twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
+                    coor => {
+                      points.push(`(${coor.x.value} ${coor.y.value})`);
+                    }
+                  );
+                }
+
+                header = fastify.getOtherHeaders(imageAnnotation, header);
+
+                // add values common to all annotations
+                let row = {
+                  date: dateFormatter.asString(
+                    dateFormatter.ISO8601_FORMAT,
+                    dateFormatter.parse(
+                      'yyyyMMddhhmmssSSS',
+                      `${aim.imageAnnotations.ImageAnnotationCollection.dateTime.value}000`
+                    )
+                  ),
+                  patientName: aim.imageAnnotations.ImageAnnotationCollection.person.name.value,
+                  patientId: aim.imageAnnotations.ImageAnnotationCollection.person.id.value,
+                  reviewer: aim.imageAnnotations.ImageAnnotationCollection.user.name.value,
+                  name: imageAnnotation.name.value.split('~')[0],
+                  comment: commentSplit[0],
+                  userComment: commentSplit.length > 1 ? commentSplit[1] : '',
+                  points: `[${points}]`,
+                  studyUid:
+                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity.imageStudy
+                      .instanceUid.root,
+                  seriedUid:
+                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity.imageStudy
+                      .imageSeries.instanceUid.root,
+                  imageUid:
+                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity.imageStudy
+                      .imageSeries.imageCollection.Image.sopInstanceUid.root,
+                };
+
+                row = fastify.getOtherData(imageAnnotation, row);
+                data.push(row);
+              });
+            }
+            if (params.aim && params.aim.toLowerCase() === 'true') {
+              fs.writeFileSync(
+                `${dir}/annotations/${
+                  aim.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root
+                }.json`,
+                JSON.stringify(aim)
+              );
+              isThereDataToWrite = true;
+            }
+          });
+          if (params.summary && params.summary.toLowerCase() === 'true') {
+            // create the csv writer and write the summary
+            const csvWriter = createCsvWriter({
+              path: `${dir}/annotations/summary.csv`,
+              header,
+            });
+            csvWriter
+              .writeRecords(data)
+              .then(() => fastify.log.info('The summary CSV file was written successfully'));
+            isThereDataToWrite = true;
+          }
+          if (isThereDataToWrite) {
+            // create a file to stream archive data to.
+            const output = fs.createWriteStream(`${dir}/annotations.zip`);
+            const archive = archiver('zip', {
+              zlib: { level: 9 }, // Sets the compression level.
+            });
+            // create the archive
+            archive
+              .directory(`${dir}/annotations`, false)
+              .on('error', err => reject(err))
+              .pipe(output);
+
+            output.on('close', () => {
+              fastify.log.info(`Created zip in ./tmp_${timestamp}`);
+              const readStream = fs.createReadStream(`${dir}/annotations.zip`);
+              // delete tmp folder after the file is sent
+              readStream.once('end', () => {
+                readStream.destroy(); // make sure stream closed, not close if download aborted.
+                fs.removeSync(`./tmp_${timestamp}`);
+                fastify.log.info(`Deleted ./tmp_${timestamp}`);
+              });
+              resolve(readStream);
+            });
+            archive.finalize();
+          } else {
+            reject(new Error('No files to write!'));
+          }
+        }
+      })
+  );
+
   // add accessor methods with decorate
   fastify.decorate(
     'getAims',
     (format, params) =>
       new Promise(async (resolve, reject) => {
         try {
+          // make sure there is value in all three even if empty
+          const myParams = params;
+          if (!params.subject) myParams.subject = '';
+          if (!params.study) myParams.study = '';
+          if (!params.series) myParams.series = '';
+
           // define which view to use according to the parameter format
           // default is json
           let view = 'aims_json';
@@ -66,11 +401,11 @@ async function couchdb(fastify, options) {
             'instances',
             view,
             {
-              startkey: [params.subject, params.study, params.series, ''],
+              startkey: [myParams.subject, myParams.study, myParams.series, ''],
               endkey: [
-                `${params.subject}\u9999`,
-                `${params.study}\u9999`,
-                `${params.series}\u9999`,
+                `${myParams.subject}\u9999`,
+                `${myParams.study}\u9999`,
+                `${myParams.series}\u9999`,
                 '{}',
               ],
               reduce: true,
@@ -80,12 +415,23 @@ async function couchdb(fastify, options) {
               if (!error) {
                 const res = [];
 
-                if (view === 'aims_summary') {
+                if (format === 'summary') {
                   body.rows.forEach(instance => {
                     // get the actual instance object (tags only)
                     res.push(instance.key[4]);
                   });
                   resolve({ ResultSet: { Result: res } });
+                } else if (format === 'stream') {
+                  body.rows.forEach(instance => {
+                    // get the actual instance object (tags only)
+                    // the first 3 keys are patient, study, series, image
+                    res.push(instance.key[4]);
+                  });
+                  // download aims only
+                  fastify
+                    .downloadAims({ aim: 'true' }, res)
+                    .then(result => resolve(result))
+                    .catch(err => reject(err));
                 } else {
                   // the default is json! The old APIs were XML, no XML in epadlite
                   body.rows.forEach(instance => {
@@ -112,8 +458,76 @@ async function couchdb(fastify, options) {
   fastify.decorate('getSeriesAims', (request, reply) => {
     fastify
       .getAims(request.query.format, request.params)
-      .then(result => reply.code(200).send(result))
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        }
+        reply.code(200).send(result);
+      })
       .catch(err => reply.code(503).send(err));
+  });
+
+  // add accessor methods with decorate
+  fastify.decorate('getStudyAims', (request, reply) => {
+    fastify
+      .getAims(request.query.format, request.params)
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        }
+        reply.code(200).send(result);
+      })
+      .catch(err => reply.code(503).send(err));
+  });
+
+  // add accessor methods with decorate
+  fastify.decorate('getSubjectAims', (request, reply) => {
+    fastify
+      .getAims(request.query.format, request.params)
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        }
+        reply.code(200).send(result);
+      })
+      .catch(err => reply.code(503).send(err));
+  });
+
+  fastify.decorate('getProjectAims', (request, reply) => {
+    fastify
+      .getAims(request.query.format, request.params)
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        }
+        reply.code(200).send(result);
+      })
+      .catch(err => reply.code(503).send(err));
+  });
+
+  // template accessors
+  fastify.decorate('getAimsFromUIDs', (request, reply) => {
+    try {
+      if (Object.keys(request.query).length === 0) {
+        reply.code(400).send("Query params shouldn't be empty");
+      } else {
+        const db = fastify.couch.db.use(config.db);
+        const res = [];
+        db.fetch({ keys: request.body }).then(data => {
+          // db.fetch({ keys: ['2.25.2222222222222222222222'] }).then(data => {
+          data.rows.forEach(item => {
+            res.push(item.doc.aim);
+          });
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+          fastify
+            .downloadAims(request.query, res)
+            .then(result => reply.code(200).send(result))
+            .catch(err => reply.code(503).send(err.message));
+        });
+      }
+    } catch (err) {
+      reply.code(503).send(err);
+    }
   });
 
   fastify.decorate('saveAim', (request, reply) => {
