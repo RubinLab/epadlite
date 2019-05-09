@@ -1,7 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 const fp = require('fastify-plugin');
-const fs = require('fs');
-const rimraf = require('rimraf');
+const fs = require('fs-extra');
 const archiver = require('archiver');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
@@ -365,7 +364,7 @@ async function couchdb(fastify, options) {
               // delete tmp folder after the file is sent
               readStream.once('end', () => {
                 readStream.destroy(); // make sure stream closed, not close if download aborted.
-                rimraf.sync(`./tmp_${timestamp}`);
+                fs.removeSync(`./tmp_${timestamp}`);
                 fastify.log.info(`Deleted ./tmp_${timestamp}`);
               });
               resolve(readStream);
