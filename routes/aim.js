@@ -121,6 +121,46 @@ async function aimRoutes(fastify) {
 
     handler: fastify.getSubjectAims,
   });
+
+  // GET {s}/aims
+  fastify.route({
+    method: 'GET',
+    url: '/aims',
+    querystring: {
+      format: { type: 'string' },
+    },
+    schema: {
+      // response: {
+      //   200: 'aim_schema#',
+      // },
+    },
+
+    handler: fastify.getProjectAims,
+  });
+
+  // POST {s}/aims/download
+  // we want to have a body of an array of aim uids, so we need to use post
+  fastify.route({
+    method: 'POST',
+    url: '/aims/download',
+    querystring: {
+      summary: { type: 'boolean' },
+      aim: { type: 'boolean' },
+    },
+    schema: {
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+      // response: {
+      //   200: 'aim_schema#',
+      // },
+    },
+
+    handler: fastify.getAimsFromUIDs,
+  });
 }
 
 module.exports = aimRoutes;
