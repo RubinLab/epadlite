@@ -42,6 +42,9 @@ async function routes(fastify) {
   fastify.route({
     method: 'GET',
     url: '/templates',
+    querystring: {
+      format: { type: 'string' },
+    },
     // schema: {
     //   response: {
     //     200: 'templates_schema#',
