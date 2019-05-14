@@ -594,20 +594,25 @@ async function couchdb(fastify, options) {
   // template accessors
   fastify.decorate('getTemplates', (request, reply) => {
     try {
+      let type = 'image';
+      // eslint-disable-next-line prefer-destructuring
+      if (request.query.type) type = request.query.type.toLowerCase();
       const db = fastify.couch.db.use(config.db);
       db.view(
         'instances',
         'templates',
         {
+          startkey: [type, '', ''],
+          endkey: [`${type}\u9999`, '{}', '{}'],
           reduce: true,
-          group_level: 2,
+          group_level: 3,
         },
         (error, body) => {
           if (!error) {
             const res = [];
 
             body.rows.forEach(template => {
-              res.push(template.key[1]);
+              res.push(template.key[2]);
             });
             reply.code(200).send({ ResultSet: { Result: res } });
           } else {

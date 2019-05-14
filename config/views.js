@@ -22,7 +22,7 @@ module.exports.views = {
 
   templates: {
     map:
-      ' function(doc) { if (doc.template) { emit([doc.template.Template.codeValue, doc.template], 1)}} ',
+      " function(doc) { if (doc.template) { type='image'; if (doc.template.Template.templateType) type=doc.template.Template.templateType.toLowerCase(); emit([type, doc.template.Template.codeValue, doc.template], 1)}} ",
     reduce: '_count()',
   },
 };
