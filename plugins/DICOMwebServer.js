@@ -285,7 +285,7 @@ async function dicomwebserver(fastify) {
           const result = _.map(values[0].data, value => {
             return {
               projectID,
-              // TODO
+              // TODO put in dicomweb but what if other dicomweb is used
               patientID:
                 value['00100020'] && value['00100020'].Value ? value['00100020'].Value[0] : '',
               // TODO
