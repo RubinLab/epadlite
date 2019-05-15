@@ -4,6 +4,6 @@ module.exports = {
   db: 'testdb_epadlite',
   dbPort: process.env.PORT || 5984,
   auth: 'none',
-  dicomweb: 'dicomweb_oidc',
+  dicomweb: 'dicomweb_none',
   logger: false,
 };
