@@ -92,6 +92,68 @@ async function dicomwebserver(fastify) {
       })
   );
   // add accessor methods with decorate
+  fastify.decorate(
+    'saveDicoms',
+    (data, boundary) =>
+      new Promise((resolve, reject) => {
+        try {
+          const headers = {
+            'Content-Type': `multipart/related; type=application/dicom; boundary=${boundary}`,
+            maxContentLength: Buffer.byteLength(data) + 1,
+          };
+          this.request
+            .post('/studies', data, headers)
+            .then(() => {
+              fastify.log.info('Success');
+              resolve();
+            })
+            .catch(error => {
+              fastify.log.info(`Error in saving dicoms ${error.message}`);
+              reject(error);
+            });
+        } catch (err) {
+          fastify.log.info(`Error saving dicoms: ${err.message}`);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate('deleteStudy', (request, reply) => {
+    try {
+      this.request
+        .delete(`/studies/${request.params.study}`)
+        .then(() => {
+          fastify.log.info('Success');
+          reply.code(200).send();
+        })
+        .catch(error => {
+          fastify.log.info(`Error in deleting dicoms ${error.message}`);
+          reply.code(503).send(error.message);
+        });
+    } catch (err) {
+      fastify.log.info(`Error deleting dicoms: ${err.message}`);
+      reply.code(503).send(err.message);
+    }
+  });
+
+  fastify.decorate('deleteSeries', (request, reply) => {
+    try {
+      this.request
+        .delete(`/studies/${request.params.study}/series/${request.params.series}`)
+        .then(() => {
+          fastify.log.info('Success');
+          reply.code(200).send();
+        })
+        .catch(error => {
+          fastify.log.info(`Error in deleting dicoms ${error.message}`);
+          reply.code(503).send(error.message);
+        });
+    } catch (err) {
+      fastify.log.info(`Error deleting dicoms: ${err.message}`);
+      reply.code(503).send(err.message);
+    }
+  });
+
   fastify.decorate('getPatients', (request, reply) => {
     try {
       // make studies cal and aims call
@@ -282,7 +344,10 @@ async function dicomwebserver(fastify) {
             .value();
           // handle success
           // map each series to epadlite series object
-          const result = _.map(values[0].data, value => {
+          let filtered = values[0].data;
+          if (request.query.filterDSO === 'true')
+            filtered = _.filter(values[0].data, obj => obj['00080060'].Value[0] !== 'SEG');
+          const result = _.map(filtered, value => {
             return {
               projectID,
               // TODO put in dicomweb but what if other dicomweb is used
@@ -322,7 +387,6 @@ async function dicomwebserver(fastify) {
                 value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
             };
           });
-
           reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
         })
         .catch(error => {
