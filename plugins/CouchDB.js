@@ -546,29 +546,44 @@ async function couchdb(fastify, options) {
           'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
         );
     }
-
-    const couchDoc = {
-      _id: request.body.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root,
-      aim: request.body,
-    };
-    const db = fastify.couch.db.use(config.db);
-    db.get(couchDoc._id, (error, existing) => {
-      if (!error) {
-        couchDoc._rev = existing._rev;
-        fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
-      }
-
-      db.insert(couchDoc, couchDoc._id)
-        .then(() => {
-          reply.code(200).send('Saving successful');
-        })
-        .catch(err => {
-          // TODO Proper error reporting implementation required
-          fastify.log.info(`Error in save: ${err}`);
-          reply.code(503).send(`Saving error: ${err}`);
-        });
-    });
+    fastify
+      .saveAimInternal(request.body)
+      .then(() => {
+        reply.code(200).send('Saving successful');
+      })
+      .catch(err => {
+        // TODO Proper error reporting implementation required
+        fastify.log.info(`Error in save: ${err}`);
+        reply.code(503).send(`Saving error: ${err}`);
+      });
   });
+
+  fastify.decorate(
+    'saveAimInternal',
+    aim =>
+      new Promise((resolve, reject) => {
+        const couchDoc = {
+          _id: aim.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root,
+          aim,
+        };
+        const db = fastify.couch.db.use(config.db);
+        db.get(couchDoc._id, (error, existing) => {
+          if (!error) {
+            couchDoc._rev = existing._rev;
+            fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
+          }
+
+          db.insert(couchDoc, couchDoc._id)
+            .then(() => {
+              resolve('Saving successful');
+            })
+            .catch(err => {
+              // TODO Proper error reporting implementation required
+              reject(err);
+            });
+        });
+      })
+  );
 
   fastify.decorate('deleteAim', (request, reply) => {
     const db = fastify.couch.db.use(config.db);
