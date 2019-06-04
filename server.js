@@ -1,8 +1,19 @@
+const fs = require('fs-extra');
+const path = require('path');
 // eslint-disable-next-line import/order
 const config = require('./config/index');
 // Require the framework and instantiate it
 const fastify = require('fastify')({
   logger: config.logger || false,
+  https:
+    config.https === true &&
+    fs.existsSync(path.join(__dirname, 'tls.key')) &&
+    fs.existsSync(path.join(__dirname, 'tls.crt'))
+      ? {
+          key: fs.readFileSync(path.join(__dirname, 'tls.key')),
+          cert: fs.readFileSync(path.join(__dirname, 'tls.crt')),
+        }
+      : '',
 });
 
 const atob = require('atob');
@@ -53,11 +64,15 @@ fastify.register(require('./plugins/DICOMwebServer'), {
   url: `${config.dicomWebServer}`,
 });
 
+// register Other plugin we created
+fastify.register(require('./plugins/Other'));
+
 // register routes
 // this should be done after CouchDB plugin to be able to use the accessor methods
 fastify.register(require('./routes/aim'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
 fastify.register(require('./routes/template'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
 fastify.register(require('./routes/dicomweb'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+fastify.register(require('./routes/other'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
 
 // authCheck routine checks if there is a bearer token or encoded basic authentication
 // info in the authorization header and does the authentication or verification of token
@@ -76,6 +91,7 @@ const authCheck = async (authHeader, res) => {
           });
         }
       } catch (e) {
+        fastify.log.info(e);
         res.code(401).send({
           message: e.message,
         });
