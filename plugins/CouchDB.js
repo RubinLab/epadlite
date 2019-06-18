@@ -267,19 +267,8 @@ async function couchdb(fastify, options) {
           const data = [];
           aims.forEach(aim => {
             if (params.summary && params.summary.toLowerCase() === 'true') {
-              let imageAnnotations = [];
-              if (
-                Array.isArray(
-                  aim.imageAnnotations.ImageAnnotationCollection.imageAnnotations.ImageAnnotation
-                )
-              ) {
-                imageAnnotations =
-                  aim.imageAnnotations.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
-              } else {
-                imageAnnotations.push(
-                  aim.imageAnnotations.ImageAnnotationCollection.imageAnnotations.ImageAnnotation
-                );
-              }
+              const imageAnnotations =
+                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
 
               imageAnnotations.forEach(imageAnnotation => {
                 const commentSplit = imageAnnotation.comment.value.split('~~');
@@ -298,14 +287,11 @@ async function couchdb(fastify, options) {
                 let row = {
                   date: dateFormatter.asString(
                     dateFormatter.ISO8601_FORMAT,
-                    dateFormatter.parse(
-                      'yyyyMMddhhmmssSSS',
-                      `${aim.imageAnnotations.ImageAnnotationCollection.dateTime.value}000`
-                    )
+                    dateFormatter.parse('yyyyMMddhhmmssSSS', `${imageAnnotation.dateTime.value}000`)
                   ),
-                  patientName: aim.imageAnnotations.ImageAnnotationCollection.person.name.value,
-                  patientId: aim.imageAnnotations.ImageAnnotationCollection.person.id.value,
-                  reviewer: aim.imageAnnotations.ImageAnnotationCollection.user.name.value,
+                  patientName: aim.ImageAnnotationCollection.person.name.value,
+                  patientId: aim.ImageAnnotationCollection.person.id.value,
+                  reviewer: aim.ImageAnnotationCollection.user.name.value,
                   name: imageAnnotation.name.value.split('~')[0],
                   comment: commentSplit[0],
                   userComment: commentSplit.length > 1 ? commentSplit[1] : '',
@@ -328,7 +314,8 @@ async function couchdb(fastify, options) {
             if (params.aim && params.aim.toLowerCase() === 'true') {
               fs.writeFileSync(
                 `${dir}/annotations/${
-                  aim.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier
+                    .root
                 }.json`,
                 JSON.stringify(aim)
               );
@@ -437,9 +424,9 @@ async function couchdb(fastify, options) {
                   body.rows.forEach(instance => {
                     // get the actual instance object (tags only)
                     // the first 3 keys are patient, study, series, image
-                    res.push(instance.key[4].imageAnnotations.ImageAnnotationCollection);
+                    res.push(instance.key[4]);
                   });
-                  resolve({ imageAnnotations: { ImageAnnotationCollection: res } });
+                  resolve(res);
                 }
               } else {
                 // TODO Proper error reporting implementation required
@@ -535,7 +522,8 @@ async function couchdb(fastify, options) {
     if (
       request.params.aimuid &&
       request.params.aimuid !==
-        request.body.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root
+        request.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier
+          .root
     ) {
       fastify.log.info(
         'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
@@ -563,7 +551,8 @@ async function couchdb(fastify, options) {
     aim =>
       new Promise((resolve, reject) => {
         const couchDoc = {
-          _id: aim.imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root,
+          _id:
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier.root,
           aim,
         };
         const db = fastify.couch.db.use(config.db);
@@ -644,7 +633,10 @@ async function couchdb(fastify, options) {
 
   fastify.decorate('saveTemplate', (request, reply) => {
     // get the uid from the json and check if it is same with param, then put as id in couch document
-    if (request.params.uid && request.params.uid !== request.body.Template.uid) {
+    if (
+      request.params.uid &&
+      request.params.uid !== request.body.TemplateContainer.Template[0].uid
+    ) {
       fastify.log.info(
         'Conflicting uids: the uid sent in the url should be the same with request.body.Template.uid'
       );
@@ -654,28 +646,44 @@ async function couchdb(fastify, options) {
           'Conflicting uids: the uid sent in the url should be the same with request.body.Template.uid'
         );
     }
-    const couchDoc = {
-      _id: request.body.Template.uid,
-      template: request.body,
-    };
-    const db = fastify.couch.db.use(config.db);
-    db.get(couchDoc._id, (error, existing) => {
-      if (!error) {
-        couchDoc._rev = existing._rev;
-        fastify.log.info(`Updating document for uid ${couchDoc._id}`);
-      }
-
-      db.insert(couchDoc, couchDoc._id)
-        .then(() => {
-          reply.code(200).send('success');
-        })
-        .catch(err => {
-          // TODO Proper error reporting implementation required
-          fastify.log.info(`Error in save: ${err}`);
-          reply.code(503).send('error');
-        });
-    });
+    fastify
+      .saveTemplateInternal(request.body)
+      .then(() => {
+        reply.code(200).send('Saving successful');
+      })
+      .catch(err => {
+        // TODO Proper error reporting implementation required
+        fastify.log.info(`Error in save: ${err}`);
+        reply.code(503).send(`Saving error: ${err}`);
+      });
   });
+
+  fastify.decorate(
+    'saveTemplateInternal',
+    template =>
+      new Promise((resolve, reject) => {
+        const couchDoc = {
+          _id: template.TemplateContainer.Template[0].uid,
+          template,
+        };
+        const db = fastify.couch.db.use(config.db);
+        db.get(couchDoc._id, (error, existing) => {
+          if (!error) {
+            couchDoc._rev = existing._rev;
+            fastify.log.info(`Updating document for uid ${couchDoc._id}`);
+          }
+
+          db.insert(couchDoc, couchDoc._id)
+            .then(() => {
+              resolve('Saving successful');
+            })
+            .catch(err => {
+              // TODO Proper error reporting implementation required
+              reject(err);
+            });
+        });
+      })
+  );
 
   fastify.decorate('deleteTemplate', (request, reply) => {
     const db = fastify.couch.db.use(config.db);
