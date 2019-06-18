@@ -90,8 +90,8 @@ describe('Other Tests', () => {
       .get('/projects/lite/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result).to.be.a('array');
-        expect(res.body.ResultSet.Result.length).to.be.eql(1);
+        expect(res.body).to.be.a('array');
+        expect(res.body.length).to.be.eql(1);
         done();
       })
       .catch(e => {
@@ -104,12 +104,8 @@ describe('Other Tests', () => {
       .get('/projects/lite/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result[0].TemplateContainer.Template[0].name).to.be.eql(
-          'RECIST_v2'
-        );
-        expect(res.body.ResultSet.Result[0].TemplateContainer.Template[0].codeValue).to.be.eql(
-          'RECIST_v2'
-        );
+        expect(res.body[0].TemplateContainer.Template[0].name).to.be.eql('RECIST_v2');
+        expect(res.body[0].TemplateContainer.Template[0].codeValue).to.be.eql('RECIST_v2');
         done();
       })
       .catch(e => {

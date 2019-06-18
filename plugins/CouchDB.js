@@ -492,7 +492,6 @@ async function couchdb(fastify, options) {
       .catch(err => reply.code(503).send(err));
   });
 
-  // template accessors
   fastify.decorate('getAimsFromUIDs', (request, reply) => {
     try {
       if (Object.keys(request.query).length === 0) {
@@ -501,9 +500,9 @@ async function couchdb(fastify, options) {
         const db = fastify.couch.db.use(config.db);
         const res = [];
         db.fetch({ keys: request.body }).then(data => {
-          // db.fetch({ keys: ['2.25.2222222222222222222222'] }).then(data => {
           data.rows.forEach(item => {
-            res.push(item.doc.aim);
+            // if not found it returns the record with no doc, error: 'not_found'
+            if ('doc' in item) res.push(item.doc.aim);
           });
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
           fastify
@@ -597,39 +596,78 @@ async function couchdb(fastify, options) {
 
   // template accessors
   fastify.decorate('getTemplates', (request, reply) => {
-    try {
-      let type = 'image';
-      // eslint-disable-next-line prefer-destructuring
-      if (request.query.type) type = request.query.type.toLowerCase();
-      const db = fastify.couch.db.use(config.db);
-      db.view(
-        'instances',
-        'templates',
-        {
-          startkey: [type, '', ''],
-          endkey: [`${type}\u9999`, '{}', '{}'],
-          reduce: true,
-          group_level: 3,
-        },
-        (error, body) => {
-          if (!error) {
-            const res = [];
-
-            body.rows.forEach(template => {
-              res.push(template.key[2]);
-            });
-            reply.code(200).send({ ResultSet: { Result: res } });
-          } else {
-            // TODO Proper error reporting implementation required
-            fastify.log.info(`Error in get templates: ${error}`);
-            reply.code(503).send(error);
-          }
+    fastify
+      .getTemplatesInternal(request.query)
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=templates.zip`);
         }
-      );
-    } catch (err) {
-      reply.code(503).send(err);
-    }
+        reply.code(200).send(result);
+      })
+      .catch(err => reply.code(503).send(err));
   });
+
+  fastify.decorate(
+    'getTemplatesInternal',
+    query =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let type = 'image';
+          let format = 'json';
+          // eslint-disable-next-line prefer-destructuring
+          if (query.type) type = query.type.toLowerCase();
+          if (query.format) format = query.format.toLowerCase();
+          let view = 'templates_json';
+          if (format) {
+            if (format === 'json') view = 'templates_json';
+            else if (format === 'summary') view = 'templates_summary';
+          }
+          const db = fastify.couch.db.use(config.db);
+          db.view(
+            'instances',
+            view,
+            {
+              startkey: [type, '', ''],
+              endkey: [`${type}\u9999`, '{}', '{}'],
+              reduce: true,
+              group_level: 3,
+            },
+            (error, body) => {
+              if (!error) {
+                const res = [];
+
+                if (format === 'summary') {
+                  body.rows.forEach(template => {
+                    res.push(template.key[2]);
+                  });
+                  resolve({ ResultSet: { Result: res } });
+                } else if (format === 'stream') {
+                  body.rows.forEach(template => {
+                    res.push(template.key[2]);
+                  });
+                  fastify
+                    .downloadTemplates(res)
+                    .then(result => resolve(result))
+                    .catch(err => reject(err));
+                } else {
+                  // the default is json! The old APIs were XML, no XML in epadlite
+                  body.rows.forEach(template => {
+                    res.push(template.key[2]);
+                  });
+                  resolve(res);
+                }
+              } else {
+                // TODO Proper error reporting implementation required
+                fastify.log.info(`Error in get templates: ${error}`);
+                reject(error);
+              }
+            }
+          );
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate('saveTemplate', (request, reply) => {
     // get the uid from the json and check if it is same with param, then put as id in couch document
@@ -704,6 +742,79 @@ async function couchdb(fastify, options) {
           reply.code(503).send(`Deleting error: ${err}`);
         });
     });
+  });
+
+  fastify.decorate(
+    'downloadTemplates',
+    async templates =>
+      new Promise((resolve, reject) => {
+        const timestamp = new Date().getTime();
+        const dir = `tmp_${timestamp}`;
+        // have a boolean just to avoid filesystem check for empty annotations directory
+        let isThereDataToWrite = false;
+
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir);
+          fs.mkdirSync(`${dir}/templates`);
+
+          templates.forEach(template => {
+            fs.writeFileSync(
+              `${dir}/templates/${template.TemplateContainer.Template[0].codeValue}_${
+                template.TemplateContainer.Template[0].uid
+              }.json`,
+              JSON.stringify(template)
+            );
+            isThereDataToWrite = true;
+          });
+        }
+        if (isThereDataToWrite) {
+          // create a file to stream archive data to.
+          const output = fs.createWriteStream(`${dir}/templates.zip`);
+          const archive = archiver('zip', {
+            zlib: { level: 9 }, // Sets the compression level.
+          });
+          // create the archive
+          archive
+            .directory(`${dir}/templates`, false)
+            .on('error', err => reject(err))
+            .pipe(output);
+
+          output.on('close', () => {
+            fastify.log.info(`Created zip in ./tmp_${timestamp}`);
+            const readStream = fs.createReadStream(`${dir}/templates.zip`);
+            // delete tmp folder after the file is sent
+            readStream.once('end', () => {
+              readStream.destroy(); // make sure stream closed, not close if download aborted.
+              fs.removeSync(`./tmp_${timestamp}`);
+              fastify.log.info(`Deleted ./tmp_${timestamp}`);
+            });
+            resolve(readStream);
+          });
+          archive.finalize();
+        } else {
+          reject(new Error('No files to write!'));
+        }
+      })
+  );
+
+  fastify.decorate('getTemplatesFromUIDs', (request, reply) => {
+    try {
+      const db = fastify.couch.db.use(config.db);
+      const res = [];
+      db.fetch({ keys: request.body }).then(data => {
+        data.rows.forEach(item => {
+          // if not found it returns the record with no doc, error: 'not_found'
+          if ('doc' in item) res.push(item.doc.template);
+        });
+        reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+        fastify
+          .downloadTemplates(res)
+          .then(result => reply.code(200).send(result))
+          .catch(err => reply.code(503).send(err.message));
+      });
+    } catch (err) {
+      reply.code(503).send(err);
+    }
   });
 
   fastify.log.info(`Using db: ${config.db}`);
