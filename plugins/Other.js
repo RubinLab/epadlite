@@ -143,16 +143,31 @@ async function other(fastify) {
             datasets.push(toArrayBuffer(buffer));
             resolve();
           } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
-            fastify
-              .saveAimInternal(JSON.parse(buffer.toString()))
-              .then(() => {
-                fastify.log.info(`Saving successful for ${filename}`);
-                resolve();
-              })
-              .catch(err => {
-                fastify.log.info(`Error in save for ${filename}: ${err}`);
-                reject(err);
-              });
+            const jsonBuffer = JSON.parse(buffer.toString());
+            if ('TemplateContainer' in jsonBuffer) {
+              // is it a template?
+              fastify
+                .saveTemplateInternal(jsonBuffer)
+                .then(() => {
+                  fastify.log.info(`Saving successful for ${filename}`);
+                  resolve();
+                })
+                .catch(err => {
+                  fastify.log.info(`Error in save for ${filename}: ${err}`);
+                  reject(err);
+                });
+            } else {
+              fastify
+                .saveAimInternal(jsonBuffer)
+                .then(() => {
+                  fastify.log.info(`Saving successful for ${filename}`);
+                  resolve();
+                })
+                .catch(err => {
+                  fastify.log.info(`Error in save for ${filename}: ${err}`);
+                  reject(err);
+                });
+            }
           } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
             fastify
               .processZip(dir, filename)
