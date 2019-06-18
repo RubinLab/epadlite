@@ -82,6 +82,23 @@ describe('AIM Tests', () => {
       });
   });
 
+  it('aims should be have no aim for series 1.3.12.2.1107.5.8.2.484849.837749.68675556.11111111111111 of patient 13116', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get(
+        '/projects/lite/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.11111111111111/aims'
+      )
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body).to.be.a('array');
+        expect(res.body.length).to.be.eql(0);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('aim returned for series 1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313 of patient 13116 should be Lesion1', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
