@@ -141,6 +141,21 @@ describe('Template Tests', () => {
       });
   });
 
+  it("it should fail getting zip file for downloading templates ['2.25.56357357548684946873754'] ", done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/projects/lite/templates/download')
+      .send(['2.25.56357357548684946873754'])
+      .then(res => {
+        expect(res.statusCode).to.equal(503);
+        expect(res).to.have.header('Content-Disposition', 'attachment; filename=templates.zip');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('template delete with uid 2.25.158009444536327275764005670982612161979 should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

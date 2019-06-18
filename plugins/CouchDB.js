@@ -500,9 +500,9 @@ async function couchdb(fastify, options) {
         const db = fastify.couch.db.use(config.db);
         const res = [];
         db.fetch({ keys: request.body }).then(data => {
-          // db.fetch({ keys: ['2.25.2222222222222222222222'] }).then(data => {
           data.rows.forEach(item => {
-            res.push(item.doc.aim);
+            // if not found it returns the record with no doc, error: 'not_found'
+            if ('doc' in item) res.push(item.doc.aim);
           });
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
           fastify
@@ -803,7 +803,8 @@ async function couchdb(fastify, options) {
       const res = [];
       db.fetch({ keys: request.body }).then(data => {
         data.rows.forEach(item => {
-          res.push(item.doc.template);
+          // if not found it returns the record with no doc, error: 'not_found'
+          if ('doc' in item) res.push(item.doc.template);
         });
         reply.header('Content-Disposition', `attachment; filename=templates.zip`);
         fastify
