@@ -351,8 +351,8 @@ async function couchdb(fastify, options) {
             {
               startkey: [myParams.subject, myParams.study, myParams.series, ''],
               endkey: [
-                `${myParams.subject}\u9999`,
-                `${myParams.study}\u9999`,
+                `${myParams.subject}`,
+                `${myParams.study}`,
                 `${myParams.series}\u9999`,
                 '{}',
               ],
