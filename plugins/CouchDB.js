@@ -65,19 +65,8 @@ async function couchdb(fastify, options) {
       ipes.forEach(ipe => {
         header.push({ id: ipe.label.value.toLowerCase(), title: ipe.label.value });
         if (ipe.imagingPhysicalEntityCharacteristicCollection) {
-          let ipcs = [];
-          if (
-            Array.isArray(
-              ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
-            )
-          ) {
-            ipcs =
-              ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
-          } else {
-            ipcs.push(
-              ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
-            );
-          }
+          const ipcs =
+            ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
           ipcs.forEach(ipc => {
             header.push({
               id: ipc.label.value.toLowerCase(),
@@ -89,31 +78,13 @@ async function couchdb(fastify, options) {
     }
 
     if (imageAnnotation.imagingObservationEntityCollection) {
-      let ioes = [];
-      if (
-        Array.isArray(imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity)
-      ) {
-        ioes = imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity;
-      } else {
-        ioes.push(imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity);
-      }
+      const ioes = imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity;
       ioes.forEach(ioe => {
         // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
         header.push({ id: ioe.label.value.toLowerCase(), title: ioe.label.value });
         if (ioe.imagingObservationEntityCharacteristicCollection) {
-          let iocs = [];
-          if (
-            Array.isArray(
-              ioe.imagingObservationEntityCharacteristicCollection
-                .ImagingObservationEntityCharacteristic
-            )
-          ) {
-            iocs = ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
-          } else {
-            isSecureContext.push(
-              ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic
-            );
-          }
+          const iocs =
+            ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
           iocs.forEach(ioc => {
             header.push({
               id: ioc.label.value.toLowerCase(),
@@ -123,18 +94,8 @@ async function couchdb(fastify, options) {
         }
         let ipcs = [];
         if (ioe.imagingPhysicalEntityCharacteristicCollection) {
-          if (
-            Array.isArray(
-              ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
-            )
-          ) {
-            ipcs =
-              ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
-          } else {
-            ipcs.push(
-              ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
-            );
-          }
+          ipcs =
+            ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
           ipcs.forEach(ipc => {
             header.push({
               id: ipc.label.value.toLowerCase(),
@@ -159,7 +120,7 @@ async function couchdb(fastify, options) {
         ipes.push(imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity);
       }
       ipes.forEach(ipe => {
-        row[ipe.label.value.toLowerCase()] = ipe.typeCode['iso:displayName'].value;
+        row[ipe.label.value.toLowerCase()] = ipe.typeCode[0]['iso:displayName'].value;
         if (ipe.imagingPhysicalEntityCharacteristicCollection) {
           let ipcs = [];
           if (
@@ -176,7 +137,7 @@ async function couchdb(fastify, options) {
           }
 
           ipcs.forEach(ipc => {
-            row[ipc.label.value.toLowerCase()] = ipc.typeCode['iso:displayName'].value;
+            row[ipc.label.value.toLowerCase()] = ipc.typeCode[0]['iso:displayName'].value;
           });
         }
       });
@@ -194,7 +155,7 @@ async function couchdb(fastify, options) {
       }
       ioes.forEach(ioe => {
         // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
-        row[ioe.label.value.toLowerCase()] = ioe.typeCode['iso:displayName'].value;
+        row[ioe.label.value.toLowerCase()] = ioe.typeCode[0]['iso:displayName'].value;
         if (ioe.imagingObservationEntityCharacteristicCollection) {
           let iocs = [];
           if (
@@ -210,7 +171,7 @@ async function couchdb(fastify, options) {
             );
           }
           iocs.forEach(ioc => {
-            row[ioc.label.value.toLowerCase()] = ioc.typeCode['iso:displayName'].value;
+            row[ioc.label.value.toLowerCase()] = ioc.typeCode[0]['iso:displayName'].value;
           });
         }
         if (ioe.imagingPhysicalEntityCharacteristicCollection) {
@@ -228,7 +189,7 @@ async function couchdb(fastify, options) {
             );
           }
           ipcs.forEach(ipc => {
-            row[ipc.label.value.toLowerCase()] = ipc.typeCode['iso:displayName'].value;
+            row[ipc.label.value.toLowerCase()] = ipc.typeCode[0]['iso:displayName'].value;
           });
         }
       });
@@ -274,7 +235,7 @@ async function couchdb(fastify, options) {
                 const commentSplit = imageAnnotation.comment.value.split('~~');
                 const points = [];
                 if (imageAnnotation.markupEntityCollection) {
-                  imageAnnotation.markupEntityCollection.MarkupEntity.twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
+                  imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
                     coor => {
                       points.push(`(${coor.x.value} ${coor.y.value})`);
                     }
@@ -297,14 +258,14 @@ async function couchdb(fastify, options) {
                   userComment: commentSplit.length > 1 ? commentSplit[1] : '',
                   points: `[${points}]`,
                   studyUid:
-                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity.imageStudy
-                      .instanceUid.root,
+                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                      .imageStudy.instanceUid.root,
                   seriedUid:
-                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity.imageStudy
-                      .imageSeries.instanceUid.root,
+                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                      .imageStudy.imageSeries.instanceUid.root,
                   imageUid:
-                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity.imageStudy
-                      .imageSeries.imageCollection.Image.sopInstanceUid.root,
+                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                      .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
                 };
 
                 row = fastify.getOtherData(imageAnnotation, row);

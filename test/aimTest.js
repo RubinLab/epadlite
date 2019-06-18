@@ -241,7 +241,7 @@ describe('AIM Tests', () => {
   it("it should get zip file for downloading aims ['2.25.167808007379220149033867236502072349995'] with query params summary=true&aim=true", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects/lite/aims/download?summary=false&aim=true')
+      .post('/projects/lite/aims/download?summary=true&aim=true')
       .send(['2.25.167808007379220149033867236502072349995'])
       .then(res => {
         expect(res.statusCode).to.equal(200);
