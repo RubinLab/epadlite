@@ -20,9 +20,15 @@ module.exports.views = {
     reduce: '_count()',
   },
 
-  templates: {
+  templates_json: {
     map:
       " function(doc) { if (doc.template) { type='image'; if (doc.template.TemplateContainer.Template[0].templateType) type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase(); emit([type, doc.template.TemplateContainer.Template[0].codeValue, doc.template], 1)}} ",
+    reduce: '_count()',
+  },
+
+  templates_summary: {
+    map:
+      " function(doc) { doc.template&&(key={type:'image'},doc.template.TemplateContainer.Template[0].templateType&&(key.type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase()),key.templateName=doc.template.TemplateContainer.Template[0].name,key.description=doc.template.TemplateContainer.Template[0].description,key.templateUID=doc.template.TemplateContainer.Template[0].uid,key.codeValue=doc.template.TemplateContainer.Template[0].codeValue,key.codeMeaning=doc.template.TemplateContainer.Template[0].codeMeaning,emit([key.type,key.templateUID,key],1));} ",
     reduce: '_count()',
   },
 };
