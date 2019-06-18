@@ -12,8 +12,8 @@ describe('Template Tests', () => {
       .get('/projects/lite/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result).to.be.a('array');
-        expect(res.body.ResultSet.Result.length).to.be.eql(0);
+        expect(res.body).to.be.a('array');
+        expect(res.body.length).to.be.eql(0);
         done();
       })
       .catch(e => {
@@ -42,8 +42,8 @@ describe('Template Tests', () => {
       .get('/projects/lite/templates?type=image')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result).to.be.a('array');
-        expect(res.body.ResultSet.Result.length).to.be.eql(1);
+        expect(res.body).to.be.a('array');
+        expect(res.body.length).to.be.eql(1);
         done();
       })
       .catch(e => {
@@ -57,8 +57,8 @@ describe('Template Tests', () => {
       .get('/projects/lite/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result).to.be.a('array');
-        expect(res.body.ResultSet.Result.length).to.be.eql(1);
+        expect(res.body).to.be.a('array');
+        expect(res.body.length).to.be.eql(1);
         done();
       })
       .catch(e => {
@@ -72,12 +72,8 @@ describe('Template Tests', () => {
       .get('/projects/lite/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result[0].TemplateContainer.Template[0].codeMeaning).to.be.eql(
-          'ROI Only'
-        );
-        expect(res.body.ResultSet.Result[0].TemplateContainer.Template[0].codeValue).to.be.eql(
-          'ROI'
-        );
+        expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
+        expect(res.body[0].TemplateContainer.Template[0].codeValue).to.be.eql('ROI');
         done();
       })
       .catch(e => {
@@ -108,9 +104,7 @@ describe('Template Tests', () => {
       .get('/projects/lite/templates?type=study')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result[0].TemplateContainer.Template[0].codeMeaning).to.be.eql(
-          'ROI Only2'
-        );
+        expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only2');
         done();
       })
       .catch(e => {
@@ -124,7 +118,22 @@ describe('Template Tests', () => {
       .get('/projects/lite/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(0);
+        expect(res.body.length).to.be.eql(0);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it("it should get zip file for downloading templates ['2.25.158009444536327275764005670982612161979'] ", done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/projects/lite/templates/download')
+      .send(['2.25.158009444536327275764005670982612161979'])
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res).to.have.header('Content-Disposition', 'attachment; filename=templates.zip');
         done();
       })
       .catch(e => {
@@ -151,8 +160,8 @@ describe('Template Tests', () => {
       .get('/projects/lite/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result).to.be.a('array');
-        expect(res.body.ResultSet.Result.length).to.be.eql(0);
+        expect(res.body).to.be.a('array');
+        expect(res.body.length).to.be.eql(0);
         done();
       })
       .catch(e => {

@@ -53,6 +53,21 @@ async function routes(fastify) {
 
     handler: fastify.getTemplates,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/templates/download',
+    schema: {
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+    },
+
+    handler: fastify.getTemplatesFromUIDs,
+  });
 }
 
 module.exports = routes;

@@ -492,7 +492,6 @@ async function couchdb(fastify, options) {
       .catch(err => reply.code(503).send(err));
   });
 
-  // template accessors
   fastify.decorate('getAimsFromUIDs', (request, reply) => {
     try {
       if (Object.keys(request.query).length === 0) {
@@ -797,6 +796,25 @@ async function couchdb(fastify, options) {
         }
       })
   );
+
+  fastify.decorate('getTemplatesFromUIDs', (request, reply) => {
+    try {
+      const db = fastify.couch.db.use(config.db);
+      const res = [];
+      db.fetch({ keys: request.body }).then(data => {
+        data.rows.forEach(item => {
+          res.push(item.doc.template);
+        });
+        reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+        fastify
+          .downloadTemplates(res)
+          .then(result => reply.code(200).send(result))
+          .catch(err => reply.code(503).send(err.message));
+      });
+    } catch (err) {
+      reply.code(503).send(err);
+    }
+  });
 
   fastify.log.info(`Using db: ${config.db}`);
   // register couchdb
