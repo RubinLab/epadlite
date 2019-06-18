@@ -331,12 +331,49 @@ async function couchdb(fastify, options) {
     (format, params) =>
       new Promise(async (resolve, reject) => {
         try {
-          // make sure there is value in all three even if empty
+          // make sure there is value in all three
+          // only the last ove should have \u9999 at the end
           const myParams = params;
-          if (!params.subject) myParams.subject = '';
-          if (!params.study) myParams.study = '';
-          if (!params.series) myParams.series = '';
-
+          let isFiltered = false;
+          if (!params.series) {
+            myParams.series = '';
+            myParams.seriesEnd = '{}';
+            if (!params.study) {
+              myParams.study = '';
+              myParams.studyEnd = '{}';
+              if (!params.subject) {
+                myParams.subject = '';
+                myParams.subjectEnd = '{}';
+              } else {
+                myParams.subject = params.subject;
+                myParams.subjectEnd = `${params.subject}\u9999`;
+                isFiltered = true;
+              }
+            } else {
+              myParams.studyEnd = `${params.study}\u9999`;
+              myParams.subjectEnd = params.subject;
+              isFiltered = true;
+            }
+          } else {
+            myParams.seriesEnd = `${params.series}\u9999`;
+            myParams.studyEnd = params.study;
+            myParams.subjectEnd = params.subject;
+            isFiltered = true;
+          }
+          let filterOptions = {};
+          if (isFiltered) {
+            filterOptions = {
+              startkey: [myParams.subject, myParams.study, myParams.series, ''],
+              endkey: [myParams.subjectEnd, myParams.studyEnd, myParams.seriesEnd, '{}'],
+              reduce: true,
+              group_level: 5,
+            };
+          } else {
+            filterOptions = {
+              reduce: true,
+              group_level: 5,
+            };
+          }
           // define which view to use according to the parameter format
           // default is json
           let view = 'aims_json';
@@ -345,57 +382,42 @@ async function couchdb(fastify, options) {
             else if (format === 'summary') view = 'aims_summary';
           }
           const db = fastify.couch.db.use(config.db);
-          db.view(
-            'instances',
-            view,
-            {
-              startkey: [myParams.subject, myParams.study, myParams.series, ''],
-              endkey: [
-                `${myParams.subject}`,
-                `${myParams.study}`,
-                `${myParams.series}\u9999`,
-                '{}',
-              ],
-              reduce: true,
-              group_level: 5,
-            },
-            (error, body) => {
-              if (!error) {
-                const res = [];
+          db.view('instances', view, filterOptions, (error, body) => {
+            if (!error) {
+              const res = [];
 
-                if (format === 'summary') {
-                  body.rows.forEach(instance => {
-                    // get the actual instance object (tags only)
-                    res.push(instance.key[4]);
-                  });
-                  resolve({ ResultSet: { Result: res } });
-                } else if (format === 'stream') {
-                  body.rows.forEach(instance => {
-                    // get the actual instance object (tags only)
-                    // the first 3 keys are patient, study, series, image
-                    res.push(instance.key[4]);
-                  });
-                  // download aims only
-                  fastify
-                    .downloadAims({ aim: 'true' }, res)
-                    .then(result => resolve(result))
-                    .catch(err => reject(err));
-                } else {
-                  // the default is json! The old APIs were XML, no XML in epadlite
-                  body.rows.forEach(instance => {
-                    // get the actual instance object (tags only)
-                    // the first 3 keys are patient, study, series, image
-                    res.push(instance.key[4]);
-                  });
-                  resolve(res);
-                }
+              if (format === 'summary') {
+                body.rows.forEach(instance => {
+                  // get the actual instance object (tags only)
+                  res.push(instance.key[4]);
+                });
+                resolve({ ResultSet: { Result: res } });
+              } else if (format === 'stream') {
+                body.rows.forEach(instance => {
+                  // get the actual instance object (tags only)
+                  // the first 3 keys are patient, study, series, image
+                  res.push(instance.key[4]);
+                });
+                // download aims only
+                fastify
+                  .downloadAims({ aim: 'true' }, res)
+                  .then(result => resolve(result))
+                  .catch(err => reject(err));
               } else {
-                // TODO Proper error reporting implementation required
-                fastify.log.info(`Error in get series aims: ${error}`);
-                reject(error);
+                // the default is json! The old APIs were XML, no XML in epadlite
+                body.rows.forEach(instance => {
+                  // get the actual instance object (tags only)
+                  // the first 3 keys are patient, study, series, image
+                  res.push(instance.key[4]);
+                });
+                resolve(res);
               }
+            } else {
+              // TODO Proper error reporting implementation required
+              fastify.log.info(`Error in get series aims: ${error}`);
+              reject(error);
             }
-          );
+          });
         } catch (err) {
           reject(err);
         }
