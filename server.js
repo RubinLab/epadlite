@@ -70,7 +70,7 @@ fastify.register(require('./plugins/Other'));
 // register routes
 // this should be done after CouchDB plugin to be able to use the accessor methods
 fastify.register(require('./routes/aim'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
-fastify.register(require('./routes/template'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+fastify.register(require('./routes/template')); // eslint-disable-line global-require
 fastify.register(require('./routes/dicomweb'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
 fastify.register(require('./routes/other'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
 
