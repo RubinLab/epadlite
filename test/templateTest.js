@@ -9,7 +9,7 @@ describe('Template Tests', () => {
   it('templates should be empty', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/templates')
+      .get('/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -25,7 +25,7 @@ describe('Template Tests', () => {
     const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects/lite/templates')
+      .post('/templates')
       .send(jsonBuffer)
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -39,7 +39,7 @@ describe('Template Tests', () => {
   it('templates should have one entity with image type filter', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/templates?type=image')
+      .get('/templates?type=image')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -54,7 +54,7 @@ describe('Template Tests', () => {
   it('templates should have one entity without filter (defaults to image)', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/templates')
+      .get('/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -69,7 +69,7 @@ describe('Template Tests', () => {
   it('returned template should be ROI Only', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/templates')
+      .get('/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
@@ -87,7 +87,7 @@ describe('Template Tests', () => {
     jsonBuffer.TemplateContainer.Template[0].templateType = 'Study';
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .put(`/projects/lite/templates/${jsonBuffer.TemplateContainer.Template[0].uid}`)
+      .put(`/templates/${jsonBuffer.TemplateContainer.Template[0].uid}`)
       .send(jsonBuffer)
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -101,7 +101,7 @@ describe('Template Tests', () => {
   it('returned template codeMeaning should be ROI Only2 with study type filter', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/templates?type=study')
+      .get('/templates?type=study')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only2');
@@ -115,7 +115,7 @@ describe('Template Tests', () => {
   it('templates should be empty without filter (defaults to type=image)', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/templates')
+      .get('/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(0);
@@ -129,7 +129,7 @@ describe('Template Tests', () => {
   it("it should get zip file for downloading templates ['2.25.158009444536327275764005670982612161979'] ", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects/lite/templates/download')
+      .post('/templates/download')
       .send(['2.25.158009444536327275764005670982612161979'])
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -144,7 +144,7 @@ describe('Template Tests', () => {
   it("it should fail getting zip file for downloading templates ['2.25.56357357548684946873754'] ", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects/lite/templates/download')
+      .post('/templates/download')
       .send(['2.25.56357357548684946873754'])
       .then(res => {
         expect(res.statusCode).to.equal(503);
@@ -159,7 +159,7 @@ describe('Template Tests', () => {
   it('template delete with uid 2.25.158009444536327275764005670982612161979 should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('/projects/lite/templates/2.25.158009444536327275764005670982612161979')
+      .delete('/templates/2.25.158009444536327275764005670982612161979')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -172,7 +172,7 @@ describe('Template Tests', () => {
   it('templates should be empty', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/templates')
+      .get('/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');

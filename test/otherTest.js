@@ -87,7 +87,7 @@ describe('Other Tests', () => {
   it('templates should have one entity without filter (defaults to image)', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/templates')
+      .get('/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -101,7 +101,7 @@ describe('Other Tests', () => {
   it('returned template should be RECIST_v2', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/templates')
+      .get('/templates')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body[0].TemplateContainer.Template[0].name).to.be.eql('RECIST_v2');
@@ -115,7 +115,7 @@ describe('Other Tests', () => {
   it('template delete with uid 2.25.14127115639382804046523562737575775778671 should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('/projects/lite/templates/2.25.14127115639382804046523562737575775778671')
+      .delete('/templates/2.25.14127115639382804046523562737575775778671')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
