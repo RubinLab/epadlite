@@ -21,6 +21,20 @@ let header = {};
 const projectID = 'lite';
 
 async function dicomwebserver(fastify) {
+  fastify.decorate('initDicomWeb', async () => {
+    try {
+      const connect = await fastify.connectDICOMweb();
+      fastify.log.info('Connected to dicomweb server');
+      return connect;
+    } catch (err) {
+      if (config.env !== 'test') {
+        fastify.log.info('Waiting for dicomweb server');
+        setTimeout(fastify.initDicomWeb, 3000);
+      } else throw Error('No connection');
+    }
+    return null;
+  });
+
   // connects to the DICOMweb server using the authentication method in config.dicomWebConfig
   // tests the connection with /studies endpoint after connection and rejects if unsuccessful
   fastify.decorate(
@@ -459,10 +473,13 @@ async function dicomwebserver(fastify) {
 
   fastify.after(async () => {
     try {
-      await fastify.connectDICOMweb();
+      await fastify.initDicomWeb();
     } catch (err) {
-      fastify.log.info(`Cannot connect to DICOMwebServer (err:${err}), shutting down the server`);
-      fastify.close();
+      // do not turn off the server if in test mode. shouldn't come here in development anyway
+      if (config.env !== 'test') {
+        fastify.log.info(`Cannot connect to DICOMwebServer (err:${err}), shutting down the server`);
+        fastify.close();
+      }
     }
 
     // need to add hook for close to remove the db if test;
