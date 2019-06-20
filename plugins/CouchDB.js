@@ -11,6 +11,7 @@ async function couchdb(fastify, options) {
   fastify.decorate('init', async () => {
     try {
       await fastify.couch.db.list();
+      fastify.log.info('Connected to couchdb server');
       return fastify.checkAndCreateDb();
     } catch (err) {
       if (config.env !== 'test') {
