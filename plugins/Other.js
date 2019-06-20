@@ -138,45 +138,49 @@ async function other(fastify) {
     (dir, filename, datasets) =>
       new Promise((resolve, reject) => {
         try {
-          const buffer = fs.readFileSync(`${dir}/${filename}`);
-          if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
-            datasets.push(toArrayBuffer(buffer));
-            resolve();
-          } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
-            const jsonBuffer = JSON.parse(buffer.toString());
-            if ('TemplateContainer' in jsonBuffer) {
-              // is it a template?
+          fs.readFile(`${dir}/${filename}`, (readErr, buffer) => {
+            if (readErr) {
+              fastify.log.info(`Error in save for ${filename}: ${readErr}`);
+              reject(readErr);
+            } else if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
+              datasets.push(toArrayBuffer(buffer));
+              resolve();
+            } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
+              const jsonBuffer = JSON.parse(buffer.toString());
+              if ('TemplateContainer' in jsonBuffer) {
+                // is it a template?
+                fastify
+                  .saveTemplateInternal(jsonBuffer)
+                  .then(() => {
+                    fastify.log.info(`Saving successful for ${filename}`);
+                    resolve();
+                  })
+                  .catch(err => {
+                    fastify.log.info(`Error in save for ${filename}: ${err}`);
+                    reject(err);
+                  });
+              } else {
+                fastify
+                  .saveAimInternal(jsonBuffer)
+                  .then(() => {
+                    fastify.log.info(`Saving successful for ${filename}`);
+                    resolve();
+                  })
+                  .catch(err => {
+                    fastify.log.info(`Error in save for ${filename}: ${err}`);
+                    reject(err);
+                  });
+              }
+            } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
-                .saveTemplateInternal(jsonBuffer)
-                .then(() => {
-                  fastify.log.info(`Saving successful for ${filename}`);
-                  resolve();
-                })
-                .catch(err => {
-                  fastify.log.info(`Error in save for ${filename}: ${err}`);
-                  reject(err);
-                });
+                .processZip(dir, filename)
+                .then(() => resolve())
+                .catch(err => reject(err));
             } else {
-              fastify
-                .saveAimInternal(jsonBuffer)
-                .then(() => {
-                  fastify.log.info(`Saving successful for ${filename}`);
-                  resolve();
-                })
-                .catch(err => {
-                  fastify.log.info(`Error in save for ${filename}: ${err}`);
-                  reject(err);
-                });
+              fastify.log.info(`Entry ${dir}/${filename} ignored`);
+              resolve();
             }
-          } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
-            fastify
-              .processZip(dir, filename)
-              .then(() => resolve())
-              .catch(err => reject(err));
-          } else {
-            fastify.log.info(`Entry ${dir}/${filename} ignored`);
-            resolve();
-          }
+          });
         } catch (err) {
           fastify.log.info(err.message);
           reject(err);
