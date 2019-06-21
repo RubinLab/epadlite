@@ -78,7 +78,7 @@ describe('Other Tests', () => {
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result).to.be.a('array');
-        expect(res.body.ResultSet.Result.length).to.not.be.eql(0);
+        expect(res.body.ResultSet.Result.length).to.be.above(1);
         done();
       })
       .catch(e => {

@@ -189,15 +189,12 @@ async function other(fastify) {
   );
 
   fastify.decorate('deleteSubject', (request, reply) => {
-    console.log(request.params);
     try {
       const promisses = [];
       fastify
         .getPatientStudiesInternal(request.params)
         .then(result => {
-          console.log(result);
           result.ResultSet.Result.forEach(study => {
-            console.log(request.params.subject);
             promisses.push(
               fastify.deleteStudyDicomsInternal({
                 subject: request.params.subject,
