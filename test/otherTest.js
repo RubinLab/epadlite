@@ -71,6 +71,33 @@ describe('Other Tests', () => {
         done(e);
       });
   });
+  it('7 patient should have more than one studies ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/lite/subjects/7/studies')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result).to.be.a('array');
+        expect(res.body.ResultSet.Result.length).to.be.above(1);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('deletion of patient 7 should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .del('/projects/lite/subjects/7')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('complex zip upload with template should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -138,12 +165,103 @@ describe('Other Tests', () => {
         done(e);
       });
   });
-  it('aim delete with uid 2.25.66395494228425829356180910317656038541 should be successful ', done => {
+
+  it('1.2.752.24.7.19011385.484010 study should have 2 series ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('/projects/lite/aims/2.25.66395494228425829356180910317656038541')
+      .get('/projects/lite/subjects/7/studies/1.2.752.24.7.19011385.484010/series')
       .then(res => {
         expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result).to.be.a('array');
+        expect(res.body.ResultSet.Result.length).to.be.eql(2);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('deletion of series 1.2.840.113704.1.111.5068.1212776060.31 should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .del(
+        '/projects/lite/subjects/7/studies/1.2.752.24.7.19011385.484010/series/1.2.840.113704.1.111.5068.1212776060.31'
+      )
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('1.2.752.24.7.19011385.484010 study should have 1 series ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/lite/subjects/7/studies/1.2.752.24.7.19011385.484010/series')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result).to.be.a('array');
+        expect(res.body.ResultSet.Result.length).to.be.eql(1);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('aims should contain no aim for patient 7 ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/lite/subjects/7/aims')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body).to.be.a('array');
+        expect(res.body.length).to.be.eql(0);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('7 patient should have 2 studies ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/lite/subjects/7/studies')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result).to.be.a('array');
+        expect(res.body.ResultSet.Result.length).to.be.eql(2);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('deletion of study 1.2.752.24.7.19011385.514521 should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .del('/projects/lite/subjects/7/studies/1.2.752.24.7.19011385.514521')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('7 patient should have 1 study ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/lite/subjects/7/studies')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result).to.be.a('array');
+        expect(res.body.ResultSet.Result.length).to.be.eql(1);
         done();
       })
       .catch(e => {

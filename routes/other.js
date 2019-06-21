@@ -48,5 +48,25 @@ async function otherRoutes(fastify) {
 
     handler: fastify.deleteStudy,
   });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/subjects/:subject',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.deleteSubject,
+  });
 }
 module.exports = otherRoutes;

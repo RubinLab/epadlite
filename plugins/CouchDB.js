@@ -569,27 +569,55 @@ async function couchdb(fastify, options) {
         });
       })
   );
+  fastify.decorate(
+    'deleteAimInternal',
+    aimuid =>
+      new Promise((resolve, reject) => {
+        const db = fastify.couch.db.use(config.db);
+        db.get(aimuid, (error, existing) => {
+          if (error) {
+            fastify.log.info(`No document for aimuid ${aimuid}`);
+            reject(error);
+          }
+
+          db.destroy(aimuid, existing._rev)
+            .then(() => {
+              resolve();
+            })
+            .catch(err => {
+              // TODO Proper error reporting implementation required
+              fastify.log.info(`Error in delete: ${err}`);
+              reject(err);
+            });
+        });
+      })
+  );
 
   fastify.decorate('deleteAim', (request, reply) => {
-    const db = fastify.couch.db.use(config.db);
-    db.get(request.params.aimuid, (error, existing) => {
-      if (error) {
-        fastify.log.info(`No document for aimuid ${request.params.aimuid}`);
-        // Is 404 the right thing to return?
-        reply.code(404).send(`No document for aimuid ${request.params.aimuid}`);
-      }
-
-      db.destroy(request.params.aimuid, existing._rev)
-        .then(() => {
-          reply.code(200).send('Deletion successful');
-        })
-        .catch(err => {
-          // TODO Proper error reporting implementation required
-          fastify.log.info(`Error in delete: ${err}`);
-          reply.code(503).send(`Deleting error: ${err}`);
-        });
-    });
+    fastify
+      .deleteAimInternal(request.params.aimuid)
+      .then(() => reply.code(200).send('Deletion successful'))
+      .catch(err => reply.code(503).send(err));
   });
+
+  fastify.decorate(
+    'deleteAimsInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        fastify
+          .getAims('summary', params)
+          .then(result => {
+            const aimPromisses = [];
+            result.ResultSet.Result.forEach(aim =>
+              aimPromisses.push(fastify.deleteAimInternal(aim.aimID))
+            );
+            Promise.all(aimPromisses)
+              .then(() => resolve())
+              .catch(deleteErr => reject(deleteErr));
+          })
+          .catch(err => reject(err));
+      })
+  );
 
   // template accessors
   fastify.decorate('getTemplates', (request, reply) => {
