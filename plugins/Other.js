@@ -187,6 +187,86 @@ async function other(fastify) {
         }
       })
   );
+
+  fastify.decorate('deleteSubject', (request, reply) => {
+    console.log(request.params);
+    try {
+      const promisses = [];
+      fastify
+        .getPatientStudiesInternal(request.params)
+        .then(result => {
+          console.log(result);
+          result.ResultSet.Result.forEach(study => {
+            console.log(request.params.subject);
+            promisses.push(
+              fastify.deleteStudyDicomsInternal({
+                subject: request.params.subject,
+                study: study.studyUID,
+              })
+            );
+          });
+          promisses.push(fastify.deleteAimsInternal(request.params));
+          Promise.all(promisses)
+            .then(() => {
+              fastify.log.info('Success');
+              reply.code(200).send();
+            })
+            .catch(error => {
+              fastify.log.info(`Error in deleting ${error.message}`);
+              reply.code(503).send(error.message);
+            });
+        })
+        .catch(getError => {
+          fastify.log.info(`Error in deleting ${getError.message}`);
+          reply.code(503).send(getError.message);
+        });
+    } catch (err) {
+      fastify.log.info(`Error deleting: ${err.message}`);
+      reply.code(503).send(err.message);
+    }
+  });
+
+  fastify.decorate('deleteStudy', (request, reply) => {
+    try {
+      // delete study in dicomweb and annotations
+      Promise.all([
+        fastify.deleteStudyDicomsInternal(request.params),
+        fastify.deleteAimsInternal(request.params),
+      ])
+        .then(() => {
+          fastify.log.info('Success');
+          reply.code(200).send();
+        })
+        .catch(error => {
+          fastify.log.info(`Error in deleting ${error.message}`);
+          reply.code(503).send(error.message);
+        });
+    } catch (err) {
+      fastify.log.info(`Error deleting: ${err.message}`);
+      reply.code(503).send(err.message);
+    }
+  });
+
+  fastify.decorate('deleteSeries', (request, reply) => {
+    try {
+      // delete study in dicomweb and annotations
+      Promise.all([
+        fastify.deleteSeriesDicomsInternal(request.params),
+        fastify.deleteAimsInternal(request.params),
+      ])
+        .then(() => {
+          fastify.log.info('Success');
+          reply.code(200).send();
+        })
+        .catch(error => {
+          fastify.log.info(`Error in deleting ${error.message}`);
+          reply.code(503).send(error.message);
+        });
+    } catch (err) {
+      fastify.log.info(`Error deleting: ${err.message}`);
+      reply.code(503).send(err.message);
+    }
+  });
 }
 
 // expose as plugin so the module using it can access the decorated methods

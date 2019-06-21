@@ -132,41 +132,49 @@ async function dicomwebserver(fastify) {
       })
   );
 
-  fastify.decorate('deleteStudy', (request, reply) => {
-    try {
-      this.request
-        .delete(`/studies/${request.params.study}`)
-        .then(() => {
-          fastify.log.info('Success');
-          reply.code(200).send();
-        })
-        .catch(error => {
-          fastify.log.info(`Error in deleting dicoms ${error.message}`);
-          reply.code(503).send(error.message);
-        });
-    } catch (err) {
-      fastify.log.info(`Error deleting dicoms: ${err.message}`);
-      reply.code(503).send(err.message);
-    }
-  });
+  fastify.decorate(
+    'deleteStudyDicomsInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        try {
+          this.request
+            .delete(`/studies/${params.study}`)
+            .then(() => {
+              fastify.log.info('Success');
+              resolve();
+            })
+            .catch(error => {
+              fastify.log.info(`Error in deleting dicoms ${error.message}`);
+              reject(error);
+            });
+        } catch (err) {
+          fastify.log.info(`Error deleting dicoms: ${err.message}`);
+          reject(err);
+        }
+      })
+  );
 
-  fastify.decorate('deleteSeries', (request, reply) => {
-    try {
-      this.request
-        .delete(`/studies/${request.params.study}/series/${request.params.series}`)
-        .then(() => {
-          fastify.log.info('Success');
-          reply.code(200).send();
-        })
-        .catch(error => {
-          fastify.log.info(`Error in deleting dicoms ${error.message}`);
-          reply.code(503).send(error.message);
-        });
-    } catch (err) {
-      fastify.log.info(`Error deleting dicoms: ${err.message}`);
-      reply.code(503).send(err.message);
-    }
-  });
+  fastify.decorate(
+    'deleteSeriesDicomsInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        try {
+          this.request
+            .delete(`/studies/${params.study}/series/${params.series}`)
+            .then(() => {
+              fastify.log.info('Success');
+              resolve();
+            })
+            .catch(error => {
+              fastify.log.info(`Error in deleting dicoms ${error.message}`);
+              reject(error);
+            });
+        } catch (err) {
+          fastify.log.info(`Error deleting dicoms: ${err.message}`);
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate('getPatients', (request, reply) => {
     try {
@@ -253,78 +261,89 @@ async function dicomwebserver(fastify) {
   });
 
   fastify.decorate('getPatientStudies', (request, reply) => {
-    try {
-      const studies = this.request.get('/studies', header);
-      // get aims for a specific patient
-      const aims = fastify.getAims('summary', {
-        subject: request.params.subject,
-        study: '',
-        series: '',
-      });
-
-      Promise.all([studies, aims])
-        .then(values => {
-          // handle success
-          // populate an aim counts map containing each study
-          const aimsCountMap = {};
-          _.chain(values[1].ResultSet.Result)
-            .groupBy(value => {
-              return value.studyUID;
-            })
-            .map(value => {
-              const numberOfAims = _.reduce(
-                value,
-                memo => {
-                  return memo + 1;
-                },
-                0
-              );
-              aimsCountMap[value[0].studyUID] = numberOfAims;
-            })
-            .value();
-          // get the grouped data according to patient id
-          const grouped = _.groupBy(values[0].data, value => {
-            return value['00100020'].Value['0'];
-          });
-          // get the patients's studies and map each study to epadlite study object
-          const result = _.map(grouped[request.params.subject], value => {
-            return {
-              projectID,
-              patientID: value['00100020'].Value[0],
-              patientName: value['00100010'].Value ? value['00100010'].Value[0].Alphabetic : '',
-              studyUID: value['0020000D'].Value[0],
-              insertDate: value['00080020'].Value ? value['00080020'].Value[0] : '', // study date
-              firstSeriesUID: '', // TODO
-              firstSeriesDateAcquired: '', // TODO
-              physicianName: '', // TODO
-              birthdate: '', // TODO
-              sex: '', // TODO
-              studyDescription: value['00081030'].Value ? value['00081030'].Value[0] : '',
-              studyAccessionNumber: value['00080050'].Value ? value['00080050'].Value[0] : '',
-              examTypes: value['00080061'].Value ? value['00080061'].Value : [],
-              numberOfImages: value['00201208'].Value ? value['00201208'].Value[0] : '',
-              numberOfSeries: value['00201206'].Value ? value['00201206'].Value[0] : '',
-              numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
-                ? aimsCountMap[value['0020000D'].Value[0]]
-                : 0,
-              createdTime: '', // no date in studies call
-            };
-          });
-
-          reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
-        })
-        .catch(error => {
-          // handle error
-          fastify.log.info(
-            `Error retrieving studies for populating patient studies: ${error.message}`
-          );
-          reply.code(503).send(error);
-        });
-    } catch (err) {
-      fastify.log.info(`Error populating patient studies: ${err.message}`);
-      reply.code(503).send(err);
-    }
+    fastify
+      .getPatientStudiesInternal(request.params)
+      .then(result => reply.code(200).send(result))
+      .catch(err => reply.code(503).send(err.message));
   });
+
+  fastify.decorate(
+    'getPatientStudiesInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        try {
+          const studies = this.request.get('/studies', header);
+          // get aims for a specific patient
+          const aims = fastify.getAims('summary', {
+            subject: params.subject,
+            study: '',
+            series: '',
+          });
+
+          Promise.all([studies, aims])
+            .then(values => {
+              // handle success
+              // populate an aim counts map containing each study
+              const aimsCountMap = {};
+              _.chain(values[1].ResultSet.Result)
+                .groupBy(value => {
+                  return value.studyUID;
+                })
+                .map(value => {
+                  const numberOfAims = _.reduce(
+                    value,
+                    memo => {
+                      return memo + 1;
+                    },
+                    0
+                  );
+                  aimsCountMap[value[0].studyUID] = numberOfAims;
+                })
+                .value();
+              // get the grouped data according to patient id
+              const grouped = _.groupBy(values[0].data, value => {
+                return value['00100020'].Value['0'];
+              });
+              // get the patients's studies and map each study to epadlite study object
+              const result = _.map(grouped[params.subject], value => {
+                return {
+                  projectID,
+                  patientID: value['00100020'].Value[0],
+                  patientName: value['00100010'].Value ? value['00100010'].Value[0].Alphabetic : '',
+                  studyUID: value['0020000D'].Value[0],
+                  insertDate: value['00080020'].Value ? value['00080020'].Value[0] : '', // study date
+                  firstSeriesUID: '', // TODO
+                  firstSeriesDateAcquired: '', // TODO
+                  physicianName: '', // TODO
+                  birthdate: '', // TODO
+                  sex: '', // TODO
+                  studyDescription: value['00081030'].Value ? value['00081030'].Value[0] : '',
+                  studyAccessionNumber: value['00080050'].Value ? value['00080050'].Value[0] : '',
+                  examTypes: value['00080061'].Value ? value['00080061'].Value : [],
+                  numberOfImages: value['00201208'].Value ? value['00201208'].Value[0] : '',
+                  numberOfSeries: value['00201206'].Value ? value['00201206'].Value[0] : '',
+                  numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
+                    ? aimsCountMap[value['0020000D'].Value[0]]
+                    : 0,
+                  createdTime: '', // no date in studies call
+                };
+              });
+
+              resolve({ ResultSet: { Result: result, totalRecords: result.length } });
+            })
+            .catch(error => {
+              // handle error
+              fastify.log.info(
+                `Error retrieving studies for populating patient studies: ${error.message}`
+              );
+              reject(error);
+            });
+        } catch (err) {
+          fastify.log.info(`Error populating patient studies: ${err.message}`);
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate('getStudySeries', (request, reply) => {
     try {
