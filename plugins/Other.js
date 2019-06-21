@@ -57,11 +57,9 @@ async function other(fastify) {
       }
     }
     function handler(field, file, filename) {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
-        file.pipe(fs.createWriteStream(`${dir}/${filename}`));
-        filenames.push(filename);
-      }
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+      file.pipe(fs.createWriteStream(`${dir}/${filename}`));
+      filenames.push(filename);
     }
 
     request.multipart(handler, done);
