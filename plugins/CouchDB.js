@@ -288,10 +288,7 @@ async function couchdb(fastify, options) {
             }
             if (params.aim && params.aim.toLowerCase() === 'true') {
               fs.writeFileSync(
-                `${dir}/annotations/${
-                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier
-                    .root
-                }.json`,
+                `${dir}/annotations/${aim.ImageAnnotationCollection.uniqueIdentifier.root}.json`,
                 JSON.stringify(aim)
               );
               isThereDataToWrite = true;
@@ -517,9 +514,7 @@ async function couchdb(fastify, options) {
     // get the uid from the json and check if it is same with param, then put as id in couch document
     if (
       request.params.aimuid &&
-      request.params.aimuid !==
-        request.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier
-          .root
+      request.params.aimuid !== request.body.ImageAnnotationCollection.uniqueIdentifier.root
     ) {
       fastify.log.info(
         'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
@@ -547,8 +542,7 @@ async function couchdb(fastify, options) {
     aim =>
       new Promise((resolve, reject) => {
         const couchDoc = {
-          _id:
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier.root,
+          _id: aim.ImageAnnotationCollection.uniqueIdentifier.root,
           aim,
         };
         const db = fastify.couch.db.use(config.db);
