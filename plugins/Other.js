@@ -73,13 +73,8 @@ async function other(fastify) {
       filenames.push(filename);
     }
     function handler(field, file, filename) {
-      if (!fs.existsSync(dir))
-        fs.mkdir(dir)
-          .then(() => {
-            addFile(file, filename);
-          })
-          .catch(err => console.log(err));
-      else addFile(file, filename);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+      addFile(file, filename);
     }
 
     request.multipart(handler, done);
