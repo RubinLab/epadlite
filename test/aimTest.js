@@ -130,12 +130,7 @@ describe('AIM Tests', () => {
     );
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .put(
-        `/projects/lite/aims/${
-          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier
-            .root
-        }`
-      )
+      .put(`/projects/lite/aims/${jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root}`)
       .send(jsonBuffer)
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -227,11 +222,11 @@ describe('AIM Tests', () => {
       });
   });
 
-  it("it should fail getting zip file for downloading aims ['2.25.167808007379220149033867236502072349995'] with no query params", done => {
+  it("it should fail getting zip file for downloading aims ['2.25.211702350959705565754863799143359605362'] with no query params", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/projects/lite/aims/download')
-      .send(['2.25.167808007379220149033867236502072349995'])
+      .send(['2.25.211702350959705565754863799143359605362'])
       .then(res => {
         expect(res.statusCode).to.equal(400);
         done();
@@ -241,11 +236,11 @@ describe('AIM Tests', () => {
       });
   });
 
-  it("it should fail getting zip file for downloading aims ['2.25.167808007379220149033867236502072349995'] with all query params as false", done => {
+  it("it should fail getting zip file for downloading aims ['2.25.211702350959705565754863799143359605362'] with all query params as false", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/projects/lite/aims/download?summary=false&aim=false')
-      .send(['2.25.167808007379220149033867236502072349995'])
+      .send(['2.25.211702350959705565754863799143359605362'])
       .then(res => {
         expect(res.statusCode).to.equal(503);
         done();
@@ -255,11 +250,11 @@ describe('AIM Tests', () => {
       });
   });
 
-  it("it should get zip file for downloading aims ['2.25.167808007379220149033867236502072349995'] with query params summary=true&aim=true", done => {
+  it("it should get zip file for downloading aims ['2.25.211702350959705565754863799143359605362'] with query params summary=true&aim=true", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/projects/lite/aims/download?summary=true&aim=true')
-      .send(['2.25.167808007379220149033867236502072349995'])
+      .send(['2.25.211702350959705565754863799143359605362'])
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
@@ -270,10 +265,10 @@ describe('AIM Tests', () => {
       });
   });
 
-  it('aim delete with uid 2.25.167808007379220149033867236502072349995 should be successful ', done => {
+  it('aim delete with uid 2.25.211702350959705565754863799143359605362 should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('/projects/lite/aims/2.25.167808007379220149033867236502072349995')
+      .delete('/projects/lite/aims/2.25.211702350959705565754863799143359605362')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
