@@ -690,10 +690,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate('saveTemplate', (request, reply) => {
     // get the uid from the json and check if it is same with param, then put as id in couch document
-    if (
-      request.params.uid &&
-      request.params.uid !== request.body.TemplateContainer.Template[0].uid
-    ) {
+    if (request.params.uid && request.params.uid !== request.body.TemplateContainer.uid) {
       fastify.log.info(
         'Conflicting uids: the uid sent in the url should be the same with request.body.Template.uid'
       );
@@ -720,7 +717,7 @@ async function couchdb(fastify, options) {
     template =>
       new Promise((resolve, reject) => {
         const couchDoc = {
-          _id: template.TemplateContainer.Template[0].uid,
+          _id: template.TemplateContainer.uid,
           template,
         };
         const db = fastify.couch.db.use(config.db);
@@ -779,7 +776,7 @@ async function couchdb(fastify, options) {
           templates.forEach(template => {
             fs.writeFileSync(
               `${dir}/templates/${template.TemplateContainer.Template[0].codeValue}_${
-                template.TemplateContainer.Template[0].uid
+                template.TemplateContainer.uid
               }.json`,
               JSON.stringify(template)
             );

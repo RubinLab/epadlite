@@ -139,10 +139,10 @@ describe('Other Tests', () => {
         done(e);
       });
   });
-  it('template delete with uid 2.25.14127115639382804046523562737575775778671 should be successful ', done => {
+  it('template delete with uid 2.25.5886502342623758457547593170234 should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('/templates/2.25.14127115639382804046523562737575775778671')
+      .delete('/templates/2.25.5886502342623758457547593170234')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();

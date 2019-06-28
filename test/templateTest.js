@@ -87,7 +87,7 @@ describe('Template Tests', () => {
     jsonBuffer.TemplateContainer.Template[0].templateType = 'Study';
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .put(`/templates/${jsonBuffer.TemplateContainer.Template[0].uid}`)
+      .put(`/templates/${jsonBuffer.TemplateContainer.uid}`)
       .send(jsonBuffer)
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -126,11 +126,11 @@ describe('Template Tests', () => {
       });
   });
 
-  it("it should get zip file for downloading templates ['2.25.158009444536327275764005670982612161979'] ", done => {
+  it("it should get zip file for downloading templates ['2.25.121060836007636801627558943005335'] ", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/templates/download')
-      .send(['2.25.158009444536327275764005670982612161979'])
+      .send(['2.25.121060836007636801627558943005335'])
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=templates.zip');
@@ -156,10 +156,10 @@ describe('Template Tests', () => {
       });
   });
 
-  it('template delete with uid 2.25.158009444536327275764005670982612161979 should be successful ', done => {
+  it('template delete with uid 2.25.121060836007636801627558943005335 should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('/templates/2.25.158009444536327275764005670982612161979')
+      .delete('/templates/2.25.121060836007636801627558943005335')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
