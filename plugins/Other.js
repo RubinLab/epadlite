@@ -13,55 +13,68 @@ async function other(fastify) {
     const timestamp = new Date().getTime();
     const dir = `/tmp/tmp_${timestamp}`;
     const filenames = [];
+    const fileSavePromisses = [];
     function done(err) {
       if (err) {
         fastify.log.info(err.message);
         reply.code(503).send(err.message);
       } else {
-        const datasets = [];
-        const filePromisses = [];
-        filenames.forEach(filename => {
-          filePromisses.push(fastify.processFile(dir, filename, datasets));
-        });
-        Promise.all(filePromisses)
+        Promise.all(fileSavePromisses)
           .then(() => {
-            // see if it was a dicom
-            if (datasets.length > 0) {
-              // fastify.log.info(`writing dicom folder ${filename}`);
-              const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
-              fastify.saveDicoms(data, boundary).then(() => {
-                fastify.log.info('Upload completed');
-                reply.code(200).send();
+            const datasets = [];
+            const filePromisses = [];
+            filenames.forEach(filename => {
+              filePromisses.push(fastify.processFile(dir, filename, datasets));
+            });
+            Promise.all(filePromisses)
+              .then(() => {
+                // see if it was a dicom
+                if (datasets.length > 0) {
+                  // fastify.log.info(`writing dicom folder ${filename}`);
+                  const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
+                  fastify.saveDicoms(data, boundary).then(() => {
+                    fastify.log.info('Upload completed');
+                    reply.code(200).send();
+                    fs.remove(dir, error => {
+                      if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+                      fastify.log.info(`${dir} deleted`);
+                    });
+                  });
+                } else {
+                  fastify.log.info('Upload completed');
+                  reply.code(200).send();
+                  fs.remove(dir, error => {
+                    if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+                    fastify.log.info(`${dir} deleted`);
+                  });
+                }
+              })
+              .catch(filesErr => {
+                fastify.log.info(filesErr);
+                reply.code(503).send(filesErr.message);
                 fs.remove(dir, error => {
                   if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                   fastify.log.info(`${dir} deleted`);
                 });
               });
-            } else {
-              fastify.log.info('Upload completed');
-              reply.code(200).send();
-              fs.remove(dir, error => {
-                if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
-                fastify.log.info(`${dir} deleted`);
-              });
-            }
           })
-          .catch(filesErr => {
-            fastify.log.info(filesErr);
-            reply.code(503).send(filesErr.message);
-            fs.remove(dir, error => {
-              if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
-              fastify.log.info(`${dir} deleted`);
-            });
+          .catch(fileSaveErr => {
+            fastify.log.info(fileSaveErr);
+            reply.code(503).send(fileSaveErr.message);
           });
       }
     }
+    function addFile(file, filename) {
+      fileSavePromisses.push(
+        new Promise(resolve =>
+          file.pipe(fs.createWriteStream(`${dir}/${filename}`)).on('finish', resolve)
+        )
+      );
+      filenames.push(filename);
+    }
     function handler(field, file, filename) {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
-        file.pipe(fs.createWriteStream(`${dir}/${filename}`));
-        filenames.push(filename);
-      }
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+      addFile(file, filename);
     }
 
     request.multipart(handler, done);
