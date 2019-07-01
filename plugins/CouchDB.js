@@ -385,6 +385,8 @@ async function couchdb(fastify, options) {
               group_level: 5,
             };
           }
+          // see if there are segmentations without aims
+
           // define which view to use according to the parameter format
           // default is json
           let view = 'aims_json';
@@ -832,6 +834,34 @@ async function couchdb(fastify, options) {
       reply.code(503).send(err);
     }
   });
+
+  fastify.decorate(
+    'checkAim',
+    uid =>
+      new Promise((resolve, reject) => {
+        try {
+          const db = fastify.couch.db.use(config.db);
+          db.view(
+            'instances',
+            'dso_aim',
+            {
+              startkey: [uid, ''],
+              endkey: [`${uid}\u9999`, '{}'],
+              reduce: true,
+              group_level: 2,
+            },
+            (error, body) => {
+              if (!error) resolve(body.rows.length > 0);
+
+              resolve(false);
+            }
+          );
+        } catch (err) {
+          fastify.log.info(`Error in checking and generating DSO aim. Error: ${err.message}`);
+          reject(err);
+        }
+      })
+  );
 
   fastify.log.info(`Using db: ${config.db}`);
   // register couchdb

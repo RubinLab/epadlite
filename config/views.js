@@ -31,4 +31,10 @@ module.exports.views = {
       " function(doc){if(doc.template){key={};key.containerUID=doc.template.TemplateContainer.uid;key.containerName=doc.template.TemplateContainer.name;key.containerDescription=doc.template.TemplateContainer.description;key.containerVersion=doc.template.TemplateContainer.version;key.containerAuthors=doc.template.TemplateContainer.authors;key.containerCreationDate=doc.template.TemplateContainer.creationDate;template={'type':'image'};if(doc.template.TemplateContainer.Template[0].templateType)template.type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase();template.templateName=doc.template.TemplateContainer.Template[0].name;template.templateDescription=doc.template.TemplateContainer.Template[0].description;template.templateUID=doc.template.TemplateContainer.uid;template.templateCodeValue=doc.template.TemplateContainer.Template[0].codeValue;template.templateCodeMeaning=doc.template.TemplateContainer.Template[0].codeMeaning;template.templateVersion=doc.template.TemplateContainer.Template[0].version;template.templateAuthors=doc.template.TemplateContainer.Template[0].authors;template.templateCreationDate=doc.template.TemplateContainer.Template[0].creationDate;key.Template=[template];emit([key.Template[0].type,key.Template[0].templateUID,key],1)}} ",
     reduce: '_count()',
   },
+
+  dso_aim: {
+    map:
+      "function(doc){if(doc.aim&&doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection){empty='NA';aimID=empty;if(doc.aim.ImageAnnotationCollection.uniqueIdentifier)aimID=doc.aim.ImageAnnotationCollection.uniqueIdentifier.root;segref=doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0];seriesUID=empty;if(segref.seriesInstanceUid){seriesUID=segref.seriesInstanceUid.root;emit([seriesUID,aimID],1)} else {instanceUID=empty;if(segref.sopInstanceUid) instanceUID=segref.sopInstanceUid.root;emit([instanceUID,aimID],1)}}}",
+    reduce: '_count()',
+  },
 };
