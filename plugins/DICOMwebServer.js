@@ -3,6 +3,7 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
+const AsyncPolling = require('async-polling');
 const config = require('../config/index');
 
 // I need to import this after config as it uses config values
@@ -392,16 +393,57 @@ async function dicomwebserver(fastify) {
       })
   );
 
+  fastify.decorate('scanStudy4DSOSeries', (subjectid, studyuid) => {
+    fastify.log.info(
+      `Scanning study ${studyuid} for DSO series and triggering aim creation if no aim present for DSO`
+    );
+    const params = {
+      subject: subjectid,
+      study: studyuid,
+    };
+    fastify
+      .getStudySeriesInternal(params, { filterDSO: false }, true)
+      .then(
+        fastify.log.info(
+          `Scanned study ${studyuid} for DSO series and triggering aim creation if no aim present for DSO`
+        )
+      )
+      .catch(err =>
+        fastify.log.info(
+          `Error scanning series of study ${studyuid} for DSO aim check: ${err.message}`
+        )
+      );
+  });
+
+  fastify.decorate('scanDB4DSOSeries', () => {
+    fastify.log.info(
+      `Scanning db for DSO series and triggering aim creation if no aim present for DSO`
+    );
+    // get studies
+    this.request
+      .get('/studies', header)
+      .then(studies => {
+        studies.data.forEach(study => {
+          if (study['00080061'].Value.includes('SEG'))
+            fastify.scanStudy4DSOSeries(study['00100020'].Value[0], study['0020000D'].Value[0]);
+        });
+      })
+      .catch(error => {
+        // TODO handle error
+        fastify.log.info(`Error scanning studies for DSO aim check: ${error.message}`);
+      });
+  });
+
   fastify.decorate('getStudySeries', (request, reply) => {
     fastify
-      .getStudySeriesInternal(request.params, request.query)
+      .getStudySeriesInternal(request.params, request.query, false)
       .then(result => reply.code(200).send(result))
       .catch(err => reply.code(503).send(err.message));
   });
 
   fastify.decorate(
     'getStudySeriesInternal',
-    (params, query) =>
+    (params, query, checkDSOAim) =>
       new Promise((resolve, reject) => {
         try {
           const series = this.request.get(`/studies/${params.study}/series`, header);
@@ -437,8 +479,10 @@ async function dicomwebserver(fastify) {
               let filtered = values[0].data;
 
               // check if dso series have the aim
-              const dsoSeries = _.filter(filtered, obj => obj['00080060'].Value[0] === 'SEG');
-              if (dsoSeries.length > 0) _.each(dsoSeries, fastify.checkDSOSeriesforAim);
+              if (checkDSOAim === true) {
+                const dsoSeries = _.filter(filtered, obj => obj['00080060'].Value[0] === 'SEG');
+                if (dsoSeries.length > 0) _.each(dsoSeries, fastify.checkDSOSeriesforAim);
+              }
 
               if (query.filterDSO === 'true')
                 filtered = _.filter(filtered, obj => obj['00080060'].Value[0] !== 'SEG');
@@ -567,6 +611,10 @@ async function dicomwebserver(fastify) {
   fastify.after(async () => {
     try {
       await fastify.initDicomWeb();
+      AsyncPolling(end => {
+        fastify.scanDB4DSOSeries();
+        end();
+      }, 10000).run();
     } catch (err) {
       // do not turn off the server if in test mode. shouldn't come here in development anyway
       if (config.env !== 'test') {
