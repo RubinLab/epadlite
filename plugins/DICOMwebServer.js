@@ -347,19 +347,84 @@ async function dicomwebserver(fastify) {
   );
 
   fastify.decorate(
-    'getFirstImageUID',
+    'generateAim',
+    imageMetadata =>
+      new Promise((resolve, reject) => {
+        try {
+          const aimImageData = {
+            aim: {
+              studyInstanceUid: imageMetadata['0020000D'].Value[0],
+              typeCode: [
+                {
+                  code: 'SEG',
+                  codeSystemName: 'SEG Only',
+                  'iso:displayName': {
+                    'xmlns:iso': 'uri:iso.org:21090',
+                    value: 'SEG Only',
+                  },
+                },
+              ],
+              name: 'ePAD DSO',
+              comment: '',
+            },
+            study: {
+              startTime: imageMetadata['00080030'].Value[0], // ?
+              instanceUid: imageMetadata['0020000D'].Value[0],
+              startDate: imageMetadata['00080020'].Value[0], // ?
+              // accessionNumber: imageMetadata['00080050'].Value[0], //not there
+            },
+            series: {
+              // instanceUid: imageMetadata['0020000d'].Value[0]'x0020000e',
+              // modality: imageMetadata['0020000d'].Value[0]'x00080060',
+            },
+            image: {
+              // sopClassUid: imageMetadata['0020000d'].Value[0]'x00080016',
+              // sopInstanceUid: imageMetadata['0020000d'].Value[0]'x00080018',
+            },
+            segmentation: {
+              // referencedSopInstanceUid: imageMetadata['0020000d'].Value[0]'x00080018',
+              seriesInstanceUid: imageMetadata['0020000E'].Value[0],
+              studyInstanceUid: imageMetadata['0020000D'].Value[0],
+              sopInstanceUid: imageMetadata['00080018'].Value[0],
+            },
+            equipment: {
+              // manufacturerName: imageMetadata['00080070'].Value[0], // we need the actual image
+              // manufacturerModelName: imageMetadata['00081090'].Value[0],
+              // softwareVersion: imageMetadata['00181020'].Value[0],
+            },
+            user: {
+              loginName: 'epad',
+              name: 'ePad',
+            },
+            person: {
+              sex: imageMetadata['00100040'].Value[0],
+              name: imageMetadata['00100010'].Value[0],
+              patientId: imageMetadata['00100020'].Value[0],
+              birthDate: imageMetadata['00100030'].Value[0],
+            },
+          };
+          console.log(aimImageData);
+          resolve();
+        } catch (err) {
+          fastify.log.info(`Error generating segmentation aim. Error: ${err.message}`);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getFirstImage',
     params =>
       new Promise((resolve, reject) => {
         fastify
-          .getSeriesImagesInternal(params)
+          .getSeriesImagesMetadataInternal(params)
           .then(result => {
-            if (result.ResultSet.Result.length > 0 && result.ResultSet.Result[0].imageUID)
-              resolve(result.ResultSet.Result[0].imageUID);
-            reject(new Error(`Error retrieving first image in series ${params.series}`));
+            if (result.length > 0) resolve(result[0]);
+            reject(new Error(`Error retrieving first image metadata in series ${params.series}`));
           })
           .catch(err => {
-            fastify.log.info(`Error retrieving first image. Error: ${err.message}`);
-            reject(new Error(`Error retrieving first image in series ${params.series}`));
+            fastify.log.info(`Error retrieving first image metadata. Error: ${err.message}`);
+            reject(new Error(`Error retrieving first image  metadata in series ${params.series}`));
           });
       })
   );
@@ -378,11 +443,12 @@ async function dicomwebserver(fastify) {
               study: dsoSeries['0020000D'].Value[0],
               series: dsoSeries['0020000E'].Value[0],
             };
-            const image = await fastify.getFirstImageUID(params);
-            const imgExists = await fastify.checkAim(image);
+            const image = await fastify.getFirstImage(params);
+            const imgExists = await fastify.checkAim(image['00080018'].Value[0]);
             if (!imgExists) {
-              console.log(`we need to generate segmentation aim for ${image}`);
-              // await fastify.generateAim(image);
+              // console.log(image);
+              console.log(`we need to generate segmentation aim for ${image['00080018'].Value[0]}`);
+              await fastify.generateAim(image);
             }
           }
           resolve();
@@ -537,6 +603,30 @@ async function dicomwebserver(fastify) {
             });
         } catch (err) {
           fastify.log.info(`Error populating study's (${params.study}) series: ${err.message}`);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getSeriesImagesMetadataInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        try {
+          this.request
+            .get(`/studies/${params.study}/series/${params.series}/metadata`, header)
+            .then(response => {
+              resolve(response.data);
+            })
+            .catch(error => {
+              // handle error
+              fastify.log.info(
+                `Error retrieving series's (${params.series}) metadata: ${error.message}`
+              );
+              reject(error);
+            });
+        } catch (err) {
+          fastify.log.info(`Error populating series's (${params.series}) metadata: ${err.message}`);
           reject(err);
         }
       })
