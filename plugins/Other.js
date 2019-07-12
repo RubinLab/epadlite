@@ -1,6 +1,7 @@
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
-const unzip = require('unzip-stream');
+// const unzip = require('unzip-stream');
+const yauzl = require('yauzl');
 const toArrayBuffer = require('to-array-buffer');
 // eslint-disable-next-line no-global-assign
 window = {};
@@ -89,19 +90,52 @@ async function other(fastify) {
           if (errMkdir) fastify.log.info(`Couldn't create ${zipDir}`);
           else {
             fastify.log.info(`Extracting ${dir}/${filename} to ${zipDir}`);
-            fs.createReadStream(`${dir}/${filename}`)
-              .pipe(unzip.Extract({ path: `${zipDir}` }))
-              .on('close', () => {
-                fastify.log.info('Extracted zip ', `${zipDir}`);
+            yauzl.open(`${dir}/${filename}`, { lazyEntries: true }, (err, zipfile) => {
+              if (err) throw err;
+              zipfile.readEntry();
+              zipfile.on('entry', entry => {
+                console.log(entry.fileName);
+                if (/\/$/.test(entry.fileName)) {
+                  // Directory file names end with '/'.
+                  // Note that entires for directories themselves are optional.
+                  // An entry's fileName implicitly requires its parent directories to exist.
+                  fs.mkdir(`${zipDir}/${entry.fileName}`, err4 => {
+                    if (err4) throw err4;
+                    zipfile.readEntry();
+                  });
+                } else {
+                  // file entry
+                  zipfile.openReadStream(entry, (err3, readStream) => {
+                    if (err3) throw err3;
+                    readStream.on('end', () => {
+                      zipfile.readEntry();
+                    });
+                    readStream.pipe(fs.createWriteStream(`${zipDir}/${entry.fileName}`));
+                  });
+                }
+              });
+              zipfile.on('close', () => {
                 fastify
                   .processFolder(`${zipDir}`)
                   .then(() => resolve())
-                  .catch(err => reject(err));
-              })
-              .on('error', error => {
-                fastify.log.info(`Extract error ${error}`);
-                reject(error);
+                  .catch(err2 => reject(err2));
+                console.log('closed input file');
               });
+            });
+
+            // fs.createReadStream(`${dir}/${filename}`)
+            //   .pipe(unzip.Extract({ path: `${zipDir}` }))
+            //   .on('close', () => {
+            //     fastify.log.info('Extracted zip ', `${zipDir}`);
+            //     fastify
+            //       .processFolder(`${zipDir}`)
+            //       .then(() => resolve())
+            //       .catch(err => reject(err));
+            //   })
+            //   .on('error', error => {
+            //     fastify.log.info(`Extract error ${error}`);
+            //     reject(error);
+            //   });
           }
         });
       })
