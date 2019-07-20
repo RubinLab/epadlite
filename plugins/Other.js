@@ -26,6 +26,8 @@ async function other(fastify) {
             filenames.forEach(filename => {
               filePromisses.push(fastify.processFile(dir, filename, datasets));
             });
+            fastify.log.info('Files copy completed. sending response');
+            reply.code(200).send();
             Promise.all(filePromisses)
               .then(() => {
                 // see if it was a dicom
@@ -34,7 +36,7 @@ async function other(fastify) {
                   const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                   fastify.saveDicoms(data, boundary).then(() => {
                     fastify.log.info('Upload completed');
-                    reply.code(200).send();
+                    // reply.code(200).send();
                     fs.remove(dir, error => {
                       if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                       fastify.log.info(`${dir} deleted`);
@@ -42,7 +44,7 @@ async function other(fastify) {
                   });
                 } else {
                   fastify.log.info('Upload completed');
-                  reply.code(200).send();
+                  // reply.code(200).send();
                   fs.remove(dir, error => {
                     if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                     fastify.log.info(`${dir} deleted`);
