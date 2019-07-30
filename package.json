@@ -18,6 +18,7 @@
     "fastify-couchdb": "^0.2.0",
     "fastify-multipart": "^1.0.0",
     "fastify-plugin": "^1.5.0",
+    "fastify-sequelizejs": "^1.6.0",
     "fastify-static": "^1.1.0",
     "fs-extra": "^7.0.1",
     "keycloak-backend": "^2.0.0",
