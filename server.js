@@ -1,5 +1,6 @@
 const fs = require('fs-extra');
 const path = require('path');
+const Sequelize = require('sequelize');
 // eslint-disable-next-line import/order
 const config = require('./config/index');
 // Require the framework and instantiate it
@@ -146,6 +147,44 @@ fastify.decorate('auth', async (req, res) => {
 
 // add authentication prehandler, all requests need to be authenticated
 fastify.addHook('preHandler', fastify.auth);
+
+const sequelizeConfig = {
+  dialect: 'mariadb',
+  database: 'epaddb',
+  host: 'localhost',
+  port: 3306,
+  username: 'pacs',
+  password: 'pacs',
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000,
+  },
+};
+
+fastify.ready(() => {
+  // Test connection
+  fastify.orm
+    .authenticate()
+    .then(() => {
+      console.log('Connection has been established successfully.');
+    })
+    .catch(err => {
+      console.error('Unable to connect to the database:', err);
+    });
+});
+
+// code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
+// used sequelize itself to get the latest version with mariadb support
+const sequelize = new Sequelize(sequelizeConfig);
+fastify.decorate('orm', sequelize);
+fastify.addHook('onClose', (fastifyInstance, done) => {
+  sequelize
+    .close()
+    .then(done)
+    .catch(done);
+});
 
 const port = process.env.port || '8080';
 const host = process.env.host || '0.0.0.0';
