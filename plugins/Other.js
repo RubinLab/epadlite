@@ -21,7 +21,7 @@ async function other(fastify) {
       } else {
         Promise.all(fileSavePromisses)
           .then(() => {
-            const datasets = [];
+            let datasets = [];
             const filePromisses = [];
             filenames.forEach(filename => {
               filePromisses.push(fastify.processFile(dir, filename, datasets));
@@ -36,6 +36,7 @@ async function other(fastify) {
                   const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                   fastify.saveDicoms(data, boundary).then(() => {
                     fastify.log.info('Upload completed');
+                    datasets = [];
                     // reply.code(200).send();
                     fs.remove(dir, error => {
                       if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
@@ -153,11 +154,22 @@ async function other(fastify) {
     (dir, filename, datasets) =>
       new Promise((resolve, reject) => {
         try {
-          fs.readFile(`${dir}/${filename}`, (readErr, buffer) => {
-            if (readErr) {
-              fastify.log.info(`Error in save for ${filename}: ${readErr}`);
-              reject(readErr);
-            } else if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
+          let buffer = [];
+          const readableStream = fs.createReadStream(`${dir}/${filename}`);
+          readableStream.on('data', chunk => {
+            buffer.push(chunk);
+          });
+          readableStream.on('error', readErr => {
+            fastify.log.info(`Error in save when reading file ${dir}/${filename}: ${readErr}`);
+            reject(readErr);
+          });
+          readableStream.on('close', () => {
+            readableStream.destroy();
+          });
+          readableStream.on('end', () => {
+            buffer = Buffer.concat(buffer);
+            fastify.log.info(`Finished reading ${dir}/${filename} ${buffer.length}`);
+            if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
               datasets.push(toArrayBuffer(buffer));
               resolve();
             } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
