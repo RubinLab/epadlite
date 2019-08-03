@@ -116,7 +116,7 @@ async function other(fastify) {
       new Promise((resolve, reject) => {
         fastify.log.info(`Processing folder ${zipDir}`);
         const datasets = [];
-        fs.readdir(zipDir, (err, files) => {
+        fs.readdir(zipDir, async (err, files) => {
           if (err) {
             fastify.log.info(`Unable to scan directory: ${err}`);
             reject(err);
@@ -125,7 +125,8 @@ async function other(fastify) {
           for (let i = 0; i < files.length; i += 1) {
             if (files[i] !== '__MACOSX')
               if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
-                promisses.push(fastify.processFolder(`${zipDir}/${files[i]}`));
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.processFolder(`${zipDir}/${files[i]}`);
               else promisses.push(fastify.processFile(zipDir, files[i], datasets));
           }
           Promise.all(promisses)
