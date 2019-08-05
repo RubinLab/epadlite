@@ -5,13 +5,13 @@ chai.use(chaiHttp);
 const { expect } = chai;
 
 describe('Project Tests', () => {
-  it('projects should be empty ', done => {
+  it('projects should have 2 (all, unassigned) ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(0);
+        expect(res.body.length).to.be.eql(2);
         done();
       })
       .catch(e => {
@@ -21,13 +21,10 @@ describe('Project Tests', () => {
   it('project create should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects')
-      .send({
-        projectName: 'test',
-        projectDescription: 'test desc',
-        defaultTemplate: '',
-        type: 'private',
-      })
+      .post(
+        '/projects?projectName=test&projectDescription=testdesc&defaultTemplate=ROI&type=private'
+      )
+      .send()
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -36,14 +33,13 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  it('projects should have test project ', done => {
+  it('projects should have 3 projects ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(1);
-        expect(res.body[0].projectName).to.be.eql('test');
+        expect(res.body.length).to.be.eql(3);
         done();
       })
       .catch(e => {

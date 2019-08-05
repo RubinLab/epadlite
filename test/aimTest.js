@@ -12,6 +12,7 @@ before(async () => {
   process.env.port = 5987;
   server = require('../server'); // eslint-disable-line
   await server.ready();
+  await server.orm.authenticate();
 });
 after(() => {
   server.close();
