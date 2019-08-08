@@ -54,6 +54,8 @@ fastify.register(require('fastify-cors'), {
   origin: '*',
 });
 
+fastify.register(require('fastify-ws'));
+
 // register CouchDB plugin we created
 fastify.register(require('./plugins/CouchDB'), {
   url: `${config.dbServer}:${config.dbPort}`,
@@ -146,6 +148,23 @@ fastify.decorate('auth', async (req, res) => {
 
 // add authentication prehandler, all requests need to be authenticated
 fastify.addHook('preHandler', fastify.auth);
+
+fastify.ready(err => {
+  if (err) throw err;
+
+  console.log('Server started.');
+
+  fastify.ws.on('connection', socket => {
+    console.log('Client connected.');
+
+    socket.on('message', msg => {
+      console.log(`message received ${msg}`);
+      socket.send(`client sent the msg: ${JSON.stringify({ notification: msg })}`);
+    }); // Creates an echo server
+
+    socket.on('close', () => console.log('Client disconnected.'));
+  });
+});
 
 const port = process.env.port || '8080';
 const host = process.env.host || '0.0.0.0';
