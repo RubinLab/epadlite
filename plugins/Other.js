@@ -291,6 +291,16 @@ async function other(fastify) {
       reply.code(503).send(err.message);
     }
   });
+
+  fastify.decorate('getNotifications', (request, reply) => {
+    reply.res.writeHead(200, {
+      Connection: 'keep-alive',
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    });
+    fastify.addConnectedUser(request, reply);
+    // TODO remove user and close connefction on logout
+  });
 }
 
 // expose as plugin so the module using it can access the decorated methods

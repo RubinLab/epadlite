@@ -247,15 +247,14 @@ async function dicomwebserver(fastify) {
               };
             })
             .value();
-          // reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
-          reply.res.writeHead(200, {
-            Connection: 'keep-alive',
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-          });
-          reply.res.write('data: {"flight": "I768", "state": "landing"}');
-          reply.res.write('data: {"flight333": "I768", "state": "lan5555ding"}');
-          reply.res.end();
+          // just write some text to notifications for testing
+          // TODO try catch
+          fastify.connectedUsers[request.query.username ? request.query.username : 'user'].write(
+            `sending ${JSON.stringify({
+              ResultSet: { Result: result, totalRecords: result.length },
+            })}`
+          );
+          reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
         })
         .catch(error => {
           // TODO handle error

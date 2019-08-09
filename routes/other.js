@@ -68,5 +68,11 @@ async function otherRoutes(fastify) {
 
     handler: fastify.deleteSubject,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/notifications',
+    handler: fastify.getNotifications,
+  });
 }
 module.exports = otherRoutes;

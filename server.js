@@ -129,6 +129,20 @@ const authCheck = async (authHeader, res) => {
   }
 };
 
+fastify.decorate('connectedUsers', {});
+fastify.decorate('sse', (req, messageJson) =>
+  fastify.connectedUsers[req.query && req.query.username ? req.query.username : 'user'].write(
+    JSON.stringify(messageJson)
+  )
+);
+fastify.decorate(
+  'addConnectedUser',
+  // eslint-disable-next-line no-return-assign
+  (req, res) =>
+    (fastify.connectedUsers[req.query && req.query.username ? req.query.username : 'user'] =
+      res.res)
+);
+
 fastify.decorate('auth', async (req, res) => {
   if (config.auth && config.auth !== 'none') {
     // if auth has been given in config, verify authentication
