@@ -4,6 +4,7 @@ const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
 const config = require('../config/index');
+const EpadNotification = require('../utils/EpadNotification');
 
 // I need to import this after config as it uses config values
 // eslint-disable-next-line import/order
@@ -247,16 +248,15 @@ async function dicomwebserver(fastify) {
               };
             })
             .value();
-          // just write some text to notifications for testing
-          // TODO try catch
-          fastify.connectedUsers[request.query.username ? request.query.username : 'user'].write(
-            `sending ${JSON.stringify({
-              ResultSet: { Result: result, totalRecords: result.length },
-            })}`
-          );
           reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
         })
         .catch(error => {
+          const notification = new EpadNotification({
+            projectID: 'lite',
+            username: request.query.username ? request.query.username : 'nouser',
+            function: error,
+          });
+          notification.notify(fastify);
           // TODO handle error
           fastify.log.info(`Error retrieving studies to populate patients: ${error.message}`);
           reply.code(503).send(error);

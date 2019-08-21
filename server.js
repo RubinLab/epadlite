@@ -131,16 +131,18 @@ const authCheck = async (authHeader, res) => {
 
 fastify.decorate('connectedUsers', {});
 fastify.decorate('sse', (req, messageJson) =>
-  fastify.connectedUsers[req.query && req.query.username ? req.query.username : 'user'].write(
+  fastify.connectedUsers[req.query && req.query.username ? req.query.username : 'nouser'].write(
     JSON.stringify(messageJson)
   )
 );
 fastify.decorate(
   'addConnectedUser',
   // eslint-disable-next-line no-return-assign
-  (req, res) =>
-    (fastify.connectedUsers[req.query && req.query.username ? req.query.username : 'user'] =
-      res.res)
+  (req, res) => {
+    console.log(`adding ${req.query && req.query.username ? req.query.username : 'nouser'}`);
+    fastify.connectedUsers[req.query && req.query.username ? req.query.username : 'nouser'] =
+      res.res;
+  }
 );
 
 fastify.decorate('auth', async (req, res) => {

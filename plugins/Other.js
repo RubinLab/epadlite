@@ -299,7 +299,11 @@ async function other(fastify) {
       'Cache-Control': 'no-cache',
     });
     fastify.addConnectedUser(request, reply);
-    // TODO remove user and close connefction on logout
+    // TODO remove user and close connection on logout. stop notifications endpoint??
+  });
+
+  fastify.decorate('notify', notification => {
+    notification.notify(fastify);
   });
 }
 
