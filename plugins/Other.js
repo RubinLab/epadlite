@@ -23,8 +23,8 @@ async function other(fastify) {
           .then(() => {
             let datasets = [];
             const filePromisses = [];
-            filenames.forEach(filename => {
-              filePromisses.push(fastify.processFile(dir, filename, datasets));
+            filenames.forEach(async filename => {
+              await fastify.processFile(dir, filename, datasets);
             });
             fastify.log.info('Files copy completed. sending response');
             reply.code(200).send();
@@ -134,6 +134,9 @@ async function other(fastify) {
               if (datasets.length > 0) {
                 fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
                 const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
+                fastify.log.info(
+                  `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
+                );
                 fastify
                   .saveDicoms(data, boundary)
                   .then(() => resolve())
