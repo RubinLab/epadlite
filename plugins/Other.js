@@ -5,6 +5,7 @@ const toArrayBuffer = require('to-array-buffer');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
+const EpadNotification = require('../utils/EpadNotification');
 
 async function other(fastify) {
   // eslint-disable-next-line global-require
@@ -37,6 +38,7 @@ async function other(fastify) {
                   fastify.saveDicoms(data, boundary).then(() => {
                     fastify.log.info('Upload completed');
                     datasets = [];
+                    new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
                     // reply.code(200).send();
                     fs.remove(dir, error => {
                       if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
@@ -45,6 +47,7 @@ async function other(fastify) {
                   });
                 } else {
                   fastify.log.info('Upload completed');
+                  new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
                   // reply.code(200).send();
                   fs.remove(dir, error => {
                     if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
@@ -54,6 +57,7 @@ async function other(fastify) {
               })
               .catch(filesErr => {
                 fastify.log.info(filesErr);
+                new EpadNotification(request, 'Upload Error', filenames, filesErr).notify(fastify);
                 reply.code(503).send(filesErr.message);
                 fs.remove(dir, error => {
                   if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
@@ -63,6 +67,7 @@ async function other(fastify) {
           })
           .catch(fileSaveErr => {
             fastify.log.info(fileSaveErr);
+            new EpadNotification(request, 'Upload Error', filenames, fileSaveErr).notify(fastify);
             reply.code(503).send(fileSaveErr.message);
           });
       }
