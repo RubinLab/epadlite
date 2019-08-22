@@ -251,17 +251,15 @@ async function dicomwebserver(fastify) {
           reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
         })
         .catch(error => {
-          const notification = new EpadNotification({
-            projectID: 'lite',
-            username: request.query.username ? request.query.username : 'nouser',
-            function: error,
-          });
-          notification.notify(fastify);
+          new EpadNotification(request, 'Get Patients', 'Retrieving Studies', error).notify(
+            fastify
+          );
           // TODO handle error
           fastify.log.info(`Error retrieving studies to populate patients: ${error.message}`);
           reply.code(503).send(error);
         });
     } catch (err) {
+      new EpadNotification(request, 'Get Patients', 'Populating Patients', err).notify(fastify);
       fastify.log.info(`Error populating patients: ${err.message}`);
       reply.code(503).send(err);
     }
