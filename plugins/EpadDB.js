@@ -1,14 +1,22 @@
 const fp = require('fastify-plugin');
+// const Sequelize = require('sequelize');
 
 async function epaddb(fastify) {
   const Project = fastify.orm.import(`${__dirname}/../models/project`);
   const Worklist = fastify.orm.import(`${__dirname}/../models/worklist`);
-
+  const WorklistStudy = fastify.orm.import(`${__dirname}/../models/worklist_study`);
+  Worklist.hasMany(WorklistStudy, { foreignKey: 'worklist_id' });
   fastify.decorate('initMariaDB', async () => {
     // Test connection
     fastify.orm
       .authenticate()
       .then(() => {
+        fastify.orm
+          .sync()
+          .then(() => {
+            console.log('db sync successful!');
+          })
+          .catch(err => console.log(err));
         console.log('Connection to mariadb has been established successfully.');
       })
       .catch(err => {
@@ -100,7 +108,7 @@ async function epaddb(fastify) {
   });
 
   fastify.decorate('getProjects', (request, reply) => {
-    Project.findAll(request)
+    Project.findAll()
       .then(projects => {
         // projects will be an array of all Project instances
         // console.log(projects);
@@ -125,52 +133,19 @@ async function epaddb(fastify) {
   //     });
   // });
 
-  /*
-  const getWorklistsInternal = params => {
-    return new Promise((resolve, reject) => {
-      try {
-        Worklist.findAll({
-          where: {
-            user_id: params.userId,
-          },
-        })
-          .then(worklist => {
-            // projects will be an array of all Project instances
-            // console.log(projects);
-            const result = [];
-            for (let i = 0; i < worklist.length; i += 1) {
-              const obj = {
-                completionDate: worklist[i].completedate,
-                dueDate: worklist[i].dueDate,
-                name: worklist[i].name,
-                startDate: worklist[i].startdate,
-                username: worklist[i].user_id,
-                workListID: worklist[i].worklistid,
-              };
-              result.push(obj);
-            }
-            resolve({ ResultSet: { Result: result } });
-          })
-          .catch(err => {
-            reject(err);
-          });
-      } catch (error) {
-        reject(error);
-      }
-    });
-  };
-
-  */
   fastify.decorate('getWorklists', (request, reply) => {
-    // getWorklistsInternal(request.params)
     Worklist.findAll({
       where: {
         user_id: request.params.userId,
       },
+      include: [
+        {
+          model: WorklistStudy,
+          // where: { worklist_id: Sequelize.col('worklist.id') },
+        },
+      ],
     })
       .then(worklist => {
-        // projects will be an array of all Project instances
-        // console.log(projects);
         const result = [];
         for (let i = 0; i < worklist.length; i += 1) {
           const obj = {
@@ -180,12 +155,22 @@ async function epaddb(fastify) {
             startDate: worklist[i].startdate,
             username: worklist[i].user_id,
             workListID: worklist[i].worklistid,
+            description: worklist[i].description,
+            projectIDs: [],
+            studyStatus: [],
+            studyIDs: [],
           };
+          const studiesArr = worklist[i].worklist_studies;
+          for (let k = 0; k < studiesArr.length; k += 1) {
+            obj.projectIDs.push(studiesArr[k].dataValues.project_id);
+            obj.studyStatus.push(studiesArr[k].dataValues.status);
+            obj.studyIDs.push(studiesArr[k].dataValues.study_id);
+          }
           result.push(obj);
         }
-
         reply.code(200).send({ ResultSet: { Result: result } });
       })
+
       .catch(err => {
         reply.code(503).send(err.message);
       });

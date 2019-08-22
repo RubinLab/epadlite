@@ -12,7 +12,6 @@ describe('Project Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
       .then(res => {
-        // console.log(process.env.host, process.env.port);
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(2);
         done();
@@ -127,13 +126,13 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  it('worklists should have 1 worklists', done => {
+  it('worklists should have 2 worklists', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/1/worklists')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(1);
+        expect(res.body.ResultSet.Result.length).to.be.eql(2);
         done();
       })
       .catch(e => {
@@ -152,13 +151,13 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  it('worklists should have 2 worklists ', done => {
+  it('worklists should have 3 worklists ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/1/worklists')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(2);
+        expect(res.body.ResultSet.Result.length).to.be.eql(3);
         done();
       })
       .catch(e => {
@@ -189,13 +188,13 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  it('worklists should have 1 worklists', done => {
+  it('worklists should have 2 worklists', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/1/worklists')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(1);
+        expect(res.body.ResultSet.Result.length).to.be.eql(2);
         done();
       })
       .catch(e => {

@@ -26,6 +26,14 @@ module.exports = function(sequelize, DataTypes) {
           key: 'id',
         },
       },
+      subject_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+        references: {
+          model: 'subject',
+          key: 'id',
+        },
+      },
       project_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
