@@ -833,6 +833,69 @@ async function couchdb(fastify, options) {
     }
   });
 
+  fastify.decorate(
+    'getTemplatesFromUIDsInternal',
+    (query, ids) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let format = 'json';
+          if (query.format) format = query.format.toLowerCase();
+
+          const db = fastify.couch.db.use(config.db);
+          const res = [];
+          db.fetch({ keys: ids }).then(data => {
+            if (format === 'summary') {
+              data.rows.forEach(item => {
+                const summary = {};
+                summary.containerUID = item.doc.template.TemplateContainer.uid;
+                summary.containerName = item.doc.template.TemplateContainer.name;
+                summary.containerDescription = item.doc.template.TemplateContainer.description;
+                summary.containerVersion = item.doc.template.TemplateContainer.version;
+                summary.containerAuthors = item.doc.template.TemplateContainer.authors;
+                summary.containerCreationDate = item.doc.template.TemplateContainer.creationDate;
+                const template = {
+                  type: 'image',
+                };
+                if (item.doc.template.TemplateContainer.Template[0].templateType)
+                  template.type = item.doc.template.TemplateContainer.Template[0].templateType.toLowerCase();
+                template.templateName = item.doc.template.TemplateContainer.Template[0].name;
+                template.templateDescription =
+                  item.doc.template.TemplateContainer.Template[0].description;
+                template.templateUID = item.doc.template.TemplateContainer.uid;
+                template.templateCodeValue =
+                  item.doc.template.TemplateContainer.Template[0].codeValue;
+                template.templateCodeMeaning =
+                  item.doc.template.TemplateContainer.Template[0].codeMeaning;
+                template.templateVersion = item.doc.template.TemplateContainer.Template[0].version;
+                template.templateAuthors = item.doc.template.TemplateContainer.Template[0].authors;
+                template.templateCreationDate =
+                  item.doc.template.TemplateContainer.Template[0].creationDate;
+                summary.Template = [template];
+                res.push(summary);
+              });
+              resolve({ ResultSet: { Result: res } });
+            } else if (format === 'stream') {
+              data.rows.forEach(item => {
+                if ('doc' in item) res.push(item.doc.template);
+              });
+              fastify
+                .downloadTemplates(res)
+                .then(result => resolve(result))
+                .catch(err => reject(err));
+            } else {
+              // the default is json! The old APIs were XML, no XML in epadlite
+              data.rows.forEach(item => {
+                if ('doc' in item) res.push(item.doc.template);
+              });
+              resolve(res);
+            }
+          });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.log.info(`Using db: ${config.db}`);
   // register couchdb
   // disables eslint check as I want this module to be standalone to be (un)pluggable
