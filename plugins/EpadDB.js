@@ -100,6 +100,22 @@ async function epaddb(fastify) {
     }
   });
 
+  fastify.decorate('deleteTemplateFromProject', async (request, reply) => {
+    try {
+      const templateUid = request.params.uid;
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+
+      const numDeleted = await ProjectTemplate.destroy({
+        where: { project_id: project.id, template_uid: templateUid },
+      });
+      reply.code(200).send(`Deleted ${numDeleted} records`);
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
+  });
+
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();

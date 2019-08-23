@@ -35,24 +35,24 @@ async function routes(fastify) {
     handler: fastify.saveTemplateToProject,
   });
 
-  // fastify.route({
-  //   method: 'DELETE',
-  //   url: '/projects/:projectId/templates/:uid',
-  //   schema: {
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         projectId: {
-  //           type: 'string',
-  //         },
-  //         uid: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //   },
-  //   handler: fastify.deleteTemplate,
-  // });
+  fastify.route({
+    method: 'DELETE',
+    url: '/projects/:projectId/templates/:uid',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          projectId: {
+            type: 'string',
+          },
+          uid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteTemplateFromProject,
+  });
 
   // GET {s}/templates
   fastify.route({

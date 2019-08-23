@@ -102,4 +102,92 @@ describe('Project Tests', () => {
         done(e);
       });
   });
+
+  it('project test should have template with uid 2.25.121060836007636801627558943005335', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/test/templates')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body[0].TemplateContainer.uid).to.be.eql(
+          '2.25.121060836007636801627558943005335'
+        );
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('project template delete should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/projects/test/templates/2.25.121060836007636801627558943005335')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('project test should have no template ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/test/templates')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(0);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('ROI template should still be in the db', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/templates')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body).to.be.a('array');
+        expect(res.body.length).to.be.eql(1);
+        expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
+        expect(res.body[0].TemplateContainer.Template[0].codeValue).to.be.eql('ROI');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('template delete with uid 2.25.121060836007636801627558943005335 should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/templates/2.25.121060836007636801627558943005335')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('templates should be empty', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/templates')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body).to.be.a('array');
+        expect(res.body.length).to.be.eql(0);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
 });
