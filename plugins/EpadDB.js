@@ -3,6 +3,7 @@ const fp = require('fastify-plugin');
 async function epaddb(fastify) {
   const Project = fastify.orm.import(`${__dirname}/../models/project`);
   const ProjectTemplate = fastify.orm.import(`${__dirname}/../models/project_template`);
+  const ProjectSubject = fastify.orm.import(`${__dirname}/../models/project_subject`);
 
   fastify.decorate('initMariaDB', async () => {
     // Test connection
@@ -107,6 +108,60 @@ async function epaddb(fastify) {
 
       const numDeleted = await ProjectTemplate.destroy({
         where: { project_id: project.id, template_uid: templateUid },
+      });
+      reply.code(200).send(`Deleted ${numDeleted} records`);
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
+  });
+
+  fastify.decorate('addSubjectToProject', async (request, reply) => {
+    try {
+      const { subjectId } = request.params;
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      await ProjectSubject.create({
+        project_id: project.id,
+        subject_uid: subjectId,
+        creator: request.query.username,
+        updatetime: Date.now(),
+      });
+      reply.code(200).send('Saving successful');
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in save: ${err}`);
+      reply.code(503).send(`Saving error: ${err}`);
+    }
+  });
+
+  fastify.decorate('getProjectSubjects', async (request, reply) => {
+    try {
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      const subjectUids = [];
+      ProjectSubject.findAll({ where: { project_id: project.id } }).then(projectSubjects => {
+        // projects will be an array of Project instances with the specified name
+        projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
+      });
+      console.log(subjectUids);
+      fastify
+        .getPatientsInternal(subjectUids)
+        .then(result => reply.code(200).send(result))
+        .catch(err => reply.code(503).send(err.message));
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in save: ${err}`);
+      reply.code(503).send(`Saving error: ${err}`);
+    }
+  });
+
+  fastify.decorate('deleteSubjectFromProject', async (request, reply) => {
+    try {
+      const subjectUid = request.params.subjectId;
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+
+      const numDeleted = await ProjectSubject.destroy({
+        where: { project_id: project.id, subject_uid: subjectUid },
       });
       reply.code(200).send(`Deleted ${numDeleted} records`);
     } catch (err) {

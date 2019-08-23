@@ -140,6 +140,96 @@ async function routes(fastify) {
   //   },
   //   handler: fastify.deleteProjectAim,
   // });
+
+  // subjects
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:projectId/subjects',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          projectId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getProjectSubjects,
+  });
+
+  // fastify.route({
+  //   method: 'POST',
+  //   url: '/projects/:projectId/subjects',
+  //   schema: {
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         projectId: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.addProjectSubject,
+  // });
+
+  // fastify.route({
+  //   method: 'GET',
+  //   url: '/projects/:projectId/subjects/:subjectId',
+  //   schema: {
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         projectId: {
+  //           type: 'string',
+  //         },
+  //         subjectId: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.getProjectSubject,
+  // });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:projectId/subjects/:subjectId',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          projectId: {
+            type: 'string',
+          },
+          subjectId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.addSubjectToProject,
+  });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/projects/:projectId/subjects/:subjectId',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          projectId: {
+            type: 'string',
+          },
+          subjectId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteSubjectFromProject,
+  });
 }
 
 module.exports = routes;

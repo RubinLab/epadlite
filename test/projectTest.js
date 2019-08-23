@@ -190,4 +190,96 @@ describe('Project Tests', () => {
         done(e);
       });
   });
+
+  // subjects tests
+  it('project test should have no subjects ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/test/subjects')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result.length).to.be.eql(0);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  // add sample data
+  it('dcm upload should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/files')
+      .attach('files', 'test/data/sample.dcm', 'sample.dcm')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('project subject add of patient 3 should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put('/projects/test/subjects/3')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('project test should have 1 subject ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/test/subjects')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result.length).to.be.eql(1);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('project test should have subject 3', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/test/subjects')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result[0].subjectID).to.be.eql('3');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('project subject deletion of patient 3 should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/projects/test/subjects/3')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('project test should have no subject ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/test/subjects')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result.length).to.be.eql(0);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
 });
