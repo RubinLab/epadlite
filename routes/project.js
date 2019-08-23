@@ -6,38 +6,37 @@ async function routes(fastify) {
     handler: fastify.createProject,
   });
 
-  //   fastify.route({
-  //     method: 'PUT',
-  //     url: '/projects/:projectId',
-  //     schema: {
-  //       params: {
-  //         type: 'object',
-  //         properties: {
-  //           projectId: {
-  //             type: 'string',
-  //           },
-  //         },
-  //       },
-  //     },
-  //     handler: fastify.updateTemplate,
-  //   });
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:projectId',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          projectId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.updateProject,
+  });
 
-  // TODO
-  //   fastify.route({
-  //     method: 'DELETE',
-  //     url: '/projects/:projectId',
-  //     schema: {
-  //       params: {
-  //         type: 'object',
-  //         properties: {
-  //           uid: {
-  //             type: 'string',
-  //           },
-  //         },
-  //       },
-  //     },
-  //     handler: fastify.deleteProject,
-  //   });
+  fastify.route({
+    method: 'DELETE',
+    url: '/projects/:projectId',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          uid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteProject,
+  });
 
   // GET {s}/templates
   fastify.route({
@@ -232,4 +231,103 @@ async function routes(fastify) {
   });
 }
 
+  // GET {s}/templates
+  // fastify.route({
+  //   method: 'GET',
+  //   url: '/projects/:projectId',
+  //   schema: {
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         projectId: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.getProject,
+  // });
+
+  fastify.route({
+    method: 'POST',
+    url: '/users/:userId/worklists',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          userId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.createWorklist,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/users/:userId/worklists/:worklistId/projects/:projectId/subjects',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          userId: {
+            type: 'string',
+          },
+          worklistId: {
+            type: 'string',
+          },
+          projectId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.linkWorklistToStudy,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/users/:userId/worklists',
+    handler: fastify.getWorklists,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/users/:userId/worklists/:worklistId',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          userId: {
+            type: 'string',
+          },
+          worklistId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.updateWorklist,
+  });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/users/:userId/worklists/:worklistId',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          userId: {
+            type: 'string',
+          },
+          worklistId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteWorklist,
+  });
+}
 module.exports = routes;

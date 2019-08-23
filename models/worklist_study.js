@@ -21,18 +21,14 @@ module.exports = function(sequelize, DataTypes) {
       study_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
-        references: {
-          model: 'study',
-          key: 'id',
-        },
+      },
+      subject_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
       },
       project_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
-        references: {
-          model: 'project',
-          key: 'id',
-        },
       },
       sortorder: {
         type: DataTypes.INTEGER(10).UNSIGNED,
