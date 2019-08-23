@@ -68,17 +68,24 @@ fastify.register(require('./plugins/DICOMwebServer'), {
 // register Other plugin we created
 fastify.register(require('./plugins/Other'));
 
-// register epaddb plugin we created
-fastify.register(require('./plugins/EpadDB'));
+// register epaddb plugin we created for thick mode
+// eslint-disable-next-line global-require
+if (config.mode === 'thick') fastify.register(require('./plugins/EpadDB'));
 
 // register routes
 // this should be done after CouchDB plugin to be able to use the accessor methods
-fastify.register(require('./routes/aim'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+// for both thick and lite
 fastify.register(require('./routes/template')); // eslint-disable-line global-require
-fastify.register(require('./routes/dicomweb'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
-fastify.register(require('./routes/other'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
-fastify.register(require('./routes/project')); // eslint-disable-line global-require
 
+// if in lite mode
+if (config.mode === 'lite') {
+  fastify.register(require('./routes/aim'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+  fastify.register(require('./routes/dicomweb'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+  fastify.register(require('./routes/other'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+} else if (config.mode === 'thick') {
+  fastify.register(require('./routes/project')); // eslint-disable-line global-require
+  fastify.register(require('./routes/projectTemplate')); // eslint-disable-line global-require
+}
 // authCheck routine checks if there is a bearer token or encoded basic authentication
 // info in the authorization header and does the authentication or verification of token
 // in keycloak
