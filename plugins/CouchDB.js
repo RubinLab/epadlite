@@ -833,6 +833,32 @@ async function couchdb(fastify, options) {
     }
   });
 
+  fastify.decorate('getSummaryFromTemplate', docTemplate => {
+    // this is basically what we have in the templates_summary view
+    const summary = {};
+    summary.containerUID = docTemplate.TemplateContainer.uid;
+    summary.containerName = docTemplate.TemplateContainer.name;
+    summary.containerDescription = docTemplate.TemplateContainer.description;
+    summary.containerVersion = docTemplate.TemplateContainer.version;
+    summary.containerAuthors = docTemplate.TemplateContainer.authors;
+    summary.containerCreationDate = docTemplate.TemplateContainer.creationDate;
+    const template = {
+      type: 'image',
+    };
+    if (docTemplate.TemplateContainer.Template[0].templateType)
+      template.type = docTemplate.TemplateContainer.Template[0].templateType.toLowerCase();
+    template.templateName = docTemplate.TemplateContainer.Template[0].name;
+    template.templateDescription = docTemplate.TemplateContainer.Template[0].description;
+    template.templateUID = docTemplate.TemplateContainer.uid;
+    template.templateCodeValue = docTemplate.TemplateContainer.Template[0].codeValue;
+    template.templateCodeMeaning = docTemplate.TemplateContainer.Template[0].codeMeaning;
+    template.templateVersion = docTemplate.TemplateContainer.Template[0].version;
+    template.templateAuthors = docTemplate.TemplateContainer.Template[0].authors;
+    template.templateCreationDate = docTemplate.TemplateContainer.Template[0].creationDate;
+    summary.Template = [template];
+    return summary;
+  });
+
   fastify.decorate(
     'getTemplatesFromUIDsInternal',
     (query, ids) =>
@@ -846,31 +872,7 @@ async function couchdb(fastify, options) {
           db.fetch({ keys: ids }).then(data => {
             if (format === 'summary') {
               data.rows.forEach(item => {
-                const summary = {};
-                summary.containerUID = item.doc.template.TemplateContainer.uid;
-                summary.containerName = item.doc.template.TemplateContainer.name;
-                summary.containerDescription = item.doc.template.TemplateContainer.description;
-                summary.containerVersion = item.doc.template.TemplateContainer.version;
-                summary.containerAuthors = item.doc.template.TemplateContainer.authors;
-                summary.containerCreationDate = item.doc.template.TemplateContainer.creationDate;
-                const template = {
-                  type: 'image',
-                };
-                if (item.doc.template.TemplateContainer.Template[0].templateType)
-                  template.type = item.doc.template.TemplateContainer.Template[0].templateType.toLowerCase();
-                template.templateName = item.doc.template.TemplateContainer.Template[0].name;
-                template.templateDescription =
-                  item.doc.template.TemplateContainer.Template[0].description;
-                template.templateUID = item.doc.template.TemplateContainer.uid;
-                template.templateCodeValue =
-                  item.doc.template.TemplateContainer.Template[0].codeValue;
-                template.templateCodeMeaning =
-                  item.doc.template.TemplateContainer.Template[0].codeMeaning;
-                template.templateVersion = item.doc.template.TemplateContainer.Template[0].version;
-                template.templateAuthors = item.doc.template.TemplateContainer.Template[0].authors;
-                template.templateCreationDate =
-                  item.doc.template.TemplateContainer.Template[0].creationDate;
-                summary.Template = [template];
+                const summary = fastify.getSummaryFromTemplate(item.doc.template);
                 res.push(summary);
               });
               resolve({ ResultSet: { Result: res } });
