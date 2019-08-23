@@ -38,25 +38,6 @@ async function routes(fastify) {
     handler: fastify.deleteProject,
   });
 
-  fastify.route({
-    method: 'DELETE',
-    url: '/users/:userId/worklists/:worklistId',
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          userId: {
-            type: 'string',
-          },
-          worklistId: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.deleteWorklist,
-  });
-
   // GET {s}/templates
   fastify.route({
     method: 'GET',
@@ -87,7 +68,6 @@ async function routes(fastify) {
   //   handler: fastify.getProject,
   // });
 
-  // /users/admin/worklists/idtest11?description=desctest&name=test11
   fastify.route({
     method: 'POST',
     url: '/users/:userId/worklists',
@@ -151,6 +131,23 @@ async function routes(fastify) {
     handler: fastify.updateWorklist,
   });
 
-  // TODO deleteWorklist
+  fastify.route({
+    method: 'DELETE',
+    url: '/users/:userId/worklists/:worklistId',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          userId: {
+            type: 'string',
+          },
+          worklistId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteWorklist,
+  });
 }
 module.exports = routes;
