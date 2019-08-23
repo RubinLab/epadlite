@@ -51,6 +51,95 @@ async function routes(fastify) {
 
     handler: fastify.getProjects,
   });
+
+  // fastify.route({
+  //   method: 'GET',
+  //   url: '/projects/:projectId/aims',
+  //   schema: {
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         projectId: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.getProjectAims,
+  // });
+
+  // fastify.route({
+  //   method: 'POST',
+  //   url: '/projects/:projectId/aims',
+  //   schema: {
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         projectId: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.addProjectAim,
+  // });
+
+  // fastify.route({
+  //   method: 'GET',
+  //   url: '/projects/:projectId/aims/:aimId',
+  //   schema: {
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         projectId: {
+  //           type: 'string',
+  //         },
+  //         aimId: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.getProjectAim,
+  // });
+
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/projects/:projectId/aims/:aimId',
+  //   schema: {
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         projectId: {
+  //           type: 'string',
+  //         },
+  //         aimId: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.addProjectAim,
+  // });
+
+  // fastify.route({
+  //   method: 'DELETE',
+  //   url: '/projects/:projectId/aims/:aimId',
+  //   schema: {
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         projectId: {
+  //           type: 'string',
+  //         },
+  //         aimId: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.deleteProjectAim,
+  // });
 }
 
 module.exports = routes;
