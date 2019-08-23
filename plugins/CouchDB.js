@@ -833,6 +833,71 @@ async function couchdb(fastify, options) {
     }
   });
 
+  fastify.decorate('getSummaryFromTemplate', docTemplate => {
+    // this is basically what we have in the templates_summary view
+    const summary = {};
+    summary.containerUID = docTemplate.TemplateContainer.uid;
+    summary.containerName = docTemplate.TemplateContainer.name;
+    summary.containerDescription = docTemplate.TemplateContainer.description;
+    summary.containerVersion = docTemplate.TemplateContainer.version;
+    summary.containerAuthors = docTemplate.TemplateContainer.authors;
+    summary.containerCreationDate = docTemplate.TemplateContainer.creationDate;
+    const template = {
+      type: 'image',
+    };
+    if (docTemplate.TemplateContainer.Template[0].templateType)
+      template.type = docTemplate.TemplateContainer.Template[0].templateType.toLowerCase();
+    template.templateName = docTemplate.TemplateContainer.Template[0].name;
+    template.templateDescription = docTemplate.TemplateContainer.Template[0].description;
+    template.templateUID = docTemplate.TemplateContainer.uid;
+    template.templateCodeValue = docTemplate.TemplateContainer.Template[0].codeValue;
+    template.templateCodeMeaning = docTemplate.TemplateContainer.Template[0].codeMeaning;
+    template.templateVersion = docTemplate.TemplateContainer.Template[0].version;
+    template.templateAuthors = docTemplate.TemplateContainer.Template[0].authors;
+    template.templateCreationDate = docTemplate.TemplateContainer.Template[0].creationDate;
+    summary.Template = [template];
+    return summary;
+  });
+
+  fastify.decorate(
+    'getTemplatesFromUIDsInternal',
+    (query, ids) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let format = 'json';
+          if (query.format) format = query.format.toLowerCase();
+
+          const db = fastify.couch.db.use(config.db);
+          const res = [];
+          db.fetch({ keys: ids }).then(data => {
+            if (format === 'summary') {
+              data.rows.forEach(item => {
+                const summary = fastify.getSummaryFromTemplate(item.doc.template);
+                res.push(summary);
+              });
+              resolve({ ResultSet: { Result: res } });
+            } else if (format === 'stream') {
+              data.rows.forEach(item => {
+                if ('doc' in item) res.push(item.doc.template);
+              });
+              fastify
+                .downloadTemplates(res)
+                .then(result => resolve(result))
+                .catch(err => reject(err));
+            } else {
+              // the default is json! The old APIs were XML, no XML in epadlite
+              data.rows.forEach(item => {
+                if ('doc' in item) res.push(item.doc.template);
+              });
+              resolve(res);
+            }
+          });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.log.info(`Using db: ${config.db}`);
   // register couchdb
   // disables eslint check as I want this module to be standalone to be (un)pluggable

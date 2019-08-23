@@ -6,6 +6,9 @@ async function epaddb(fastify) {
   const Worklist = fastify.orm.import(`${__dirname}/../models/worklist`);
   const WorklistStudy = fastify.orm.import(`${__dirname}/../models/worklist_study`);
   Worklist.hasMany(WorklistStudy, { foreignKey: 'worklist_id' });
+  const ProjectTemplate = fastify.orm.import(`${__dirname}/../models/project_template`);
+  const ProjectSubject = fastify.orm.import(`${__dirname}/../models/project_subject`);
+
   fastify.decorate('initMariaDB', async () => {
     // Test connection
     fastify.orm
@@ -197,6 +200,126 @@ async function epaddb(fastify) {
         reply.code(200).send('Deletion successful');
       })
       .catch(err => reply.code(503).send(err));
+
+  fastify.decorate('saveTemplateToProject', async (request, reply) => {
+    try {
+      let templateUid = request.params.uid;
+      if (request.body) {
+        await fastify.saveTemplateInternal(request.body);
+        templateUid = request.body.TemplateContainer.uid;
+      }
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+
+      await ProjectTemplate.create({
+        project_id: project.id,
+        template_uid: templateUid,
+        enabled: true,
+        creator: request.query.username,
+        updatetime: Date.now(),
+      });
+      reply.code(200).send('Saving successful');
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in save: ${err}`);
+      reply.code(503).send(`Saving error: ${err}`);
+    }
+  });
+
+  fastify.decorate('getProjectTemplates', async (request, reply) => {
+    try {
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      const templateUids = [];
+      ProjectTemplate.findAll({ where: { project_id: project.id } }).then(projectTemplates => {
+        // projects will be an array of Project instances with the specified name
+        projectTemplates.forEach(projectTemplate =>
+          templateUids.push(projectTemplate.template_uid)
+        );
+        console.log(templateUids);
+        fastify
+          .getTemplatesFromUIDsInternal(request.query, templateUids)
+          .then(result => {
+            if (request.query.format === 'stream') {
+              reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+            }
+            reply.code(200).send(result);
+          })
+          .catch(err => reply.code(503).send(err));
+      });
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in save: ${err}`);
+      reply.code(503).send(`Saving error: ${err}`);
+    }
+  });
+
+  fastify.decorate('deleteTemplateFromProject', async (request, reply) => {
+    try {
+      const templateUid = request.params.uid;
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+
+      const numDeleted = await ProjectTemplate.destroy({
+        where: { project_id: project.id, template_uid: templateUid },
+      });
+      reply.code(200).send(`Deleted ${numDeleted} records`);
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
+  });
+
+  fastify.decorate('addSubjectToProject', async (request, reply) => {
+    try {
+      const { subjectId } = request.params;
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      await ProjectSubject.create({
+        project_id: project.id,
+        subject_uid: subjectId,
+        creator: request.query.username,
+        updatetime: Date.now(),
+      });
+      reply.code(200).send('Saving successful');
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in save: ${err}`);
+      reply.code(503).send(`Saving error: ${err}`);
+    }
+  });
+
+  fastify.decorate('getProjectSubjects', async (request, reply) => {
+    try {
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      const subjectUids = [];
+      ProjectSubject.findAll({ where: { project_id: project.id } }).then(projectSubjects => {
+        // projects will be an array of Project instances with the specified name
+        projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
+      });
+      console.log(subjectUids);
+      fastify
+        .getPatientsInternal(subjectUids)
+        .then(result => reply.code(200).send(result))
+        .catch(err => reply.code(503).send(err.message));
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in save: ${err}`);
+      reply.code(503).send(`Saving error: ${err}`);
+    }
+  });
+
+  fastify.decorate('deleteSubjectFromProject', async (request, reply) => {
+    try {
+      const subjectUid = request.params.subjectId;
+      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+
+      const numDeleted = await ProjectSubject.destroy({
+        where: { project_id: project.id, subject_uid: subjectUid },
+      });
+      reply.code(200).send(`Deleted ${numDeleted} records`);
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
   });
 
   fastify.after(async () => {

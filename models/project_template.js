@@ -18,13 +18,9 @@ module.exports = function(sequelize, DataTypes) {
           key: 'id',
         },
       },
-      template_id: {
-        type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
-        references: {
-          model: 'template',
-          key: 'id',
-        },
+      template_uid: {
+        type: DataTypes.STRING(128),
+        allowNull: false,
       },
       enabled: {
         type: DataTypes.INTEGER(1),
