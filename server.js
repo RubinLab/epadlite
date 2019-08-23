@@ -85,6 +85,7 @@ if (config.mode === 'lite') {
 } else if (config.mode === 'thick') {
   fastify.register(require('./routes/project')); // eslint-disable-line global-require
   fastify.register(require('./routes/projectTemplate')); // eslint-disable-line global-require
+  fastify.register(require('./routes/other')); // eslint-disable-line global-require
 }
 // authCheck routine checks if there is a bearer token or encoded basic authentication
 // info in the authorization header and does the authentication or verification of token
