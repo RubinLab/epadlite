@@ -23,10 +23,15 @@ describe('Project Tests', () => {
   it('project create should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post(
-        '/projects/test?projectName=test&projectDescription=testdesc&defaultTemplate=ROI&type=private'
-      )
-      .send()
+      .post('/projects')
+      .send({
+        projectId: 'test',
+        projectName: 'test',
+        projectDescription: 'testdesc',
+        defaultTemplate: 'ROI',
+        type: 'private',
+        userName: 'admin',
+      })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -142,7 +147,14 @@ describe('Project Tests', () => {
   it('should create a new worklist', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/users/1/worklists/testCreate?description=testdesc&name=test')
+      .post('/users/1/worklists')
+      .send({
+        name: 'test',
+        worklistid: 'testCreate',
+        description: 'testdesc',
+        duedate: '2019-12-01',
+        username: 'admin',
+      })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -164,10 +176,17 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  it('should update new worklist', done => {
+
+  it('should update the new worklist', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .put('/users/1/worklists/testCreate?name=testUpdated')
+      .put('/users/1/worklists/testCreate')
+      .send({
+        name: 'testUpdated2',
+        description: 'testdescUpdated',
+        duedate: '2019-12-31',
+        username: 'admin',
+      })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -176,6 +195,39 @@ describe('Project Tests', () => {
         done(e);
       });
   });
+  it('The new worklist should be updated with data', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/users/1/worklists')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.ResultSet.Result.length).to.be.eql(3);
+        expect(res.body.ResultSet.Result[2].name).to.be.eql('testUpdated2');
+        expect(res.body.ResultSet.Result[2].description).to.be.eql('testdescUpdated');
+        expect(res.body.ResultSet.Result[2].dueDate).to.be.eql('2019-12-31');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('should create a link between a worklist and a study', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/users/1/worklists/2/projects/1/subjects')
+      .send({
+        studyId: '1',
+      })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('should delete the worklist', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -188,6 +240,7 @@ describe('Project Tests', () => {
         done(e);
       });
   });
+
   it('worklists should have 2 worklists', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

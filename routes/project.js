@@ -2,17 +2,7 @@
 async function routes(fastify) {
   fastify.route({
     method: 'POST',
-    url: '/projects/:projectId',
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          projectId: {
-            type: 'string',
-          },
-        },
-      },
-    },
+    url: '/projects',
     handler: fastify.createProject,
   });
 
@@ -48,7 +38,6 @@ async function routes(fastify) {
     handler: fastify.deleteProject,
   });
 
-  // http://epad-dev8.stanford.edu:8080/epad/v2/users/teresa/worklists/wewe
   fastify.route({
     method: 'DELETE',
     url: '/users/:userId/worklists/:worklistId',
@@ -101,7 +90,23 @@ async function routes(fastify) {
   // /users/admin/worklists/idtest11?description=desctest&name=test11
   fastify.route({
     method: 'POST',
-    url: '/users/:userId/worklists/:worklistId',
+    url: '/users/:userId/worklists',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          userId: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.createWorklist,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/users/:userId/worklists/:worklistId/projects/:projectId/subjects',
     schema: {
       params: {
         type: 'object',
@@ -112,10 +117,13 @@ async function routes(fastify) {
           worklistId: {
             type: 'string',
           },
+          projectId: {
+            type: 'string',
+          },
         },
       },
     },
-    handler: fastify.createWorklist,
+    handler: fastify.linkWorklistToStudy,
   });
 
   fastify.route({
@@ -146,11 +154,3 @@ async function routes(fastify) {
   // TODO deleteWorklist
 }
 module.exports = routes;
-
-// delete project
-// put project
-// get worklists
-// post worklists
-// put worklist
-// delete worklist
-// get project - projects/project-id

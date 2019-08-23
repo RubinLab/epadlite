@@ -24,35 +24,19 @@ async function epaddb(fastify) {
       });
   });
 
+  // PROJECTS
   fastify.decorate('createProject', (request, reply) => {
     Project.create({
-      name: request.query.projectName,
-      projectid: request.params.projectId,
-      description: request.query.projectDescription,
-      defaulttemplate: request.query.defaultTemplate,
-      type: request.query.type,
+      name: request.body.projectName,
+      projectid: request.body.projectId,
+      description: request.body.projectDescription,
+      defaulttemplate: request.body.defaultTemplate,
+      type: request.body.type,
       updatetime: Date.now(),
+      creator: request.body.userName,
     })
       .then(project => {
-        // console.log(project);
         reply.code(200).send(`success with id ${project.id}`);
-      })
-      .catch(err => {
-        console.log(err.message);
-        reply.code(503).send(err.message);
-      });
-  });
-  // /users/admin/worklists/idtest11?description=desctest&name=test11
-  fastify.decorate('createWorklist', (request, reply) => {
-    Worklist.create({
-      name: request.query.name,
-      worklistid: request.params.worklistId,
-      user_id: request.params.userId,
-      description: request.query.description,
-      updatetime: Date.now(),
-    })
-      .then(worklist => {
-        reply.code(200).send(`success with id ${worklist.id}`);
       })
       .catch(err => {
         console.log(err.message);
@@ -74,19 +58,6 @@ async function epaddb(fastify) {
     Project.update(query, {
       where: {
         projectid: request.params.projectId,
-      },
-    })
-      .then(() => {
-        reply.code(200).send('Update successful');
-      })
-      .catch(err => reply.code(503).send(err));
-  });
-
-  fastify.decorate('updateWorklist', (request, reply) => {
-    Worklist.update(request.query, {
-      where: {
-        user_id: request.params.userId,
-        worklistid: request.params.worklistId,
       },
     })
       .then(() => {
@@ -120,18 +91,56 @@ async function epaddb(fastify) {
       });
   });
 
-  // fastify.decorate('getProject', (request, reply) => {
-  //   Project.findAll()
-  //     .then(projects => {
-  //       // projects will be an array of all Project instances
-  //       // console.log(projects);
-  //       reply.code(200).send(projects);
-  //     })
-  //     .catch(err => {
-  //       console.log(err.message);
-  //       reply.code(503).send(err.message);
-  //     });
-  // });
+  fastify.decorate('createWorklist', (request, reply) => {
+    Worklist.create({
+      name: request.body.name,
+      worklistid: request.body.worklistid,
+      user_id: request.params.userId,
+      description: request.body.description,
+      updatetime: Date.now(),
+      duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
+      creator: request.body.username,
+    })
+      .then(worklist => {
+        reply.code(200).send(`success with id ${worklist.id}`);
+      })
+      .catch(err => {
+        console.log(err.message);
+        reply.code(503).send(err.message);
+      });
+  });
+
+  fastify.decorate('linkWorklistToStudy', (request, reply) => {
+    WorklistStudy.create({
+      worklist_id: request.params.worklistId,
+      project_id: request.params.projectId,
+      updatetime: Date.now(),
+      study_id: request.body.studyId ? request.body.studyId : null,
+      subject_id: request.body.subjectId ? request.body.subjectId : null,
+    })
+      .then(res => {
+        reply.code(200).send(`success with id ${res.id}`);
+      })
+      .catch(err => {
+        reply.code(503).send(err.message);
+      });
+  });
+
+  fastify.decorate('updateWorklist', (request, reply) => {
+    Worklist.update(
+      { ...request.body, updatetime: Date.now(), updated_by: request.body.username },
+      {
+        where: {
+          user_id: request.params.userId,
+          worklistid: request.params.worklistId,
+        },
+      }
+    )
+      .then(() => {
+        reply.code(200).send('Update successful');
+      })
+      .catch(err => reply.code(503).send(err));
+  });
 
   fastify.decorate('getWorklists', (request, reply) => {
     Worklist.findAll({
@@ -141,7 +150,6 @@ async function epaddb(fastify) {
       include: [
         {
           model: WorklistStudy,
-          // where: { worklist_id: Sequelize.col('worklist.id') },
         },
       ],
     })
@@ -159,12 +167,14 @@ async function epaddb(fastify) {
             projectIDs: [],
             studyStatus: [],
             studyIDs: [],
+            subjectIDs: [],
           };
           const studiesArr = worklist[i].worklist_studies;
           for (let k = 0; k < studiesArr.length; k += 1) {
             obj.projectIDs.push(studiesArr[k].dataValues.project_id);
             obj.studyStatus.push(studiesArr[k].dataValues.status);
             obj.studyIDs.push(studiesArr[k].dataValues.study_id);
+            obj.subjectIDs.push(studiesArr[k].dataValues.subject_id);
           }
           result.push(obj);
         }
