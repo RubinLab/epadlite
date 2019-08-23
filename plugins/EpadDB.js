@@ -200,6 +200,7 @@ async function epaddb(fastify) {
         reply.code(200).send('Deletion successful');
       })
       .catch(err => reply.code(503).send(err));
+  });
 
   fastify.decorate('saveTemplateToProject', async (request, reply) => {
     try {

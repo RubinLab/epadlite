@@ -342,7 +342,7 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  
+
   // subjects tests
   it('project test should have no subjects ', done => {
     chai

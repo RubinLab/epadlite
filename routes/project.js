@@ -229,7 +229,6 @@ async function routes(fastify) {
     },
     handler: fastify.deleteSubjectFromProject,
   });
-}
 
   // GET {s}/templates
   // fastify.route({
