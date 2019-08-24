@@ -144,7 +144,38 @@ describe('Project Tests', () => {
         done(e);
       });
   });
+
   describe('Project Template Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'test',
+          projectName: 'test',
+          projectDescription: 'testdesc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+    });
+    after(async () => {
+      await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/projects/test');
+    });
+
+    it('project test should have no template ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/test/templates')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('project template save should be successful ', done => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
       chai
@@ -280,6 +311,22 @@ describe('Project Tests', () => {
 
   // subjects tests
   describe('Project Subject Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'test',
+          projectName: 'test',
+          projectDescription: 'testdesc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+    });
+    after(async () => {
+      await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/projects/test');
+    });
     it('project test should have no subjects ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
