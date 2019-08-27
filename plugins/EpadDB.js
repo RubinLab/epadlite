@@ -98,7 +98,7 @@ async function epaddb(fastify) {
     Worklist.create({
       name: request.body.name,
       worklistid: request.body.worklistid,
-      user_id: request.params.userId,
+      user_id: request.params.user,
       description: request.body.description,
       updatetime: Date.now(),
       duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
@@ -115,7 +115,7 @@ async function epaddb(fastify) {
 
   fastify.decorate('linkWorklistToStudy', (request, reply) => {
     WorklistStudy.create({
-      worklist_id: request.params.worklistId,
+      worklist_id: request.params.worklist,
       project_id: request.params.project,
       updatetime: Date.now(),
       study_id: request.body.studyId ? request.body.studyId : null,
@@ -134,8 +134,8 @@ async function epaddb(fastify) {
       { ...request.body, updatetime: Date.now(), updated_by: request.body.username },
       {
         where: {
-          user_id: request.params.userId,
-          worklistid: request.params.worklistId,
+          user_id: request.params.user,
+          worklistid: request.params.worklist,
         },
       }
     )
@@ -148,7 +148,7 @@ async function epaddb(fastify) {
   fastify.decorate('getWorklists', (request, reply) => {
     Worklist.findAll({
       where: {
-        user_id: request.params.userId,
+        user_id: request.params.user,
       },
       include: [
         {
@@ -192,8 +192,8 @@ async function epaddb(fastify) {
   fastify.decorate('deleteWorklist', (request, reply) => {
     Worklist.destroy({
       where: {
-        user_id: request.params.userId,
-        worklistid: request.params.worklistId,
+        user_id: request.params.user,
+        worklistid: request.params.worklist,
       },
     })
       .then(() => {

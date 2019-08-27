@@ -249,12 +249,12 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'POST',
-    url: '/users/:userId/worklists',
+    url: '/users/:user/worklists',
     schema: {
       params: {
         type: 'object',
         properties: {
-          userId: {
+          user: {
             type: 'string',
           },
         },
@@ -265,15 +265,15 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'POST',
-    url: '/users/:userId/worklists/:worklistId/projects/:project/subjects',
+    url: '/users/:user/worklists/:worklist/projects/:project/subjects',
     schema: {
       params: {
         type: 'object',
         properties: {
-          userId: {
+          user: {
             type: 'string',
           },
-          worklistId: {
+          worklist: {
             type: 'string',
           },
           project: {
@@ -287,21 +287,21 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/users/:userId/worklists',
+    url: '/users/:user/worklists',
     handler: fastify.getWorklists,
   });
 
   fastify.route({
     method: 'PUT',
-    url: '/users/:userId/worklists/:worklistId',
+    url: '/users/:user/worklists/:worklist',
     schema: {
       params: {
         type: 'object',
         properties: {
-          userId: {
+          user: {
             type: 'string',
           },
-          worklistId: {
+          worklist: {
             type: 'string',
           },
         },
@@ -312,15 +312,15 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'DELETE',
-    url: '/users/:userId/worklists/:worklistId',
+    url: '/users/:user/worklists/:worklist',
     schema: {
       params: {
         type: 'object',
         properties: {
-          userId: {
+          user: {
             type: 'string',
           },
-          worklistId: {
+          worklist: {
             type: 'string',
           },
         },

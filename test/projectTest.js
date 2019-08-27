@@ -650,9 +650,6 @@ describe('Worklist Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/1/worklists')
       .then(res => {
-        console.log('------------ res.body');
-        console.log(res.body);
-        console.log('------------ res.body');
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(0);
         done();
