@@ -2,12 +2,12 @@
 async function routes(fastify) {
   fastify.route({
     method: 'POST',
-    url: '/projects/:projectId/templates',
+    url: '/projects/:project/templates',
     schema: {
       params: {
         type: 'object',
         properties: {
-          projectId: {
+          project: {
             type: 'string',
           },
         },
@@ -18,12 +18,12 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'PUT',
-    url: '/projects/:projectId/templates/:uid',
+    url: '/projects/:project/templates/:uid',
     schema: {
       params: {
         type: 'object',
         properties: {
-          projectId: {
+          project: {
             type: 'string',
           },
           uid: {
@@ -37,12 +37,12 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'DELETE',
-    url: '/projects/:projectId/templates/:uid',
+    url: '/projects/:project/templates/:uid',
     schema: {
       params: {
         type: 'object',
         properties: {
-          projectId: {
+          project: {
             type: 'string',
           },
           uid: {
@@ -57,7 +57,7 @@ async function routes(fastify) {
   // GET {s}/templates
   fastify.route({
     method: 'GET',
-    url: '/projects/:projectId/templates',
+    url: '/projects/:project/templates',
     querystring: {
       format: { type: 'string' },
     },
@@ -65,7 +65,7 @@ async function routes(fastify) {
       params: {
         type: 'object',
         properties: {
-          projectId: {
+          project: {
             type: 'string',
           },
         },
@@ -82,7 +82,7 @@ async function routes(fastify) {
 
   // fastify.route({
   //   method: 'POST',
-  //   url: '/projects/:projectId/templates/download',
+  //   url: '/projects/:project/templates/download',
   //   schema: {
   //     body: {
   //       type: 'array',
@@ -93,7 +93,7 @@ async function routes(fastify) {
   //     params: {
   //       type: 'object',
   //       properties: {
-  //         projectId: {
+  //         project: {
   //           type: 'string',
   //         },
   //       },

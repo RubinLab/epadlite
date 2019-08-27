@@ -8,12 +8,12 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'PUT',
-    url: '/projects/:projectId',
+    url: '/projects/:project',
     schema: {
       params: {
         type: 'object',
         properties: {
-          projectId: {
+          project: {
             type: 'string',
           },
         },
@@ -24,7 +24,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'DELETE',
-    url: '/projects/:projectId',
+    url: '/projects/:project',
     schema: {
       params: {
         type: 'object',
@@ -53,12 +53,12 @@ async function routes(fastify) {
 
   // fastify.route({
   //   method: 'GET',
-  //   url: '/projects/:projectId/aims',
+  //   url: '/projects/:project/aims',
   //   schema: {
   //     params: {
   //       type: 'object',
   //       properties: {
-  //         projectId: {
+  //         project: {
   //           type: 'string',
   //         },
   //       },
@@ -69,12 +69,12 @@ async function routes(fastify) {
 
   // fastify.route({
   //   method: 'POST',
-  //   url: '/projects/:projectId/aims',
+  //   url: '/projects/:project/aims',
   //   schema: {
   //     params: {
   //       type: 'object',
   //       properties: {
-  //         projectId: {
+  //         project: {
   //           type: 'string',
   //         },
   //       },
@@ -85,12 +85,12 @@ async function routes(fastify) {
 
   // fastify.route({
   //   method: 'GET',
-  //   url: '/projects/:projectId/aims/:aimId',
+  //   url: '/projects/:project/aims/:aimId',
   //   schema: {
   //     params: {
   //       type: 'object',
   //       properties: {
-  //         projectId: {
+  //         project: {
   //           type: 'string',
   //         },
   //         aimId: {
@@ -104,12 +104,12 @@ async function routes(fastify) {
 
   // fastify.route({
   //   method: 'PUT',
-  //   url: '/projects/:projectId/aims/:aimId',
+  //   url: '/projects/:project/aims/:aimId',
   //   schema: {
   //     params: {
   //       type: 'object',
   //       properties: {
-  //         projectId: {
+  //         project: {
   //           type: 'string',
   //         },
   //         aimId: {
@@ -123,12 +123,12 @@ async function routes(fastify) {
 
   // fastify.route({
   //   method: 'DELETE',
-  //   url: '/projects/:projectId/aims/:aimId',
+  //   url: '/projects/:project/aims/:aimId',
   //   schema: {
   //     params: {
   //       type: 'object',
   //       properties: {
-  //         projectId: {
+  //         project: {
   //           type: 'string',
   //         },
   //         aimId: {
@@ -143,12 +143,12 @@ async function routes(fastify) {
   // subjects
   fastify.route({
     method: 'GET',
-    url: '/projects/:projectId/subjects',
+    url: '/projects/:project/subjects',
     schema: {
       params: {
         type: 'object',
         properties: {
-          projectId: {
+          project: {
             type: 'string',
           },
         },
@@ -159,12 +159,12 @@ async function routes(fastify) {
 
   // fastify.route({
   //   method: 'POST',
-  //   url: '/projects/:projectId/subjects',
+  //   url: '/projects/:project/subjects',
   //   schema: {
   //     params: {
   //       type: 'object',
   //       properties: {
-  //         projectId: {
+  //         project: {
   //           type: 'string',
   //         },
   //       },
@@ -175,12 +175,12 @@ async function routes(fastify) {
 
   // fastify.route({
   //   method: 'GET',
-  //   url: '/projects/:projectId/subjects/:subjectId',
+  //   url: '/projects/:project/subjects/:subjectId',
   //   schema: {
   //     params: {
   //       type: 'object',
   //       properties: {
-  //         projectId: {
+  //         project: {
   //           type: 'string',
   //         },
   //         subjectId: {
@@ -194,12 +194,12 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'PUT',
-    url: '/projects/:projectId/subjects/:subject',
+    url: '/projects/:project/subjects/:subject',
     schema: {
       params: {
         type: 'object',
         properties: {
-          projectId: {
+          project: {
             type: 'string',
           },
           subjectId: {
@@ -213,12 +213,12 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'DELETE',
-    url: '/projects/:projectId/subjects/:subject',
+    url: '/projects/:project/subjects/:subject',
     schema: {
       params: {
         type: 'object',
         properties: {
-          projectId: {
+          project: {
             type: 'string',
           },
           subjectId: {
@@ -233,12 +233,12 @@ async function routes(fastify) {
   // GET {s}/templates
   // fastify.route({
   //   method: 'GET',
-  //   url: '/projects/:projectId',
+  //   url: '/projects/:project',
   //   schema: {
   //     params: {
   //       type: 'object',
   //       properties: {
-  //         projectId: {
+  //         project: {
   //           type: 'string',
   //         },
   //       },
@@ -265,7 +265,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'POST',
-    url: '/users/:userId/worklists/:worklistId/projects/:projectId/subjects',
+    url: '/users/:userId/worklists/:worklistId/projects/:project/subjects',
     schema: {
       params: {
         type: 'object',
@@ -276,7 +276,7 @@ async function routes(fastify) {
           worklistId: {
             type: 'string',
           },
-          projectId: {
+          project: {
             type: 'string',
           },
         },

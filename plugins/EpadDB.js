@@ -60,7 +60,7 @@ async function epaddb(fastify) {
     }
     Project.update(query, {
       where: {
-        projectid: request.params.projectId,
+        projectid: request.params.project,
       },
     })
       .then(() => {
@@ -72,7 +72,7 @@ async function epaddb(fastify) {
   fastify.decorate('deleteProject', (request, reply) => {
     Project.destroy({
       where: {
-        projectid: request.params.projectId,
+        projectid: request.params.project,
       },
     })
       .then(() => {
@@ -116,7 +116,7 @@ async function epaddb(fastify) {
   fastify.decorate('linkWorklistToStudy', (request, reply) => {
     WorklistStudy.create({
       worklist_id: request.params.worklistId,
-      project_id: request.params.projectId,
+      project_id: request.params.project,
       updatetime: Date.now(),
       study_id: request.body.studyId ? request.body.studyId : null,
       subject_id: request.body.subjectId ? request.body.subjectId : null,
@@ -209,7 +209,7 @@ async function epaddb(fastify) {
         await fastify.saveTemplateInternal(request.body);
         templateUid = request.body.TemplateContainer.uid;
       }
-      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
 
       await ProjectTemplate.create({
         project_id: project.id,
@@ -228,7 +228,7 @@ async function epaddb(fastify) {
 
   fastify.decorate('getProjectTemplates', async (request, reply) => {
     try {
-      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
       const templateUids = [];
       ProjectTemplate.findAll({ where: { project_id: project.id } }).then(projectTemplates => {
         // projects will be an array of Project instances with the specified name
@@ -256,7 +256,7 @@ async function epaddb(fastify) {
   fastify.decorate('deleteTemplateFromProject', async (request, reply) => {
     try {
       const templateUid = request.params.uid;
-      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
 
       const numDeleted = await ProjectTemplate.destroy({
         where: { project_id: project.id, template_uid: templateUid },
@@ -272,7 +272,7 @@ async function epaddb(fastify) {
   fastify.decorate('addSubjectToProject', async (request, reply) => {
     try {
       const { subject } = request.params;
-      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
       await ProjectSubject.create({
         project_id: project.id,
         subject_uid: subject,
@@ -289,7 +289,7 @@ async function epaddb(fastify) {
 
   fastify.decorate('getProjectSubjects', async (request, reply) => {
     try {
-      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
       const subjectUids = [];
       const projectSubjects = await ProjectSubject.findAll({ where: { project_id: project.id } });
       if (projectSubjects)
@@ -310,7 +310,7 @@ async function epaddb(fastify) {
   fastify.decorate('deleteSubjectFromProject', async (request, reply) => {
     try {
       const subjectUid = request.params.subject;
-      const project = await Project.findOne({ where: { projectid: request.params.projectId } });
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
 
       const numDeleted = await ProjectSubject.destroy({
         where: { project_id: project.id, subject_uid: subjectUid },
