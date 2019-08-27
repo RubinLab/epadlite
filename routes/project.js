@@ -194,7 +194,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'PUT',
-    url: '/projects/:projectId/subjects/:subjectId',
+    url: '/projects/:projectId/subjects/:subject',
     schema: {
       params: {
         type: 'object',
@@ -213,7 +213,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'DELETE',
-    url: '/projects/:projectId/subjects/:subjectId',
+    url: '/projects/:projectId/subjects/:subject',
     schema: {
       params: {
         type: 'object',

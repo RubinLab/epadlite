@@ -202,41 +202,53 @@ async function other(fastify) {
         }
       })
   );
-
   fastify.decorate('deleteSubject', (request, reply) => {
-    try {
-      const promisses = [];
-      fastify
-        .getPatientStudiesInternal(request.params)
-        .then(result => {
-          result.ResultSet.Result.forEach(study => {
-            promisses.push(
-              fastify.deleteStudyDicomsInternal({
-                subject: request.params.subject,
-                study: study.studyUID,
-              })
-            );
-          });
-          promisses.push(fastify.deleteAimsInternal(request.params));
-          Promise.all(promisses)
-            .then(() => {
-              fastify.log.info('Success');
-              reply.code(200).send();
-            })
-            .catch(error => {
-              fastify.log.info(`Error in deleting ${error.message}`);
-              reply.code(503).send(error.message);
-            });
-        })
-        .catch(getError => {
-          fastify.log.info(`Error in deleting ${getError.message}`);
-          reply.code(503).send(getError.message);
-        });
-    } catch (err) {
-      fastify.log.info(`Error deleting: ${err.message}`);
-      reply.code(503).send(err.message);
-    }
+    fastify
+      .deleteSubjectInternal(request.params)
+      .then(result => {
+        reply.code(200).send(result);
+      })
+      .catch(err => reply.code(503).send(err.message));
   });
+
+  fastify.decorate(
+    'deleteSubjectInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        try {
+          const promisses = [];
+          fastify
+            .getPatientStudiesInternal(params)
+            .then(result => {
+              result.ResultSet.Result.forEach(study => {
+                promisses.push(
+                  fastify.deleteStudyDicomsInternal({
+                    subject: params.subject,
+                    study: study.studyUID,
+                  })
+                );
+              });
+              promisses.push(fastify.deleteAimsInternal(params));
+              Promise.all(promisses)
+                .then(() => {
+                  fastify.log.info('Success');
+                  resolve('Success');
+                })
+                .catch(error => {
+                  fastify.log.info(`Error in deleting ${error.message}`);
+                  reject(error);
+                });
+            })
+            .catch(getError => {
+              fastify.log.info(`Error in deleting ${getError.message}`);
+              reject(getError);
+            });
+        } catch (err) {
+          fastify.log.info(`Error deleting: ${err.message}`);
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate('deleteStudy', (request, reply) => {
     try {

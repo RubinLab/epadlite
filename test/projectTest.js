@@ -323,9 +323,44 @@ describe('Project Tests', () => {
           type: 'private',
           userName: 'admin',
         });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'test2',
+          projectName: 'test2',
+          projectDescription: 'test2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'test3',
+          projectName: 'test3',
+          projectDescription: 'test3desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/files')
+        .attach('files', 'test/data/sample.dcm', 'sample.dcm');
     });
     after(async () => {
       await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/projects/test');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/test2');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/test3');
+
+      // TODO should make sure dcm uploaded is deleted
+      // right now the tests take care of it
     });
     it('project test should have no subjects ', done => {
       chai
@@ -340,12 +375,10 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    // add sample data
-    it('dcm upload should be successful ', done => {
+    it('project subject add of patient 3 to project test should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/files')
-        .attach('files', 'test/data/sample.dcm', 'sample.dcm')
+        .put('/projects/test/subjects/3')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -355,10 +388,23 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project subject add of patient 3 should be successful ', done => {
+    it('project subject add of patient 3 to project test2 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/test/subjects/3')
+        .put('/projects/test2/subjects/3')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project subject add of patient 3 to project test3 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/test3/subjects/3')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -395,7 +441,7 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project subject deletion of patient 3 should be successful ', done => {
+    it('project subject deletion of patient 3 from test project should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/test/subjects/3')
@@ -409,6 +455,75 @@ describe('Project Tests', () => {
     });
 
     it('project test should have no subject ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/test/subjects')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project test2 should have 1 subject ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/test2/subjects')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project test3 should have 1 subject ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/test3/subjects')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project subject deletion of patient 3 of system should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/test2/subjects/3?all=true')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project test2 should have no subject ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/test/subjects')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('subjects should be empty', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/test/subjects')

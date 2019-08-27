@@ -271,11 +271,11 @@ async function epaddb(fastify) {
 
   fastify.decorate('addSubjectToProject', async (request, reply) => {
     try {
-      const { subjectId } = request.params;
+      const { subject } = request.params;
       const project = await Project.findOne({ where: { projectid: request.params.projectId } });
       await ProjectSubject.create({
         project_id: project.id,
-        subject_uid: subjectId,
+        subject_uid: subject,
         creator: request.query.username,
         updatetime: Date.now(),
       });
@@ -291,15 +291,15 @@ async function epaddb(fastify) {
     try {
       const project = await Project.findOne({ where: { projectid: request.params.projectId } });
       const subjectUids = [];
-      ProjectSubject.findAll({ where: { project_id: project.id } }).then(projectSubjects => {
+      const projectSubjects = await ProjectSubject.findAll({ where: { project_id: project.id } });
+      if (projectSubjects)
         // projects will be an array of Project instances with the specified name
         projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
-      });
+
       console.log(subjectUids);
-      fastify
-        .getPatientsInternal(subjectUids)
-        .then(result => reply.code(200).send(result))
-        .catch(err => reply.code(503).send(err.message));
+      const result = await fastify.getPatientsInternal(subjectUids);
+      console.log(result);
+      reply.code(200).send(result);
     } catch (err) {
       // TODO Proper error reporting implementation required
       console.log(`Error in save: ${err}`);
@@ -309,13 +309,36 @@ async function epaddb(fastify) {
 
   fastify.decorate('deleteSubjectFromProject', async (request, reply) => {
     try {
-      const subjectUid = request.params.subjectId;
+      const subjectUid = request.params.subject;
       const project = await Project.findOne({ where: { projectid: request.params.projectId } });
 
       const numDeleted = await ProjectSubject.destroy({
         where: { project_id: project.id, subject_uid: subjectUid },
       });
-      reply.code(200).send(`Deleted ${numDeleted} records`);
+      console.log(request.query.all, numDeleted);
+      // if delete from all or it doesn't exist in any other project, delete from system
+      try {
+        if (request.query.all && request.query.all === 'true') {
+          const deletednum = await ProjectSubject.destroy({
+            where: { subject_uid: subjectUid },
+          });
+          console.log(subjectUid, deletednum);
+          await fastify.deleteSubjectInternal(request.params);
+          reply.code(200).send(`Subject deleted from system`);
+        } else {
+          const count = await ProjectSubject.count({ where: { subject_uid: subjectUid } });
+          if (count === 0) {
+            await fastify.deleteSubjectInternal(request.params);
+            reply
+              .code(200)
+              .send(`Subject deleted from system as it didn't exist in any other project`);
+          } else
+            reply.code(200).send(`Subject not deleted from system as it exists in other project`);
+        }
+      } catch (deleteErr) {
+        console.log(deleteErr);
+        reply.code(503).send(`Deletion error: ${deleteErr}`);
+      }
     } catch (err) {
       // TODO Proper error reporting implementation required
       console.log(`Error in delete: ${err}`);

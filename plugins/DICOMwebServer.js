@@ -190,12 +190,12 @@ async function dicomwebserver(fastify) {
           // make studies cal and aims call
           const studies = this.request.get('/studies', header);
           const aims = fastify.getAims('summary', { subject: '', study: '', series: '' });
-
           Promise.all([studies, aims])
             .then(values => {
               // handle success
               // filter the results if patient id filter is given
               let filteredStudies = values[0].data;
+              console.log(filteredStudies);
               let filteredAims = values[1].ResultSet.Result;
               if (filter) {
                 filteredStudies = _.filter(filteredStudies, obj =>
@@ -337,7 +337,8 @@ async function dicomwebserver(fastify) {
                   physicianName: '', // TODO
                   birthdate: '', // TODO
                   sex: '', // TODO
-                  studyDescription: value['00081030'].Value ? value['00081030'].Value[0] : '',
+                  studyDescription:
+                    value['00081030'] && value['00081030'].Value ? value['00081030'].Value[0] : '',
                   studyAccessionNumber: value['00080050'].Value ? value['00080050'].Value[0] : '',
                   examTypes: value['00080061'].Value ? value['00080061'].Value : [],
                   numberOfImages: value['00201208'].Value ? value['00201208'].Value[0] : '',
