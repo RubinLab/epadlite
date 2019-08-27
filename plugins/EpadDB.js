@@ -17,10 +17,10 @@ async function epaddb(fastify) {
         fastify.orm
           .sync()
           .then(() => {
-            console.log('db sync successful!');
+            fastify.log.info('db sync successful!');
           })
           .catch(err => console.log(err));
-        console.log('Connection to mariadb has been established successfully.');
+        fastify.log.info('Connection to mariadb has been established successfully.');
       })
       .catch(err => {
         console.error('Unable to connect to the database:', err);
