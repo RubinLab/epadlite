@@ -176,6 +176,7 @@ const sequelizeConfig = {
   define: {
     timestamps: false,
   },
+  logging: config.logger,
 };
 
 // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js

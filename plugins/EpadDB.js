@@ -235,7 +235,6 @@ async function epaddb(fastify) {
         projectTemplates.forEach(projectTemplate =>
           templateUids.push(projectTemplate.template_uid)
         );
-        console.log(templateUids);
         fastify
           .getTemplatesFromUIDsInternal(request.query, templateUids)
           .then(result => {
