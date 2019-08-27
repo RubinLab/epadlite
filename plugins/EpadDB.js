@@ -296,9 +296,7 @@ async function epaddb(fastify) {
         // projects will be an array of Project instances with the specified name
         projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
 
-      console.log(subjectUids);
       const result = await fastify.getPatientsInternal(subjectUids);
-      console.log(result);
       reply.code(200).send(result);
     } catch (err) {
       // TODO Proper error reporting implementation required
@@ -315,16 +313,18 @@ async function epaddb(fastify) {
       const numDeleted = await ProjectSubject.destroy({
         where: { project_id: project.id, subject_uid: subjectUid },
       });
-      console.log(request.query.all, numDeleted);
       // if delete from all or it doesn't exist in any other project, delete from system
       try {
         if (request.query.all && request.query.all === 'true') {
           const deletednum = await ProjectSubject.destroy({
             where: { subject_uid: subjectUid },
           });
-          console.log(subjectUid, deletednum);
           await fastify.deleteSubjectInternal(request.params);
-          reply.code(200).send(`Subject deleted from system`);
+          reply
+            .code(200)
+            .send(
+              `Subject deleted from system and removed from ${deletednum + numDeleted} projects`
+            );
         } else {
           const count = await ProjectSubject.count({ where: { subject_uid: subjectUid } });
           if (count === 0) {

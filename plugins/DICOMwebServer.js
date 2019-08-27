@@ -195,7 +195,6 @@ async function dicomwebserver(fastify) {
               // handle success
               // filter the results if patient id filter is given
               let filteredStudies = values[0].data;
-              console.log(filteredStudies);
               let filteredAims = values[1].ResultSet.Result;
               if (filter) {
                 filteredStudies = _.filter(filteredStudies, obj =>
