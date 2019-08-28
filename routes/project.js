@@ -2,13 +2,27 @@
 async function routes(fastify) {
   fastify.route({
     method: 'POST',
-    url: '/files',
+    url: '/projects/:project/files',
+    schema: {
+      tags: ['project', 'files'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
     handler: fastify.saveFile,
   });
 
   fastify.route({
     method: 'POST',
     url: '/projects',
+    schema: {
+      tags: ['project'],
+    },
     handler: fastify.createProject,
   });
 
@@ -16,6 +30,7 @@ async function routes(fastify) {
     method: 'PUT',
     url: '/projects/:project',
     schema: {
+      tags: ['project'],
       params: {
         type: 'object',
         properties: {
@@ -32,6 +47,7 @@ async function routes(fastify) {
     method: 'DELETE',
     url: '/projects/:project',
     schema: {
+      tags: ['project'],
       params: {
         type: 'object',
         properties: {
@@ -48,12 +64,12 @@ async function routes(fastify) {
   fastify.route({
     method: 'GET',
     url: '/projects',
-    // schema: {
-    //   response: {
-    //     200: 'templates_schema#',
-    //   },
-    // },
-
+    schema: {
+      tags: ['project'],
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
     handler: fastify.getProjects,
   });
 
@@ -61,6 +77,7 @@ async function routes(fastify) {
   //   method: 'GET',
   //   url: '/projects/:project',
   //   schema: {
+  //     tags: ['project'],
   //     params: {
   //       type: 'object',
   //       properties: {

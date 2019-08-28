@@ -404,7 +404,7 @@ describe('Project Tests', () => {
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/files')
+        .post('/projects/test/files')
         .attach('files', 'test/data/sample.dcm', 'sample.dcm');
     });
     after(async () => {

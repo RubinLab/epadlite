@@ -4,6 +4,7 @@ async function routes(fastify) {
     method: 'POST',
     url: '/users/:user/worklists',
     schema: {
+      tags: ['worklist', 'user'],
       params: {
         type: 'object',
         properties: {
@@ -20,6 +21,7 @@ async function routes(fastify) {
     method: 'POST',
     url: '/users/:user/worklists/:worklist/projects/:project/subjects',
     schema: {
+      tags: ['worklist', 'subject'],
       params: {
         type: 'object',
         properties: {
@@ -42,6 +44,7 @@ async function routes(fastify) {
     method: 'GET',
     url: '/users/:user/worklists',
     schema: {
+      tags: ['worklist', 'user'],
       params: {
         type: 'object',
         properties: {
@@ -58,6 +61,7 @@ async function routes(fastify) {
     method: 'PUT',
     url: '/users/:user/worklists/:worklist',
     schema: {
+      tags: ['worklist', 'user'],
       params: {
         type: 'object',
         properties: {
@@ -77,6 +81,7 @@ async function routes(fastify) {
     method: 'DELETE',
     url: '/users/:user/worklists/:worklist',
     schema: {
+      tags: ['worklist', 'user'],
       params: {
         type: 'object',
         properties: {

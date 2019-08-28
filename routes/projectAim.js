@@ -5,6 +5,7 @@ async function routes() {
   //   method: 'POST',
   //   url: '/projects/:project/aims',
   //   schema: {
+  //     tags: ['project', 'aim'],
   //     params: {
   //       type: 'object',
   //       properties: {
@@ -21,6 +22,7 @@ async function routes() {
   //   method: 'PUT',
   //   url: '/projects/:project/aims/:aimuid',
   //   schema: {
+  //     tags: ['project', 'aim'],
   //     params: {
   //       type: 'object',
   //       properties: {
@@ -40,6 +42,7 @@ async function routes() {
   //   method: 'DELETE',
   //   url: '/projects/:project/aims/:aimuid',
   //   schema: {
+  //     tags: ['project', 'aim'],
   //     params: {
   //       type: 'object',
   //       properties: {
@@ -59,6 +62,7 @@ async function routes() {
   //   method: 'GET',
   //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims',
   //   schema: {
+  //     tags: ['project', 'aim'],
   //     querystring: {
   //       format: { type: 'string' },
   //     },
@@ -90,6 +94,7 @@ async function routes() {
   //   method: 'GET',
   //   url: '/projects/:project/subjects/:subject/studies/:study/aims',
   //   schema: {
+  //     tags: ['project', 'aim'],
   //     querystring: {
   //       format: { type: 'string' },
   //     },
@@ -118,6 +123,7 @@ async function routes() {
   //   method: 'GET',
   //   url: '/projects/:project/subjects/:subject/aims',
   //   schema: {
+  //     tags: ['project', 'aim'],
   //     querystring: {
   //       format: { type: 'string' },
   //     },
@@ -142,18 +148,19 @@ async function routes() {
   // fastify.route({
   //   method: 'GET',
   //   url: '/projects/:project/aims',
-  //   querystring: {
-  //     format: { type: 'string' },
-  //   },
-  //   params: {
-  //     type: 'object',
-  //     properties: {
-  //       project: {
-  //         type: 'string',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     querystring: {
+  //       format: { type: 'string' },
+  //     },
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
   //       },
   //     },
-  //   },
-  //   schema: {
   //     // response: {
   //     //   200: 'aim_schema#',
   //     // },
@@ -165,19 +172,20 @@ async function routes() {
   // fastify.route({
   //   method: 'POST',
   //   url: '/projects/:project/aims/download',
-  //   querystring: {
-  //     summary: { type: 'boolean' },
-  //     aim: { type: 'boolean' },
-  //   },
-  //   params: {
-  //     type: 'object',
-  //     properties: {
-  //       project: {
-  //         type: 'string',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     querystring: {
+  //       summary: { type: 'boolean' },
+  //       aim: { type: 'boolean' },
+  //     },
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
   //       },
   //     },
-  //   },
-  //   schema: {
   //     body: {
   //       type: 'array',
   //       items: {

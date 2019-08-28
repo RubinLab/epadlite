@@ -4,6 +4,7 @@ async function routes(fastify) {
     method: 'GET',
     url: '/projects/:project/subjects',
     schema: {
+      tags: ['project', 'subject'],
       params: {
         type: 'object',
         properties: {
@@ -23,6 +24,7 @@ async function routes(fastify) {
   //   method: 'GET',
   //   url: '/projects/:project/subjects/:subject/studies',
   //   schema: {
+  //     tags: ['project', 'study'],
   //     params: {
   //       type: 'object',
   //       properties: {
@@ -45,6 +47,7 @@ async function routes(fastify) {
   //   method: 'GET',
   //   url: '/projects/:project/subjects/:subject/studies/:study/series',
   //   schema: {
+  //     tags: ['project', 'series'],
   //     params: {
   //       type: 'object',
   //       properties: {
@@ -71,6 +74,7 @@ async function routes(fastify) {
   //   method: 'GET',
   //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series/images',
   //   schema: {
+  //     tags: ['project', 'images'],
   //     params: {
   //       type: 'object',
   //       properties: {
@@ -100,6 +104,7 @@ async function routes(fastify) {
   //   method: 'DELETE',
   //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series',
   //   schema: {
+  //     tags: ['project', 'series'],
   //     params: {
   //       type: 'object',
   //       properties: {
@@ -126,6 +131,7 @@ async function routes(fastify) {
   //   method: 'DELETE',
   //   url: '/projects/:project/subjects/:subject/studies/:study',
   //   schema: {
+  //     tags: ['project', 'study'],
   //     params: {
   //       type: 'object',
   //       properties: {
@@ -149,6 +155,7 @@ async function routes(fastify) {
     method: 'DELETE',
     url: '/projects/:project/subjects/:subject',
     schema: {
+      tags: ['project', 'subject'],
       params: {
         type: 'object',
         properties: {
@@ -172,6 +179,7 @@ async function routes(fastify) {
   //   method: 'POST',
   //   url: '/projects/:project/subjects',
   //   schema: {
+  //     tags: ['project', 'subject'],
   //     params: {
   //       type: 'object',
   //       properties: {
@@ -188,6 +196,7 @@ async function routes(fastify) {
     method: 'PUT',
     url: '/projects/:project/subjects/:subject',
     schema: {
+      tags: ['project', 'subject'],
       params: {
         type: 'object',
         properties: {

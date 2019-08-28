@@ -5,6 +5,7 @@ async function routes(fastify) {
     method: 'GET',
     url: '/subjects',
     schema: {
+      tags: ['subject'],
       response: {
         200: 'epadlite_patients_schema#',
       },
@@ -18,6 +19,7 @@ async function routes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies',
     schema: {
+      tags: ['study'],
       params: {
         type: 'object',
         properties: {
@@ -38,6 +40,7 @@ async function routes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/series',
     schema: {
+      tags: ['series'],
       params: {
         type: 'object',
         properties: {
@@ -62,6 +65,7 @@ async function routes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/series/:series/images',
     schema: {
+      tags: ['images'],
       params: {
         type: 'object',
         properties: {
@@ -88,6 +92,7 @@ async function routes(fastify) {
     method: 'DELETE',
     url: '/subjects/:subject/studies/:study/series/:series',
     schema: {
+      tags: ['series'],
       params: {
         type: 'object',
         properties: {
@@ -111,6 +116,7 @@ async function routes(fastify) {
     method: 'DELETE',
     url: '/subjects/:subject/studies/:study',
     schema: {
+      tags: ['study'],
       params: {
         type: 'object',
         properties: {
@@ -131,6 +137,7 @@ async function routes(fastify) {
     method: 'DELETE',
     url: '/subjects/:subject',
     schema: {
+      tags: ['subject'],
       params: {
         type: 'object',
         properties: {

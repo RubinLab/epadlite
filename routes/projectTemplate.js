@@ -4,6 +4,7 @@ async function routes(fastify) {
     method: 'POST',
     url: '/projects/:project/templates',
     schema: {
+      tags: ['project', 'template'],
       params: {
         type: 'object',
         properties: {
@@ -20,6 +21,7 @@ async function routes(fastify) {
     method: 'PUT',
     url: '/projects/:project/templates/:uid',
     schema: {
+      tags: ['project', 'template'],
       params: {
         type: 'object',
         properties: {
@@ -39,6 +41,7 @@ async function routes(fastify) {
     method: 'DELETE',
     url: '/projects/:project/templates/:uid',
     schema: {
+      tags: ['project', 'template'],
       params: {
         type: 'object',
         properties: {
@@ -62,6 +65,7 @@ async function routes(fastify) {
       format: { type: 'string' },
     },
     schema: {
+      tags: ['project', 'template'],
       params: {
         type: 'object',
         properties: {
@@ -84,6 +88,7 @@ async function routes(fastify) {
   //   method: 'POST',
   //   url: '/projects/:project/templates/download',
   //   schema: {
+  //     tags: ['project', 'template'],
   //     body: {
   //       type: 'array',
   //       items: {

@@ -4,6 +4,9 @@ async function aimRoutes(fastify) {
   fastify.route({
     method: 'POST',
     url: '/aims',
+    schema: {
+      tags: ['aim'],
+    },
     handler: fastify.saveAim,
   });
 
@@ -12,6 +15,7 @@ async function aimRoutes(fastify) {
     method: 'PUT',
     url: '/aims/:aimuid',
     schema: {
+      tags: ['aim'],
       params: {
         type: 'object',
         properties: {
@@ -29,6 +33,7 @@ async function aimRoutes(fastify) {
     method: 'DELETE',
     url: '/aims/:aimuid',
     schema: {
+      tags: ['aim'],
       params: {
         type: 'object',
         properties: {
@@ -46,6 +51,7 @@ async function aimRoutes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/series/:series/aims',
     schema: {
+      tags: ['aim'],
       querystring: {
         format: { type: 'string' },
       },
@@ -76,6 +82,7 @@ async function aimRoutes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/aims',
     schema: {
+      tags: ['aim'],
       querystring: {
         format: { type: 'string' },
       },
@@ -103,6 +110,7 @@ async function aimRoutes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/aims',
     schema: {
+      tags: ['aim'],
       querystring: {
         format: { type: 'string' },
       },
@@ -126,10 +134,8 @@ async function aimRoutes(fastify) {
   fastify.route({
     method: 'GET',
     url: '/aims',
-    querystring: {
-      format: { type: 'string' },
-    },
     schema: {
+      tags: ['aim'],
       // response: {
       //   200: 'aim_schema#',
       // },
@@ -148,6 +154,7 @@ async function aimRoutes(fastify) {
       aim: { type: 'boolean' },
     },
     schema: {
+      tags: ['aim'],
       body: {
         type: 'array',
         items: {

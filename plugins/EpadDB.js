@@ -334,7 +334,6 @@ async function epaddb(fastify) {
       if (projectSubjects)
         // projects will be an array of Project instances with the specified name
         projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
-
       const result = await fastify.getPatientsInternal(subjectUids);
       reply.code(200).send(result);
     } catch (err) {

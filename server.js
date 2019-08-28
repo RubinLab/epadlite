@@ -83,10 +83,21 @@ fastify.register(
     exposeRoute: true,
     swagger: {
       info: {
-        title: 'Fastify API',
-        description: 'Building a blazing fast REST API with Node.js, MongoDB, Fastify and Swagger',
+        title: 'ePAD REST API',
+        description: 'REST API Enpoints for ePad>4.0 or lite',
         version: '1.0.0',
       },
+      tags: [
+        { name: 'project', description: 'Project related end-points' },
+        { name: 'subject', description: 'Subject related end-points' },
+        { name: 'study', description: 'Study related end-points' },
+        { name: 'series', description: 'Series related end-points' },
+        { name: 'aim', description: 'Aim related end-points' },
+        { name: 'template', description: 'Template related end-points' },
+        { name: 'worklist', description: 'Worklist related end-points' },
+        { name: 'user', description: 'User related end-points' },
+        { name: 'images', description: 'Image related end-points' },
+      ],
       externalDocs: {
         url: 'https://swagger.io',
         description: 'Find more info here',
