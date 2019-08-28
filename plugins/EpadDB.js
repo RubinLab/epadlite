@@ -293,6 +293,21 @@ async function epaddb(fastify) {
     }
   });
 
+  fastify.decorate('deleteTemplateFromSystem', async (request, reply) => {
+    try {
+      const templateUid = request.params.uid;
+      const numDeleted = await ProjectTemplate.destroy({
+        where: { template_uid: templateUid },
+      });
+      await fastify.deleteTemplateInternal(request.params);
+      reply.code(200).send(`Template deleted from system and removed from ${numDeleted} projects`);
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
+  });
+
   fastify.decorate('addSubjectToProject', async (request, reply) => {
     try {
       const { subject } = request.params;
