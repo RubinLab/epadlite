@@ -68,9 +68,9 @@ fastify.register(require('./plugins/DICOMwebServer'), {
 // register Other plugin we created
 fastify.register(require('./plugins/Other'));
 
-// register epaddb plugin we created for thick mode
+// register epaddb plugin we created
 // eslint-disable-next-line global-require
-if (config.mode === 'thick') fastify.register(require('./plugins/EpadDB'));
+fastify.register(require('./plugins/EpadDB'));
 
 const port = process.env.port || '8080';
 const host = process.env.host || '0.0.0.0';
