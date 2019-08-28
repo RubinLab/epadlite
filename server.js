@@ -76,6 +76,7 @@ if (config.mode === 'thick') fastify.register(require('./plugins/EpadDB'));
 // this should be done after CouchDB plugin to be able to use the accessor methods
 // for both thick and lite
 fastify.register(require('./routes/template')); // eslint-disable-line global-require
+fastify.register(require('./routes/worklist')); // eslint-disable-line global-require
 
 // if in lite mode
 if (config.mode === 'lite') {
