@@ -72,6 +72,33 @@ fastify.register(require('./plugins/Other'));
 // eslint-disable-next-line global-require
 if (config.mode === 'thick') fastify.register(require('./plugins/EpadDB'));
 
+const port = process.env.port || '8080';
+const host = process.env.host || '0.0.0.0';
+
+fastify.register(
+  // eslint-disable-next-line import/no-dynamic-require
+  require('fastify-swagger'),
+  {
+    routePrefix: '/documentation',
+    exposeRoute: true,
+    swagger: {
+      info: {
+        title: 'Fastify API',
+        description: 'Building a blazing fast REST API with Node.js, MongoDB, Fastify and Swagger',
+        version: '1.0.0',
+      },
+      externalDocs: {
+        url: 'https://swagger.io',
+        description: 'Find more info here',
+      },
+      host: `${host}:${port}`,
+      schemes: ['http'],
+      consumes: ['application/json'],
+      produces: ['application/json'],
+    },
+  }
+);
+
 // register routes
 // this should be done after CouchDB plugin to be able to use the accessor methods
 // for both thick and lite
@@ -93,6 +120,7 @@ if (config.mode === 'lite') {
   fastify.register(require('./routes/projectAim')); // eslint-disable-line global-require
   fastify.register(require('./routes/projectDicomweb')); // eslint-disable-line global-require
 }
+
 // }
 // authCheck routine checks if there is a bearer token or encoded basic authentication
 // info in the authorization header and does the authentication or verification of token
@@ -197,9 +225,12 @@ fastify.addHook('onClose', (fastifyInstance, done) => {
     .catch(done);
 });
 
-const port = process.env.port || '8080';
-const host = process.env.host || '0.0.0.0';
 // Run the server!
 fastify.listen(port, host);
+
+fastify.ready(err => {
+  if (err) throw err;
+  fastify.swagger();
+});
 
 module.exports = fastify;

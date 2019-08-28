@@ -41,6 +41,16 @@ async function routes(fastify) {
   fastify.route({
     method: 'GET',
     url: '/users/:user/worklists',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          user: {
+            type: 'string',
+          },
+        },
+      },
+    },
     handler: fastify.getWorklists,
   });
 

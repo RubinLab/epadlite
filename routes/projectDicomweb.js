@@ -194,7 +194,7 @@ async function routes(fastify) {
           project: {
             type: 'string',
           },
-          subjectId: {
+          subject: {
             type: 'string',
           },
         },
