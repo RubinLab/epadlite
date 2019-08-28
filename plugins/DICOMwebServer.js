@@ -177,7 +177,7 @@ async function dicomwebserver(fastify) {
   );
   fastify.decorate('getPatients', (request, reply) => {
     fastify
-      .getPatientsInternal(request.params)
+      .getPatientsInternal()
       .then(result => reply.code(200).send(result))
       .catch(err => reply.code(503).send(err.message));
   });
