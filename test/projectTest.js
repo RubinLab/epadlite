@@ -158,9 +158,23 @@ describe('Project Tests', () => {
           type: 'private',
           userName: 'admin',
         });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'test2',
+          projectName: 'test2',
+          projectDescription: 'test2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
     });
     after(async () => {
       await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/projects/test');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/test2');
     });
 
     it('project test should have no template ', done => {
@@ -236,6 +250,34 @@ describe('Project Tests', () => {
         });
     });
 
+    it('project template put to project test2 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/test2/templates/2.25.121060836007636801627558943005335')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project test2 should have ROI Only', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/test2/templates')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
+          expect(res.body[0].TemplateContainer.Template[0].codeValue).to.be.eql('ROI');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
     it('project template delete should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -263,6 +305,21 @@ describe('Project Tests', () => {
         });
     });
 
+    it('project test2 should still have ROI Only', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/test2/templates')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
+          expect(res.body[0].TemplateContainer.Template[0].codeValue).to.be.eql('ROI');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
     it('ROI template should still be in the db', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -283,7 +340,7 @@ describe('Project Tests', () => {
     it('template delete with uid 2.25.121060836007636801627558943005335 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/templates/2.25.121060836007636801627558943005335')
+        .delete('/projects/test2/templates/2.25.121060836007636801627558943005335')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();

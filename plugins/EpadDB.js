@@ -260,7 +260,32 @@ async function epaddb(fastify) {
       const numDeleted = await ProjectTemplate.destroy({
         where: { project_id: project.id, template_uid: templateUid },
       });
-      reply.code(200).send(`Deleted ${numDeleted} records`);
+      // if delete from all or it doesn't exist in any other project, delete from system
+      try {
+        if (request.query.all && request.query.all === 'true') {
+          const deletednum = await ProjectTemplate.destroy({
+            where: { template_uid: templateUid },
+          });
+          await fastify.deleteTemplateInternal(request.params);
+          reply
+            .code(200)
+            .send(
+              `Template deleted from system and removed from ${deletednum + numDeleted} projects`
+            );
+        } else {
+          const count = await ProjectTemplate.count({ where: { template_uid: templateUid } });
+          if (count === 0) {
+            await fastify.deleteTemplateInternal(request.params);
+            reply
+              .code(200)
+              .send(`Template deleted from system as it didn't exist in any other project`);
+          } else
+            reply.code(200).send(`Template not deleted from system as it exists in other project`);
+        }
+      } catch (deleteErr) {
+        console.log(deleteErr);
+        reply.code(503).send(`Deletion error: ${deleteErr}`);
+      }
     } catch (err) {
       // TODO Proper error reporting implementation required
       console.log(`Error in delete: ${err}`);

@@ -740,25 +740,41 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate('deleteTemplate', (request, reply) => {
-    const db = fastify.couch.db.use(config.db);
-    db.get(request.params.uid, (error, existing) => {
-      if (error) {
-        fastify.log.info(`No document for uid ${request.params.uid}`);
-        // Is 404 the right thing to return?
-        reply.code(404).send(`No document for uid ${request.params.uid}`);
-      }
-
-      db.destroy(request.params.uid, existing._rev)
-        .then(() => {
-          reply.code(200).send('Deletion successful');
-        })
-        .catch(err => {
-          // TODO Proper error reporting implementation required
-          fastify.log.info(`Error in delete: ${err}`);
-          reply.code(503).send(`Deleting error: ${err}`);
-        });
-    });
+    fastify
+      .deleteTemplateInternal(request.params)
+      .then(() => {
+        reply.code(200).send('Deletion successful');
+      })
+      .catch(err => {
+        // TODO Proper error reporting implementation required
+        fastify.log.info(`Error in delete: ${err}`);
+        reply.code(503).send(`Deleting error: ${err}`);
+      });
   });
+
+  fastify.decorate(
+    'deleteTemplateInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        const db = fastify.couch.db.use(config.db);
+        db.get(params.uid, (error, existing) => {
+          if (error) {
+            fastify.log.info(`No document for uid ${params.uid}`);
+            reject(new Error(`No document for uid ${params.uid}`));
+          }
+
+          db.destroy(params.uid, existing._rev)
+            .then(() => {
+              resolve();
+            })
+            .catch(err => {
+              // TODO Proper error reporting implementation required
+              fastify.log.info(`Error in delete: ${err}`);
+              reject(err);
+            });
+        });
+      })
+  );
 
   fastify.decorate(
     'downloadTemplates',
