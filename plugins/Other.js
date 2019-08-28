@@ -30,6 +30,8 @@ async function other(fastify) {
             reply.code(200).send();
             Promise.all(filePromisses)
               .then(() => {
+                // TODO we need to add subjects/studies/files to the project it was uploaded!
+
                 // see if it was a dicom
                 if (datasets.length > 0) {
                   // fastify.log.info(`writing dicom folder ${filename}`);

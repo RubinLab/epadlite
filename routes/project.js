@@ -2,6 +2,12 @@
 async function routes(fastify) {
   fastify.route({
     method: 'POST',
+    url: '/files',
+    handler: fastify.saveFile,
+  });
+
+  fastify.route({
+    method: 'POST',
     url: '/projects',
     handler: fastify.createProject,
   });
