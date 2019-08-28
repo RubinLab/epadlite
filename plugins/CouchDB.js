@@ -739,19 +739,6 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('deleteTemplate', (request, reply) => {
-    fastify
-      .deleteTemplateInternal(request.params)
-      .then(() => {
-        reply.code(200).send('Deletion successful');
-      })
-      .catch(err => {
-        // TODO Proper error reporting implementation required
-        fastify.log.info(`Error in delete: ${err}`);
-        reply.code(503).send(`Deleting error: ${err}`);
-      });
-  });
-
   fastify.decorate(
     'deleteTemplateInternal',
     params =>

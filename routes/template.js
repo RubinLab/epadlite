@@ -35,7 +35,7 @@ async function routes(fastify) {
         },
       },
     },
-    handler: fastify.deleteTemplate,
+    handler: fastify.deleteTemplateFromSystem,
   });
 
   // GET {s}/templates
