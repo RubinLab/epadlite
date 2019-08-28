@@ -326,7 +326,7 @@ async function epaddb(fastify) {
     }
   });
 
-  fastify.decorate('getProjectSubjects', async (request, reply) => {
+  fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
       const project = await Project.findOne({ where: { projectid: request.params.project } });
       const subjectUids = [];

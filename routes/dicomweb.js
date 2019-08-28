@@ -21,7 +21,7 @@ async function routes(fastify) {
       params: {
         type: 'object',
         properties: {
-          patient: {
+          subject: {
             type: 'string',
           },
         },
@@ -82,6 +82,69 @@ async function routes(fastify) {
     },
 
     handler: fastify.getSeriesImages,
+  });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/subjects/:subject/studies/:study/series/:series',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.deleteSeries,
+  });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/subjects/:subject/studies/:study',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.deleteStudy,
+  });
+  // moved to dicomweb to keep together the routes related to dicomweb server
+  fastify.route({
+    method: 'DELETE',
+    url: '/subjects/:subject',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.deleteSubject,
   });
 }
 
