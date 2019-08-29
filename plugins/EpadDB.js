@@ -332,10 +332,20 @@ async function epaddb(fastify) {
       const project = await Project.findOne({ where: { projectid: request.params.project } });
       const subjectUids = [];
       const projectSubjects = await ProjectSubject.findAll({ where: { project_id: project.id } });
-      if (projectSubjects)
+      if (projectSubjects) {
         // projects will be an array of Project instances with the specified name
-        projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
+        for (let i = 0; i < projectSubjects.length; i += 1) {
+          subjectUids.push(projectSubjects[i].subject_uid);
+        }
+      }
       const result = await fastify.getPatientsInternal(subjectUids);
+      // TODO implement better error handling/reporting
+      if (subjectUids.length !== result.ResultSet.totalRecords)
+        console.log(
+          `There are ${subjectUids.length} subjects associated with this project. But only ${
+            result.ResultSet.totalRecords
+          } of them have dicom files`
+        );
       reply.code(200).send(result);
     } catch (err) {
       // TODO Proper error reporting implementation required
@@ -517,17 +527,24 @@ async function epaddb(fastify) {
       const projectSubjects = await ProjectSubject.findAll({ where: { project_id: project.id } });
       if (projectSubjects)
         // projects will be an array of Project instances with the specified name
-        projectSubjects.forEach(async projectSubject => {
+        for (let i = 0; i < projectSubjects.length; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
           const projectSubjectStudies = await ProjectSubjectStudy.findAll({
-            where: { proj_subj_id: projectSubject.id },
+            where: { proj_subj_id: projectSubjects[i].id },
           });
           if (projectSubjectStudies)
-            projectSubjectStudies.forEach(projectSubjectStudy =>
-              studyUids.push(projectSubjectStudy.study_uid)
-            );
-        });
-      console.log('studyUids', studyUids);
+            for (let j = 0; j < projectSubjectStudies.length; j += 1) {
+              studyUids.push(projectSubjectStudies[j].study_uid);
+            }
+        }
       const result = await fastify.getPatientStudiesInternal(request.params, studyUids);
+      // TODO implement better error handling/reporting
+      if (studyUids.length !== result.ResultSet.totalRecords)
+        console.log(
+          `There are ${studyUids.length} studies associated with this project. But only ${
+            result.ResultSet.totalRecords
+          } of them have dicom files`
+        );
       reply.code(200).send(result);
     } catch (err) {
       // TODO Proper error reporting implementation required
@@ -561,22 +578,21 @@ async function epaddb(fastify) {
             where: { study_uid: request.params.study },
           });
           const projSubjIds = [];
+          const projectSubjectStudyIds = [];
           if (projectSubjectStudies) {
-            projectSubjectStudies.forEach(async projectSubjectStudy => {
+            for (let i = 0; i < projectSubjectStudies.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
               const existingStudyCount = await ProjectSubjectStudy.count({
-                where: { proj_subj_id: projectSubjectStudy.proj_subj_id },
+                where: { proj_subj_id: projectSubjectStudies[i].proj_subj_id },
               });
-              if (existingStudyCount < 2) projSubjIds.push(projectSubjectStudy.proj_subj_id);
+              if (existingStudyCount === 1) projSubjIds.push(projectSubjectStudies[i].proj_subj_id);
+              projectSubjectStudyIds.push(projectSubjectStudies[i].id);
+            }
+            numDeleted += await ProjectSubjectStudy.destroy({
+              where: { id: projectSubjectStudyIds },
             });
-            projectSubjectStudies.forEach(async projectSubjectStudy => {
-              numDeleted += await ProjectSubjectStudy.destroy({
-                where: { id: projectSubjectStudy.id },
-              });
-            });
-            projSubjIds.forEach(async projSubjId => {
-              await ProjectSubject.destroy({
-                where: { id: projSubjId },
-              });
+            await ProjectSubject.destroy({
+              where: { id: projSubjIds },
             });
           }
           await fastify.deleteStudyInternal(request.params);
