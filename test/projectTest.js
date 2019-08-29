@@ -151,8 +151,8 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
         .send({
-          projectId: 'test',
-          projectName: 'test',
+          projectId: 'testtemplate',
+          projectName: 'testtemplate',
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -162,8 +162,8 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
         .send({
-          projectId: 'test2',
-          projectName: 'test2',
+          projectId: 'testtemplate2',
+          projectName: 'testtemplate2',
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -171,16 +171,18 @@ describe('Project Tests', () => {
         });
     });
     after(async () => {
-      await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/projects/test');
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test2');
+        .delete('/projects/testtemplate');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testtemplate2');
     });
 
-    it('project test should have no template ', done => {
+    it('project testtemplate should have no template ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/templates')
+        .get('/projects/testtemplate/templates')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -194,7 +196,7 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/projects/test/templates')
+        .post('/projects/testtemplate/templates')
         .send(jsonBuffer)
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -205,10 +207,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test should have 1 template ', done => {
+    it('project testtemplate should have 1 template ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/templates')
+        .get('/projects/testtemplate/templates')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -219,10 +221,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test should have ROI Only', done => {
+    it('project testtemplate should have ROI Only', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/templates')
+        .get('/projects/testtemplate/templates')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
@@ -234,10 +236,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test should have template with uid 2.25.121060836007636801627558943005335', done => {
+    it('project testtemplate should have template with uid 2.25.121060836007636801627558943005335', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/templates')
+        .get('/projects/testtemplate/templates')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].TemplateContainer.uid).to.be.eql(
@@ -250,10 +252,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project template put to project test2 should be successful ', done => {
+    it('project template put to project testtemplate2 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/test2/templates/2.25.121060836007636801627558943005335')
+        .put('/projects/testtemplate2/templates/2.25.121060836007636801627558943005335')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -263,10 +265,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test2 should have ROI Only', done => {
+    it('project testtemplate2 should have ROI Only', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test2/templates')
+        .get('/projects/testtemplate2/templates')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
@@ -278,10 +280,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project template delete should be successful ', done => {
+    it('project template delete from testtemplate should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test/templates/2.25.121060836007636801627558943005335')
+        .delete('/projects/testtemplate/templates/2.25.121060836007636801627558943005335')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -291,10 +293,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test should have no template ', done => {
+    it('project testtemplate should have no template ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/templates')
+        .get('/projects/testtemplate/templates')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -305,10 +307,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test2 should still have ROI Only', done => {
+    it('project testtemplate2 should still have ROI Only', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test2/templates')
+        .get('/projects/testtemplate2/templates')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
@@ -340,7 +342,7 @@ describe('Project Tests', () => {
     it('template delete with uid 2.25.121060836007636801627558943005335 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test2/templates/2.25.121060836007636801627558943005335')
+        .delete('/projects/testtemplate2/templates/2.25.121060836007636801627558943005335')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -373,8 +375,8 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
         .send({
-          projectId: 'test',
-          projectName: 'test',
+          projectId: 'testsubject',
+          projectName: 'testsubject',
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -384,8 +386,8 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
         .send({
-          projectId: 'test2',
-          projectName: 'test2',
+          projectId: 'testsubject2',
+          projectName: 'testsubject2',
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -395,8 +397,8 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
         .send({
-          projectId: 'test3',
-          projectName: 'test3',
+          projectId: 'testsubject3',
+          projectName: 'testsubject3',
           projectDescription: 'test3desc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -408,21 +410,23 @@ describe('Project Tests', () => {
         .attach('files', 'test/data/sample.dcm', 'sample.dcm');
     });
     after(async () => {
-      await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/projects/test');
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test2');
+        .delete('/projects/testsubject');
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test3');
+        .delete('/projects/testsubject2');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testsubject3');
 
       // TODO should make sure dcm uploaded is deleted
       // right now the tests take care of it
     });
-    it('project test should have no subjects ', done => {
+    it('project testsubject should have no subjects ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(0);
@@ -432,10 +436,10 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('project subject add of patient 3 to project test should be successful ', done => {
+    it('project subject add of patient 3 to project testsubject should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/test/subjects/3')
+        .put('/projects/testsubject/subjects/3')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -445,10 +449,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project subject add of patient 3 to project test2 should be successful ', done => {
+    it('project subject add of patient 3 to project testsubject2 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/test2/subjects/3')
+        .put('/projects/testsubject2/subjects/3')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -458,10 +462,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project subject add of patient 3 to project test3 should be successful ', done => {
+    it('project subject add of patient 3 to project testsubject3 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/test3/subjects/3')
+        .put('/projects/testsubject3/subjects/3')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -471,10 +475,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test should have 1 subject ', done => {
+    it('project testsubject should have 1 subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -484,10 +488,10 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('project test should have subject 3', done => {
+    it('project testsubject should have subject 3', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result[0].subjectID).to.be.eql('3');
@@ -498,10 +502,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project subject deletion of patient 3 from test project should be successful ', done => {
+    it('project subject deletion of patient 3 from testsubject project should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test/subjects/3')
+        .delete('/projects/testsubject/subjects/3')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -511,10 +515,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test should have no subject ', done => {
+    it('project testsubject should have no subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(0);
@@ -525,10 +529,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test2 should have 1 subject ', done => {
+    it('project testsubject2 should have 1 subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test2/subjects')
+        .get('/projects/testsubject2/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -539,10 +543,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test3 should have 1 subject ', done => {
+    it('project testsubject3 should have 1 subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test3/subjects')
+        .get('/projects/testsubject3/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -556,7 +560,7 @@ describe('Project Tests', () => {
     it('project subject deletion of patient 3 of system should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test2/subjects/3?all=true')
+        .delete('/projects/testsubject2/subjects/3?all=true')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -566,10 +570,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test2 should have no subject ', done => {
+    it('project testsubject2 should have no subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(0);
@@ -583,7 +587,7 @@ describe('Project Tests', () => {
     it('subjects should be empty', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(0);
@@ -601,8 +605,8 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
         .send({
-          projectId: 'test',
-          projectName: 'test',
+          projectId: 'teststudy',
+          projectName: 'teststudy',
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -612,8 +616,8 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
         .send({
-          projectId: 'test2',
-          projectName: 'test2',
+          projectId: 'teststudy2',
+          projectName: 'teststudy2',
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -623,8 +627,8 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
         .send({
-          projectId: 'test3',
-          projectName: 'test3',
+          projectId: 'teststudy3',
+          projectName: 'teststudy3',
           projectDescription: 'test3desc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -633,24 +637,26 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/test/files')
-        .attach('files', 'test/data/sample.dcm', 'sample.dcm');
+        .attach('files', 'test/data/sample2.dcm', 'sample2.dcm');
     });
     after(async () => {
-      await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/projects/test');
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test2');
+        .delete('/projects/teststudy');
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test3');
+        .delete('/projects/teststudy2');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/teststudy3');
 
       // TODO should make sure dcm uploaded is deleted
       // right now the tests take care of it
     });
-    it('project test should have no subjects ', done => {
+    it('project teststudy should have no subjects ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(0);
@@ -660,10 +666,12 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('project study add of study 0023.2015.09.28.3 to project test should be successful ', done => {
+    it('project study add of study 1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254 to project teststudy should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/test/subjects/3/studies/0023.2015.09.28.3')
+        .put(
+          '/projects/teststudy/subjects/260771139092452259439856092027719824171/studies/1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254'
+        )
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -673,10 +681,12 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project study add of study 0023.2015.09.28.3 to project test2 should be successful ', done => {
+    it('project study add of study 1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254 to project teststudy2 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/test2/subjects/3/studies/0023.2015.09.28.3')
+        .put(
+          '/projects/teststudy2/subjects/260771139092452259439856092027719824171/studies/1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254'
+        )
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -686,10 +696,12 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project study add of study 0023.2015.09.28.3 to project test3 should be successful ', done => {
+    it('project study add of study 1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254 to project teststudy3 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/test3/subjects/3/studies/0023.2015.09.28.3')
+        .put(
+          '/projects/teststudy3/subjects/260771139092452259439856092027719824171/studies/1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254'
+        )
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -699,10 +711,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test should have 1 subject ', done => {
+    it('project teststudy should have 1 subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -712,36 +724,42 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('project test should have subject 3', done => {
+    it('project teststudy should have subject 260771139092452259439856092027719824171', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result[0].subjectID).to.be.eql('3');
+          expect(res.body.ResultSet.Result[0].subjectID).to.be.eql(
+            '260771139092452259439856092027719824171'
+          );
           done();
         })
         .catch(e => {
           done(e);
         });
     });
-    it('project test should have study 0023.2015.09.28.3 of subject 3', done => {
+    it('project teststudy should have study 1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254 of subject 260771139092452259439856092027719824171', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects/3/studies')
+        .get('/projects/teststudy/subjects/260771139092452259439856092027719824171/studies')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body.ResultSet.Result[0].studyUID).to.be.eql(
+            '1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254'
+          );
           done();
         })
         .catch(e => {
           done(e);
         });
     });
-    it('project study deletion of patient 3 study 0023.2015.09.28.3 from test project should be successful ', done => {
+    it('project study deletion of patient 260771139092452259439856092027719824171 study 1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254 from teststudy project should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test/subjects/3/studies/0023.2015.09.28.3')
+        .delete(
+          '/projects/teststudy/subjects/260771139092452259439856092027719824171/studies/1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254'
+        )
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -751,10 +769,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test should have no subject ', done => {
+    it('project teststudy should have no subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(0);
@@ -765,10 +783,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test2 should have 1 subject ', done => {
+    it('project teststudy2 should have 1 subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test2/subjects')
+        .get('/projects/teststudy2/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -779,10 +797,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project test3 should have 1 subject ', done => {
+    it('project teststudy3 should have 1 subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test3/subjects')
+        .get('/projects/teststudy3/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -792,11 +810,12 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-
-    it('project study deletion of patient 3 study 0023.2015.09.28.3 from test2 project should be successful ', done => {
+    it('project study deletion of patient 3 study 0023.2015.09.28.3 of system should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test2/subjects/3/studies/0023.2015.09.28.3')
+        .delete(
+          '/projects/teststudy3/subjects/260771139092452259439856092027719824171/studies/1.2.826.0.1.3680043.8.420.25956966070075502358113643020315914254?all=true'
+        )
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -805,35 +824,11 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('project study deletion of patient 3 study 0023.2015.09.28.3 from test3 project should be successful ', done => {
-      chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test3/subjects/3/studies/0023.2015.09.28.3')
-        .then(res => {
-          expect(res.statusCode).to.equal(200);
-          done();
-        })
-        .catch(e => {
-          done(e);
-        });
-    });
-    // it('project study deletion of patient 3 study 0023.2015.09.28.3 of system should be successful ', done => {
-    //   chai
-    //     .request(`http://${process.env.host}:${process.env.port}`)
-    //     .delete('/projects/test2/subjects/3/studies/0023.2015.09.28.3?all=true')
-    //     .then(res => {
-    //       expect(res.statusCode).to.equal(200);
-    //       done();
-    //     })
-    //     .catch(e => {
-    //       done(e);
-    //     });
-    // });
 
-    it('project test2 should have no subject ', done => {
+    it('project teststudy2 should have no subject ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/teststudy2/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(0);
@@ -847,7 +842,7 @@ describe('Project Tests', () => {
     it('subjects should be empty', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/test/subjects')
+        .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result.length).to.be.eql(0);
