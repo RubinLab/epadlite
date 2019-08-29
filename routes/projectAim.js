@@ -57,7 +57,6 @@ async function routes() {
   //   },
   //   handler: fastify.deleteAim,
   // });
-  // // GET {s}/subjects/:subject/studies/:study/series/:series/aims
   // fastify.route({
   //   method: 'GET',
   //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims',
@@ -87,7 +86,7 @@ async function routes() {
   //     //   200: 'aim_schema#',
   //     // },
   //   },
-  //   handler: fastify.getSeriesAims,
+  //   handler: fastify.getSeriesAimsFromProject,
   // });
   // // GET {s}/subjects/:subject/studies/:study/aims
   // fastify.route({

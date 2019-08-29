@@ -253,25 +253,37 @@ async function other(fastify) {
   );
 
   fastify.decorate('deleteStudy', (request, reply) => {
-    try {
-      // delete study in dicomweb and annotations
-      Promise.all([
-        fastify.deleteStudyDicomsInternal(request.params),
-        fastify.deleteAimsInternal(request.params),
-      ])
-        .then(() => {
-          fastify.log.info('Success');
-          reply.code(200).send();
-        })
-        .catch(error => {
-          fastify.log.info(`Error in deleting ${error.message}`);
-          reply.code(503).send(error.message);
-        });
-    } catch (err) {
-      fastify.log.info(`Error deleting: ${err.message}`);
-      reply.code(503).send(err.message);
-    }
+    fastify
+      .deleteStudyInternal(request.params)
+      .then(result => {
+        reply.code(200).send(result);
+      })
+      .catch(err => reply.code(503).send(err.message));
   });
+
+  fastify.decorate(
+    'deleteStudyInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        try {
+          // delete study in dicomweb and annotations
+          Promise.all([
+            fastify.deleteStudyDicomsInternal(params),
+            fastify.deleteAimsInternal(params),
+          ])
+            .then(() => {
+              resolve();
+            })
+            .catch(error => {
+              fastify.log.info(`Error in deleting ${error.message}`);
+              reject(error);
+            });
+        } catch (err) {
+          fastify.log.info(`Error deleting: ${err.message}`);
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate('deleteSeries', (request, reply) => {
     try {

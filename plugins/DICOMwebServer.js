@@ -191,17 +191,15 @@ async function dicomwebserver(fastify) {
           const studies = this.request.get('/studies', header);
           const aims = fastify.getAims('summary', { subject: '', study: '', series: '' });
           Promise.all([studies, aims])
-            .then(values => {
+            .then(async values => {
               // handle success
               // filter the results if patient id filter is given
-              let filteredStudies = values[0].data;
-              let filteredAims = values[1].ResultSet.Result;
-              if (filter) {
-                filteredStudies = _.filter(filteredStudies, obj =>
-                  filter.includes(obj['00100020'].Value[0])
-                );
-                filteredAims = _.filter(filteredAims, obj => filter.includes(obj.subjectID));
-              }
+              const { filteredStudies, filteredAims } = await fastify.filter(
+                values[0].data,
+                values[1].ResultSet.Result,
+                filter,
+                '00100020'
+              );
               // populate an aim counts map containing each subject
               const aimsCountMap = {};
               _.chain(filteredAims)
@@ -279,6 +277,24 @@ async function dicomwebserver(fastify) {
       })
   );
 
+  fastify.decorate(
+    'filter',
+    (studies, aims, filter, tag) =>
+      new Promise((resolve, reject) => {
+        try {
+          let filteredStudies = studies;
+          let filteredAims = aims;
+          if (filter) {
+            filteredStudies = _.filter(filteredStudies, obj => filter.includes(obj[tag].Value[0]));
+            filteredAims = _.filter(filteredAims, obj => filter.includes(obj.subjectID));
+          }
+          resolve({ filteredStudies, filteredAims });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate('getPatientStudies', (request, reply) => {
     fastify
       .getPatientStudiesInternal(request.params)
@@ -288,7 +304,7 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'getPatientStudiesInternal',
-    params =>
+    (params, filter) =>
       new Promise((resolve, reject) => {
         try {
           const studies = this.request.get('/studies', header);
@@ -300,11 +316,18 @@ async function dicomwebserver(fastify) {
           });
 
           Promise.all([studies, aims])
-            .then(values => {
+            .then(async values => {
               // handle success
+              // filter the results if patient id filter is given
+              const { filteredStudies, filteredAims } = await fastify.filter(
+                values[0].data,
+                values[1].ResultSet.Result,
+                filter,
+                '0020000D'
+              );
               // populate an aim counts map containing each study
               const aimsCountMap = {};
-              _.chain(values[1].ResultSet.Result)
+              _.chain(filteredAims)
                 .groupBy(value => {
                   return value.studyUID;
                 })
@@ -320,7 +343,7 @@ async function dicomwebserver(fastify) {
                 })
                 .value();
               // get the grouped data according to patient id
-              const grouped = _.groupBy(values[0].data, value => {
+              const grouped = _.groupBy(filteredStudies, value => {
                 return value['00100020'].Value['0'];
               });
               // get the patients's studies and map each study to epadlite study object

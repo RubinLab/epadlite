@@ -8,6 +8,7 @@ async function epaddb(fastify) {
   Worklist.hasMany(WorklistStudy, { foreignKey: 'worklist_id' });
   const ProjectTemplate = fastify.orm.import(`${__dirname}/../models/project_template`);
   const ProjectSubject = fastify.orm.import(`${__dirname}/../models/project_subject`);
+  const ProjectSubjectStudy = fastify.orm.import(`${__dirname}/../models/project_subject_study`);
 
   fastify.decorate('initMariaDB', async () => {
     // Test connection
@@ -338,8 +339,8 @@ async function epaddb(fastify) {
       reply.code(200).send(result);
     } catch (err) {
       // TODO Proper error reporting implementation required
-      console.log(`Error in save: ${err}`);
-      reply.code(503).send(`Saving error: ${err}`);
+      console.log(`Error in get: ${err}`);
+      reply.code(503).send(`Getting error: ${err}`);
     }
   });
 
@@ -383,6 +384,237 @@ async function epaddb(fastify) {
       reply.code(503).send(`Deletion error: ${err}`);
     }
   });
+
+  // from CouchDB
+  // fastify.decorate('getSeriesAimsFromProject', async (request, reply) => {
+  //   const project = await Project.findOne({ where: { projectid: request.params.project } });
+  //     const aimUids = [];
+  //     const projectSubjects = await ProjectSubject.findAll({ where: { project_id: project.id } });
+  //     if (projectSubjects)
+  //       // projects will be an array of Project instances with the specified name
+  //       projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
+  //     const result = await fastify.getPatientsInternal(subjectUids);
+  //     reply.code(200).send(result);
+  //   fastify
+  //     .getAims(request.query.format, request.params)
+  //     .then(result => {
+  //       if (request.query.format === 'stream') {
+  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+  //       }
+  //       reply.code(200).send(result);
+  //     })
+  //     .catch(err => reply.code(503).send(err));
+  // });
+
+  // fastify.decorate('getStudyAims', (request, reply) => {
+  //   fastify
+  //     .getAims(request.query.format, request.params)
+  //     .then(result => {
+  //       if (request.query.format === 'stream') {
+  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+  //       }
+  //       reply.code(200).send(result);
+  //     })
+  //     .catch(err => reply.code(503).send(err));
+  // });
+
+  // fastify.decorate('getSubjectAims', (request, reply) => {
+  //   fastify
+  //     .getAims(request.query.format, request.params)
+  //     .then(result => {
+  //       if (request.query.format === 'stream') {
+  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+  //       }
+  //       reply.code(200).send(result);
+  //     })
+  //     .catch(err => reply.code(503).send(err));
+  // });
+
+  // fastify.decorate('getProjectAims', (request, reply) => {
+  //   fastify
+  //     .getAims(request.query.format, request.params)
+  //     .then(result => {
+  //       if (request.query.format === 'stream') {
+  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+  //       }
+  //       reply.code(200).send(result);
+  //     })
+  //     .catch(err => reply.code(503).send(err));
+  // });
+
+  // fastify.decorate('saveAim', (request, reply) => {
+  //   // get the uid from the json and check if it is same with param, then put as id in couch document
+  //   if (
+  //     request.params.aimuid &&
+  //     request.params.aimuid !== request.body.ImageAnnotationCollection.uniqueIdentifier.root
+  //   ) {
+  //     fastify.log.info(
+  //       'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
+  //     );
+  //     reply
+  //       .code(503)
+  //       .send(
+  //         'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
+  //       );
+  //   }
+  //   fastify
+  //     .saveAimInternal(request.body)
+  //     .then(() => {
+  //       reply.code(200).send('Saving successful');
+  //     })
+  //     .catch(err => {
+  //       // TODO Proper error reporting implementation required
+  //       fastify.log.info(`Error in save: ${err}`);
+  //       reply.code(503).send(`Saving error: ${err}`);
+  //     });
+  // });
+
+  // fastify.decorate('deleteAim', (request, reply) => {
+  //   fastify
+  //     .deleteAimInternal(request.params.aimuid)
+  //     .then(() => reply.code(200).send('Deletion successful'))
+  //     .catch(err => reply.code(503).send(err));
+  // });
+
+  // from DicomwebServer
+  // fastify.decorate('getPatientStudies', (request, reply) => {
+  //   fastify
+  //     .getPatientStudiesInternal(request.params)
+  //     .then(result => reply.code(200).send(result))
+  //     .catch(err => reply.code(503).send(err.message));
+  // });
+  fastify.decorate('addPatientStudyToProject', async (request, reply) => {
+    try {
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      let projectSubject = await ProjectSubject.findOne({
+        where: { project_id: project.id, subject_uid: request.params.subject },
+      });
+      if (!projectSubject)
+        projectSubject = await ProjectSubject.create({
+          project_id: project.id,
+          subject_uid: request.params.subject,
+          creator: request.query.username,
+          updatetime: Date.now(),
+        });
+      await ProjectSubjectStudy.create({
+        proj_subj_id: projectSubject.id,
+        study_uid: request.params.study,
+        creator: request.query.username,
+        updatetime: Date.now(),
+      });
+      reply.code(200).send('Saving successful');
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in save: ${err}`);
+      reply.code(503).send(`Saving error: ${err}`);
+    }
+  });
+
+  fastify.decorate('getPatientStudiesFromProject', async (request, reply) => {
+    try {
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const studyUids = [];
+      const projectSubjects = await ProjectSubject.findAll({ where: { project_id: project.id } });
+      if (projectSubjects)
+        // projects will be an array of Project instances with the specified name
+        projectSubjects.forEach(async projectSubject => {
+          const projectSubjectStudies = await ProjectSubjectStudy.findAll({
+            where: { proj_subj_id: projectSubject.id },
+          });
+          if (projectSubjectStudies)
+            projectSubjectStudies.forEach(projectSubjectStudy =>
+              studyUids.push(projectSubjectStudy.study_uid)
+            );
+        });
+      console.log('studyUids', studyUids);
+      const result = await fastify.getPatientStudiesInternal(request.params, studyUids);
+      reply.code(200).send(result);
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in get: ${err}`);
+      reply.code(503).send(`Getting error: ${err}`);
+    }
+  });
+
+  fastify.decorate('deletePatientStudyFromProject', async (request, reply) => {
+    try {
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const projectSubject = await ProjectSubject.findOne({
+        where: { project_id: project.id, subject_uid: request.params.subject },
+      });
+      let numDeleted = await ProjectSubjectStudy.destroy({
+        where: { proj_subj_id: projectSubject.id, study_uid: request.params.study },
+      });
+      // see if there is any other study refering to this subject in ths project
+      const studyCount = await ProjectSubjectStudy.count({
+        where: { proj_subj_id: projectSubject.id },
+      });
+      if (studyCount === 0)
+        await ProjectSubject.destroy({
+          where: { id: projectSubject.id },
+        });
+
+      // if delete from all or it doesn't exist in any other project, delete from system
+      try {
+        if (request.query.all && request.query.all === 'true') {
+          const projectSubjectStudies = await ProjectSubjectStudy.findAll({
+            where: { study_uid: request.params.study },
+          });
+          const projSubjIds = [];
+          if (projectSubjectStudies) {
+            projectSubjectStudies.forEach(async projectSubjectStudy => {
+              const existingStudyCount = await ProjectSubjectStudy.count({
+                where: { proj_subj_id: projectSubjectStudy.proj_subj_id },
+              });
+              if (existingStudyCount < 2) projSubjIds.push(projectSubjectStudy.proj_subj_id);
+            });
+            projectSubjectStudies.forEach(async projectSubjectStudy => {
+              numDeleted += await ProjectSubjectStudy.destroy({
+                where: { id: projectSubjectStudy.id },
+              });
+            });
+            projSubjIds.forEach(async projSubjId => {
+              await ProjectSubject.destroy({
+                where: { id: projSubjId },
+              });
+            });
+          }
+          await fastify.deleteStudyInternal(request.params);
+          reply.code(200).send(`Study deleted from system and removed from ${numDeleted} projects`);
+        } else {
+          const count = await ProjectSubjectStudy.count({
+            where: { study_uid: request.params.study },
+          });
+          if (count === 0) {
+            await fastify.deleteStudyInternal(request.params);
+            reply
+              .code(200)
+              .send(`Study deleted from system as it didn't exist in any other project`);
+          } else
+            reply.code(200).send(`Study not deleted from system as it exists in other project`);
+        }
+      } catch (deleteErr) {
+        console.log(deleteErr);
+        reply.code(503).send(`Deletion error: ${deleteErr}`);
+      }
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
+  });
+  // fastify.decorate('getStudySeries', (request, reply) => {
+  //   fastify
+  //     .getStudySeriesInternal(request.params)
+  //     .then(result => reply.code(200).send(result))
+  //     .catch(err => reply.code(503).send(err.message));
+  // });
+  // fastify.decorate('getSeriesImages', (request, reply) => {
+  //   fastify
+  //     .getSeriesImagesInternal(request.params, request.query)
+  //     .then(result => reply.code(200).send(result))
+  //     .catch(err => reply.code(503).send(err.message));
+  // });
 
   fastify.after(async () => {
     try {

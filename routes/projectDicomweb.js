@@ -20,28 +20,28 @@ async function routes(fastify) {
     handler: fastify.getPatientsFromProject,
   });
 
-  // fastify.route({
-  //   method: 'GET',
-  //   url: '/projects/:project/subjects/:subject/studies',
-  //   schema: {
-  //     tags: ['project', 'study'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //         subject: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //     response: {
-  //       200: 'epadlite_patients_schema#',
-  //     },
-  //   },
-  //   handler: fastify.getPatientStudies,
-  // });
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/subjects/:subject/studies',
+    schema: {
+      tags: ['project', 'study'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+        },
+      },
+      response: {
+        200: 'epadlite_studies_schema#',
+      },
+    },
+    handler: fastify.getPatientStudiesFromProject,
+  });
 
   // fastify.route({
   //   method: 'GET',
@@ -127,29 +127,29 @@ async function routes(fastify) {
   //   handler: fastify.deleteSeries,
   // });
 
-  // fastify.route({
-  //   method: 'DELETE',
-  //   url: '/projects/:project/subjects/:subject/studies/:study',
-  //   schema: {
-  //     tags: ['project', 'study'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //         subject: {
-  //           type: 'string',
-  //         },
-  //         study: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //   },
+  fastify.route({
+    method: 'DELETE',
+    url: '/projects/:project/subjects/:subject/studies/:study',
+    schema: {
+      tags: ['project', 'study'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
 
-  //   handler: fastify.deleteStudy,
-  // });
+    handler: fastify.deletePatientStudyFromProject,
+  });
   // moved to dicomweb to keep together the routes related to dicomweb server
   fastify.route({
     method: 'DELETE',
@@ -210,6 +210,29 @@ async function routes(fastify) {
       },
     },
     handler: fastify.addSubjectToProject,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/subjects/:subject/studies/:study',
+    schema: {
+      tags: ['project', 'study'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.addPatientStudyToProject,
   });
 }
 module.exports = routes;
