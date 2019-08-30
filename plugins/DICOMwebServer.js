@@ -111,12 +111,17 @@ async function dicomwebserver(fastify) {
     (data, boundary) =>
       new Promise((resolve, reject) => {
         try {
-          const headers = {
-            'Content-Type': `multipart/related; type=application/dicom; boundary=${boundary}`,
-            maxContentLength: Buffer.byteLength(data) + 1,
+          const postHeader = {
+            headers: {
+              ...header.headers,
+              ...{
+                'content-type': `multipart/related; type=application/dicom; boundary=${boundary}`,
+                maxContentLength: Buffer.byteLength(data) + 1,
+              },
+            },
           };
           this.request
-            .post('/studies', data, headers)
+            .post('/studies', data, postHeader)
             .then(() => {
               fastify.log.info('Success');
               resolve();
