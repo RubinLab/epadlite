@@ -153,6 +153,26 @@ async function routes(fastify) {
 
     handler: fastify.deleteSubject,
   });
+  fastify.route({
+    method: 'GET',
+    url: '/subjects/:subject',
+    schema: {
+      tags: ['subject'],
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.getPatient,
+  });
 }
 
 module.exports = routes;
