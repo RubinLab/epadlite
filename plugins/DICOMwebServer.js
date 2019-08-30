@@ -203,7 +203,8 @@ async function dicomwebserver(fastify) {
                 values[0].data,
                 values[1].ResultSet.Result,
                 filter,
-                '00100020'
+                '00100020',
+                'subjectID'
               );
               // populate an aim counts map containing each subject
               const aimsCountMap = {};
@@ -284,14 +285,14 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'filter',
-    (studies, aims, filter, tag) =>
+    (studies, aims, filter, tag, aimField) =>
       new Promise((resolve, reject) => {
         try {
           let filteredStudies = studies;
           let filteredAims = aims;
           if (filter) {
             filteredStudies = _.filter(filteredStudies, obj => filter.includes(obj[tag].Value[0]));
-            filteredAims = _.filter(filteredAims, obj => filter.includes(obj.subjectID));
+            filteredAims = _.filter(filteredAims, obj => filter.includes(obj[aimField]));
           }
           resolve({ filteredStudies, filteredAims });
         } catch (err) {
@@ -328,7 +329,8 @@ async function dicomwebserver(fastify) {
                 values[0].data,
                 values[1].ResultSet.Result,
                 filter,
-                '0020000D'
+                '0020000D',
+                'studyUID'
               );
               // populate an aim counts map containing each study
               const aimsCountMap = {};
