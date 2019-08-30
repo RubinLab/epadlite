@@ -643,6 +643,36 @@ async function epaddb(fastify) {
       });
   });
 
+  fastify.decorate('getPatientStudyFromProject', async (request, reply) => {
+    try {
+      const studyUids = [request.params.study];
+      const result = await fastify.getPatientStudiesInternal(request.params, studyUids);
+      if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
+      else {
+        reply.code(404).send(`Study ${request.params.study} not found`);
+      }
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in get: ${err}`);
+      reply.code(503).send(`Getting error: ${err}`);
+    }
+  });
+
+  fastify.decorate('getSubjectFromProject', async (request, reply) => {
+    try {
+      const subjectUids = [request.params.subject];
+      const result = await fastify.getPatientsInternal(subjectUids);
+      if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
+      else {
+        reply.code(404).send(`Subject ${request.params.subject} not found`);
+      }
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in get: ${err}`);
+      reply.code(503).send(`Getting error: ${err}`);
+    }
+  });
+
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();

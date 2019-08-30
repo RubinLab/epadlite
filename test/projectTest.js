@@ -532,6 +532,33 @@ describe('Project Tests', () => {
         });
     });
 
+    it('subject retrieval with project subject endpoint should return subject 3 from  project testsubject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubject/subjects/3')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.subjectID).to.be.eql('3');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('subject retrieval with project subject endpoint should get 404 for subject 7 from  project testsubject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubject/subjects/7')
+        .then(res => {
+          expect(res.statusCode).to.equal(404);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
     it('project subject deletion of patient 3 from testsubject project should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -775,6 +802,32 @@ describe('Project Tests', () => {
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project study endpoint should return study entity for project teststudy, study 0023.2015.09.28.3 of subject 3', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.studyUID).to.be.eql('0023.2015.09.28.3');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project study endpoint should return 404 for made up study 56547547373', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/subjects/3/studies/56547547373')
+        .then(res => {
+          expect(res.statusCode).to.equal(404);
           done();
         })
         .catch(e => {
