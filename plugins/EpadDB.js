@@ -632,6 +632,17 @@ async function epaddb(fastify) {
   //     .catch(err => reply.code(503).send(err.message));
   // });
 
+  fastify.decorate('getProject', (request, reply) => {
+    Project.findOne({ where: { projectid: request.params.project } })
+      .then(project => {
+        reply.code(200).send(project);
+      })
+      .catch(err => {
+        console.log(err.message);
+        reply.code(503).send(err.message);
+      });
+  });
+
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();

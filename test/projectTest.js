@@ -140,6 +140,22 @@ describe('Project Tests', () => {
         done(e);
       });
   });
+  it('project endpoint should return the updated project ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/test')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        const lastEntry = res.body;
+        expect(lastEntry.name).to.be.eql('testupdated');
+        expect(lastEntry.description).to.be.eql('testupdated');
+        expect(lastEntry.type).to.be.eql('Public');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
   it('project delete should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

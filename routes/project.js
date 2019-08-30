@@ -73,21 +73,21 @@ async function routes(fastify) {
     handler: fastify.getProjects,
   });
 
-  // fastify.route({
-  //   method: 'GET',
-  //   url: '/projects/:project',
-  //   schema: {
-  //     tags: ['project'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //   },
-  //   handler: fastify.getProject,
-  // });
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project',
+    schema: {
+      tags: ['project'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getProject,
+  });
 }
 module.exports = routes;
