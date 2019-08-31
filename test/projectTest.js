@@ -944,4 +944,245 @@ describe('Project Tests', () => {
         });
     });
   });
+  describe('Project Aim Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testaim',
+          projectName: 'testaim',
+          projectDescription: 'testdesc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testaim2',
+          projectName: 'testaim2',
+          projectDescription: 'test2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testaim3',
+          projectName: 'testaim3',
+          projectDescription: 'test3desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+    });
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testaim');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testaim2');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testaim3');
+    });
+    it('project testaim should have no aims ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim save to project testaim should be successful ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim/aims')
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project testaim should have one aim', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.a('array');
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for project testaim should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testaim2 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testaim2/aims/2.25.211702350959705565754863799143359605362')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testaim3 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testaim3/aims/2.25.211702350959705565754863799143359605362')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim endpoint should return aim for project testaim2, aim 2.25.211702350959705565754863799143359605362', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim2/aims/2.25.211702350959705565754863799143359605362')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+            '2.25.211702350959705565754863799143359605362'
+          );
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project aim endpoint should return 404 for made up aimuid ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim2/aims/56547547373')
+        .then(res => {
+          expect(res.statusCode).to.equal(404);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim deletion of aim 2.25.211702350959705565754863799143359605362 from testaim project should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testaim/aims/2.25.211702350959705565754863799143359605362')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project testaim should have no aim ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .then(res => {
+          // console.log('resr', res.body.length);
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project testaim2 should have 1 aim ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim2/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project testaim3 should have 1 subject ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project aim deletion of aim 2.25.211702350959705565754863799143359605362 of system should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testaim3/aims/2.25.211702350959705565754863799143359605362?all=true')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project testaim2 should have no aim', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim2/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
 });

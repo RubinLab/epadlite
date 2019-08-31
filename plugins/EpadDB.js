@@ -9,6 +9,7 @@ async function epaddb(fastify) {
   const ProjectTemplate = fastify.orm.import(`${__dirname}/../models/project_template`);
   const ProjectSubject = fastify.orm.import(`${__dirname}/../models/project_subject`);
   const ProjectSubjectStudy = fastify.orm.import(`${__dirname}/../models/project_subject_study`);
+  const ProjectAim = fastify.orm.import(`${__dirname}/../models/project_aim`);
 
   fastify.decorate('initMariaDB', async () => {
     // Test connection
@@ -440,51 +441,118 @@ async function epaddb(fastify) {
   //     .catch(err => reply.code(503).send(err));
   // });
 
-  // fastify.decorate('getProjectAims', (request, reply) => {
-  //   fastify
-  //     .getAims(request.query.format, request.params)
-  //     .then(result => {
-  //       if (request.query.format === 'stream') {
-  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-  //       }
-  //       reply.code(200).send(result);
-  //     })
-  //     .catch(err => reply.code(503).send(err));
-  // });
+  fastify.decorate('getProjectAims', async (request, reply) => {
+    try {
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const aimUids = [];
+      const projectAims = await ProjectAim.findAll({ where: { project_id: project.id } });
+      // projects will be an array of Project instances with the specified name
+      for (let i = 0; i < projectAims.length; i += 1) {
+        aimUids.push(projectAims[i].aim_uid);
+      }
 
-  // fastify.decorate('saveAim', (request, reply) => {
-  //   // get the uid from the json and check if it is same with param, then put as id in couch document
-  //   if (
-  //     request.params.aimuid &&
-  //     request.params.aimuid !== request.body.ImageAnnotationCollection.uniqueIdentifier.root
-  //   ) {
-  //     fastify.log.info(
-  //       'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
-  //     );
-  //     reply
-  //       .code(503)
-  //       .send(
-  //         'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
-  //       );
-  //   }
-  //   fastify
-  //     .saveAimInternal(request.body)
-  //     .then(() => {
-  //       reply.code(200).send('Saving successful');
-  //     })
-  //     .catch(err => {
-  //       // TODO Proper error reporting implementation required
-  //       fastify.log.info(`Error in save: ${err}`);
-  //       reply.code(503).send(`Saving error: ${err}`);
-  //     });
-  // });
+      fastify
+        .getAims(request.query.format, request.params, aimUids)
+        .then(result => {
+          if (request.query.format === 'stream') {
+            reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+          }
+          reply.code(200).send(result);
+        })
+        .catch(err => reply.code(503).send(err));
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in save: ${err}`);
+      reply.code(503).send(`Saving error: ${err}`);
+    }
+  });
 
-  // fastify.decorate('deleteAim', (request, reply) => {
-  //   fastify
-  //     .deleteAimInternal(request.params.aimuid)
-  //     .then(() => reply.code(200).send('Deletion successful'))
-  //     .catch(err => reply.code(503).send(err));
-  // });
+  fastify.decorate('saveAimToProject', async (request, reply) => {
+    try {
+      let aimUid = request.params.aimuid;
+      if (request.body) {
+        // get the uid from the json and check if it is same with param, then put as id in couch document
+        if (
+          request.params.aimuid &&
+          request.params.aimuid !== request.body.ImageAnnotationCollection.uniqueIdentifier.root
+        ) {
+          fastify.log.info(
+            'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
+          );
+          reply
+            .code(503)
+            .send(
+              'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
+            );
+        }
+        await fastify.saveAimInternal(request.body);
+        aimUid = request.body.ImageAnnotationCollection.uniqueIdentifier.root;
+      }
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
+
+      await ProjectAim.create({
+        project_id: project.id,
+        aim_uid: aimUid,
+        creator: request.query.username,
+        updatetime: Date.now(),
+      });
+      reply.code(200).send('Saving successful');
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in save: ${err}`);
+      reply.code(503).send(`Saving error: ${err}`);
+    }
+  });
+
+  fastify.decorate('deleteAimFromProject', async (request, reply) => {
+    try {
+      const aimUid = request.params.aimuid;
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
+
+      const numDeleted = await ProjectAim.destroy({
+        where: { project_id: project.id, aim_uid: aimUid },
+      });
+      // if delete from all or it doesn't exist in any other project, delete from system
+      try {
+        if (request.query.all && request.query.all === 'true') {
+          const deletednum = await ProjectAim.destroy({
+            where: { aim_uid: aimUid },
+          });
+          await fastify.deleteAimInternal(request.params.aimuid);
+          reply
+            .code(200)
+            .send(`Aim deleted from system and removed from ${deletednum + numDeleted} projects`);
+        } else {
+          const count = await ProjectAim.count({ where: { aim_uid: aimUid } });
+          if (count === 0) {
+            await fastify.deleteAimInternal(request.params.aimuid);
+            reply.code(200).send(`Aim deleted from system as it didn't exist in any other project`);
+          } else reply.code(200).send(`Aim not deleted from system as it exists in other project`);
+        }
+      } catch (deleteErr) {
+        console.log(deleteErr);
+        reply.code(503).send(`Deletion error: ${deleteErr}`);
+      }
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
+  });
+  fastify.decorate('deleteAimFromSystem', async (request, reply) => {
+    try {
+      const aimUid = request.params.aimuid;
+      const numDeleted = await ProjectAim.destroy({
+        where: { aim_uid: aimUid },
+      });
+      await fastify.deleteAimInternal(request.params.aimuid);
+      reply.code(200).send(`Aim deleted from system and removed from ${numDeleted} projects`);
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
+  });
 
   // from DicomwebServer
   // fastify.decorate('getPatientStudies', (request, reply) => {

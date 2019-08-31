@@ -4,6 +4,7 @@ const fs = require('fs-extra');
 const archiver = require('archiver');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
+const _ = require('underscore');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 
@@ -339,7 +340,7 @@ async function couchdb(fastify, options) {
   // add accessor methods with decorate
   fastify.decorate(
     'getAims',
-    (format, params) =>
+    (format, params, filter) =>
       new Promise(async (resolve, reject) => {
         try {
           // make sure there is value in all three
@@ -393,22 +394,21 @@ async function couchdb(fastify, options) {
             else if (format === 'summary') view = 'aims_summary';
           }
           const db = fastify.couch.db.use(config.db);
-          db.view('instances', view, filterOptions, (error, body) => {
+          db.view('instances', view, filterOptions, async (error, body) => {
             if (!error) {
+              const filteredRows = await fastify.filterAims(body.rows, filter, format);
               const res = [];
-
               if (format === 'summary') {
-                body.rows.forEach(instance => {
+                for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
-                  res.push(instance.key[4]);
-                });
+                  res.push(filteredRows[i].key[4]);
                 resolve({ ResultSet: { Result: res } });
               } else if (format === 'stream') {
-                body.rows.forEach(instance => {
+                for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
                   // the first 3 keys are patient, study, series, image
-                  res.push(instance.key[4]);
-                });
+                  res.push(filteredRows[i].key[4]);
+
                 // download aims only
                 fastify
                   .downloadAims({ aim: 'true' }, res)
@@ -416,11 +416,10 @@ async function couchdb(fastify, options) {
                   .catch(err => reject(err));
               } else {
                 // the default is json! The old APIs were XML, no XML in epadlite
-                body.rows.forEach(instance => {
+                for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
                   // the first 3 keys are patient, study, series, image
-                  res.push(instance.key[4]);
-                });
+                  res.push(filteredRows[i].key[4]);
                 resolve(res);
               }
             } else {
@@ -429,6 +428,29 @@ async function couchdb(fastify, options) {
               reject(error);
             }
           });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'filterAims',
+    (aimsRows, filter, format) =>
+      new Promise((resolve, reject) => {
+        try {
+          let filteredRows = aimsRows;
+          if (filter) {
+            const keyNum = 4; // view dependent
+            if (format && format === 'summary') {
+              filteredRows = _.filter(filteredRows, obj => filter.includes(obj.key[keyNum].aimID));
+            } else {
+              filteredRows = _.filter(filteredRows, obj =>
+                filter.includes(obj.key[keyNum].ImageAnnotationCollection.uniqueIdentifier.root)
+              );
+            }
+          }
+          resolve(filteredRows);
         } catch (err) {
           reject(err);
         }
@@ -474,7 +496,7 @@ async function couchdb(fastify, options) {
       .catch(err => reply.code(503).send(err));
   });
 
-  fastify.decorate('getProjectAims', (request, reply) => {
+  fastify.decorate('getAllAims', (request, reply) => {
     fastify
       .getAims(request.query.format, request.params)
       .then(result => {
@@ -900,6 +922,21 @@ async function couchdb(fastify, options) {
         }
       })
   );
+
+  fastify.decorate('getAim', (request, reply) => {
+    fastify
+      .getAims(request.query.format, request.params, [request.params.aimuid])
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        }
+        if (result.length === 1) reply.code(200).send(result[0]);
+        else {
+          reply.code(404).send(`Subject ${request.params.subject} not found`);
+        }
+      })
+      .catch(err => reply.code(503).send(err));
+  });
 
   fastify.log.info(`Using db: ${config.db}`);
   // register couchdb

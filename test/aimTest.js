@@ -120,6 +120,24 @@ describe('System AIM Tests', () => {
       });
   });
 
+  it('aim returned with uid 2.25.211702350959705565754863799143359605362 should be Lesion1', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/aims/2.25.211702350959705565754863799143359605362')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            '~'
+          )[0]
+        ).to.be.eql('Lesion1');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('aim update with changing the name to Lesion2 should be successful ', done => {
     const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
     const nameSplit = jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(

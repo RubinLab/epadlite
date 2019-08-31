@@ -141,7 +141,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getProjectAims,
+    handler: fastify.getAllAims,
   });
 
   // POST {s}/aims/download
@@ -167,6 +167,23 @@ async function aimRoutes(fastify) {
     },
 
     handler: fastify.getAimsFromUIDs,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/aims/:aimuid',
+    schema: {
+      tags: ['aim'],
+      params: {
+        type: 'object',
+        properties: {
+          aimuid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getAim,
   });
 }
 

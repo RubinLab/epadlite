@@ -1,62 +1,61 @@
 // defines routes for project aims
-async function routes() {
+async function routes(fastify) {
   // // add an aim document, updates if exists
-  // fastify.route({
-  //   method: 'POST',
-  //   url: '/projects/:project/aims',
-  //   schema: {
-  //     tags: ['project', 'aim'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //   },
-  //   handler: fastify.saveAim,
-  // });
-  // // update an aim document
-  // fastify.route({
-  //   method: 'PUT',
-  //   url: '/projects/:project/aims/:aimuid',
-  //   schema: {
-  //     tags: ['project', 'aim'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //         aimuid: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //   },
-  //   handler: fastify.saveAim,
-  // });
-  // // delete an aim document
-  // fastify.route({
-  //   method: 'DELETE',
-  //   url: '/projects/:project/aims/:aimuid',
-  //   schema: {
-  //     tags: ['project', 'aim'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //         aimuid: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //   },
-  //   handler: fastify.deleteAim,
-  // });
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/aims',
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveAimToProject,
+  });
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/aims/:aimuid',
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          aimuid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveAimToProject,
+  });
+  // delete an aim document
+  fastify.route({
+    method: 'DELETE',
+    url: '/projects/:project/aims/:aimuid',
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          aimuid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteAimFromProject,
+  });
   // fastify.route({
   //   method: 'GET',
   //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims',
@@ -143,29 +142,28 @@ async function routes() {
   //   },
   //   handler: fastify.getSubjectAims,
   // });
-  // // GET {s}/aims
-  // fastify.route({
-  //   method: 'GET',
-  //   url: '/projects/:project/aims',
-  //   schema: {
-  //     tags: ['project', 'aim'],
-  //     querystring: {
-  //       format: { type: 'string' },
-  //     },
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //     // response: {
-  //     //   200: 'aim_schema#',
-  //     // },
-  //   },
-  //   handler: fastify.getProjectAims,
-  // });
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/aims',
+    schema: {
+      tags: ['project', 'aim'],
+      querystring: {
+        format: { type: 'string' },
+      },
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      // response: {
+      //   200: 'aim_schema#',
+      // },
+    },
+    handler: fastify.getProjectAims,
+  });
   // // POST {s}/aims/download
   // // we want to have a body of an array of aim uids, so we need to use post
   // fastify.route({
@@ -197,5 +195,24 @@ async function routes() {
   //   },
   //   handler: fastify.getAimsFromUIDs,
   // });
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/aims/:aimuid',
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          aimuid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getAim,
+  });
 }
 module.exports = routes;
