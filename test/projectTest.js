@@ -979,6 +979,17 @@ describe('Project Tests', () => {
           type: 'private',
           userName: 'admin',
         });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testaim4',
+          projectName: 'testaim4',
+          projectDescription: 'test4desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
     });
     after(async () => {
       await chai
@@ -990,6 +1001,9 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testaim3');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testaim4');
     });
     it('project testaim should have no aims ', done => {
       chai
@@ -1033,14 +1047,14 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('aim returned for project testaim should be Lesion1', done => {
+    it('aim returned for project testaim with uid 2.25.211702350959705565754863799143359605362 should be Lesion1', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/testaim/aims')
+        .get('/projects/testaim/aims/2.25.211702350959705565754863799143359605362')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(
-            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
               '~'
             )[0]
           ).to.be.eql('Lesion1');
@@ -1050,10 +1064,12 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testaim2 should be successful ', done => {
+    it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testaim2 series 1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testaim2/aims/2.25.211702350959705565754863799143359605362')
+        .put(
+          '/projects/testaim2/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims/2.25.211702350959705565754863799143359605362'
+        )
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1062,10 +1078,24 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testaim3 should be successful ', done => {
+    it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testaim3 study 1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testaim3/aims/2.25.211702350959705565754863799143359605362')
+        .put(
+          '/projects/testaim3/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims/2.25.211702350959705565754863799143359605362'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testaim4 subject 13116 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testaim4/subjects/13116/aims/2.25.211702350959705565754863799143359605362')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1096,6 +1126,154 @@ describe('Project Tests', () => {
         .get('/projects/testaim2/aims/56547547373')
         .then(res => {
           expect(res.statusCode).to.equal(404);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for series 1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313 of patient 13116 in project testaim should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for study 1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110 of patient 13116 in project testaim should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for patient 13116 in project testaim should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/subjects/13116/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for series 1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313 of patient 13116 with aimuid in project testaim should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims/2.25.211702350959705565754863799143359605362'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for study 1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110 of patient 13116 with aimuid in project testaim should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims/2.25.211702350959705565754863799143359605362'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for patient 13116 with aimuid in project testaim should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/subjects/13116/aims/2.25.211702350959705565754863799143359605362')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim update with changing the name to Lesion2 should be successful ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      const nameSplit = jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+        '~'
+      );
+      nameSplit[0] = 'Lesion2';
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = nameSplit.join(
+        '~'
+      );
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put(`/projects/testaim/aims/${jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root}`)
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for project testaim should be Lesion2 now', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion2');
           done();
         })
         .catch(e => {
@@ -1144,7 +1322,7 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project testaim3 should have 1 subject ', done => {
+    it('project testaim3 should have 1 aim ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim3/aims')
@@ -1161,7 +1339,9 @@ describe('Project Tests', () => {
     it('project aim deletion of aim 2.25.211702350959705565754863799143359605362 of system should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testaim3/aims/2.25.211702350959705565754863799143359605362?all=true')
+        .delete(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims/2.25.211702350959705565754863799143359605362?all=true'
+        )
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1171,6 +1351,263 @@ describe('Project Tests', () => {
         });
     });
 
+    it('project testaim2 should have no aim', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim2/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim save to project testaim2 subject should be successful ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim2/subjects/13116/aims')
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for project testaim2 with uid 2.25.211702350959705565754863799143359605362 should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim2/subjects/13116/aims/2.25.211702350959705565754863799143359605362')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim update with changing the name to Lesion2 should be successful ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      const nameSplit = jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+        '~'
+      );
+      nameSplit[0] = 'Lesion2';
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = nameSplit.join(
+        '~'
+      );
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put(
+          `/projects/testaim2/subjects/13116/aims/${
+            jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root
+          }`
+        )
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim delete from testaim2 with uid 2.25.211702350959705565754863799143359605362 should be sccessful', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(
+          '/projects/testaim2/subjects/13116/aims/2.25.211702350959705565754863799143359605362'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testaim2 should have no aim', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim2/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim save to project testaim2 study should be successful ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post(
+          '/projects/testaim2/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
+        )
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for project testaim2 study  with uid 2.25.211702350959705565754863799143359605362 should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim2/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims/2.25.211702350959705565754863799143359605362'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim update on study level with changing the name to Lesion2 should be successful ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      const nameSplit = jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+        '~'
+      );
+      nameSplit[0] = 'Lesion2';
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = nameSplit.join(
+        '~'
+      );
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put(
+          `/projects/testaim2/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims/${
+            jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root
+          }`
+        )
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim delete from testaim2 study with uid 2.25.211702350959705565754863799143359605362 should be sccessful', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(
+          '/projects/testaim2/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims/2.25.211702350959705565754863799143359605362'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testaim2 should have no aim', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim2/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim save to project testaim2 series should be successful ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post(
+          '/projects/testaim2/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
+        )
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim returned for project testaim2 series  with uid 2.25.211702350959705565754863799143359605362 should be Lesion1', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim2/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims/2.25.211702350959705565754863799143359605362'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+              '~'
+            )[0]
+          ).to.be.eql('Lesion1');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim update on series level with changing the name to Lesion2 should be successful ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      const nameSplit = jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+        '~'
+      );
+      nameSplit[0] = 'Lesion2';
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = nameSplit.join(
+        '~'
+      );
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put(
+          `/projects/testaim2/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims/${
+            jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root
+          }`
+        )
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim delete from testaim2 series with uid 2.25.211702350959705565754863799143359605362 should be sccessful', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(
+          '/projects/testaim2/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims/2.25.211702350959705565754863799143359605362'
+        )
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('project testaim2 should have no aim', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)

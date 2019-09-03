@@ -893,7 +893,7 @@ async function couchdb(fastify, options) {
         }
         if (result.length === 1) reply.code(200).send(result[0]);
         else {
-          reply.code(404).send(`Subject ${request.params.subject} not found`);
+          reply.code(404).send(`Aim ${request.params.aimuid} not found`);
         }
       })
       .catch(err => reply.code(503).send(err));

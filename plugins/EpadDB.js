@@ -462,8 +462,38 @@ async function epaddb(fastify) {
         .catch(err => reply.code(503).send(err));
     } catch (err) {
       // TODO Proper error reporting implementation required
-      console.log(`Error in save: ${err}`);
-      reply.code(503).send(`Saving error: ${err}`);
+      console.log(`Error in get project aims: ${err}`);
+      reply.code(503).send(`Getting error: ${err}`);
+    }
+  });
+
+  fastify.decorate('getProjectAim', async (request, reply) => {
+    try {
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const projectAimCount = await ProjectAim.count({
+        where: { project_id: project.id, aim_uid: request.params.aimuid },
+      });
+      if (projectAimCount !== 1)
+        reply
+          .code(404)
+          .send(`${request.params.aimuid} doesn't exist in project ${request.params.project}`);
+      else
+        fastify
+          .getAimsInternal(request.query.format, request.params, [request.params.aimuid])
+          .then(result => {
+            if (request.query.format === 'stream') {
+              reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+            }
+            if (result.length === 1) reply.code(200).send(result[0]);
+            else {
+              reply.code(404).send(`Aim ${request.params.aimuid} not found`);
+            }
+          })
+          .catch(err => reply.code(503).send(err));
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in get project aim: ${err}`);
+      reply.code(503).send(`Getting error: ${err}`);
     }
   });
 
