@@ -339,7 +339,7 @@ async function couchdb(fastify, options) {
 
   // add accessor methods with decorate
   fastify.decorate(
-    'getAims',
+    'getAimsInternal',
     (format, params, filter) =>
       new Promise(async (resolve, reject) => {
         try {
@@ -457,48 +457,9 @@ async function couchdb(fastify, options) {
       })
   );
 
-  // add accessor methods with decorate
-  fastify.decorate('getSeriesAims', (request, reply) => {
+  fastify.decorate('getAims', (request, reply) => {
     fastify
-      .getAims(request.query.format, request.params)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.code(503).send(err));
-  });
-
-  // add accessor methods with decorate
-  fastify.decorate('getStudyAims', (request, reply) => {
-    fastify
-      .getAims(request.query.format, request.params)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.code(503).send(err));
-  });
-
-  // add accessor methods with decorate
-  fastify.decorate('getSubjectAims', (request, reply) => {
-    fastify
-      .getAims(request.query.format, request.params)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.code(503).send(err));
-  });
-
-  fastify.decorate('getAllAims', (request, reply) => {
-    fastify
-      .getAims(request.query.format, request.params)
+      .getAimsInternal(request.query.format, request.params)
       .then(result => {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
@@ -621,7 +582,7 @@ async function couchdb(fastify, options) {
     params =>
       new Promise((resolve, reject) => {
         fastify
-          .getAims('summary', params)
+          .getAimsInternal('summary', params)
           .then(result => {
             const aimPromisses = [];
             result.ResultSet.Result.forEach(aim =>
@@ -925,7 +886,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate('getAim', (request, reply) => {
     fastify
-      .getAims(request.query.format, request.params, [request.params.aimuid])
+      .getAimsInternal(request.query.format, request.params, [request.params.aimuid])
       .then(result => {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);

@@ -407,7 +407,7 @@ async function epaddb(fastify) {
   //     const result = await fastify.getPatientsInternal(subjectUids);
   //     reply.code(200).send(result);
   //   fastify
-  //     .getAims(request.query.format, request.params)
+  //     .getAimsInternal(request.query.format, request.params)
   //     .then(result => {
   //       if (request.query.format === 'stream') {
   //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
@@ -419,7 +419,7 @@ async function epaddb(fastify) {
 
   // fastify.decorate('getStudyAims', (request, reply) => {
   //   fastify
-  //     .getAims(request.query.format, request.params)
+  //     .getAimsInternal(request.query.format, request.params)
   //     .then(result => {
   //       if (request.query.format === 'stream') {
   //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
@@ -431,7 +431,7 @@ async function epaddb(fastify) {
 
   // fastify.decorate('getSubjectAims', (request, reply) => {
   //   fastify
-  //     .getAims(request.query.format, request.params)
+  //     .getAimsInternal(request.query.format, request.params)
   //     .then(result => {
   //       if (request.query.format === 'stream') {
   //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
@@ -452,7 +452,7 @@ async function epaddb(fastify) {
       }
 
       fastify
-        .getAims(request.query.format, request.params, aimUids)
+        .getAimsInternal(request.query.format, request.params, aimUids)
         .then(result => {
           if (request.query.format === 'stream') {
             reply.header('Content-Disposition', `attachment; filename=annotations.zip`);

@@ -194,7 +194,7 @@ async function dicomwebserver(fastify) {
         try {
           // make studies cal and aims call
           const studies = this.request.get('/studies', header);
-          const aims = fastify.getAims('summary', { subject: '', study: '', series: '' });
+          const aims = fastify.getAimsInternal('summary', { subject: '', study: '', series: '' });
           Promise.all([studies, aims])
             .then(async values => {
               // handle success
@@ -315,7 +315,7 @@ async function dicomwebserver(fastify) {
         try {
           const studies = this.request.get('/studies', header);
           // get aims for a specific patient
-          const aims = fastify.getAims('summary', {
+          const aims = fastify.getAimsInternal('summary', {
             subject: params.subject,
             study: '',
             series: '',
@@ -409,7 +409,7 @@ async function dicomwebserver(fastify) {
         try {
           const series = this.request.get(`/studies/${params.study}/series`, header);
           // get aims for a specific study
-          const aims = fastify.getAims('summary', {
+          const aims = fastify.getAimsInternal('summary', {
             subject: params.subject,
             study: params.study,
             series: '',

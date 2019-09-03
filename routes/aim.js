@@ -74,7 +74,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getSeriesAims,
+    handler: fastify.getAims,
   });
 
   // GET {s}/subjects/:subject/studies/:study/aims
@@ -102,7 +102,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getStudyAims,
+    handler: fastify.getAims,
   });
 
   // GET {s}/subjects/:subject/aims
@@ -127,7 +127,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getSubjectAims,
+    handler: fastify.getAims,
   });
 
   // GET {s}/aims
@@ -141,7 +141,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getAllAims,
+    handler: fastify.getAims,
   });
 
   // POST {s}/aims/download
