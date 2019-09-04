@@ -316,7 +316,7 @@ async function dicomwebserver(fastify) {
           const studies = this.request.get('/studies', header);
           // get aims for a specific patient
           const aims = fastify.getAimsInternal('summary', {
-            subject: params.subject,
+            subject: params.subject ? params.subject : '',
             study: '',
             series: '',
           });
@@ -325,7 +325,8 @@ async function dicomwebserver(fastify) {
             .then(async values => {
               // handle success
               // filter the results if patient id filter is given
-              const { filteredStudies, filteredAims } = await fastify.filter(
+              // eslint-disable-next-line prefer-const
+              let { filteredStudies, filteredAims } = await fastify.filter(
                 values[0].data,
                 values[1].ResultSet.Result,
                 filter,
@@ -349,12 +350,15 @@ async function dicomwebserver(fastify) {
                   aimsCountMap[value[0].studyUID] = numberOfAims;
                 })
                 .value();
-              // get the grouped data according to patient id
-              const grouped = _.groupBy(filteredStudies, value => {
-                return value['00100020'].Value['0'];
-              });
+              // filter by patient id
+              if (params.subject)
+                filteredStudies = _.filter(
+                  filteredStudies,
+                  obj => obj['00100020'].Value[0] === params.subject
+                );
+
               // get the patients's studies and map each study to epadlite study object
-              const result = _.map(grouped[params.subject], value => {
+              const result = _.map(filteredStudies, value => {
                 return {
                   projectID,
                   patientID: value['00100020'].Value[0],
