@@ -97,9 +97,22 @@ describe('Subject Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/studies')
       .then(res => {
-        console.log(res.body);
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('the study retrieval in the system with studyuid should return 0023.2015.09.28.3', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/studies/0023.2015.09.28.3')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.studyUID).to.be.eql('0023.2015.09.28.3');
         done();
       })
       .catch(e => {

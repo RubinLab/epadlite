@@ -301,6 +301,18 @@ async function dicomwebserver(fastify) {
       })
   );
 
+  fastify.decorate('getPatientStudy', (request, reply) => {
+    fastify
+      .getPatientStudiesInternal(request.params, [request.params.study])
+      .then(result => {
+        if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
+        else {
+          reply.code(404).send(`Subject ${request.params.subject} not found`);
+        }
+      })
+      .catch(err => reply.code(503).send(err.message));
+  });
+
   fastify.decorate('getPatientStudies', (request, reply) => {
     fastify
       .getPatientStudiesInternal(request.params)
