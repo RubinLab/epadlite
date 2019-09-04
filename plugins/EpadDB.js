@@ -9,6 +9,8 @@ async function epaddb(fastify) {
   const ProjectTemplate = fastify.orm.import(`${__dirname}/../models/project_template`);
   const ProjectSubject = fastify.orm.import(`${__dirname}/../models/project_subject`);
   const ProjectSubjectStudy = fastify.orm.import(`${__dirname}/../models/project_subject_study`);
+  const User = fastify.orm.import(`${__dirname}/../models/user`);
+  // const ProjectUser = fastify.orm.import(`${__dirname}/../models/project_user`);
 
   fastify.decorate('initMariaDB', async () => {
     // Test connection
@@ -631,6 +633,53 @@ async function epaddb(fastify) {
   //     .then(result => reply.code(200).send(result))
   //     .catch(err => reply.code(503).send(err.message));
   // });
+
+  fastify.decorate('createUser', (request, reply) => {
+    User.create({
+      ...request.body,
+      createdtime: Date.now(),
+      updatetime: Date.now(),
+    })
+      .then(user => {
+        reply.code(200).send(`success with id ${user.id}`);
+      })
+      .catch(err => {
+        console.log(err.message);
+        reply.code(503).send(err.message);
+      });
+  });
+
+  fastify.decorate('getUsers', (request, reply) => {
+    User.findAll()
+      .then(users => {
+        const result = [];
+        users.forEach(user => {
+          const permissions = user.permissions ? user.permissions.split(',') : [''];
+          const obj = {
+            colorpreference: user.colorpreference,
+            creator: user.creator,
+            admin: user.admin === 1,
+            enabled: user.enabled === 1,
+            displayname: `${user.firstname} ${user.lastname}`,
+            email: user.email,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            passwordExpired: user.passwordExpired,
+            permissions,
+            // projectToRole: user.projectToRole,
+            // projects: user.projects,
+            // role: user.role,
+            username: user.username,
+          };
+          result.push(obj);
+        });
+        reply.code(200).send({ ResultSet: { Result: result } });
+      })
+      .catch(err => {
+        console.log(err.message);
+        reply.code(503).send(err.message);
+      });
+  });
 
   fastify.after(async () => {
     try {
