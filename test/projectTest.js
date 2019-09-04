@@ -531,6 +531,19 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('project testsubject should have study 0023.2015.09.28.3 of subject 3', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubject/subjects/3/studies')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
 
     it('subject retrieval with project subject endpoint should return subject 3 from  project testsubject', done => {
       chai

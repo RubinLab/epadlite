@@ -314,12 +314,22 @@ async function epaddb(fastify) {
     try {
       const { subject } = request.params;
       const project = await Project.findOne({ where: { projectid: request.params.project } });
-      await ProjectSubject.create({
+      const projectSubject = await ProjectSubject.create({
         project_id: project.id,
         subject_uid: subject,
         creator: request.query.username,
         updatetime: Date.now(),
       });
+      const studies = await fastify.getPatientStudiesInternal(request.params);
+      for (let i = 0; i < studies.ResultSet.Result.length; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        await ProjectSubjectStudy.create({
+          proj_subj_id: projectSubject.id,
+          study_uid: studies.ResultSet.Result[i].studyUID,
+          creator: request.query.username,
+          updatetime: Date.now(),
+        });
+      }
       reply.code(200).send('Saving successful');
     } catch (err) {
       // TODO Proper error reporting implementation required
@@ -360,24 +370,46 @@ async function epaddb(fastify) {
       const subjectUid = request.params.subject;
       const project = await Project.findOne({ where: { projectid: request.params.project } });
 
+      const projectSubject = await ProjectSubject.findOne({
+        where: { project_id: project.id, subject_uid: request.params.subject },
+      });
+      await ProjectSubjectStudy.destroy({
+        where: { proj_subj_id: projectSubject.id },
+      });
       const numDeleted = await ProjectSubject.destroy({
         where: { project_id: project.id, subject_uid: subjectUid },
       });
       // if delete from all or it doesn't exist in any other project, delete from system
       try {
         if (request.query.all && request.query.all === 'true') {
-          const deletednum = await ProjectSubject.destroy({
-            where: { subject_uid: subjectUid },
+          const projectSubjects = await ProjectSubject.findAll({
+            where: { subject_uid: request.params.subject },
           });
+          const projSubjIds = [];
+          if (projectSubjects) {
+            for (let i = 0; i < projectSubjects.length; i += 1) {
+              projSubjIds.push(projectSubjects[i].id);
+              // eslint-disable-next-line no-await-in-loop
+              await ProjectSubjectStudy.destroy({
+                where: { proj_subj_id: projectSubjects[i].id },
+              });
+            }
+            await ProjectSubject.destroy({
+              where: { id: projSubjIds },
+            });
+          }
           await fastify.deleteSubjectInternal(request.params);
           reply
             .code(200)
-            .send(
-              `Subject deleted from system and removed from ${deletednum + numDeleted} projects`
-            );
+            .send(`Subject deleted from system and removed from ${numDeleted} projects`);
         } else {
-          const count = await ProjectSubject.count({ where: { subject_uid: subjectUid } });
-          if (count === 0) {
+          const projectSubjects = await ProjectSubject.findAll({
+            where: { subject_uid: subjectUid },
+          });
+          if (projectSubjects.length === 0) {
+            await ProjectSubjectStudy.destroy({
+              where: { proj_subj_id: projectSubject.id },
+            });
             await fastify.deleteSubjectInternal(request.params);
             reply
               .code(200)

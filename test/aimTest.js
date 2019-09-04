@@ -180,6 +180,24 @@ describe('System AIM Tests', () => {
       });
   });
 
+  it('aim returned for patient 13116 with aimuid should be Lesion2', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/subjects/13116/aims/2.25.211702350959705565754863799143359605362')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            '~'
+          )[0]
+        ).to.be.eql('Lesion2');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('it should get zip file for downloading all aims', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
