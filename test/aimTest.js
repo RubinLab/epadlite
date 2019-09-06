@@ -12,17 +12,18 @@ before(async () => {
   process.env.port = 5987;
   server = require('../server'); // eslint-disable-line
   await server.ready();
+  await server.orm.authenticate();
 });
 after(() => {
   server.close();
 });
 
-describe('AIM Tests', () => {
+describe('System AIM Tests', () => {
   it('aims should be empty for series 1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313 of patient 13116', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get(
-        '/projects/lite/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
+        '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -38,7 +39,7 @@ describe('AIM Tests', () => {
   it('aims should be empty for fake values patient 11111, study 2222222, series 3333333 ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/subjects/11111/studies/2222222/series/3333333/aims')
+      .get('/subjects/11111/studies/2222222/series/3333333/aims')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -54,7 +55,7 @@ describe('AIM Tests', () => {
     const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects/lite/aims')
+      .post('/aims')
       .send(jsonBuffer)
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -69,7 +70,7 @@ describe('AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get(
-        '/projects/lite/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
+        '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -86,7 +87,7 @@ describe('AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get(
-        '/projects/lite/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.11111111111111/aims'
+        '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.11111111111111/aims'
       )
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -103,12 +104,30 @@ describe('AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get(
-        '/projects/lite/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
+        '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(
           res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            '~'
+          )[0]
+        ).to.be.eql('Lesion1');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('aim returned with uid 2.25.211702350959705565754863799143359605362 should be Lesion1', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/aims/2.25.211702350959705565754863799143359605362')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
             '~'
           )[0]
         ).to.be.eql('Lesion1');
@@ -130,7 +149,7 @@ describe('AIM Tests', () => {
     );
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .put(`/projects/lite/aims/${jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root}`)
+      .put(`/aims/${jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root}`)
       .send(jsonBuffer)
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -145,7 +164,7 @@ describe('AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get(
-        '/projects/lite/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
+        '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -161,10 +180,28 @@ describe('AIM Tests', () => {
       });
   });
 
+  it('aim returned for patient 13116 with aimuid should be Lesion2', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/subjects/13116/aims/2.25.211702350959705565754863799143359605362')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            '~'
+          )[0]
+        ).to.be.eql('Lesion2');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('it should get zip file for downloading all aims', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/aims')
+      .get('/aims')
       .query({ format: 'stream' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -178,7 +215,7 @@ describe('AIM Tests', () => {
   it('it should get zip file for downloading aims for the subject 13116', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/projects/lite/subjects/13116/aims')
+      .get('/subjects/13116/aims')
       .query({ format: 'stream' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -193,7 +230,7 @@ describe('AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get(
-        '/projects/lite/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
+        '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
       )
       .query({ format: 'stream' })
       .then(res => {
@@ -209,7 +246,7 @@ describe('AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get(
-        '/projects/lite/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
+        '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
       .query({ format: 'stream' })
       .then(res => {
@@ -225,7 +262,7 @@ describe('AIM Tests', () => {
   it("it should fail getting zip file for downloading aims ['2.25.211702350959705565754863799143359605362'] with no query params", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects/lite/aims/download')
+      .post('/aims/download')
       .send(['2.25.211702350959705565754863799143359605362'])
       .then(res => {
         expect(res.statusCode).to.equal(400);
@@ -239,7 +276,7 @@ describe('AIM Tests', () => {
   it("it should fail getting zip file for downloading aims ['2.25.211702350959705565754863799143359605362'] with all query params as false", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects/lite/aims/download?summary=false&aim=false')
+      .post('/aims/download?summary=false&aim=false')
       .send(['2.25.211702350959705565754863799143359605362'])
       .then(res => {
         expect(res.statusCode).to.equal(503);
@@ -253,7 +290,7 @@ describe('AIM Tests', () => {
   it("it should get zip file for downloading aims ['2.25.211702350959705565754863799143359605362'] with query params summary=true&aim=true", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects/lite/aims/download?summary=true&aim=true')
+      .post('/aims/download?summary=true&aim=true')
       .send(['2.25.211702350959705565754863799143359605362'])
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -268,7 +305,7 @@ describe('AIM Tests', () => {
   it('aim delete with uid 2.25.211702350959705565754863799143359605362 should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('/projects/lite/aims/2.25.211702350959705565754863799143359605362')
+      .delete('/aims/2.25.211702350959705565754863799143359605362')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -282,7 +319,7 @@ describe('AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get(
-        '/projects/lite/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
+        '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
       .then(res => {
         expect(res.statusCode).to.equal(200);

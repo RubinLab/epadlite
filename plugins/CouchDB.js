@@ -4,6 +4,7 @@ const fs = require('fs-extra');
 const archiver = require('archiver');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
+const _ = require('underscore');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 
@@ -338,8 +339,8 @@ async function couchdb(fastify, options) {
 
   // add accessor methods with decorate
   fastify.decorate(
-    'getAims',
-    (format, params) =>
+    'getAimsInternal',
+    (format, params, filter) =>
       new Promise(async (resolve, reject) => {
         try {
           // make sure there is value in all three
@@ -393,22 +394,21 @@ async function couchdb(fastify, options) {
             else if (format === 'summary') view = 'aims_summary';
           }
           const db = fastify.couch.db.use(config.db);
-          db.view('instances', view, filterOptions, (error, body) => {
+          db.view('instances', view, filterOptions, async (error, body) => {
             if (!error) {
+              const filteredRows = await fastify.filterAims(body.rows, filter, format);
               const res = [];
-
               if (format === 'summary') {
-                body.rows.forEach(instance => {
+                for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
-                  res.push(instance.key[4]);
-                });
+                  res.push(filteredRows[i].key[4]);
                 resolve({ ResultSet: { Result: res } });
               } else if (format === 'stream') {
-                body.rows.forEach(instance => {
+                for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
                   // the first 3 keys are patient, study, series, image
-                  res.push(instance.key[4]);
-                });
+                  res.push(filteredRows[i].key[4]);
+
                 // download aims only
                 fastify
                   .downloadAims({ aim: 'true' }, res)
@@ -416,11 +416,10 @@ async function couchdb(fastify, options) {
                   .catch(err => reject(err));
               } else {
                 // the default is json! The old APIs were XML, no XML in epadlite
-                body.rows.forEach(instance => {
+                for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
                   // the first 3 keys are patient, study, series, image
-                  res.push(instance.key[4]);
-                });
+                  res.push(filteredRows[i].key[4]);
                 resolve(res);
               }
             } else {
@@ -435,48 +434,32 @@ async function couchdb(fastify, options) {
       })
   );
 
-  // add accessor methods with decorate
-  fastify.decorate('getSeriesAims', (request, reply) => {
-    fastify
-      .getAims(request.query.format, request.params)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+  fastify.decorate(
+    'filterAims',
+    (aimsRows, filter, format) =>
+      new Promise((resolve, reject) => {
+        try {
+          let filteredRows = aimsRows;
+          if (filter) {
+            const keyNum = 4; // view dependent
+            if (format && format === 'summary') {
+              filteredRows = _.filter(filteredRows, obj => filter.includes(obj.key[keyNum].aimID));
+            } else {
+              filteredRows = _.filter(filteredRows, obj =>
+                filter.includes(obj.key[keyNum].ImageAnnotationCollection.uniqueIdentifier.root)
+              );
+            }
+          }
+          resolve(filteredRows);
+        } catch (err) {
+          reject(err);
         }
-        reply.code(200).send(result);
       })
-      .catch(err => reply.code(503).send(err));
-  });
+  );
 
-  // add accessor methods with decorate
-  fastify.decorate('getStudyAims', (request, reply) => {
+  fastify.decorate('getAims', (request, reply) => {
     fastify
-      .getAims(request.query.format, request.params)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.code(503).send(err));
-  });
-
-  // add accessor methods with decorate
-  fastify.decorate('getSubjectAims', (request, reply) => {
-    fastify
-      .getAims(request.query.format, request.params)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.code(503).send(err));
-  });
-
-  fastify.decorate('getProjectAims', (request, reply) => {
-    fastify
-      .getAims(request.query.format, request.params)
+      .getAimsInternal(request.query.format, request.params)
       .then(result => {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
@@ -599,7 +582,7 @@ async function couchdb(fastify, options) {
     params =>
       new Promise((resolve, reject) => {
         fastify
-          .getAims('summary', params)
+          .getAimsInternal('summary', params)
           .then(result => {
             const aimPromisses = [];
             result.ResultSet.Result.forEach(aim =>
@@ -739,26 +722,29 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('deleteTemplate', (request, reply) => {
-    const db = fastify.couch.db.use(config.db);
-    db.get(request.params.uid, (error, existing) => {
-      if (error) {
-        fastify.log.info(`No document for uid ${request.params.uid}`);
-        // Is 404 the right thing to return?
-        reply.code(404).send(`No document for uid ${request.params.uid}`);
-      }
+  fastify.decorate(
+    'deleteTemplateInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        const db = fastify.couch.db.use(config.db);
+        db.get(params.uid, (error, existing) => {
+          if (error) {
+            fastify.log.info(`No document for uid ${params.uid}`);
+            reject(new Error(`No document for uid ${params.uid}`));
+          }
 
-      db.destroy(request.params.uid, existing._rev)
-        .then(() => {
-          reply.code(200).send('Deletion successful');
-        })
-        .catch(err => {
-          // TODO Proper error reporting implementation required
-          fastify.log.info(`Error in delete: ${err}`);
-          reply.code(503).send(`Deleting error: ${err}`);
+          db.destroy(params.uid, existing._rev)
+            .then(() => {
+              resolve();
+            })
+            .catch(err => {
+              // TODO Proper error reporting implementation required
+              fastify.log.info(`Error in delete: ${err}`);
+              reject(err);
+            });
         });
-    });
-  });
+      })
+  );
 
   fastify.decorate(
     'downloadTemplates',
@@ -831,6 +817,86 @@ async function couchdb(fastify, options) {
     } catch (err) {
       reply.code(503).send(err);
     }
+  });
+
+  fastify.decorate('getSummaryFromTemplate', docTemplate => {
+    // this is basically what we have in the templates_summary view
+    const summary = {};
+    summary.containerUID = docTemplate.TemplateContainer.uid;
+    summary.containerName = docTemplate.TemplateContainer.name;
+    summary.containerDescription = docTemplate.TemplateContainer.description;
+    summary.containerVersion = docTemplate.TemplateContainer.version;
+    summary.containerAuthors = docTemplate.TemplateContainer.authors;
+    summary.containerCreationDate = docTemplate.TemplateContainer.creationDate;
+    const template = {
+      type: 'image',
+    };
+    if (docTemplate.TemplateContainer.Template[0].templateType)
+      template.type = docTemplate.TemplateContainer.Template[0].templateType.toLowerCase();
+    template.templateName = docTemplate.TemplateContainer.Template[0].name;
+    template.templateDescription = docTemplate.TemplateContainer.Template[0].description;
+    template.templateUID = docTemplate.TemplateContainer.uid;
+    template.templateCodeValue = docTemplate.TemplateContainer.Template[0].codeValue;
+    template.templateCodeMeaning = docTemplate.TemplateContainer.Template[0].codeMeaning;
+    template.templateVersion = docTemplate.TemplateContainer.Template[0].version;
+    template.templateAuthors = docTemplate.TemplateContainer.Template[0].authors;
+    template.templateCreationDate = docTemplate.TemplateContainer.Template[0].creationDate;
+    summary.Template = [template];
+    return summary;
+  });
+
+  fastify.decorate(
+    'getTemplatesFromUIDsInternal',
+    (query, ids) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let format = 'json';
+          if (query.format) format = query.format.toLowerCase();
+
+          const db = fastify.couch.db.use(config.db);
+          const res = [];
+          db.fetch({ keys: ids }).then(data => {
+            if (format === 'summary') {
+              data.rows.forEach(item => {
+                const summary = fastify.getSummaryFromTemplate(item.doc.template);
+                res.push(summary);
+              });
+              resolve({ ResultSet: { Result: res } });
+            } else if (format === 'stream') {
+              data.rows.forEach(item => {
+                if ('doc' in item) res.push(item.doc.template);
+              });
+              fastify
+                .downloadTemplates(res)
+                .then(result => resolve(result))
+                .catch(err => reject(err));
+            } else {
+              // the default is json! The old APIs were XML, no XML in epadlite
+              data.rows.forEach(item => {
+                if ('doc' in item) res.push(item.doc.template);
+              });
+              resolve(res);
+            }
+          });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate('getAim', (request, reply) => {
+    fastify
+      .getAimsInternal(request.query.format, request.params, [request.params.aimuid])
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        }
+        if (result.length === 1) reply.code(200).send(result[0]);
+        else {
+          reply.code(404).send(`Aim ${request.params.aimuid} not found`);
+        }
+      })
+      .catch(err => reply.code(503).send(err));
   });
 
   fastify.log.info(`Using db: ${config.db}`);

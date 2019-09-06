@@ -1,5 +1,6 @@
 const fs = require('fs-extra');
 const path = require('path');
+const Sequelize = require('sequelize');
 // eslint-disable-next-line import/order
 const config = require('./config/index');
 // Require the framework and instantiate it
@@ -67,13 +68,71 @@ fastify.register(require('./plugins/DICOMwebServer'), {
 // register Other plugin we created
 fastify.register(require('./plugins/Other'));
 
+// register epaddb plugin we created
+// eslint-disable-next-line global-require
+fastify.register(require('./plugins/EpadDB'));
+
+const port = process.env.port || '8080';
+const host = process.env.host || '0.0.0.0';
+
+fastify.register(
+  // eslint-disable-next-line import/no-dynamic-require
+  require('fastify-swagger'),
+  {
+    routePrefix: '/documentation',
+    exposeRoute: true,
+    swagger: {
+      info: {
+        title: 'ePAD REST API',
+        description: 'REST API Enpoints for ePad>4.0 or lite',
+        version: '1.0.0',
+      },
+      tags: [
+        { name: 'project', description: 'Project related end-points' },
+        { name: 'subject', description: 'Subject related end-points' },
+        { name: 'study', description: 'Study related end-points' },
+        { name: 'series', description: 'Series related end-points' },
+        { name: 'aim', description: 'Aim related end-points' },
+        { name: 'template', description: 'Template related end-points' },
+        { name: 'worklist', description: 'Worklist related end-points' },
+        { name: 'user', description: 'User related end-points' },
+        { name: 'images', description: 'Image related end-points' },
+      ],
+      externalDocs: {
+        url: 'https://swagger.io',
+        description: 'Find more info here',
+      },
+      host: `${host}:${port}`,
+      schemes: ['http'],
+      consumes: ['application/json'],
+      produces: ['application/json'],
+    },
+  }
+);
+
 // register routes
 // this should be done after CouchDB plugin to be able to use the accessor methods
-fastify.register(require('./routes/aim'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
-fastify.register(require('./routes/template')); // eslint-disable-line global-require
-fastify.register(require('./routes/dicomweb'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
-fastify.register(require('./routes/other'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+// for both thick and lite
+fastify.register(require('./routes/worklist')); // eslint-disable-line global-require
 
+// adding generic routes for completion, in lite, they work the same as the projects/lite prefix
+fastify.register(require('./routes/template')); // eslint-disable-line global-require
+fastify.register(require('./routes/aim')); // eslint-disable-line global-require
+fastify.register(require('./routes/dicomweb')); // eslint-disable-line global-require
+
+if (config.mode === 'lite') {
+  fastify.register(require('./routes/other'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+  fastify.register(require('./routes/template'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+  fastify.register(require('./routes/aim'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+  fastify.register(require('./routes/dicomweb'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+} else if (config.mode === 'thick') {
+  fastify.register(require('./routes/project')); // eslint-disable-line global-require
+  fastify.register(require('./routes/projectTemplate')); // eslint-disable-line global-require
+  fastify.register(require('./routes/projectAim')); // eslint-disable-line global-require
+  fastify.register(require('./routes/projectDicomweb')); // eslint-disable-line global-require
+}
+
+// }
 // authCheck routine checks if there is a bearer token or encoded basic authentication
 // info in the authorization header and does the authentication or verification of token
 // in keycloak
@@ -147,9 +206,42 @@ fastify.decorate('auth', async (req, res) => {
 // add authentication prehandler, all requests need to be authenticated
 fastify.addHook('preHandler', fastify.auth);
 
-const port = process.env.port || '8080';
-const host = process.env.host || '0.0.0.0';
+const sequelizeConfig = {
+  dialect: 'mariadb',
+  database: 'epaddb',
+  host: 'localhost',
+  port: 3306,
+  username: 'pacs',
+  password: 'pacs',
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000,
+  },
+  define: {
+    timestamps: false,
+  },
+  logging: config.logger,
+};
+
+// code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
+// used sequelize itself to get the latest version with mariadb support
+const sequelize = new Sequelize(sequelizeConfig);
+fastify.decorate('orm', sequelize);
+fastify.addHook('onClose', (fastifyInstance, done) => {
+  sequelize
+    .close()
+    .then(done)
+    .catch(done);
+});
+
 // Run the server!
 fastify.listen(port, host);
+
+fastify.ready(err => {
+  if (err) throw err;
+  fastify.swagger();
+});
 
 module.exports = fastify;

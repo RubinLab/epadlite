@@ -6,4 +6,5 @@ module.exports = {
   auth: 'none',
   dicomweb: 'dicomweb_none',
   logger: false,
+  mode: 'thick',
 };
