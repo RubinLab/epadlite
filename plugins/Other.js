@@ -20,47 +20,44 @@ async function other(fastify) {
         reply.code(503).send(err.message);
       } else {
         Promise.all(fileSavePromisses)
-          .then(() => {
-            const datasets = [];
-            const filePromisses = [];
-            filenames.forEach(filename => {
-              filePromisses.push(fastify.processFile(dir, filename, datasets));
-            });
+          .then(async () => {
+            let datasets = [];
             fastify.log.info('Files copy completed. sending response');
             reply.code(200).send();
-            Promise.all(filePromisses)
-              .then(() => {
-                // TODO we need to add subjects/studies/files to the project it was uploaded!
-
-                // see if it was a dicom
-                if (datasets.length > 0) {
-                  // fastify.log.info(`writing dicom folder ${filename}`);
-                  const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
-                  fastify.saveDicoms(data, boundary).then(() => {
-                    fastify.log.info('Upload completed');
-                    // reply.code(200).send();
-                    fs.remove(dir, error => {
-                      if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
-                      fastify.log.info(`${dir} deleted`);
-                    });
-                  });
-                } else {
+            for (let i = 0; i < filenames.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.processFile(dir, filenames[i], datasets);
+            }
+            try {
+              // see if it was a dicom
+              if (datasets.length > 0) {
+                // fastify.log.info(`writing dicom folder ${filename}`);
+                const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
+                fastify.saveDicoms(data, boundary).then(() => {
                   fastify.log.info('Upload completed');
+                  datasets = [];
                   // reply.code(200).send();
                   fs.remove(dir, error => {
                     if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                     fastify.log.info(`${dir} deleted`);
                   });
-                }
-              })
-              .catch(filesErr => {
-                fastify.log.info(filesErr);
-                reply.code(503).send(filesErr.message);
+                });
+              } else {
+                fastify.log.info('Upload completed');
+                // reply.code(200).send();
                 fs.remove(dir, error => {
                   if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                   fastify.log.info(`${dir} deleted`);
                 });
+              }
+            } catch (filesErr) {
+              fastify.log.info(filesErr);
+              reply.code(503).send(filesErr.message);
+              fs.remove(dir, error => {
+                if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+                fastify.log.info(`${dir} deleted`);
               });
+            }
           })
           .catch(fileSaveErr => {
             fastify.log.info(fileSaveErr);
@@ -89,25 +86,25 @@ async function other(fastify) {
       new Promise((resolve, reject) => {
         const zipTimestamp = new Date().getTime();
         const zipDir = `${dir}/tmp_${zipTimestamp}`;
-        fs.mkdir(zipDir, errMkdir => {
-          if (errMkdir) fastify.log.info(`Couldn't create ${zipDir}`);
-          else {
-            fastify.log.info(`Extracting ${dir}/${filename} to ${zipDir}`);
-            fs.createReadStream(`${dir}/${filename}`)
-              .pipe(unzip.Extract({ path: `${zipDir}` }))
-              .on('close', () => {
-                fastify.log.info('Extracted zip ', `${zipDir}`);
-                fastify
-                  .processFolder(`${zipDir}`)
-                  .then(() => resolve())
-                  .catch(err => reject(err));
-              })
-              .on('error', error => {
-                fastify.log.info(`Extract error ${error}`);
-                reject(error);
-              });
-          }
-        });
+        try {
+          fs.mkdirSync(zipDir);
+        } catch (errMkdir) {
+          fastify.log.info(`Couldn't create ${zipDir}: ${errMkdir.message}`);
+        }
+        fastify.log.info(`Extracting ${dir}/${filename} to ${zipDir}`);
+        fs.createReadStream(`${dir}/${filename}`)
+          .pipe(unzip.Extract({ path: `${zipDir}` }))
+          .on('close', () => {
+            fastify.log.info('Extracted zip ', `${zipDir}`);
+            fastify
+              .processFolder(`${zipDir}`)
+              .then(() => resolve())
+              .catch(err => reject(err));
+          })
+          .on('error', error => {
+            fastify.log.info(`Extract error ${error}`);
+            reject(error);
+          });
       })
   );
 
@@ -117,7 +114,7 @@ async function other(fastify) {
       new Promise((resolve, reject) => {
         fastify.log.info(`Processing folder ${zipDir}`);
         const datasets = [];
-        fs.readdir(zipDir, (err, files) => {
+        fs.readdir(zipDir, async (err, files) => {
           if (err) {
             fastify.log.info(`Unable to scan directory: ${err}`);
             reject(err);
@@ -126,7 +123,8 @@ async function other(fastify) {
           for (let i = 0; i < files.length; i += 1) {
             if (files[i] !== '__MACOSX')
               if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
-                promisses.push(fastify.processFolder(`${zipDir}/${files[i]}`));
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.processFolder(`${zipDir}/${files[i]}`);
               else promisses.push(fastify.processFile(zipDir, files[i], datasets));
           }
           Promise.all(promisses)
@@ -134,6 +132,9 @@ async function other(fastify) {
               if (datasets.length > 0) {
                 fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
                 const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
+                fastify.log.info(
+                  `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
+                );
                 fastify
                   .saveDicoms(data, boundary)
                   .then(() => resolve())
@@ -155,11 +156,22 @@ async function other(fastify) {
     (dir, filename, datasets) =>
       new Promise((resolve, reject) => {
         try {
-          fs.readFile(`${dir}/${filename}`, (readErr, buffer) => {
-            if (readErr) {
-              fastify.log.info(`Error in save for ${filename}: ${readErr}`);
-              reject(readErr);
-            } else if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
+          let buffer = [];
+          const readableStream = fs.createReadStream(`${dir}/${filename}`);
+          readableStream.on('data', chunk => {
+            buffer.push(chunk);
+          });
+          readableStream.on('error', readErr => {
+            fastify.log.info(`Error in save when reading file ${dir}/${filename}: ${readErr}`);
+            reject(readErr);
+          });
+          readableStream.on('close', () => {
+            readableStream.destroy();
+          });
+          readableStream.on('end', () => {
+            buffer = Buffer.concat(buffer);
+            fastify.log.info(`Finished reading ${dir}/${filename} ${buffer.length}`);
+            if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
               datasets.push(toArrayBuffer(buffer));
               resolve();
             } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
