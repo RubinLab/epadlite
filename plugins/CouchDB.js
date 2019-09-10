@@ -319,18 +319,24 @@ async function couchdb(fastify, options) {
               .pipe(output);
 
             output.on('close', () => {
-              fastify.log.info(`Created zip in ./tmp_${timestamp}`);
+              fastify.log.info(`Created zip in ${dir}`);
               const readStream = fs.createReadStream(`${dir}/annotations.zip`);
               // delete tmp folder after the file is sent
               readStream.once('end', () => {
                 readStream.destroy(); // make sure stream closed, not close if download aborted.
-                fs.removeSync(`./tmp_${timestamp}`);
-                fastify.log.info(`Deleted ./tmp_${timestamp}`);
+                fs.remove(dir, error => {
+                  if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+                  else fastify.log.info(`${dir} deleted`);
+                });
               });
               resolve(readStream);
             });
             archive.finalize();
           } else {
+            fs.remove(dir, error => {
+              if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+              else fastify.log.info(`${dir} deleted`);
+            });
             reject(new Error('No files to write!'));
           }
         }
@@ -782,18 +788,24 @@ async function couchdb(fastify, options) {
             .pipe(output);
 
           output.on('close', () => {
-            fastify.log.info(`Created zip in ./tmp_${timestamp}`);
+            fastify.log.info(`Created zip in ${dir}`);
             const readStream = fs.createReadStream(`${dir}/templates.zip`);
             // delete tmp folder after the file is sent
             readStream.once('end', () => {
               readStream.destroy(); // make sure stream closed, not close if download aborted.
-              fs.removeSync(`./tmp_${timestamp}`);
-              fastify.log.info(`Deleted ./tmp_${timestamp}`);
+              fs.remove(dir, error => {
+                if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+                else fastify.log.info(`${dir} deleted`);
+              });
             });
             resolve(readStream);
           });
           archive.finalize();
         } else {
+          fs.remove(dir, error => {
+            if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+            else fastify.log.info(`${dir} deleted`);
+          });
           reject(new Error('No files to write!'));
         }
       })

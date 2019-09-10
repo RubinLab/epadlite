@@ -59,7 +59,7 @@ async function other(fastify) {
                 // reply.code(200).send();
                 fs.remove(dir, error => {
                   if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
-                  fastify.log.info(`${dir} deleted`);
+                  else fastify.log.info(`${dir} deleted`);
                 });
               }
             } catch (filesErr) {
@@ -67,13 +67,17 @@ async function other(fastify) {
               reply.code(503).send(filesErr.message);
               fs.remove(dir, error => {
                 if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
-                fastify.log.info(`${dir} deleted`);
+                else fastify.log.info(`${dir} deleted`);
               });
             }
           })
           .catch(fileSaveErr => {
             fastify.log.info(fileSaveErr);
             reply.code(503).send(fileSaveErr.message);
+            fs.remove(dir, error => {
+              if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+              else fastify.log.info(`${dir} deleted`);
+            });
           });
       }
     }
