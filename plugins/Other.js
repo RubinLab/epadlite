@@ -5,6 +5,7 @@ const toArrayBuffer = require('to-array-buffer');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
+const config = require('../config/index');
 
 async function other(fastify) {
   // eslint-disable-next-line global-require
@@ -22,20 +23,31 @@ async function other(fastify) {
         Promise.all(fileSavePromisses)
           .then(async () => {
             let datasets = [];
+            let studies = new Set();
             fastify.log.info('Files copy completed. sending response');
             reply.code(200).send();
             for (let i = 0; i < filenames.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
-              await fastify.processFile(dir, filenames[i], datasets);
+              await fastify.processFile(
+                dir,
+                filenames[i],
+                datasets,
+                request.params,
+                request.query,
+                studies
+              );
             }
             try {
               // see if it was a dicom
               if (datasets.length > 0) {
+                if (config.mode === 'thick')
+                  await fastify.addProjectReferences(request.params, request.query, studies);
                 // fastify.log.info(`writing dicom folder ${filename}`);
                 const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                 fastify.saveDicoms(data, boundary).then(() => {
                   fastify.log.info('Upload completed');
                   datasets = [];
+                  studies = new Set();
                   // reply.code(200).send();
                   fs.remove(dir, error => {
                     if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
@@ -81,8 +93,51 @@ async function other(fastify) {
     request.multipart(handler, done);
   });
   fastify.decorate(
+    'addProjectReferences',
+    (params, query, studies) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // eslint-disable-next-line no-restricted-syntax
+          for (const study of studies) {
+            const combinedParams = {
+              project: params.project, // should only get project id from params
+              ...JSON.parse(study),
+            };
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.addPatientStudyToProjectInternal(combinedParams, query);
+          }
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate('getDicomInfo', arrayBuffer => {
+    const dicomTags = dcmjs.data.DicomMessage.readFile(arrayBuffer);
+    return JSON.stringify({
+      subject:
+        dicomTags.dict['00100020'] && dicomTags.dict['00100020'].Value
+          ? dicomTags.dict['00100020'].Value[0]
+          : '',
+      study:
+        dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
+          ? dicomTags.dict['0020000D'].Value[0]
+          : '',
+      // seriesUID:
+      //   dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
+      //     ? dicomTags.dict['0020000E'].Value[0]
+      //     : '',
+      // imageUID:
+      //   dicomTags.dict['00080018'] && dicomTags.dict['00080018'].Value
+      //     ? dicomTags.dict['00080018'].Value[0]
+      //     : '',
+    });
+  });
+
+  fastify.decorate(
     'processZip',
-    (dir, filename) =>
+    (dir, filename, params, query) =>
       new Promise((resolve, reject) => {
         const zipTimestamp = new Date().getTime();
         const zipDir = `${dir}/tmp_${zipTimestamp}`;
@@ -97,7 +152,7 @@ async function other(fastify) {
           .on('close', () => {
             fastify.log.info('Extracted zip ', `${zipDir}`);
             fastify
-              .processFolder(`${zipDir}`)
+              .processFolder(`${zipDir}`, params, query)
               .then(() => resolve())
               .catch(err => reject(err));
           })
@@ -110,10 +165,11 @@ async function other(fastify) {
 
   fastify.decorate(
     'processFolder',
-    zipDir =>
+    (zipDir, params, query) =>
       new Promise((resolve, reject) => {
         fastify.log.info(`Processing folder ${zipDir}`);
         const datasets = [];
+        const studies = new Set();
         fs.readdir(zipDir, async (err, files) => {
           if (err) {
             fastify.log.info(`Unable to scan directory: ${err}`);
@@ -124,12 +180,17 @@ async function other(fastify) {
             if (files[i] !== '__MACOSX')
               if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
                 // eslint-disable-next-line no-await-in-loop
-                await fastify.processFolder(`${zipDir}/${files[i]}`);
-              else promisses.push(fastify.processFile(zipDir, files[i], datasets));
+                await fastify.processFolder(`${zipDir}/${files[i]}`, params, query);
+              else
+                promisses.push(
+                  fastify.processFile(zipDir, files[i], datasets, params, query, studies)
+                );
           }
           Promise.all(promisses)
-            .then(() => {
+            .then(async () => {
               if (datasets.length > 0) {
+                if (config.mode === 'thick')
+                  await fastify.addProjectReferences(params, query, studies);
                 fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
                 const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                 fastify.log.info(
@@ -153,7 +214,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'processFile',
-    (dir, filename, datasets) =>
+    (dir, filename, datasets, params, query, studies) =>
       new Promise((resolve, reject) => {
         try {
           let buffer = [];
@@ -172,7 +233,9 @@ async function other(fastify) {
             buffer = Buffer.concat(buffer);
             fastify.log.info(`Finished reading ${dir}/${filename} ${buffer.length}`);
             if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
-              datasets.push(toArrayBuffer(buffer));
+              const arrayBuffer = toArrayBuffer(buffer);
+              studies.add(fastify.getDicomInfo(arrayBuffer));
+              datasets.push(arrayBuffer);
               resolve();
             } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
               const jsonBuffer = JSON.parse(buffer.toString());
@@ -202,10 +265,11 @@ async function other(fastify) {
               }
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
-                .processZip(dir, filename)
+                .processZip(dir, filename, params, query)
                 .then(() => resolve())
                 .catch(err => reject(err));
             } else {
+              // TODO save as a regular file!
               fastify.log.info(`Entry ${dir}/${filename} ignored`);
               resolve();
             }
@@ -216,6 +280,7 @@ async function other(fastify) {
         }
       })
   );
+
   fastify.decorate('deleteSubject', (request, reply) => {
     fastify
       .deleteSubjectInternal(request.params)

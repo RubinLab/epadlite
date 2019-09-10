@@ -623,32 +623,47 @@ async function epaddb(fastify) {
   //     .then(result => reply.code(200).send(result))
   //     .catch(err => reply.code(503).send(err.message));
   // });
-  fastify.decorate('addPatientStudyToProject', async (request, reply) => {
-    try {
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
-      let projectSubject = await ProjectSubject.findOne({
-        where: { project_id: project.id, subject_uid: request.params.subject },
-      });
-      if (!projectSubject)
-        projectSubject = await ProjectSubject.create({
-          project_id: project.id,
-          subject_uid: request.params.subject,
-          creator: request.query.username,
-          updatetime: Date.now(),
-        });
-      await ProjectSubjectStudy.create({
-        proj_subj_id: projectSubject.id,
-        study_uid: request.params.study,
-        creator: request.query.username,
-        updatetime: Date.now(),
-      });
-      reply.code(200).send('Saving successful');
-    } catch (err) {
-      // TODO Proper error reporting implementation required
-      console.log(`Error in save: ${err}`);
-      reply.code(503).send(`Saving error: ${err}`);
-    }
+  fastify.decorate('addPatientStudyToProject', (request, reply) => {
+    fastify
+      .addPatientStudyToProjectInternal(request.params, request.query)
+      .then(result => reply.code(200).send(result))
+      .catch(err => reply.code(503).send(err.message));
   });
+
+  fastify.decorate(
+    'addPatientStudyToProjectInternal',
+    (params, query) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const project = await Project.findOne({ where: { projectid: params.project } });
+          let projectSubject = await ProjectSubject.findOne({
+            where: { project_id: project.id, subject_uid: params.subject },
+          });
+          if (!projectSubject)
+            projectSubject = await ProjectSubject.create({
+              project_id: project.id,
+              subject_uid: params.subject,
+              creator: query.username,
+              updatetime: Date.now(),
+            });
+          // create only when that is noot already there
+          const projectSubjectStudy = await ProjectSubjectStudy.findOne({
+            where: { proj_subj_id: projectSubject.id, study_uid: params.study },
+          });
+          if (!projectSubjectStudy)
+            await ProjectSubjectStudy.create({
+              proj_subj_id: projectSubject.id,
+              study_uid: params.study,
+              creator: query.username,
+              updatetime: Date.now(),
+            });
+          resolve();
+        } catch (err) {
+          // TODO Proper error reporting implementation required
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate('getPatientStudiesFromProject', async (request, reply) => {
     try {

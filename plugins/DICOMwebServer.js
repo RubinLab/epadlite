@@ -112,13 +112,15 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const postHeader = {
-            headers: {
-              ...header.headers,
-              ...{
-                'content-type': `multipart/related; type=application/dicom; boundary=${boundary}`,
-                maxContentLength: Buffer.byteLength(data) + 1,
-              },
+            // TODO this headers attribute should be required. gives 'Request body larger than maxBodyLength limit' error
+            // maybe related to cors. header is not populated properly with header anyway
+            // headers: {
+            ...header.headers,
+            ...{
+              'Content-Type': `multipart/related; type=application/dicom; boundary=${boundary}`,
+              maxContentLength: Buffer.byteLength(data) + 1,
             },
+            // },
           };
           this.request
             .post('/studies', data, postHeader)
