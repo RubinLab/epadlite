@@ -274,8 +274,10 @@ async function other(fastify) {
                 .catch(err => reject(err));
             } else {
               // TODO save as a regular file!
-              fastify.log.info(`Entry ${dir}/${filename} ignored`);
-              resolve();
+              fastify
+                .addFile(dir, filename, params, query)
+                .then(() => resolve())
+                .catch(err => reject(err));
             }
           });
         } catch (err) {

@@ -1,4 +1,6 @@
 const fp = require('fastify-plugin');
+const fs = require('fs-extra');
+const config = require('../config/index');
 // const Sequelize = require('sequelize');
 
 async function epaddb(fastify) {
@@ -10,6 +12,7 @@ async function epaddb(fastify) {
   const ProjectSubject = fastify.orm.import(`${__dirname}/../models/project_subject`);
   const ProjectSubjectStudy = fastify.orm.import(`${__dirname}/../models/project_subject_study`);
   const ProjectAim = fastify.orm.import(`${__dirname}/../models/project_aim`);
+  const EpadFile = fastify.orm.import(`${__dirname}/../models/epad_file`);
 
   fastify.decorate('initMariaDB', async () => {
     // Test connection
@@ -817,6 +820,40 @@ async function epaddb(fastify) {
       reply.code(503).send(`Getting error: ${err}`);
     }
   });
+
+  fastify.decorate(
+    'addFile',
+    (dir, filename, params, query) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // create files dir if not exists
+          if (!fs.existsSync(config.filesDir)) fs.mkdirSync(config.filesDir);
+          const timestamp = new Date().getTime();
+          const destination = `${config.filesDir}/${filename}_${timestamp}`;
+
+          // copy file
+          fs.copyFileSync(`${dir}/${filename}`, destination);
+
+          // add link to db
+          const project = await Project.findOne({ where: { projectid: params.project } });
+
+          await EpadFile.create({
+            project_id: project.id,
+            subject_uid: params.subject ? params.subject : '',
+            study_uid: params.study ? params.study : '',
+            series_uid: params.series ? params.series : '',
+            name: `${filename}_${timestamp}`,
+            filepath: config.filesDir,
+            filetype: query.filetype ? query.filetype : '',
+            creator: query.username,
+            updatetime: Date.now(),
+          });
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
   fastify.after(async () => {
     try {

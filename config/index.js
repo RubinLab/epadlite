@@ -5,4 +5,5 @@ if (config.auth && config.auth != 'none') config.authConfig = require(`./${confi
 config.dicomWebConfig = {};
 if (config.dicomweb) config.dicomWebConfig = require(`./${config.dicomweb}.json`); // eslint-disable-line
 config.mode = config.mode || 'lite'; // default lite
+config.filesDir = config.filesDir || 'files';
 module.exports = config;

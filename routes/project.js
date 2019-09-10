@@ -16,6 +16,72 @@ async function routes(fastify) {
     },
     handler: fastify.saveFile,
   });
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/subjects/:subject/files',
+    schema: {
+      tags: ['project', 'files'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveFile,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/subjects/:subject/studies/:study/files',
+    schema: {
+      tags: ['project', 'files'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveFile,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/subjects/:subject/studies/:study/series/:series/files',
+    schema: {
+      tags: ['project', 'files'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveFile,
+  });
 
   fastify.route({
     method: 'POST',
