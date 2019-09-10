@@ -275,7 +275,7 @@ async function other(fastify) {
             } else {
               // TODO save as a regular file!
               fastify
-                .addFile(dir, filename, params, query)
+                .addFile(dir, filename, params, query, Buffer.byteLength(buffer))
                 .then(() => resolve())
                 .catch(err => reject(err));
             }

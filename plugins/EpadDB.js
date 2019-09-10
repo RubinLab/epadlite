@@ -823,7 +823,7 @@ async function epaddb(fastify) {
 
   fastify.decorate(
     'addFile',
-    (dir, filename, params, query) =>
+    (dir, filename, params, query, length) =>
       new Promise(async (resolve, reject) => {
         try {
           // create files dir if not exists
@@ -845,6 +845,7 @@ async function epaddb(fastify) {
             name: `${filename}_${timestamp}`,
             filepath: config.filesDir,
             filetype: query.filetype ? query.filetype : '',
+            length,
             creator: query.username,
             updatetime: Date.now(),
           });
