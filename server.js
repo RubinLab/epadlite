@@ -1,6 +1,5 @@
 const fs = require('fs-extra');
 const path = require('path');
-const Sequelize = require('sequelize');
 // eslint-disable-next-line import/order
 const config = require('./config/index');
 // Require the framework and instantiate it
@@ -205,36 +204,6 @@ fastify.decorate('auth', async (req, res) => {
 
 // add authentication prehandler, all requests need to be authenticated
 fastify.addHook('preHandler', fastify.auth);
-
-const sequelizeConfig = {
-  dialect: 'mariadb',
-  database: config.thickDb,
-  host: 'localhost',
-  port: 3306,
-  username: 'pacs',
-  password: 'pacs',
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 30000,
-    idle: 10000,
-  },
-  define: {
-    timestamps: false,
-  },
-  logging: config.logger,
-};
-
-// code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
-// used sequelize itself to get the latest version with mariadb support
-const sequelize = new Sequelize(sequelizeConfig);
-fastify.decorate('orm', sequelize);
-fastify.addHook('onClose', (fastifyInstance, done) => {
-  sequelize
-    .close()
-    .then(done)
-    .catch(done);
-});
 
 // Run the server!
 fastify.listen(port, host);

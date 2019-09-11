@@ -1,47 +1,83 @@
 const fp = require('fastify-plugin');
+const fs = require('fs-extra');
+const path = require('path');
+const Sequelize = require('sequelize');
 const config = require('../config/index');
-// const Sequelize = require('sequelize');
 
-async function epaddb(fastify) {
-  const Project = fastify.orm.import(`${__dirname}/../models/project`);
-  const Worklist = fastify.orm.import(`${__dirname}/../models/worklist`);
-  const WorklistStudy = fastify.orm.import(`${__dirname}/../models/worklist_study`);
-  Worklist.hasMany(WorklistStudy, { foreignKey: 'worklist_id' });
-  const ProjectTemplate = fastify.orm.import(`${__dirname}/../models/project_template`);
-  const ProjectSubject = fastify.orm.import(`${__dirname}/../models/project_subject`);
-  const ProjectSubjectStudy = fastify.orm.import(`${__dirname}/../models/project_subject_study`);
-  const ProjectAim = fastify.orm.import(`${__dirname}/../models/project_aim`);
-  const ProjectFile = fastify.orm.import(`${__dirname}/../models/project_file`);
+async function epaddb(fastify, options, done) {
+  const models = {};
 
   fastify.decorate('initMariaDB', async () => {
-    // Test connection
-    fastify.orm
-      .authenticate()
-      .then(() => {
-        fastify.orm
-          .sync()
-          .then(() => {
-            fastify.log.info('db sync successful!');
-          })
-          .catch(err => console.log(err));
-        fastify.log.info('Connection to mariadb has been established successfully.');
-      })
-      .catch(err => {
-        console.error('Unable to connect to the database:', err);
-      });
+    const sequelizeConfig = {
+      dialect: 'mariadb',
+      database: config.thickDb.name,
+      host: config.thickDb.host,
+      port: config.thickDb.port,
+      username: config.thickDb.user,
+      password: config.thickDb.pass,
+      pool: {
+        max: 5,
+        min: 0,
+        acquire: 30000,
+        idle: 10000,
+      },
+      define: {
+        timestamps: false,
+      },
+      logging: config.logger,
+    };
+
+    // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
+    // used sequelize itself to get the latest version with mariadb support
+    await new Promise(async (resolve, reject) => {
+      try {
+        const sequelize = new Sequelize(sequelizeConfig);
+        fastify.decorate('orm', sequelize);
+        await fastify.orm.authenticate();
+      } catch (err) {
+        if (config.env === 'test') {
+          try {
+            sequelizeConfig.database = '';
+            const sequelize = new Sequelize(sequelizeConfig);
+            await sequelize.query(`CREATE DATABASE ${config.thickDb.name};`);
+            await fastify.orm.authenticate();
+          } catch (testDBErr) {
+            fastify.log.info(`Error in creating and connecting testdb ${testDBErr.message}`);
+            reject(testDBErr);
+          }
+        } else {
+          fastify.log.info(`Error connecting to db ${config.thickDb.name}: ${err.message}`);
+          reject(err);
+        }
+      }
+      try {
+        const filenames = fs.readdirSync(`${__dirname}/../models`);
+        for (let i = 0; i < filenames.length; i += 1) {
+          models[filenames[i].replace(/\.[^/.]+$/, '')] = fastify.orm.import(
+            path.join(__dirname, '/../models', filenames[i])
+          );
+        }
+        await fastify.orm.sync();
+        resolve();
+      } catch (err) {
+        fastify.log.info(`Error loading models and syncronizing db: ${err.message}`);
+        reject(err);
+      }
+    });
   });
 
   // PROJECTS
   fastify.decorate('createProject', (request, reply) => {
-    Project.create({
-      name: request.body.projectName,
-      projectid: request.body.projectId,
-      description: request.body.projectDescription,
-      defaulttemplate: request.body.defaultTemplate,
-      type: request.body.type,
-      updatetime: Date.now(),
-      creator: request.body.userName,
-    })
+    models.project
+      .create({
+        name: request.body.projectName,
+        projectid: request.body.projectId,
+        description: request.body.projectDescription,
+        defaulttemplate: request.body.defaultTemplate,
+        type: request.body.type,
+        updatetime: Date.now(),
+        creator: request.body.userName,
+      })
       .then(project => {
         reply.code(200).send(`success with id ${project.id}`);
       })
@@ -62,11 +98,12 @@ async function epaddb(fastify) {
         query[keys[i]] = values[i];
       }
     }
-    Project.update(query, {
-      where: {
-        projectid: request.params.project,
-      },
-    })
+    models.project
+      .update(query, {
+        where: {
+          projectid: request.params.project,
+        },
+      })
       .then(() => {
         reply.code(200).send('Update successful');
       })
@@ -74,11 +111,12 @@ async function epaddb(fastify) {
   });
 
   fastify.decorate('deleteProject', (request, reply) => {
-    Project.destroy({
-      where: {
-        projectid: request.params.project,
-      },
-    })
+    models.project
+      .destroy({
+        where: {
+          projectid: request.params.project,
+        },
+      })
       .then(() => {
         reply.code(200).send('Deletion successful');
       })
@@ -86,7 +124,8 @@ async function epaddb(fastify) {
   });
 
   fastify.decorate('getProjects', (request, reply) => {
-    Project.findAll()
+    models.project
+      .findAll()
       .then(projects => {
         // projects will be an array of all Project instances
         // console.log(projects);
@@ -99,15 +138,16 @@ async function epaddb(fastify) {
   });
 
   fastify.decorate('createWorklist', (request, reply) => {
-    Worklist.create({
-      name: request.body.name,
-      worklistid: request.body.worklistid,
-      user_id: request.params.user,
-      description: request.body.description,
-      updatetime: Date.now(),
-      duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
-      creator: request.body.username,
-    })
+    models.worklist
+      .create({
+        name: request.body.name,
+        worklistid: request.body.worklistid,
+        user_id: request.params.user,
+        description: request.body.description,
+        updatetime: Date.now(),
+        duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
+        creator: request.body.username,
+      })
       .then(worklist => {
         reply.code(200).send(`success with id ${worklist.id}`);
       })
@@ -118,13 +158,14 @@ async function epaddb(fastify) {
   });
 
   fastify.decorate('linkWorklistToStudy', (request, reply) => {
-    WorklistStudy.create({
-      worklist_id: request.params.worklist,
-      project_id: request.params.project,
-      updatetime: Date.now(),
-      study_id: request.body.studyId ? request.body.studyId : null,
-      subject_id: request.body.subjectId ? request.body.subjectId : null,
-    })
+    models.worklist_study
+      .create({
+        worklist_id: request.params.worklist,
+        project_id: request.params.project,
+        updatetime: Date.now(),
+        study_id: request.body.studyId ? request.body.studyId : null,
+        subject_id: request.body.subjectId ? request.body.subjectId : null,
+      })
       .then(res => {
         reply.code(200).send(`success with id ${res.id}`);
       })
@@ -134,15 +175,16 @@ async function epaddb(fastify) {
   });
 
   fastify.decorate('updateWorklist', (request, reply) => {
-    Worklist.update(
-      { ...request.body, updatetime: Date.now(), updated_by: request.body.username },
-      {
-        where: {
-          user_id: request.params.user,
-          worklistid: request.params.worklist,
-        },
-      }
-    )
+    models.worklist
+      .update(
+        { ...request.body, updatetime: Date.now(), updated_by: request.body.username },
+        {
+          where: {
+            user_id: request.params.user,
+            worklistid: request.params.worklist,
+          },
+        }
+      )
       .then(() => {
         reply.code(200).send('Update successful');
       })
@@ -150,16 +192,17 @@ async function epaddb(fastify) {
   });
 
   fastify.decorate('getWorklists', (request, reply) => {
-    Worklist.findAll({
-      where: {
-        user_id: request.params.user,
-      },
-      include: [
-        {
-          model: WorklistStudy,
+    models.worklist
+      .findAll({
+        where: {
+          user_id: request.params.user,
         },
-      ],
-    })
+        include: [
+          {
+            model: models.worklistStudy,
+          },
+        ],
+      })
       .then(worklist => {
         const result = [];
         for (let i = 0; i < worklist.length; i += 1) {
@@ -194,12 +237,13 @@ async function epaddb(fastify) {
   });
 
   fastify.decorate('deleteWorklist', (request, reply) => {
-    Worklist.destroy({
-      where: {
-        user_id: request.params.user,
-        worklistid: request.params.worklist,
-      },
-    })
+    models.worklist
+      .destroy({
+        where: {
+          user_id: request.params.user,
+          worklistid: request.params.worklist,
+        },
+      })
       .then(() => {
         reply.code(200).send('Deletion successful');
       })
@@ -213,9 +257,11 @@ async function epaddb(fastify) {
         await fastify.saveTemplateInternal(request.body);
         templateUid = request.body.TemplateContainer.uid;
       }
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
 
-      await ProjectTemplate.create({
+      await models.project_template.create({
         project_id: project.id,
         template_uid: templateUid,
         enabled: true,
@@ -232,23 +278,27 @@ async function epaddb(fastify) {
 
   fastify.decorate('getProjectTemplates', async (request, reply) => {
     try {
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
-      const templateUids = [];
-      ProjectTemplate.findAll({ where: { project_id: project.id } }).then(projectTemplates => {
-        // projects will be an array of Project instances with the specified name
-        projectTemplates.forEach(projectTemplate =>
-          templateUids.push(projectTemplate.template_uid)
-        );
-        fastify
-          .getTemplatesFromUIDsInternal(request.query, templateUids)
-          .then(result => {
-            if (request.query.format === 'stream') {
-              reply.header('Content-Disposition', `attachment; filename=templates.zip`);
-            }
-            reply.code(200).send(result);
-          })
-          .catch(err => reply.code(503).send(err));
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
       });
+      const templateUids = [];
+      models.project_template
+        .findAll({ where: { project_id: project.id } })
+        .then(projectTemplates => {
+          // projects will be an array of Project instances with the specified name
+          projectTemplates.forEach(projectTemplate =>
+            templateUids.push(projectTemplate.template_uid)
+          );
+          fastify
+            .getTemplatesFromUIDsInternal(request.query, templateUids)
+            .then(result => {
+              if (request.query.format === 'stream') {
+                reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+              }
+              reply.code(200).send(result);
+            })
+            .catch(err => reply.code(503).send(err));
+        });
     } catch (err) {
       // TODO Proper error reporting implementation required
       console.log(`Error in save: ${err}`);
@@ -259,15 +309,17 @@ async function epaddb(fastify) {
   fastify.decorate('deleteTemplateFromProject', async (request, reply) => {
     try {
       const templateUid = request.params.uid;
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
 
-      const numDeleted = await ProjectTemplate.destroy({
+      const numDeleted = await models.project_template.destroy({
         where: { project_id: project.id, template_uid: templateUid },
       });
       // if delete from all or it doesn't exist in any other project, delete from system
       try {
         if (request.query.all && request.query.all === 'true') {
-          const deletednum = await ProjectTemplate.destroy({
+          const deletednum = await models.project_template.destroy({
             where: { template_uid: templateUid },
           });
           await fastify.deleteTemplateInternal(request.params);
@@ -277,7 +329,9 @@ async function epaddb(fastify) {
               `Template deleted from system and removed from ${deletednum + numDeleted} projects`
             );
         } else {
-          const count = await ProjectTemplate.count({ where: { template_uid: templateUid } });
+          const count = await models.project_template.count({
+            where: { template_uid: templateUid },
+          });
           if (count === 0) {
             await fastify.deleteTemplateInternal(request.params);
             reply
@@ -300,7 +354,7 @@ async function epaddb(fastify) {
   fastify.decorate('deleteTemplateFromSystem', async (request, reply) => {
     try {
       const templateUid = request.params.uid;
-      const numDeleted = await ProjectTemplate.destroy({
+      const numDeleted = await models.project_template.destroy({
         where: { template_uid: templateUid },
       });
       await fastify.deleteTemplateInternal(request.params);
@@ -315,8 +369,10 @@ async function epaddb(fastify) {
   fastify.decorate('addSubjectToProject', async (request, reply) => {
     try {
       const { subject } = request.params;
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
-      const projectSubject = await ProjectSubject.create({
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+      const projectSubject = await models.project_subject.create({
         project_id: project.id,
         subject_uid: subject,
         creator: request.query.username,
@@ -325,7 +381,7 @@ async function epaddb(fastify) {
       const studies = await fastify.getPatientStudiesInternal(request.params);
       for (let i = 0; i < studies.ResultSet.Result.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop
-        await ProjectSubjectStudy.create({
+        await models.project_subject_study.create({
           proj_subj_id: projectSubject.id,
           study_uid: studies.ResultSet.Result[i].studyUID,
           creator: request.query.username,
@@ -342,9 +398,13 @@ async function epaddb(fastify) {
 
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
       const subjectUids = [];
-      const projectSubjects = await ProjectSubject.findAll({ where: { project_id: project.id } });
+      const projectSubjects = await models.project_subject.findAll({
+        where: { project_id: project.id },
+      });
       if (projectSubjects) {
         // projects will be an array of Project instances with the specified name
         for (let i = 0; i < projectSubjects.length; i += 1) {
@@ -370,21 +430,23 @@ async function epaddb(fastify) {
   fastify.decorate('deleteSubjectFromProject', async (request, reply) => {
     try {
       const subjectUid = request.params.subject;
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
 
-      const projectSubject = await ProjectSubject.findOne({
+      const projectSubject = await models.project_subject.findOne({
         where: { project_id: project.id, subject_uid: request.params.subject },
       });
-      await ProjectSubjectStudy.destroy({
+      await models.project_subject_study.destroy({
         where: { proj_subj_id: projectSubject.id },
       });
-      const numDeleted = await ProjectSubject.destroy({
+      const numDeleted = await models.project_subject.destroy({
         where: { project_id: project.id, subject_uid: subjectUid },
       });
       // if delete from all or it doesn't exist in any other project, delete from system
       try {
         if (request.query.all && request.query.all === 'true') {
-          const projectSubjects = await ProjectSubject.findAll({
+          const projectSubjects = await models.project_subject.findAll({
             where: { subject_uid: request.params.subject },
           });
           const projSubjIds = [];
@@ -392,11 +454,11 @@ async function epaddb(fastify) {
             for (let i = 0; i < projectSubjects.length; i += 1) {
               projSubjIds.push(projectSubjects[i].id);
               // eslint-disable-next-line no-await-in-loop
-              await ProjectSubjectStudy.destroy({
+              await models.project_subject_study.destroy({
                 where: { proj_subj_id: projectSubjects[i].id },
               });
             }
-            await ProjectSubject.destroy({
+            await models.project_subject.destroy({
               where: { id: projSubjIds },
             });
           }
@@ -405,11 +467,11 @@ async function epaddb(fastify) {
             .code(200)
             .send(`Subject deleted from system and removed from ${numDeleted} projects`);
         } else {
-          const projectSubjects = await ProjectSubject.findAll({
+          const projectSubjects = await models.project_subject.findAll({
             where: { subject_uid: subjectUid },
           });
           if (projectSubjects.length === 0) {
-            await ProjectSubjectStudy.destroy({
+            await models.project_subject_study.destroy({
               where: { proj_subj_id: projectSubject.id },
             });
             await fastify.deleteSubjectInternal(request.params);
@@ -432,9 +494,9 @@ async function epaddb(fastify) {
 
   // from CouchDB
   // fastify.decorate('getSeriesAimsFromProject', async (request, reply) => {
-  //   const project = await Project.findOne({ where: { projectid: request.params.project } });
+  //   const project = await models.project.findOne({ where: { projectid: request.params.project } });
   //     const aimUids = [];
-  //     const projectSubjects = await ProjectSubject.findAll({ where: { project_id: project.id } });
+  //     const projectSubjects = await models.project_subject.findAll({ where: { project_id: project.id } });
   //     if (projectSubjects)
   //       // projects will be an array of Project instances with the specified name
   //       projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
@@ -477,9 +539,11 @@ async function epaddb(fastify) {
 
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
       const aimUids = [];
-      const projectAims = await ProjectAim.findAll({ where: { project_id: project.id } });
+      const projectAims = await models.project_aim.findAll({ where: { project_id: project.id } });
       // projects will be an array of Project instances with the specified name
       for (let i = 0; i < projectAims.length; i += 1) {
         aimUids.push(projectAims[i].aim_uid);
@@ -503,8 +567,10 @@ async function epaddb(fastify) {
 
   fastify.decorate('getProjectAim', async (request, reply) => {
     try {
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
-      const projectAimCount = await ProjectAim.count({
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+      const projectAimCount = await models.project_aim.count({
         where: { project_id: project.id, aim_uid: request.params.aimuid },
       });
       if (projectAimCount !== 1)
@@ -552,9 +618,11 @@ async function epaddb(fastify) {
         await fastify.saveAimInternal(request.body);
         aimUid = request.body.ImageAnnotationCollection.uniqueIdentifier.root;
       }
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
 
-      await ProjectAim.create({
+      await models.project_aim.create({
         project_id: project.id,
         aim_uid: aimUid,
         creator: request.query.username,
@@ -571,15 +639,17 @@ async function epaddb(fastify) {
   fastify.decorate('deleteAimFromProject', async (request, reply) => {
     try {
       const aimUid = request.params.aimuid;
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
 
-      const numDeleted = await ProjectAim.destroy({
+      const numDeleted = await models.project_aim.destroy({
         where: { project_id: project.id, aim_uid: aimUid },
       });
       // if delete from all or it doesn't exist in any other project, delete from system
       try {
         if (request.query.all && request.query.all === 'true') {
-          const deletednum = await ProjectAim.destroy({
+          const deletednum = await models.project_aim.destroy({
             where: { aim_uid: aimUid },
           });
           await fastify.deleteAimInternal(request.params.aimuid);
@@ -587,7 +657,7 @@ async function epaddb(fastify) {
             .code(200)
             .send(`Aim deleted from system and removed from ${deletednum + numDeleted} projects`);
         } else {
-          const count = await ProjectAim.count({ where: { aim_uid: aimUid } });
+          const count = await models.project_aim.count({ where: { aim_uid: aimUid } });
           if (count === 0) {
             await fastify.deleteAimInternal(request.params.aimuid);
             reply.code(200).send(`Aim deleted from system as it didn't exist in any other project`);
@@ -606,7 +676,7 @@ async function epaddb(fastify) {
   fastify.decorate('deleteAimFromSystem', async (request, reply) => {
     try {
       const aimUid = request.params.aimuid;
-      const numDeleted = await ProjectAim.destroy({
+      const numDeleted = await models.project_aim.destroy({
         where: { aim_uid: aimUid },
       });
       await fastify.deleteAimInternal(request.params.aimuid);
@@ -637,23 +707,23 @@ async function epaddb(fastify) {
     (params, query) =>
       new Promise(async (resolve, reject) => {
         try {
-          const project = await Project.findOne({ where: { projectid: params.project } });
-          let projectSubject = await ProjectSubject.findOne({
+          const project = await models.project.findOne({ where: { projectid: params.project } });
+          let projectSubject = await models.project_subject.findOne({
             where: { project_id: project.id, subject_uid: params.subject },
           });
           if (!projectSubject)
-            projectSubject = await ProjectSubject.create({
+            projectSubject = await models.project_subject.create({
               project_id: project.id,
               subject_uid: params.subject,
               creator: query.username,
               updatetime: Date.now(),
             });
           // create only when that is noot already there
-          const projectSubjectStudy = await ProjectSubjectStudy.findOne({
+          const projectSubjectStudy = await models.project_subject_study.findOne({
             where: { proj_subj_id: projectSubject.id, study_uid: params.study },
           });
           if (!projectSubjectStudy)
-            await ProjectSubjectStudy.create({
+            await models.project_subject_study.create({
               proj_subj_id: projectSubject.id,
               study_uid: params.study,
               creator: query.username,
@@ -669,14 +739,18 @@ async function epaddb(fastify) {
 
   fastify.decorate('getPatientStudiesFromProject', async (request, reply) => {
     try {
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
       const studyUids = [];
-      const projectSubjects = await ProjectSubject.findAll({ where: { project_id: project.id } });
+      const projectSubjects = await models.project_subject.findAll({
+        where: { project_id: project.id },
+      });
       if (projectSubjects)
         // projects will be an array of Project instances with the specified name
         for (let i = 0; i < projectSubjects.length; i += 1) {
           // eslint-disable-next-line no-await-in-loop
-          const projectSubjectStudies = await ProjectSubjectStudy.findAll({
+          const projectSubjectStudies = await models.project_subject_study.findAll({
             where: { proj_subj_id: projectSubjects[i].id },
           });
           if (projectSubjectStudies)
@@ -702,26 +776,28 @@ async function epaddb(fastify) {
 
   fastify.decorate('deletePatientStudyFromProject', async (request, reply) => {
     try {
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
-      const projectSubject = await ProjectSubject.findOne({
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+      const projectSubject = await models.project_subject.findOne({
         where: { project_id: project.id, subject_uid: request.params.subject },
       });
-      let numDeleted = await ProjectSubjectStudy.destroy({
+      let numDeleted = await models.project_subject_study.destroy({
         where: { proj_subj_id: projectSubject.id, study_uid: request.params.study },
       });
       // see if there is any other study refering to this subject in ths project
-      const studyCount = await ProjectSubjectStudy.count({
+      const studyCount = await models.project_subject_study.count({
         where: { proj_subj_id: projectSubject.id },
       });
       if (studyCount === 0)
-        await ProjectSubject.destroy({
+        await models.project_subject.destroy({
           where: { id: projectSubject.id },
         });
 
       // if delete from all or it doesn't exist in any other project, delete from system
       try {
         if (request.query.all && request.query.all === 'true') {
-          const projectSubjectStudies = await ProjectSubjectStudy.findAll({
+          const projectSubjectStudies = await models.project_subject_study.findAll({
             where: { study_uid: request.params.study },
           });
           const projSubjIds = [];
@@ -729,23 +805,23 @@ async function epaddb(fastify) {
           if (projectSubjectStudies) {
             for (let i = 0; i < projectSubjectStudies.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
-              const existingStudyCount = await ProjectSubjectStudy.count({
+              const existingStudyCount = await models.project_subject_study.count({
                 where: { proj_subj_id: projectSubjectStudies[i].proj_subj_id },
               });
               if (existingStudyCount === 1) projSubjIds.push(projectSubjectStudies[i].proj_subj_id);
               projectSubjectStudyIds.push(projectSubjectStudies[i].id);
             }
-            numDeleted += await ProjectSubjectStudy.destroy({
+            numDeleted += await models.project_subject_study.destroy({
               where: { id: projectSubjectStudyIds },
             });
-            await ProjectSubject.destroy({
+            await models.project_subject.destroy({
               where: { id: projSubjIds },
             });
           }
           await fastify.deleteStudyInternal(request.params);
           reply.code(200).send(`Study deleted from system and removed from ${numDeleted} projects`);
         } else {
-          const count = await ProjectSubjectStudy.count({
+          const count = await models.project_subject_study.count({
             where: { study_uid: request.params.study },
           });
           if (count === 0) {
@@ -780,7 +856,8 @@ async function epaddb(fastify) {
   // });
 
   fastify.decorate('getProject', (request, reply) => {
-    Project.findOne({ where: { projectid: request.params.project } })
+    models.project
+      .findOne({ where: { projectid: request.params.project } })
       .then(project => {
         reply.code(200).send(project);
       })
@@ -840,9 +917,9 @@ async function epaddb(fastify) {
           await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
           // add link to db if thick
           if (config.mode === 'thick') {
-            const project = await Project.findOne({ where: { projectid: params.project } });
+            const project = await models.project.findOne({ where: { projectid: params.project } });
             if (project && project !== null) {
-              await ProjectFile.create({
+              await models.project_file.create({
                 project_id: project.id,
                 file_uid: fileInfo.name,
                 creator: query.username,
@@ -860,9 +937,11 @@ async function epaddb(fastify) {
 
   fastify.decorate('getProjectFiles', async (request, reply) => {
     try {
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
       const fileUids = [];
-      ProjectFile.findAll({ where: { project_id: project.id } }).then(projectFiles => {
+      models.project_file.findAll({ where: { project_id: project.id } }).then(projectFiles => {
         // projects will be an array of Project instances with the specified name
         projectFiles.forEach(projectFile => fileUids.push(projectFile.file_uid));
         fastify
@@ -885,15 +964,17 @@ async function epaddb(fastify) {
   fastify.decorate('deleteFileFromProject', async (request, reply) => {
     try {
       const { filename } = request.params;
-      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
 
-      const numDeleted = await ProjectFile.destroy({
+      const numDeleted = await models.project_file.destroy({
         where: { project_id: project.id, file_uid: filename },
       });
       // if delete from all or it doesn't exist in any other project, delete from system
       try {
         if (request.query.all && request.query.all === 'true') {
-          const deletednum = await ProjectFile.destroy({
+          const deletednum = await models.project_file.destroy({
             where: { file_uid: filename },
           });
           await fastify.deleteFileInternal(request.params);
@@ -901,7 +982,7 @@ async function epaddb(fastify) {
             .code(200)
             .send(`File deleted from system and removed from ${deletednum + numDeleted} projects`);
         } else {
-          const count = await ProjectFile.count({ where: { file_uid: filename } });
+          const count = await models.project_file.count({ where: { file_uid: filename } });
           if (count === 0) {
             await fastify.deleteFileInternal(request.params);
             reply
@@ -923,7 +1004,7 @@ async function epaddb(fastify) {
   fastify.decorate('deleteFileFromSystem', async (request, reply) => {
     try {
       const { filename } = request.params;
-      const numDeleted = await ProjectTemplate.destroy({
+      const numDeleted = await models.project_template.destroy({
         where: { file_uid: filename },
       });
       await fastify.deleteFileInternal(request.params);
@@ -938,10 +1019,25 @@ async function epaddb(fastify) {
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
+      done();
     } catch (err) {
       fastify.log.info(`Cannot connect to mariadb (err:${err}), shutting down the server`);
       fastify.close();
     }
+    // need to add hook for close to remove the db if test;
+    fastify.addHook('onClose', async (instance, doneClose) => {
+      if (config.env === 'test') {
+        try {
+          // if it is test remove the database
+          await instance.orm.query(`DROP DATABASE ${config.thickDb.name};`);
+          fastify.log.info('Destroying mariadb test database');
+        } catch (err) {
+          fastify.log.info(`Cannot destroy mariadb test database (err:${err.message})`);
+        }
+      }
+      await instance.orm.close();
+      doneClose();
+    });
   });
 }
 // expose as plugin so the module using it can access the decorated methods
