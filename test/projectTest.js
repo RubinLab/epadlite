@@ -16,7 +16,6 @@ before(async () => {
   process.env.port = 5987;
   server = require('../server'); // eslint-disable-line
   await server.ready();
-  await server.orm.authenticate();
 });
 after(() => {
   server.close();
@@ -40,13 +39,13 @@ beforeEach(() => {
 
 describe('Project Tests', () => {
   // console.log()
-  it('projects should have 2 (all, unassigned) ', done => {
+  it('projects should have no projects ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(2);
+        expect(res.body.length).to.be.eql(0);
         done();
       })
       .catch(e => {
@@ -73,13 +72,13 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  it('projects should have 3 projects ', done => {
+  it('projects should have 1 project ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(3);
+        expect(res.body.length).to.be.eql(1);
         done();
       })
       .catch(e => {
@@ -168,13 +167,13 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  it('projects should have 2 projects ', done => {
+  it('projects should have no projects ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(2);
+        expect(res.body.length).to.be.eql(0);
         done();
       })
       .catch(e => {

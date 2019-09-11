@@ -208,7 +208,7 @@ fastify.addHook('preHandler', fastify.auth);
 
 const sequelizeConfig = {
   dialect: 'mariadb',
-  database: 'epaddb',
+  database: config.thickDb,
   host: 'localhost',
   port: 3306,
   username: 'pacs',

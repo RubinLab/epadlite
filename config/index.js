@@ -8,4 +8,11 @@ config.mode = config.mode || 'lite'; // default lite
 config.imageExt = config.imageExt || 'jpg|jpeg|png';
 config.reportExt = config.reportExt || 'txt|pdf';
 config.validExt = `${config.imageExt}|${config.reportExt}`;
+config.thickDb = config.thickDb || {
+  name: 'epaddb',
+  host: 'localhost',
+  port: '3306',
+  user: 'pacs',
+  pass: 'pacs',
+};
 module.exports = config;
