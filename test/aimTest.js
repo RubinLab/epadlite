@@ -5,19 +5,6 @@ const fs = require('fs');
 chai.use(chaiHttp);
 const { expect } = chai;
 
-// as these are outside any describe, they are global to all tests!
-let server;
-before(async () => {
-  process.env.host = '0.0.0.0';
-  process.env.port = 5987;
-  server = require('../server'); // eslint-disable-line
-  await server.ready();
-  await server.orm.authenticate();
-});
-after(() => {
-  server.close();
-});
-
 describe('System AIM Tests', () => {
   it('aims should be empty for series 1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313 of patient 13116', done => {
     chai

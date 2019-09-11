@@ -9,17 +9,6 @@ const config = require('../config/index');
 chai.use(chaiHttp);
 const { expect } = chai;
 
-let server;
-before(async () => {
-  process.env.host = '0.0.0.0';
-  process.env.port = 5987;
-  server = require('../server'); // eslint-disable-line
-  await server.ready();
-  await server.orm.authenticate();
-});
-after(() => {
-  server.close();
-});
 beforeEach(() => {
   nock(config.dicomWebConfig.baseUrl)
     .get('/studies')
