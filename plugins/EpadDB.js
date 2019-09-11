@@ -1,5 +1,4 @@
 const fp = require('fastify-plugin');
-const fs = require('fs-extra');
 const config = require('../config/index');
 // const Sequelize = require('sequelize');
 
@@ -12,7 +11,7 @@ async function epaddb(fastify) {
   const ProjectSubject = fastify.orm.import(`${__dirname}/../models/project_subject`);
   const ProjectSubjectStudy = fastify.orm.import(`${__dirname}/../models/project_subject_study`);
   const ProjectAim = fastify.orm.import(`${__dirname}/../models/project_aim`);
-  const EpadFile = fastify.orm.import(`${__dirname}/../models/epad_file`);
+  const ProjectFile = fastify.orm.import(`${__dirname}/../models/project_file`);
 
   fastify.decorate('initMariaDB', async () => {
     // Test connection
@@ -822,39 +821,119 @@ async function epaddb(fastify) {
   });
 
   fastify.decorate(
-    'addFile',
-    (dir, filename, params, query, length) =>
+    'saveOtherFileToProjectInternal',
+    (filename, params, query, buffer, length) =>
       new Promise(async (resolve, reject) => {
         try {
-          // create files dir if not exists
-          if (!fs.existsSync(config.filesDir)) fs.mkdirSync(config.filesDir);
           const timestamp = new Date().getTime();
-          const destination = `${config.filesDir}/${filename}_${timestamp}`;
-
-          // copy file
-          fs.copyFileSync(`${dir}/${filename}`, destination);
-
-          // add link to db
-          const project = await Project.findOne({ where: { projectid: params.project } });
-
-          await EpadFile.create({
-            project_id: project.id,
+          // create fileInfo
+          const fileInfo = {
             subject_uid: params.subject ? params.subject : '',
             study_uid: params.study ? params.study : '',
             series_uid: params.series ? params.series : '',
             name: `${filename}_${timestamp}`,
-            filepath: config.filesDir,
+            filepath: 'couchdb',
             filetype: query.filetype ? query.filetype : '',
             length,
-            creator: query.username,
-            updatetime: Date.now(),
-          });
+          };
+          // add to couchdb
+          await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
+          // add link to db if thick
+          if (config.mode === 'thick') {
+            const project = await Project.findOne({ where: { projectid: params.project } });
+            if (project && project !== null) {
+              await ProjectFile.create({
+                project_id: project.id,
+                file_uid: fileInfo.name,
+                creator: query.username,
+                updatetime: Date.now(),
+              });
+            } else reject(new Error('Project does not exist'));
+          }
           resolve();
         } catch (err) {
+          console.log(err);
           reject(err);
         }
       })
   );
+
+  fastify.decorate('getProjectFiles', async (request, reply) => {
+    try {
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
+      const fileUids = [];
+      ProjectFile.findAll({ where: { project_id: project.id } }).then(projectFiles => {
+        // projects will be an array of Project instances with the specified name
+        projectFiles.forEach(projectFile => fileUids.push(projectFile.file_uid));
+        fastify
+          .getFilesFromUIDsInternal(request.query, fileUids)
+          .then(result => {
+            if (request.query.format === 'stream') {
+              reply.header('Content-Disposition', `attachment; filename=files.zip`);
+            }
+            reply.code(200).send(result);
+          })
+          .catch(err => reply.code(503).send(err));
+      });
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in get: ${err}`);
+      reply.code(503).send(`Getting error: ${err}`);
+    }
+  });
+
+  fastify.decorate('deleteFileFromProject', async (request, reply) => {
+    try {
+      const { filename } = request.params;
+      const project = await Project.findOne({ where: { projectid: request.params.project } });
+
+      const numDeleted = await ProjectFile.destroy({
+        where: { project_id: project.id, file_uid: filename },
+      });
+      // if delete from all or it doesn't exist in any other project, delete from system
+      try {
+        if (request.query.all && request.query.all === 'true') {
+          const deletednum = await ProjectFile.destroy({
+            where: { file_uid: filename },
+          });
+          await fastify.deleteFileInternal(request.params);
+          reply
+            .code(200)
+            .send(`File deleted from system and removed from ${deletednum + numDeleted} projects`);
+        } else {
+          const count = await ProjectFile.count({ where: { file_uid: filename } });
+          if (count === 0) {
+            await fastify.deleteFileInternal(request.params);
+            reply
+              .code(200)
+              .send(`File deleted from system as it didn't exist in any other project`);
+          } else reply.code(200).send(`File not deleted from system as it exists in other project`);
+        }
+      } catch (deleteErr) {
+        console.log(deleteErr);
+        reply.code(503).send(`Deletion error: ${deleteErr}`);
+      }
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
+  });
+
+  fastify.decorate('deleteFileFromSystem', async (request, reply) => {
+    try {
+      const { filename } = request.params;
+      const numDeleted = await ProjectTemplate.destroy({
+        where: { file_uid: filename },
+      });
+      await fastify.deleteFileInternal(request.params);
+      reply.code(200).send(`File deleted from system and removed from ${numDeleted} projects`);
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in delete: ${err}`);
+      reply.code(503).send(`Deletion error: ${err}`);
+    }
+  });
 
   fastify.after(async () => {
     try {

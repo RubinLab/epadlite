@@ -25,7 +25,7 @@ async function other(fastify) {
             let datasets = [];
             let studies = new Set();
             fastify.log.info('Files copy completed. sending response');
-            reply.code(200).send();
+            if (config.env !== 'test') reply.code(200).send();
             for (let i = 0; i < filenames.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
               await fastify.processFile(
@@ -48,7 +48,9 @@ async function other(fastify) {
                   fastify.log.info('Upload completed');
                   datasets = [];
                   studies = new Set();
-                  // reply.code(200).send();
+                  // test should wait for the upload to actually finish to send the response.
+                  // sending the reply early is to handle very large files and to avoid browser repeating the request
+                  if (config.env === 'test') reply.code(200).send();
                   fs.remove(dir, error => {
                     if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                     fastify.log.info(`${dir} deleted`);
@@ -56,7 +58,9 @@ async function other(fastify) {
                 });
               } else {
                 fastify.log.info('Upload completed');
-                // reply.code(200).send();
+                // test should wait for the upload to actually finish to send the response.
+                // sending the reply early is to handle very large files and to avoid browser repeating the request
+                if (config.env === 'test') reply.code(200).send();
                 fs.remove(dir, error => {
                   if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                   else fastify.log.info(`${dir} deleted`);
@@ -272,13 +276,18 @@ async function other(fastify) {
                 .processZip(dir, filename, params, query)
                 .then(() => resolve())
                 .catch(err => reject(err));
-            } else {
-              // TODO save as a regular file!
+            } else if (fastify.checkFileType(filename))
               fastify
-                .addFile(dir, filename, params, query, Buffer.byteLength(buffer))
+                .saveOtherFileToProjectInternal(
+                  filename,
+                  params,
+                  query,
+                  buffer,
+                  Buffer.byteLength(buffer)
+                )
                 .then(() => resolve())
                 .catch(err => reject(err));
-            }
+            else reject(new Error('Unsupported filetype'));
           });
         } catch (err) {
           fastify.log.info(err.message);
@@ -286,6 +295,14 @@ async function other(fastify) {
         }
       })
   );
+
+  fastify.decorate('getExtension', filename => {
+    return filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
+  });
+
+  fastify.decorate('checkFileType', filename => {
+    return config.validExt.includes(fastify.getExtension(filename));
+  });
 
   fastify.decorate('deleteSubject', (request, reply) => {
     fastify

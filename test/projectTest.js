@@ -1635,4 +1635,164 @@ describe('Project Tests', () => {
         });
     });
   });
+  describe('Project File Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testfile',
+          projectName: 'testfile',
+          projectDescription: 'testdesc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      // await chai
+      //   .request(`http://${process.env.host}:${process.env.port}`)
+      //   .post('/projects')
+      //   .send({
+      //     projectId: 'testfile2',
+      //     projectName: 'testfile2',
+      //     projectDescription: 'test2desc',
+      //     defaultTemplate: 'ROI',
+      //     type: 'private',
+      //     userName: 'admin',
+      //   });
+      // await chai
+      //   .request(`http://${process.env.host}:${process.env.port}`)
+      //   .post('/projects')
+      //   .send({
+      //     projectId: 'testfile3',
+      //     projectName: 'testfile3',
+      //     projectDescription: 'test3desc',
+      //     defaultTemplate: 'ROI',
+      //     type: 'private',
+      //     userName: 'admin',
+      //   });
+      // await chai
+      //   .request(`http://${process.env.host}:${process.env.port}`)
+      //   .post('/projects')
+      //   .send({
+      //     projectId: 'testfile4',
+      //     projectName: 'testfile4',
+      //     projectDescription: 'test4desc',
+      //     defaultTemplate: 'ROI',
+      //     type: 'private',
+      //     userName: 'admin',
+      //   });
+    });
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfile');
+      // await chai
+      //   .request(`http://${process.env.host}:${process.env.port}`)
+      //   .delete('/projects/testfile2');
+      // await chai
+      //   .request(`http://${process.env.host}:${process.env.port}`)
+      //   .delete('/projects/testfile3');
+      // await chai
+      //   .request(`http://${process.env.host}:${process.env.port}`)
+      //   .delete('/projects/testfile4');
+    });
+    it('project testfile should have no files ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('unknown extension file upload should fail ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testfile/files')
+        .attach('files', 'test/data/unknownextension.abc', 'test/data/unknownextension.abc')
+        .then(res => {
+          expect(res.statusCode).to.not.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testfile should still have no files ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('jpg file upload should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testfile/files')
+        .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testfile should have 1 file ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('jpg file delete with filename retrieval and delete should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .delete(`/projects/testfile/files/${res.body[0].name}`)
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testfile should have no files ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
 });

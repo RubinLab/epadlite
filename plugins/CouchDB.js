@@ -911,6 +911,149 @@ async function couchdb(fastify, options) {
       .catch(err => reply.code(503).send(err));
   });
 
+  fastify.decorate(
+    'saveOtherFileInternal',
+    (filename, fileInfo, buffer) =>
+      new Promise((resolve, reject) => {
+        const couchDoc = {
+          _id: fileInfo.name,
+          fileInfo,
+        };
+        const fileAttach = {
+          name: filename,
+          data: buffer,
+          content_type: '',
+        };
+        const db = fastify.couch.db.use(config.db);
+        db.get(couchDoc._id, (error, existing) => {
+          if (!error) {
+            couchDoc._rev = existing._rev;
+            fastify.log.info(`Updating document for file ${couchDoc._id}`);
+          }
+
+          db.multipart
+            .insert(couchDoc, [fileAttach], couchDoc._id)
+            .then(() => {
+              resolve('Saving successful');
+            })
+            .catch(err => {
+              // TODO Proper error reporting implementation required
+              reject(err);
+            });
+        });
+      })
+  );
+
+  fastify.decorate(
+    'getFilesFromUIDsInternal',
+    (query, ids) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let format = 'json';
+          if (query.format) format = query.format.toLowerCase();
+
+          const db = fastify.couch.db.use(config.db);
+          const res = [];
+          if (format === 'json') {
+            db.fetch({ keys: ids }).then(data => {
+              data.rows.forEach(item => {
+                if ('doc' in item) res.push(item.doc.fileInfo);
+              });
+              resolve(res);
+            });
+          } else if (format === 'stream') {
+            fastify
+              .downloadFiles(ids)
+              .then(result => resolve(result))
+              .catch(err => reject(err));
+          }
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'downloadFiles',
+    async ids =>
+      new Promise((resolve, reject) => {
+        const timestamp = new Date().getTime();
+        const dir = `tmp_${timestamp}`;
+        // have a boolean just to avoid filesystem check for empty annotations directory
+        let isThereDataToWrite = false;
+
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir);
+          fs.mkdirSync(`${dir}/files`);
+
+          const db = fastify.couch.db.use(config.db);
+          for (let i = 0; i < ids.length; i += 1) {
+            const filename = ids[i].split('_')[0];
+            db.attachment
+              .getAsStream(ids[i], filename)
+              .pipe(fs.createWriteStream(`${dir}/files/${filename}`));
+            isThereDataToWrite = true;
+          }
+        }
+        if (isThereDataToWrite) {
+          // create a file to stream archive data to.
+          const output = fs.createWriteStream(`${dir}/templates.zip`);
+          const archive = archiver('zip', {
+            zlib: { level: 9 }, // Sets the compression level.
+          });
+          // create the archive
+          archive
+            .directory(`${dir}/templates`, false)
+            .on('error', err => reject(err))
+            .pipe(output);
+
+          output.on('close', () => {
+            fastify.log.info(`Created zip in ${dir}`);
+            const readStream = fs.createReadStream(`${dir}/templates.zip`);
+            // delete tmp folder after the file is sent
+            readStream.once('end', () => {
+              readStream.destroy(); // make sure stream closed, not close if download aborted.
+              fs.remove(dir, error => {
+                if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+                else fastify.log.info(`${dir} deleted`);
+              });
+            });
+            resolve(readStream);
+          });
+          archive.finalize();
+        } else {
+          fs.remove(dir, error => {
+            if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+            else fastify.log.info(`${dir} deleted`);
+          });
+          reject(new Error('No files to write!'));
+        }
+      })
+  );
+  fastify.decorate(
+    'deleteFileInternal',
+    params =>
+      new Promise((resolve, reject) => {
+        const db = fastify.couch.db.use(config.db);
+        db.get(params.filename, (error, existing) => {
+          if (error) {
+            fastify.log.info(`No document for uid ${params.uid}`);
+            reject(new Error(`No document for uid ${params.uid}`));
+          }
+
+          db.destroy(params.filename, existing._rev)
+            .then(() => {
+              resolve();
+            })
+            .catch(err => {
+              // TODO Proper error reporting implementation required
+              fastify.log.info(`Error in delete: ${err}`);
+              reject(err);
+            });
+        });
+      })
+  );
+
   fastify.log.info(`Using db: ${config.db}`);
   // register couchdb
   // disables eslint check as I want this module to be standalone to be (un)pluggable

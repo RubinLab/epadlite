@@ -18,13 +18,9 @@ module.exports = function(sequelize, DataTypes) {
           key: 'id',
         },
       },
-      file_id: {
-        type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
-        references: {
-          model: 'epad_file',
-          key: 'id',
-        },
+      file_uid: {
+        type: DataTypes.STRING(256),
+        allowNull: false,
       },
       creator: {
         type: DataTypes.STRING(128),
