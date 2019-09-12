@@ -997,19 +997,19 @@ async function couchdb(fastify, options) {
         }
         if (isThereDataToWrite) {
           // create a file to stream archive data to.
-          const output = fs.createWriteStream(`${dir}/templates.zip`);
+          const output = fs.createWriteStream(`${dir}/files.zip`);
           const archive = archiver('zip', {
             zlib: { level: 9 }, // Sets the compression level.
           });
           // create the archive
           archive
-            .directory(`${dir}/templates`, false)
+            .directory(`${dir}/files`, false)
             .on('error', err => reject(err))
             .pipe(output);
 
           output.on('close', () => {
             fastify.log.info(`Created zip in ${dir}`);
-            const readStream = fs.createReadStream(`${dir}/templates.zip`);
+            const readStream = fs.createReadStream(`${dir}/files.zip`);
             // delete tmp folder after the file is sent
             readStream.once('end', () => {
               readStream.destroy(); // make sure stream closed, not close if download aborted.

@@ -161,6 +161,9 @@ async function routes(fastify) {
     url: '/projects/:project/files',
     schema: {
       tags: ['project', 'files'],
+      querystring: {
+        format: { type: 'string' },
+      },
       params: {
         type: 'object',
         properties: {
@@ -177,6 +180,9 @@ async function routes(fastify) {
     url: '/projects/:project/subjects/:subject/files',
     schema: {
       tags: ['project', 'files'],
+      querystring: {
+        format: { type: 'string' },
+      },
       params: {
         type: 'object',
         properties: {
@@ -196,6 +202,9 @@ async function routes(fastify) {
     url: '/projects/:project/subjects/:subject/studies/:study/files',
     schema: {
       tags: ['project', 'files'],
+      querystring: {
+        format: { type: 'string' },
+      },
       params: {
         type: 'object',
         properties: {
@@ -218,6 +227,9 @@ async function routes(fastify) {
     url: '/projects/:project/subjects/:subject/studies/:study/series/:series/files',
     schema: {
       tags: ['project', 'files'],
+      querystring: {
+        format: { type: 'string' },
+      },
       params: {
         type: 'object',
         properties: {
@@ -332,6 +344,113 @@ async function routes(fastify) {
       },
     },
     handler: fastify.deleteFileFromProject,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/files/:filename',
+    schema: {
+      tags: ['project', 'files'],
+      querystring: {
+        format: { type: 'string' },
+      },
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          filename: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getProjectFile,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/subjects/:subject/files/:filename',
+    schema: {
+      tags: ['project', 'files'],
+      querystring: {
+        format: { type: 'string' },
+      },
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          filename: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getProjectFile,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/subjects/:subject/studies/:study/files/:filename',
+    schema: {
+      tags: ['project', 'files'],
+      querystring: {
+        format: { type: 'string' },
+      },
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          filename: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getProjectFile,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/subjects/:subject/studies/:study/series/:series/files/:filename',
+    schema: {
+      tags: ['project', 'files'],
+      querystring: {
+        format: { type: 'string' },
+      },
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          filename: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getProjectFile,
   });
 }
 module.exports = routes;

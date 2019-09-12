@@ -38,7 +38,6 @@ beforeEach(() => {
 });
 
 describe('Project Tests', () => {
-  // console.log()
   it('projects should have no projects ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -1755,6 +1754,52 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
           done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should get json with filename (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .get(`/projects/testfile/files/${res.body[0].name}`)
+            .then(resGet => {
+              expect(resGet.statusCode).to.equal(200);
+              expect(resGet.body.name).to.equal(res.body[0].name);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should download file with filename (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .get(`/projects/testfile/files/${res.body[0].name}`)
+            .query({ format: 'stream' })
+            .then(resGet => {
+              expect(resGet.statusCode).to.equal(200);
+              expect(resGet).to.have.header(
+                'Content-Disposition',
+                'attachment; filename=files.zip'
+              );
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
         })
         .catch(e => {
           done(e);

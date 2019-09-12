@@ -961,6 +961,22 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('getProjectFile', async (request, reply) => {
+    fastify
+      .getFilesFromUIDsInternal(request.query, [request.params.filename])
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=files.zip`);
+          reply.code(200).send(result);
+        } else if (result.length === 1) reply.code(200).send(result[0]);
+        else {
+          fastify.log.info(`Was expecting to find 1 record, found ${result.length}`);
+          reply.code(404).send(`Was expecting to find 1 record, found ${result.length}`);
+        }
+      })
+      .catch(err => reply.code(503).send(err));
+  });
+
   fastify.decorate('deleteFileFromProject', async (request, reply) => {
     try {
       const { filename } = request.params;
