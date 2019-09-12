@@ -905,19 +905,55 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate(
+    'checkProjectAssociation',
+    (projectId, params) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          if (params.subject) {
+            const projectSubject = await models.project_subject.findOne({
+              where: { project_id: projectId, subject_uid: params.subject },
+            });
+            if (!projectSubject) {
+              reject(
+                new Error(`Subject ${params.subject} is not assosiated with ${params.project}`)
+              );
+            } else if (params.study) {
+              const projectSubjectStudy = await models.project_subject_study.findOne({
+                where: { proj_subj_id: projectSubject.id, study_uid: params.study },
+              });
+              if (!projectSubjectStudy) {
+                reject(new Error(`Study ${params.study} is not assosiated with ${params.project}`));
+              }
+            }
+          }
+          resolve();
+        } catch (err) {
+          console.log(err);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
     'putOtherFileToProjectInternal',
     (filename, params, query) =>
       new Promise(async (resolve, reject) => {
         try {
           const project = await models.project.findOne({ where: { projectid: params.project } });
+          // if the subjects and/or study is given, make sure that subject and/or study is assosiacted with the project
           if (project && project !== null) {
-            await models.project_file.create({
-              project_id: project.id,
-              file_uid: filename,
-              creator: query.username,
-              updatetime: Date.now(),
-            });
-            resolve();
+            fastify
+              .checkProjectAssociation(project.id, params)
+              .then(async () => {
+                await models.project_file.create({
+                  project_id: project.id,
+                  file_uid: filename,
+                  creator: query.username,
+                  updatetime: Date.now(),
+                });
+                resolve();
+              })
+              .catch(errAssoc => reject(errAssoc));
           } else reject(new Error('Project does not exist'));
         } catch (err) {
           console.log(err);
@@ -936,7 +972,11 @@ async function epaddb(fastify, options, done) {
         // projects will be an array of Project instances with the specified name
         projectFiles.forEach(projectFile => fileUids.push(projectFile.file_uid));
         fastify
-          .getFilesFromUIDsInternal(request.query, fileUids)
+          .getFilesFromUIDsInternal(
+            request.query,
+            fileUids,
+            (({ subject, study, series }) => ({ subject, study, series }))(request.params)
+          )
           .then(result => {
             if (request.query.format === 'stream') {
               reply.header('Content-Disposition', `attachment; filename=files.zip`);

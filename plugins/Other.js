@@ -24,20 +24,22 @@ async function other(fastify) {
           .then(async () => {
             let datasets = [];
             let studies = new Set();
-            fastify.log.info('Files copy completed. sending response');
-            if (config.env !== 'test') reply.code(200).send();
-            for (let i = 0; i < filenames.length; i += 1) {
-              // eslint-disable-next-line no-await-in-loop
-              await fastify.processFile(
-                dir,
-                filenames[i],
-                datasets,
-                request.params,
-                request.query,
-                studies
-              );
+            if (config.env !== 'test') {
+              fastify.log.info('Files copy completed. sending response');
+              reply.code(200).send();
             }
             try {
+              for (let i = 0; i < filenames.length; i += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.processFile(
+                  dir,
+                  filenames[i],
+                  datasets,
+                  request.params,
+                  request.query,
+                  studies
+                );
+              }
               // see if it was a dicom
               if (datasets.length > 0) {
                 if (config.mode === 'thick')
@@ -61,6 +63,7 @@ async function other(fastify) {
                 // test should wait for the upload to actually finish to send the response.
                 // sending the reply early is to handle very large files and to avoid browser repeating the request
                 if (config.env === 'test') reply.code(200).send();
+
                 fs.remove(dir, error => {
                   if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                   else fastify.log.info(`${dir} deleted`);
@@ -316,11 +319,10 @@ async function other(fastify) {
           await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
           // add link to db if thick
           if (config.mode === 'thick') {
-            fastify.putOtherFileToProjectInternal(fileInfo.name, params, query);
+            await fastify.putOtherFileToProjectInternal(fileInfo.name, params, query);
           }
           resolve();
         } catch (err) {
-          console.log(err);
           reject(err);
         }
       })

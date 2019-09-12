@@ -945,17 +945,45 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate(
+    'filterFiles',
+    (ids, filter) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const filteredIds = [];
+          db.fetch({ keys: ids }).then(data => {
+            data.rows.forEach(item => {
+              if (
+                'doc' in item &&
+                item.doc.fileInfo &&
+                (filter.subject === undefined ||
+                  item.doc.fileInfo.subject_uid === filter.subject) &&
+                (filter.study === undefined || item.doc.fileInfo.study_uid === filter.study) &&
+                (filter.series === undefined || item.doc.fileInfo.series_uid === filter.series)
+              )
+                filteredIds.push(item.id);
+            });
+            resolve(filteredIds);
+          });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
     'getFilesFromUIDsInternal',
-    (query, ids) =>
+    (query, ids, filter) =>
       new Promise(async (resolve, reject) => {
         try {
           let format = 'json';
           if (query.format) format = query.format.toLowerCase();
-
+          let filteredIds = ids;
+          if (filter) filteredIds = await fastify.filterFiles(ids, filter);
           const db = fastify.couch.db.use(config.db);
           const res = [];
           if (format === 'json') {
-            db.fetch({ keys: ids }).then(data => {
+            db.fetch({ keys: filteredIds }).then(data => {
               data.rows.forEach(item => {
                 if ('doc' in item) res.push(item.doc.fileInfo);
               });
@@ -963,7 +991,7 @@ async function couchdb(fastify, options) {
             });
           } else if (format === 'stream') {
             fastify
-              .downloadFiles(ids)
+              .downloadFiles(filteredIds)
               .then(result => resolve(result))
               .catch(err => reject(err));
           }
