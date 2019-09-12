@@ -310,226 +310,228 @@ async function routes(fastify) {
     },
     handler: fastify.getProjectAim,
   });
-  fastify.route({
-    method: 'POST',
-    url: '/projects/:project/subjects/:subject/aims',
-    schema: {
-      tags: ['project', 'aim'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          subject: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.saveAimToProject,
-  });
-  fastify.route({
-    method: 'PUT',
-    url: '/projects/:project/subjects/:subject/aims/:aimuid',
-    schema: {
-      tags: ['project', 'aim'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          subject: {
-            type: 'string',
-          },
 
-          aimuid: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.saveAimToProject,
-  });
-  // delete an aim document
-  fastify.route({
-    method: 'DELETE',
-    url: '/projects/:project/subjects/:subject/aims/:aimuid',
-    schema: {
-      tags: ['project', 'aim'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          subject: {
-            type: 'string',
-          },
+  // these subject, study, series aim put, pot, delete routes does not make sense as aim has that info
+  // fastify.route({
+  //   method: 'POST',
+  //   url: '/projects/:project/subjects/:subject/aims',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.saveAimToProject,
+  // });
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/projects/:project/subjects/:subject/aims/:aimuid',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
 
-          aimuid: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.deleteAimFromProject,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/projects/:project/subjects/:subject/studies/:study/aims',
-    schema: {
-      tags: ['project', 'aim'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.saveAimToProject,
-  });
-  fastify.route({
-    method: 'PUT',
-    url: '/projects/:project/subjects/:subject/studies/:study/aims/:aimuid',
-    schema: {
-      tags: ['project', 'aim'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-          aimuid: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.saveAimToProject,
-  });
-  // delete an aim document
-  fastify.route({
-    method: 'DELETE',
-    url: '/projects/:project/subjects/:subject/studies/:study/aims/:aimuid',
-    schema: {
-      tags: ['project', 'aim'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-          aimuid: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.deleteAimFromProject,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims',
-    schema: {
-      tags: ['project', 'aim'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-          series: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.saveAimToProject,
-  });
-  fastify.route({
-    method: 'PUT',
-    url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims/:aimuid',
-    schema: {
-      tags: ['project', 'aim'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-          series: {
-            type: 'string',
-          },
-          aimuid: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.saveAimToProject,
-  });
-  // delete an aim document
-  fastify.route({
-    method: 'DELETE',
-    url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims/:aimuid',
-    schema: {
-      tags: ['project', 'aim'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-          series: {
-            type: 'string',
-          },
-          aimuid: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.deleteAimFromProject,
-  });
+  //         aimuid: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.saveAimToProject,
+  // });
+  // // delete an aim document
+  // fastify.route({
+  //   method: 'DELETE',
+  //   url: '/projects/:project/subjects/:subject/aims/:aimuid',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
+
+  //         aimuid: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.deleteAimFromProject,
+  // });
+  // fastify.route({
+  //   method: 'POST',
+  //   url: '/projects/:project/subjects/:subject/studies/:study/aims',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
+  //         study: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.saveAimToProject,
+  // });
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/projects/:project/subjects/:subject/studies/:study/aims/:aimuid',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
+  //         study: {
+  //           type: 'string',
+  //         },
+  //         aimuid: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.saveAimToProject,
+  // });
+  // // delete an aim document
+  // fastify.route({
+  //   method: 'DELETE',
+  //   url: '/projects/:project/subjects/:subject/studies/:study/aims/:aimuid',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
+  //         study: {
+  //           type: 'string',
+  //         },
+  //         aimuid: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.deleteAimFromProject,
+  // });
+  // fastify.route({
+  //   method: 'POST',
+  //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
+  //         study: {
+  //           type: 'string',
+  //         },
+  //         series: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.saveAimToProject,
+  // });
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims/:aimuid',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
+  //         study: {
+  //           type: 'string',
+  //         },
+  //         series: {
+  //           type: 'string',
+  //         },
+  //         aimuid: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.saveAimToProject,
+  // });
+  // // delete an aim document
+  // fastify.route({
+  //   method: 'DELETE',
+  //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims/:aimuid',
+  //   schema: {
+  //     tags: ['project', 'aim'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         project: {
+  //           type: 'string',
+  //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
+  //         study: {
+  //           type: 'string',
+  //         },
+  //         series: {
+  //           type: 'string',
+  //         },
+  //         aimuid: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.deleteAimFromProject,
+  // });
 }
 module.exports = routes;
