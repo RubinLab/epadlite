@@ -2082,7 +2082,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should add file to testfile2 project (filename retrieval is done via get all) ', done => {
+    it('should add file to testfilesubject2 project (filename retrieval is done via get all) ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
@@ -2102,7 +2102,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should add file to testfile3 project (filename retrieval is done via get all) ', done => {
+    it('should add file to testfilesubject3 project (filename retrieval is done via get all) ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
@@ -2122,7 +2122,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should fail adding add file to testfile4 project (filename retrieval is done via get all) ', done => {
+    it('should fail adding add file to testfilesubject4 project (filename retrieval is done via get all) ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
@@ -2234,7 +2234,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should succeed in deleting jpg file from system with filename retrieval from testfile2 and delete should be successful ', done => {
+    it('should succeed in deleting jpg file from system with filename retrieval from testfilesubject2 and delete should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject2/subjects/3/files')
@@ -2272,6 +2272,387 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject3/subjects/3/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
+  describe('Project File Study Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testfilestudy',
+          projectName: 'testfilestudy',
+          projectDescription: 'testdesc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testfilestudy2',
+          projectName: 'testfilestudy2',
+          projectDescription: 'test2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testfilestudy3',
+          projectName: 'testfilestudy3',
+          projectDescription: 'test2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testfilestudy4',
+          projectName: 'testfilestudy4',
+          projectDescription: 'test2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testfilestudy/subjects/3');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testfilestudy2/subjects/3');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testfilestudy3/subjects/3');
+    });
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfilestudy');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfilestudy2');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfilestudy3');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfilestudy4');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfilestudy/subjects/3');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfilestudy2/subjects/3');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfilestudy3/subjects/3');
+    });
+    it('should return no files for subject 3, study 0023.2015.09.28.3 in project testfilestudy', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail uploading unknown extension file to subject 3, study 0023.2015.09.28.3 in project testfilestudy', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .attach('files', 'test/data/unknownextension.abc', 'test/data/unknownextension.abc')
+        .then(res => {
+          expect(res.statusCode).to.not.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should still return no files for subject 3, study 0023.2015.09.28.3  in project testfilestudy ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail uploading jpg file to subject 7, study 64363473737.86569494 nonexistent in project testfilestudy ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testfilestudy/subjects/7/studies/64363473737.86569494/files')
+        .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .then(res => {
+          expect(res.statusCode).to.equal(503);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed uploading jpg file to subject 3, study 0023.2015.09.28.3  in project testfilestudy ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 file for subject 3, study 0023.2015.09.28.3  in project testfilestudy ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should add file to testfilestudy2 project, study 0023.2015.09.28.3  (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put(
+              `/projects/testfilestudy2/subjects/3/studies/0023.2015.09.28.3/files/${
+                res.body[0].name
+              }`
+            )
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should add file to testfilestudy3 project, study 0023.2015.09.28.3  (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put(
+              `/projects/testfilestudy3/subjects/3/studies/0023.2015.09.28.3/files/${
+                res.body[0].name
+              }`
+            )
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail adding add file to testfilestudy4, study 0023.2015.09.28.3  project (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put(
+              `/projects/testfilestudy4/subjects/3/studies/0023.2015.09.28.3/files/${
+                res.body[0].name
+              }`
+            )
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(503);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should get json with filename, study 0023.2015.09.28.3  (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .get(
+              `/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files/${
+                res.body[0].name
+              }`
+            )
+            .then(resGet => {
+              expect(resGet.statusCode).to.equal(200);
+              expect(resGet.body.name).to.equal(res.body[0].name);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should download file with filename, study 0023.2015.09.28.3  (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .get(
+              `/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files/${
+                res.body[0].name
+              }`
+            )
+            .query({ format: 'stream' })
+            .then(resGet => {
+              expect(resGet.statusCode).to.equal(200);
+              expect(resGet).to.have.header(
+                'Content-Disposition',
+                'attachment; filename=files.zip'
+              );
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting jpg file from project testfilestudy, study 0023.2015.09.28.3  with filename retrieval and delete should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .delete(
+              `/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files/${
+                res.body[0].name
+              }`
+            )
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no files for subject 3, study 0023.2015.09.28.3  in project testfilestudy ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 file for subject 3, study 0023.2015.09.28.3  in project testfilestudy2 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy2/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting jpg file of study 0023.2015.09.28.3 from system with filename retrieval from testfilestudy2 and delete should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy2/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .delete(`/projects/testfilestudy2/subjects/3/files/${res.body[0].name}`)
+            .query({ all: 'true' })
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no files for subject 3, study 0023.2015.09.28.3  in project testfilestudy2 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy2/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no files for subject 3, study 0023.2015.09.28.3  in project testfilestudy3 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfilestudy3/subjects/3/studies/0023.2015.09.28.3/files')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
