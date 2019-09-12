@@ -452,5 +452,100 @@ async function routes(fastify) {
     },
     handler: fastify.getProjectFile,
   });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/files/:filename',
+    schema: {
+      tags: ['project', 'files'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          filename: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.putOtherFileToProject,
+  });
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/subjects/:subject/files/:filename',
+    schema: {
+      tags: ['project', 'files'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          filename: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.putOtherFileToProject,
+  });
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/subjects/:subject/studies/:study/files/:filename',
+    schema: {
+      tags: ['project', 'files'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          filename: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.putOtherFileToProject,
+  });
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/subjects/:subject/studies/:study/series/:series/files/:filename',
+    schema: {
+      tags: ['project', 'files'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          filename: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.putOtherFileToProject,
+  });
 }
 module.exports = routes;

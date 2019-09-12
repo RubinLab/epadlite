@@ -897,37 +897,28 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('putOtherFileToProject', (request, reply) => {
+    fastify
+      .putOtherFileToProjectInternal(request.params.filename, request.params, request.query)
+      .then(() => reply.code(200).send())
+      .catch(err => reply.code(503).send(err.message));
+  });
+
   fastify.decorate(
-    'saveOtherFileToProjectInternal',
-    (filename, params, query, buffer, length) =>
+    'putOtherFileToProjectInternal',
+    (filename, params, query) =>
       new Promise(async (resolve, reject) => {
         try {
-          const timestamp = new Date().getTime();
-          // create fileInfo
-          const fileInfo = {
-            subject_uid: params.subject ? params.subject : '',
-            study_uid: params.study ? params.study : '',
-            series_uid: params.series ? params.series : '',
-            name: `${filename}_${timestamp}`,
-            filepath: 'couchdb',
-            filetype: query.filetype ? query.filetype : '',
-            length,
-          };
-          // add to couchdb
-          await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
-          // add link to db if thick
-          if (config.mode === 'thick') {
-            const project = await models.project.findOne({ where: { projectid: params.project } });
-            if (project && project !== null) {
-              await models.project_file.create({
-                project_id: project.id,
-                file_uid: fileInfo.name,
-                creator: query.username,
-                updatetime: Date.now(),
-              });
-            } else reject(new Error('Project does not exist'));
-          }
-          resolve();
+          const project = await models.project.findOne({ where: { projectid: params.project } });
+          if (project && project !== null) {
+            await models.project_file.create({
+              project_id: project.id,
+              file_uid: filename,
+              creator: query.username,
+              updatetime: Date.now(),
+            });
+            resolve();
+          } else reject(new Error('Project does not exist'));
         } catch (err) {
           console.log(err);
           reject(err);

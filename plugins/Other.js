@@ -296,6 +296,36 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate(
+    'saveOtherFileToProjectInternal',
+    (filename, params, query, buffer, length) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const timestamp = new Date().getTime();
+          // create fileInfo
+          const fileInfo = {
+            subject_uid: params.subject ? params.subject : '',
+            study_uid: params.study ? params.study : '',
+            series_uid: params.series ? params.series : '',
+            name: `${filename}_${timestamp}`,
+            filepath: 'couchdb',
+            filetype: query.filetype ? query.filetype : '',
+            length,
+          };
+          // add to couchdb
+          await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
+          // add link to db if thick
+          if (config.mode === 'thick') {
+            fastify.putOtherFileToProjectInternal(fileInfo.name, params, query);
+          }
+          resolve();
+        } catch (err) {
+          console.log(err);
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate('getExtension', filename => {
     return filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
   });

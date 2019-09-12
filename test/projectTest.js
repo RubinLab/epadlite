@@ -1646,53 +1646,39 @@ describe('Project Tests', () => {
           type: 'private',
           userName: 'admin',
         });
-      // await chai
-      //   .request(`http://${process.env.host}:${process.env.port}`)
-      //   .post('/projects')
-      //   .send({
-      //     projectId: 'testfile2',
-      //     projectName: 'testfile2',
-      //     projectDescription: 'test2desc',
-      //     defaultTemplate: 'ROI',
-      //     type: 'private',
-      //     userName: 'admin',
-      //   });
-      // await chai
-      //   .request(`http://${process.env.host}:${process.env.port}`)
-      //   .post('/projects')
-      //   .send({
-      //     projectId: 'testfile3',
-      //     projectName: 'testfile3',
-      //     projectDescription: 'test3desc',
-      //     defaultTemplate: 'ROI',
-      //     type: 'private',
-      //     userName: 'admin',
-      //   });
-      // await chai
-      //   .request(`http://${process.env.host}:${process.env.port}`)
-      //   .post('/projects')
-      //   .send({
-      //     projectId: 'testfile4',
-      //     projectName: 'testfile4',
-      //     projectDescription: 'test4desc',
-      //     defaultTemplate: 'ROI',
-      //     type: 'private',
-      //     userName: 'admin',
-      //   });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testfile2',
+          projectName: 'testfile2',
+          projectDescription: 'test2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testfile3',
+          projectName: 'testfile3',
+          projectDescription: 'test2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        });
     });
     after(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testfile');
-      // await chai
-      //   .request(`http://${process.env.host}:${process.env.port}`)
-      //   .delete('/projects/testfile2');
-      // await chai
-      //   .request(`http://${process.env.host}:${process.env.port}`)
-      //   .delete('/projects/testfile3');
-      // await chai
-      //   .request(`http://${process.env.host}:${process.env.port}`)
-      //   .delete('/projects/testfile4');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfile2');
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testfile3');
     });
     it('project testfile should have no files ', done => {
       chai
@@ -1754,6 +1740,46 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
           done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should add file to testfile2 project (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put(`/projects/testfile2/files/${res.body[0].name}`)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should add file to testfile3 project (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put(`/projects/testfile3/files/${res.body[0].name}`)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
         })
         .catch(e => {
           done(e);
@@ -1829,6 +1855,66 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testfile2 should have 1 file ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile2/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('jpg file delete from system with filename retrieval from testfile2 and delete should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile2/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .delete(`/projects/testfile2/files/${res.body[0].name}`)
+            .query({ all: 'true' })
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testfile2 should have no files ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile2/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testfile3 should have no files ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testfile3/files')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
