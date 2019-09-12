@@ -264,7 +264,7 @@ async function epaddb(fastify, options, done) {
       await models.project_template.create({
         project_id: project.id,
         template_uid: templateUid,
-        enabled: true,
+        enabled: request.query.enable === 'true',
         creator: request.query.username,
         updatetime: Date.now(),
       });
@@ -282,20 +282,32 @@ async function epaddb(fastify, options, done) {
         where: { projectid: request.params.project },
       });
       const templateUids = [];
+      const enabled = {};
       models.project_template
         .findAll({ where: { project_id: project.id } })
         .then(projectTemplates => {
           // projects will be an array of Project instances with the specified name
-          projectTemplates.forEach(projectTemplate =>
-            templateUids.push(projectTemplate.template_uid)
-          );
+          projectTemplates.forEach(projectTemplate => {
+            templateUids.push(projectTemplate.template_uid);
+            enabled[projectTemplate.template_uid] = projectTemplate.enabled;
+          });
           fastify
             .getTemplatesFromUIDsInternal(request.query, templateUids)
             .then(result => {
-              if (request.query.format === 'stream') {
-                reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+              if (request.query.format === 'summary') {
+                // add enable disable
+                const editedResult = result;
+                for (let i = 0; i < editedResult.ResultSet.Result.length; i += 1) {
+                  editedResult.ResultSet.Result[i].enabled =
+                    enabled[editedResult.ResultSet.Result[i].containerUID] === 1;
+                }
+                reply.code(200).send(editedResult);
+              } else {
+                if (request.query.format === 'stream') {
+                  reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+                }
+                reply.code(200).send(result);
               }
-              reply.code(200).send(result);
             })
             .catch(err => reply.code(503).send(err));
         });

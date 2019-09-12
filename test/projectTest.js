@@ -287,10 +287,12 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project template put to project testtemplate2 should be successful ', done => {
+    it('project template put to project testtemplate2 as disabled should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testtemplate2/templates/2.25.121060836007636801627558943005335')
+        .put(
+          '/projects/testtemplate2/templates/2.25.121060836007636801627558943005335?enable=false'
+        )
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -308,6 +310,47 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
           expect(res.body[0].TemplateContainer.Template[0].codeValue).to.be.eql('ROI');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project testtemplate2 should have ROI Only as disabled', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testtemplate2/templates?format=summary')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result[0].enabled).to.be.eql(false);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project template put to project testtemplate2 as enabled should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testtemplate2/templates/2.25.121060836007636801627558943005335?enable=true')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project testtemplate2 should have ROI Only as enabled', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testtemplate2/templates?format=summary')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result[0].enabled).to.be.eql(true);
           done();
         })
         .catch(e => {

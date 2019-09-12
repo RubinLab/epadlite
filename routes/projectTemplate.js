@@ -22,6 +22,9 @@ async function routes(fastify) {
     url: '/projects/:project/templates/:uid',
     schema: {
       tags: ['project', 'template'],
+      querystring: {
+        format: { enable: 'string' },
+      },
       params: {
         type: 'object',
         properties: {
