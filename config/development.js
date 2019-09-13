@@ -8,4 +8,5 @@ module.exports = {
   logger: true,
   https: true,
   mode: 'thick',
+  thickDb: 'epaddb',
 };

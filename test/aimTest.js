@@ -5,19 +5,6 @@ const fs = require('fs');
 chai.use(chaiHttp);
 const { expect } = chai;
 
-// as these are outside any describe, they are global to all tests!
-let server;
-before(async () => {
-  process.env.host = '0.0.0.0';
-  process.env.port = 5987;
-  server = require('../server'); // eslint-disable-line
-  await server.ready();
-  await server.orm.authenticate();
-});
-after(() => {
-  server.close();
-});
-
 describe('System AIM Tests', () => {
   it('aims should be empty for series 1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313 of patient 13116', done => {
     chai
@@ -120,6 +107,24 @@ describe('System AIM Tests', () => {
       });
   });
 
+  it('aim returned with uid 2.25.211702350959705565754863799143359605362 should be Lesion1', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/aims/2.25.211702350959705565754863799143359605362')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            '~'
+          )[0]
+        ).to.be.eql('Lesion1');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('aim update with changing the name to Lesion2 should be successful ', done => {
     const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
     const nameSplit = jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
@@ -152,6 +157,24 @@ describe('System AIM Tests', () => {
         expect(res.statusCode).to.equal(200);
         expect(
           res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            '~'
+          )[0]
+        ).to.be.eql('Lesion2');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('aim returned for patient 13116 with aimuid should be Lesion2', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/subjects/13116/aims/2.25.211702350959705565754863799143359605362')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
             '~'
           )[0]
         ).to.be.eql('Lesion2');

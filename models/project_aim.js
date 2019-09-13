@@ -2,7 +2,7 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'project_file',
+    'project_aim',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -18,8 +18,8 @@ module.exports = function(sequelize, DataTypes) {
           key: 'id',
         },
       },
-      file_uid: {
-        type: DataTypes.STRING(256),
+      aim_uid: {
+        type: DataTypes.STRING(128),
         allowNull: false,
       },
       creator: {
@@ -42,7 +42,7 @@ module.exports = function(sequelize, DataTypes) {
       },
     },
     {
-      tableName: 'project_file',
+      tableName: 'project_aim',
     }
   );
 };

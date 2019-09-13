@@ -112,13 +112,15 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const postHeader = {
-            headers: {
-              ...header.headers,
-              ...{
-                'content-type': `multipart/related; type=application/dicom; boundary=${boundary}`,
-                maxContentLength: Buffer.byteLength(data) + 1,
-              },
+            // TODO this headers attribute should be required. gives 'Request body larger than maxBodyLength limit' error
+            // maybe related to cors. header is not populated properly with header anyway
+            // headers: {
+            ...header.headers,
+            ...{
+              'Content-Type': `multipart/related; type=application/dicom; boundary=${boundary}`,
+              maxContentLength: Buffer.byteLength(data) + 1,
             },
+            // },
           };
           this.request
             .post('/studies', data, postHeader)
@@ -194,7 +196,7 @@ async function dicomwebserver(fastify) {
         try {
           // make studies cal and aims call
           const studies = this.request.get('/studies', header);
-          const aims = fastify.getAims('summary', { subject: '', study: '', series: '' });
+          const aims = fastify.getAimsInternal('summary', { subject: '', study: '', series: '' });
           Promise.all([studies, aims])
             .then(async values => {
               // handle success
@@ -203,7 +205,8 @@ async function dicomwebserver(fastify) {
                 values[0].data,
                 values[1].ResultSet.Result,
                 filter,
-                '00100020'
+                '00100020',
+                'subjectID'
               );
               // populate an aim counts map containing each subject
               const aimsCountMap = {};
@@ -284,14 +287,14 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'filter',
-    (studies, aims, filter, tag) =>
+    (studies, aims, filter, tag, aimField) =>
       new Promise((resolve, reject) => {
         try {
           let filteredStudies = studies;
           let filteredAims = aims;
           if (filter) {
             filteredStudies = _.filter(filteredStudies, obj => filter.includes(obj[tag].Value[0]));
-            filteredAims = _.filter(filteredAims, obj => filter.includes(obj.subjectID));
+            filteredAims = _.filter(filteredAims, obj => filter.includes(obj[aimField]));
           }
           resolve({ filteredStudies, filteredAims });
         } catch (err) {
@@ -299,6 +302,18 @@ async function dicomwebserver(fastify) {
         }
       })
   );
+
+  fastify.decorate('getPatientStudy', (request, reply) => {
+    fastify
+      .getPatientStudiesInternal(request.params, [request.params.study])
+      .then(result => {
+        if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
+        else {
+          reply.code(404).send(`Subject ${request.params.subject} not found`);
+        }
+      })
+      .catch(err => reply.code(503).send(err.message));
+  });
 
   fastify.decorate('getPatientStudies', (request, reply) => {
     fastify
@@ -314,8 +329,8 @@ async function dicomwebserver(fastify) {
         try {
           const studies = this.request.get('/studies', header);
           // get aims for a specific patient
-          const aims = fastify.getAims('summary', {
-            subject: params.subject,
+          const aims = fastify.getAimsInternal('summary', {
+            subject: params.subject ? params.subject : '',
             study: '',
             series: '',
           });
@@ -324,11 +339,13 @@ async function dicomwebserver(fastify) {
             .then(async values => {
               // handle success
               // filter the results if patient id filter is given
-              const { filteredStudies, filteredAims } = await fastify.filter(
+              // eslint-disable-next-line prefer-const
+              let { filteredStudies, filteredAims } = await fastify.filter(
                 values[0].data,
                 values[1].ResultSet.Result,
                 filter,
-                '0020000D'
+                '0020000D',
+                'studyUID'
               );
               // populate an aim counts map containing each study
               const aimsCountMap = {};
@@ -347,12 +364,15 @@ async function dicomwebserver(fastify) {
                   aimsCountMap[value[0].studyUID] = numberOfAims;
                 })
                 .value();
-              // get the grouped data according to patient id
-              const grouped = _.groupBy(filteredStudies, value => {
-                return value['00100020'].Value['0'];
-              });
+              // filter by patient id
+              if (params.subject)
+                filteredStudies = _.filter(
+                  filteredStudies,
+                  obj => obj['00100020'].Value[0] === params.subject
+                );
+
               // get the patients's studies and map each study to epadlite study object
-              const result = _.map(grouped[params.subject], value => {
+              const result = _.map(filteredStudies, value => {
                 return {
                   projectID,
                   patientID: value['00100020'].Value[0],
@@ -407,7 +427,7 @@ async function dicomwebserver(fastify) {
         try {
           const series = this.request.get(`/studies/${params.study}/series`, header);
           // get aims for a specific study
-          const aims = fastify.getAims('summary', {
+          const aims = fastify.getAimsInternal('summary', {
             subject: params.subject,
             study: params.study,
             series: '',
@@ -557,6 +577,18 @@ async function dicomwebserver(fastify) {
         }
       })
   );
+
+  fastify.decorate('getPatient', (request, reply) => {
+    fastify
+      .getPatientsInternal([request.params.subject])
+      .then(result => {
+        if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
+        else {
+          reply.code(404).send(`Subject ${request.params.subject} not found`);
+        }
+      })
+      .catch(err => reply.code(503).send(err.message));
+  });
 
   fastify.log.info(`Using DICOMwebServer: ${config.dicomWebConfig.baseUrl}`);
 

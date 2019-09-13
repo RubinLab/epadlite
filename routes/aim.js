@@ -74,7 +74,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getSeriesAims,
+    handler: fastify.getAims,
   });
 
   // GET {s}/subjects/:subject/studies/:study/aims
@@ -102,7 +102,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getStudyAims,
+    handler: fastify.getAims,
   });
 
   // GET {s}/subjects/:subject/aims
@@ -127,7 +127,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getSubjectAims,
+    handler: fastify.getAims,
   });
 
   // GET {s}/aims
@@ -141,7 +141,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getProjectAims,
+    handler: fastify.getAims,
   });
 
   // POST {s}/aims/download
@@ -167,6 +167,43 @@ async function aimRoutes(fastify) {
     },
 
     handler: fastify.getAimsFromUIDs,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/aims/:aimuid',
+    schema: {
+      tags: ['aim'],
+      params: {
+        type: 'object',
+        properties: {
+          aimuid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getAim,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/subjects/:subject/aims/:aimuid',
+    schema: {
+      tags: ['aim'],
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          aimuid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getAim,
   });
 }
 

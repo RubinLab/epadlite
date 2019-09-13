@@ -153,6 +153,55 @@ async function routes(fastify) {
 
     handler: fastify.deleteSubject,
   });
+  fastify.route({
+    method: 'GET',
+    url: '/subjects/:subject',
+    schema: {
+      tags: ['subject'],
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.getPatient,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/studies',
+    schema: {
+      tags: ['study'],
+      response: {
+        200: 'epadlite_studies_schema#',
+      },
+    },
+    handler: fastify.getPatientStudies,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/studies/:study',
+    schema: {
+      tags: ['study'],
+      params: {
+        type: 'object',
+        properties: {
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getPatientStudy,
+  });
 }
 
 module.exports = routes;

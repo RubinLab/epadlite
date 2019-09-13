@@ -234,5 +234,53 @@ async function routes(fastify) {
     },
     handler: fastify.addPatientStudyToProject,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/subjects/:subject/studies/:study',
+    schema: {
+      tags: ['project', 'study'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.getPatientStudyFromProject,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/subjects/:subject',
+    schema: {
+      tags: ['project', 'subject'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.getSubjectFromProject,
+  });
 }
 module.exports = routes;
