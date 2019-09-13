@@ -70,7 +70,7 @@ async function epaddb(fastify, options, done) {
           as: 'users',
           foreignKey: 'project_id',
         });
-        
+
         await fastify.orm.sync();
         resolve();
       } catch (err) {
@@ -155,7 +155,7 @@ async function epaddb(fastify, options, done) {
     let userId;
     try {
       // find user id
-      userId = await User.findOne({
+      userId = await models.user.findOne({
         where: { username: request.params.user },
         attributes: ['id'],
       });
@@ -163,15 +163,16 @@ async function epaddb(fastify, options, done) {
     } catch (err) {
       console.log(err);
     }
-    Worklist.create({
-      name: request.body.name,
-      worklistid: request.body.worklistid,
-      user_id: userId,
-      description: request.body.description,
-      updatetime: Date.now(),
-      duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
-      creator: request.body.username,
-    })
+    models.worklist
+      .create({
+        name: request.body.name,
+        worklistid: request.body.worklistid,
+        user_id: userId,
+        description: request.body.description,
+        updatetime: Date.now(),
+        duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
+        creator: request.body.username,
+      })
       .then(worklist => {
         reply.code(200).send(`success with id ${worklist.id}`);
       })
@@ -202,7 +203,7 @@ async function epaddb(fastify, options, done) {
     let userId;
     try {
       // find user id
-      userId = await User.findOne({
+      userId = await models.user.findOne({
         where: { username: request.params.user },
         attributes: ['id'],
       });
@@ -210,15 +211,16 @@ async function epaddb(fastify, options, done) {
     } catch (err) {
       console.log(err);
     }
-    Worklist.update(
-      { ...request.body, updatetime: Date.now(), updated_by: request.body.username },
-      {
-        where: {
-          user_id: userId,
-          worklistid: request.params.worklist,
-        },
-      }
-    )
+    models.worklist
+      .update(
+        { ...request.body, updatetime: Date.now(), updated_by: request.body.username },
+        {
+          where: {
+            user_id: userId,
+            worklistid: request.params.worklist,
+          },
+        }
+      )
       .then(() => {
         reply.code(200).send('Update successful');
       })
@@ -229,7 +231,7 @@ async function epaddb(fastify, options, done) {
     let userId;
     try {
       // find user id
-      userId = await User.findOne({
+      userId = await models.user.findOne({
         where: { username: request.params.user },
         attributes: ['id'],
       });
@@ -238,17 +240,14 @@ async function epaddb(fastify, options, done) {
       console.log(err);
     }
 
-    Worklist.findAll({
-      where: {
-        user_id: userId,
-      },
-      include: [
-        {
-          model: WorklistStudy,
+    models.worklist
+      .findAll({
+        where: {
+          user_id: userId,
         },
         include: [
           {
-            model: models.worklistStudy,
+            model: models.worklist_study,
           },
         ],
       })
@@ -289,7 +288,7 @@ async function epaddb(fastify, options, done) {
     let userId;
     try {
       // find user id
-      userId = await User.findOne({
+      userId = await models.user.findOne({
         where: { username: request.params.user },
         attributes: ['id'],
       });
@@ -297,12 +296,13 @@ async function epaddb(fastify, options, done) {
     } catch (err) {
       console.log(err);
     }
-    Worklist.destroy({
-      where: {
-        user_id: userId,
-        worklistid: request.params.worklist,
-      },
-    })
+    models.worklist
+      .destroy({
+        where: {
+          user_id: userId,
+          worklistid: request.params.worklist,
+        },
+      })
       .then(() => {
         reply.code(200).send('Deletion successful');
       })
@@ -927,11 +927,12 @@ async function epaddb(fastify, options, done) {
   // });
 
   fastify.decorate('createUser', (request, reply) => {
-    User.create({
-      ...request.body,
-      createdtime: Date.now(),
-      updatetime: Date.now(),
-    })
+    models.user
+      .create({
+        ...request.body,
+        createdtime: Date.now(),
+        updatetime: Date.now(),
+      })
       .then(async user => {
         const { id } = user.dataValues;
         if (request.body.projects && request.body.projects.length > 0) {
@@ -939,7 +940,7 @@ async function epaddb(fastify, options, done) {
           try {
             for (let i = 0; i < request.body.projects.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
-              let projectId = await Project.findOne({
+              let projectId = await models.project.findOne({
                 where: { projectid: request.body.projects[i].project },
                 attributes: ['id'],
               });
@@ -951,7 +952,7 @@ async function epaddb(fastify, options, done) {
                 createdtime: Date.now(),
                 updatetime: Date.now(),
               };
-              queries.push(ProjectUser.create(entry));
+              queries.push(models.project_user.create(entry));
             }
 
             Promise.all(queries)
@@ -975,7 +976,7 @@ async function epaddb(fastify, options, done) {
         reply.code(503).send(err.message);
       });
   });
-  
+
   fastify.decorate('getProject', (request, reply) => {
     models.project
       .findOne({ where: { projectid: request.params.project } })
@@ -1004,10 +1005,10 @@ async function epaddb(fastify, options, done) {
         request.params.project
       );
       if (rowsUpdated.role.toLowerCase().trim() === 'none') {
-        await ProjectUser.destroy({ where: { project_id: projectId, user_id: userId } });
+        await models.project_user.destroy({ where: { project_id: projectId, user_id: userId } });
         reply.code(200).send(`update sucessful`);
       } else {
-        result = await ProjectUser.findOrCreate({
+        result = await models.project_user.findOrCreate({
           where: { project_id: projectId, user_id: userId },
           defaults: { ...rowsUpdated, creator: request.body.updatedBy },
         });
@@ -1016,7 +1017,7 @@ async function epaddb(fastify, options, done) {
         if (result[1]) {
           reply.code(200).send(`new relation created  sucessfully on update`);
         } else {
-          await ProjectUser.update(rowsUpdated, { where: { id: result[0].dataValues.id } });
+          await models.project_user.update(rowsUpdated, { where: { id: result[0].dataValues.id } });
           reply.code(200).send(`update sucessful`);
         }
       }
@@ -1030,10 +1031,10 @@ async function epaddb(fastify, options, done) {
     const query = new Promise(async (resolve, reject) => {
       try {
         // find user id
-        let userId = await User.findOne({ where: { username }, attributes: ['id'] });
+        let userId = await models.user.findOne({ where: { username }, attributes: ['id'] });
         userId = userId.dataValues.id;
         // find project id
-        let projectId = await Project.findOne({ where: { projectid }, attributes: ['id'] });
+        let projectId = await models.project.findOne({ where: { projectid }, attributes: ['id'] });
         projectId = projectId.dataValues.id;
         const res = { userId, projectId };
         resolve(res);
@@ -1045,9 +1046,10 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('getUsers', (request, reply) => {
-    User.findAll({
-      include: ['projects'],
-    })
+    models.user
+      .findAll({
+        include: ['projects'],
+      })
       .then(users => {
         const result = [];
         users.forEach(user => {
@@ -1086,7 +1088,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getUser', async (request, reply) => {
     try {
-      const user = await User.findAll({
+      const user = await models.user.findAll({
         where: {
           username: request.params.user,
         },
@@ -1126,11 +1128,12 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('deleteUser', async (request, reply) => {
-    User.destroy({
-      where: {
-        username: request.params.user,
-      },
-    })
+    models.user
+      .destroy({
+        where: {
+          username: request.params.user,
+        },
+      })
       .then(() => {
         reply.code(200).send('Deletion successful');
       })
