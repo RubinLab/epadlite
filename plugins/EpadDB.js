@@ -57,6 +57,20 @@ async function epaddb(fastify, options, done) {
             path.join(__dirname, '/../models', filenames[i])
           );
         }
+        models.user.belongsToMany(models.project, {
+          through: 'project_user',
+          as: 'projects',
+          foreignKey: 'user_id',
+        });
+        models.worklist.hasMany(models.worklist_study, {
+          foreignKey: 'worklist_id',
+        });
+        models.project.belongsToMany(models.user, {
+          through: 'project_user',
+          as: 'users',
+          foreignKey: 'project_id',
+        });
+        
         await fastify.orm.sync();
         resolve();
       } catch (err) {
@@ -137,17 +151,27 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('createWorklist', (request, reply) => {
-    models.worklist
-      .create({
-        name: request.body.name,
-        worklistid: request.body.worklistid,
-        user_id: request.params.user,
-        description: request.body.description,
-        updatetime: Date.now(),
-        duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
-        creator: request.body.username,
-      })
+  fastify.decorate('createWorklist', async (request, reply) => {
+    let userId;
+    try {
+      // find user id
+      userId = await User.findOne({
+        where: { username: request.params.user },
+        attributes: ['id'],
+      });
+      userId = userId.dataValues.id;
+    } catch (err) {
+      console.log(err);
+    }
+    Worklist.create({
+      name: request.body.name,
+      worklistid: request.body.worklistid,
+      user_id: userId,
+      description: request.body.description,
+      updatetime: Date.now(),
+      duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
+      creator: request.body.username,
+    })
       .then(worklist => {
         reply.code(200).send(`success with id ${worklist.id}`);
       })
@@ -174,28 +198,53 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('updateWorklist', (request, reply) => {
-    models.worklist
-      .update(
-        { ...request.body, updatetime: Date.now(), updated_by: request.body.username },
-        {
-          where: {
-            user_id: request.params.user,
-            worklistid: request.params.worklist,
-          },
-        }
-      )
+  fastify.decorate('updateWorklist', async (request, reply) => {
+    let userId;
+    try {
+      // find user id
+      userId = await User.findOne({
+        where: { username: request.params.user },
+        attributes: ['id'],
+      });
+      userId = userId.dataValues.id;
+    } catch (err) {
+      console.log(err);
+    }
+    Worklist.update(
+      { ...request.body, updatetime: Date.now(), updated_by: request.body.username },
+      {
+        where: {
+          user_id: userId,
+          worklistid: request.params.worklist,
+        },
+      }
+    )
       .then(() => {
         reply.code(200).send('Update successful');
       })
       .catch(err => reply.code(503).send(err));
   });
 
-  fastify.decorate('getWorklists', (request, reply) => {
-    models.worklist
-      .findAll({
-        where: {
-          user_id: request.params.user,
+  fastify.decorate('getWorklists', async (request, reply) => {
+    let userId;
+    try {
+      // find user id
+      userId = await User.findOne({
+        where: { username: request.params.user },
+        attributes: ['id'],
+      });
+      userId = userId.dataValues.id;
+    } catch (err) {
+      console.log(err);
+    }
+
+    Worklist.findAll({
+      where: {
+        user_id: userId,
+      },
+      include: [
+        {
+          model: WorklistStudy,
         },
         include: [
           {
@@ -228,7 +277,7 @@ async function epaddb(fastify, options, done) {
           }
           result.push(obj);
         }
-        reply.code(200).send({ ResultSet: { Result: result } });
+        reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
       })
 
       .catch(err => {
@@ -236,14 +285,24 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('deleteWorklist', (request, reply) => {
-    models.worklist
-      .destroy({
-        where: {
-          user_id: request.params.user,
-          worklistid: request.params.worklist,
-        },
-      })
+  fastify.decorate('deleteWorklist', async (request, reply) => {
+    let userId;
+    try {
+      // find user id
+      userId = await User.findOne({
+        where: { username: request.params.user },
+        attributes: ['id'],
+      });
+      userId = userId.dataValues.id;
+    } catch (err) {
+      console.log(err);
+    }
+    Worklist.destroy({
+      where: {
+        user_id: userId,
+        worklistid: request.params.worklist,
+      },
+    })
       .then(() => {
         reply.code(200).send('Deletion successful');
       })
@@ -867,6 +926,56 @@ async function epaddb(fastify, options, done) {
   //     .catch(err => reply.code(503).send(err.message));
   // });
 
+  fastify.decorate('createUser', (request, reply) => {
+    User.create({
+      ...request.body,
+      createdtime: Date.now(),
+      updatetime: Date.now(),
+    })
+      .then(async user => {
+        const { id } = user.dataValues;
+        if (request.body.projects && request.body.projects.length > 0) {
+          const queries = [];
+          try {
+            for (let i = 0; i < request.body.projects.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              let projectId = await Project.findOne({
+                where: { projectid: request.body.projects[i].project },
+                attributes: ['id'],
+              });
+              projectId = projectId.dataValues.id;
+              const entry = {
+                project_id: projectId,
+                user_id: id,
+                role: request.body.projects[i].role,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+              };
+              queries.push(ProjectUser.create(entry));
+            }
+
+            Promise.all(queries)
+              .then(() => {
+                reply.code(200).send(`User succesfully created`);
+              })
+              .catch(err => {
+                console.log(err.message);
+                reply.code(503).send(err.message);
+              });
+          } catch (err) {
+            console.log(err.message);
+            reply.code(503).send(err.message);
+          }
+        } else {
+          reply.code(200).send(`User succesfully created`);
+        }
+      })
+      .catch(err => {
+        console.log(err.message);
+        reply.code(503).send(err.message);
+      });
+  });
+  
   fastify.decorate('getProject', (request, reply) => {
     models.project
       .findOne({ where: { projectid: request.params.project } })
@@ -879,6 +988,157 @@ async function epaddb(fastify, options, done) {
       });
   });
 
+  fastify.decorate('updateProjectUser', async (request, reply) => {
+    const rowsUpdated = {
+      ...request.body,
+      updatetime: Date.now(),
+    };
+    if (request.body.updatedBy) {
+      rowsUpdated.updated_by = request.body.updatedBy;
+    }
+    delete rowsUpdated.updatedBy;
+    let result;
+    try {
+      const { userId, projectId } = await fastify.getUserProjectIdsInternal(
+        request.params.user,
+        request.params.project
+      );
+      if (rowsUpdated.role.toLowerCase().trim() === 'none') {
+        await ProjectUser.destroy({ where: { project_id: projectId, user_id: userId } });
+        reply.code(200).send(`update sucessful`);
+      } else {
+        result = await ProjectUser.findOrCreate({
+          where: { project_id: projectId, user_id: userId },
+          defaults: { ...rowsUpdated, creator: request.body.updatedBy },
+        });
+        // check if new entry created
+        // if not created, get the id and update the relation
+        if (result[1]) {
+          reply.code(200).send(`new relation created  sucessfully on update`);
+        } else {
+          await ProjectUser.update(rowsUpdated, { where: { id: result[0].dataValues.id } });
+          reply.code(200).send(`update sucessful`);
+        }
+      }
+    } catch (err) {
+      console.log(err.message);
+      reply.code(503).send(err.message);
+    }
+  });
+
+  fastify.decorate('getUserProjectIdsInternal', (username, projectid) => {
+    const query = new Promise(async (resolve, reject) => {
+      try {
+        // find user id
+        let userId = await User.findOne({ where: { username }, attributes: ['id'] });
+        userId = userId.dataValues.id;
+        // find project id
+        let projectId = await Project.findOne({ where: { projectid }, attributes: ['id'] });
+        projectId = projectId.dataValues.id;
+        const res = { userId, projectId };
+        resolve(res);
+      } catch (err) {
+        reject(err);
+      }
+    });
+    return query;
+  });
+
+  fastify.decorate('getUsers', (request, reply) => {
+    User.findAll({
+      include: ['projects'],
+    })
+      .then(users => {
+        const result = [];
+        users.forEach(user => {
+          const projects = [];
+          const projectToRole = [];
+          user.projects.forEach(project => {
+            projects.push(project.projectid);
+            projectToRole.push(`${project.projectid}:${project.project_user.role}`);
+          });
+
+          const permissions = user.permissions ? user.permissions.split(',') : [''];
+          const obj = {
+            colorpreference: user.colorpreference,
+            creator: user.creator,
+            admin: user.admin === 1,
+            enabled: user.enabled === 1,
+            displayname: `${user.firstname} ${user.lastname}`,
+            email: user.email,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            passwordExpired: user.passwordexpired,
+            permissions,
+            projectToRole,
+            projects,
+            username: user.username,
+          };
+          result.push(obj);
+        });
+        reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
+      })
+      .catch(err => {
+        console.log(err.message);
+        reply.code(503).send(err.message);
+      });
+  });
+
+  fastify.decorate('getUser', async (request, reply) => {
+    try {
+      const user = await User.findAll({
+        where: {
+          username: request.params.user,
+        },
+        include: ['projects'],
+      });
+      if (user.length === 1) {
+        const permissions = user[0].permissions ? user[0].permissions.split(',') : [''];
+        const projects = [];
+        const projectToRole = [];
+        user[0].projects.forEach(project => {
+          projects.push(project.projectid);
+          projectToRole.push(`${project.projectid}:${project.project_user.role}`);
+        });
+        const obj = {
+          colorpreference: user[0].colorpreference,
+          creator: user[0].creator,
+          admin: user[0].admin === 1,
+          enabled: user[0].enabled === 1,
+          displayname: `${user[0].firstname} ${user[0].lastname}`,
+          email: user[0].email,
+          firstname: user[0].firstname,
+          lastname: user[0].lastname,
+          passwordExpired: user[0].passwordexpired === 1,
+          permissions,
+          projectToRole,
+          projects,
+          username: user[0].username,
+        };
+        reply.code(200).send(obj);
+      } else {
+        reply.code(404).send(`No user as ${request.params.user}`);
+      }
+    } catch (err) {
+      console.log(err.message);
+      reply.code(503).send(err.message);
+    }
+  });
+
+  fastify.decorate('deleteUser', async (request, reply) => {
+    User.destroy({
+      where: {
+        username: request.params.user,
+      },
+    })
+      .then(() => {
+        reply.code(200).send('Deletion successful');
+      })
+      .catch(err => {
+        console.log(err.message);
+        reply.code(503).send(err.message);
+      });
+  });
   fastify.decorate('getPatientStudyFromProject', async (request, reply) => {
     try {
       const studyUids = [request.params.study];

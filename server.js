@@ -42,13 +42,14 @@ const epadlitePatientsSchema = require('./config/schemas/epadlite_patients_outpu
 const epadliteStudiesSchema = require('./config/schemas/epadlite_studies_output_schema.json');
 const epadliteSeriesSchema = require('./config/schemas/epadlite_series_output_schema.json');
 const epadliteImagesSchema = require('./config/schemas/epadlite_images_output_schema.json');
+const epadUsersSchema = require('./config/schemas/epad_users_output_schema.json');
 
 // // add schemas to fastify to use by id
 fastify.addSchema(epadlitePatientsSchema);
 fastify.addSchema(epadliteStudiesSchema);
 fastify.addSchema(epadliteSeriesSchema);
 fastify.addSchema(epadliteImagesSchema);
-
+fastify.addSchema(epadUsersSchema);
 // enable cors
 fastify.register(require('fastify-cors'), {
   origin: '*',
@@ -129,6 +130,7 @@ if (config.mode === 'lite') {
   fastify.register(require('./routes/projectTemplate')); // eslint-disable-line global-require
   fastify.register(require('./routes/projectAim')); // eslint-disable-line global-require
   fastify.register(require('./routes/projectDicomweb')); // eslint-disable-line global-require
+  fastify.register(require('./routes/user')); // eslint-disable-line global-require
 }
 
 // }
