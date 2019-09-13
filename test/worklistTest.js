@@ -17,10 +17,26 @@ after(() => {
   server.close();
 });
 describe('Worklist Tests', () => {
+  before(async () => {
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/users')
+      .send({
+        username: 'test3@gmail.com',
+        firstname: 'test',
+        lastname: 'test',
+        email: 'test3@gmail.com',
+      });
+  });
+  after(async () => {
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/users/test3@gmail.com');
+  });
   it('worklists should have 0 worklists', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/users/1/worklists')
+      .get('/users/test3@gmail.com/worklists')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(0);
@@ -33,7 +49,7 @@ describe('Worklist Tests', () => {
   it('should create a new worklist', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/users/1/worklists')
+      .post('/users/test3@gmail.com/worklists')
       .send({
         name: 'test',
         worklistid: 'testCreate',
@@ -52,7 +68,7 @@ describe('Worklist Tests', () => {
   it('worklists should have 1 worklists ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/users/1/worklists')
+      .get('/users/test3@gmail.com/worklists')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -65,7 +81,7 @@ describe('Worklist Tests', () => {
   it('should update the new worklist', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .put('/users/1/worklists/testCreate')
+      .put('/users/test3@gmail.com/worklists/testCreate')
       .send({
         name: 'testUpdated2',
         description: 'testdescUpdated',
@@ -83,7 +99,7 @@ describe('Worklist Tests', () => {
   it('The new worklist should be updated with data', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/users/1/worklists')
+      .get('/users/test3@gmail.com/worklists')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -114,7 +130,7 @@ describe('Worklist Tests', () => {
   it('should delete the worklist', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('/users/1/worklists/testCreate')
+      .delete('/users/test3@gmail.com/worklists/testCreate')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -126,7 +142,7 @@ describe('Worklist Tests', () => {
   it('worklists should have 0 worklists', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/users/1/worklists')
+      .get('/users/test3@gmail.com/worklists')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(0);

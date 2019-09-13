@@ -1,7 +1,7 @@
 /* jshint indent: 2 */
 
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define(
+  const project = sequelize.define(
     'project',
     {
       id: {
@@ -55,4 +55,13 @@ module.exports = function(sequelize, DataTypes) {
       tableName: 'project',
     }
   );
+  project.associate = models => {
+    project.belongsToMany(models.user, {
+      through: 'project_user',
+      as: 'users',
+      foreignKey: 'project_id',
+    });
+    // project.hasMany(models.user, { foreignKey: 'project_id' });
+  };
+  return project;
 };
