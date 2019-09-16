@@ -38,6 +38,29 @@ beforeEach(() => {
 });
 
 describe('Project Tests', () => {
+  before(async () => {
+    try {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users')
+        .send({
+          username: 'admin',
+          firstname: 'admin',
+          lastname: 'admin',
+          email: 'admin@gmail.com',
+        });
+    } catch (err) {
+      console.log(err);
+    }
+  });
+  after(async () => {
+    try {
+      await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/users/admin');
+    } catch (err) {
+      console.log(err);
+    }
+  });
+
   it('projects should have no projects ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -71,13 +94,16 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  it('projects should have 1 project ', done => {
+  it('projects should have 1 project with loginnames admin', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
       .then(res => {
+        console.log('---- project create body in test -----');
+        console.log(JSON.stringify(res.body));
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
+        expect(res.body[0].loginNames).to.include('admin');
         done();
       })
       .catch(e => {

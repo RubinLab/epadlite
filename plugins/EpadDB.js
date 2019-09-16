@@ -80,6 +80,21 @@ async function epaddb(fastify, options, done) {
     });
   });
 
+  fastify.decorate('findUserIdInternal', username => {
+    const query = new Promise(async (resolve, reject) => {
+      try {
+        // find user id
+        let userId = await models.user.findOne({ where: { username }, attributes: ['id'] });
+        userId = userId.dataValues.id;
+        // find project id
+        resolve(userId);
+      } catch (err) {
+        reject(err);
+      }
+    });
+    return query;
+  });
+
   // PROJECTS
   fastify.decorate('createProject', (request, reply) => {
     models.project
@@ -92,8 +107,32 @@ async function epaddb(fastify, options, done) {
         updatetime: Date.now(),
         creator: request.body.userName,
       })
-      .then(project => {
-        reply.code(200).send(`success with id ${project.id}`);
+      .then(async project => {
+        // create relation as owner
+        try {
+          const userId = await fastify.findUserIdInternal(request.body.userName);
+          console.log('-------------- userid ---------------');
+          console.log(userId);
+          console.log('-------------- userid ---------------');
+
+          const entry = {
+            project_id: project.id,
+            user_id: userId,
+            role: 'Owner',
+            createdtime: Date.now(),
+            updatetime: Date.now(),
+          };
+          models.project_user
+            .create(entry)
+            .then(() => {
+              reply.code(200).send(`success with id ${project.id}`);
+            })
+            .catch(err2 => {
+              console.log(err2);
+            });
+        } catch (error) {
+          console.log(error);
+        }
       })
       .catch(err => {
         console.log(err.message);
@@ -137,13 +176,51 @@ async function epaddb(fastify, options, done) {
       .catch(err => reply.code(503).send(err));
   });
 
+  fastify.decorate('getCircularReplacer', () => {
+    const seen = new WeakSet();
+    return (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return;
+        }
+        seen.add(value);
+      }
+      // eslint-disable-next-line consistent-return
+      return value;
+    };
+  });
+
   fastify.decorate('getProjects', (request, reply) => {
     models.project
-      .findAll()
+      .findAll({
+        include: ['users'],
+      })
       .then(projects => {
         // projects will be an array of all Project instances
         // console.log(projects);
-        reply.code(200).send(projects);
+        const result = [];
+        projects.forEach(project => {
+          const obj = {
+            id: project.projectid,
+            name: project.name,
+            // numberOfAnnotations:
+            // numberOfStudies:
+            // numberOfSubjects:
+            // subjectIDs:
+            loginnames: [],
+            type: project.type,
+          };
+
+          project.users.forEach(user => {
+            obj.loginnames.push(user.username);
+          });
+          result.push(obj);
+        });
+        console.log('----------- / ----------');
+        console.log(result);
+        console.log('----------- / ----------');
+
+        reply.code(200).send(result);
       })
       .catch(err => {
         console.log(err.message);
@@ -927,6 +1004,7 @@ async function epaddb(fastify, options, done) {
   // });
 
   fastify.decorate('createUser', (request, reply) => {
+    console.log('------------------------- create user ----------------');
     models.user
       .create({
         ...request.body,
@@ -1075,6 +1153,7 @@ async function epaddb(fastify, options, done) {
             projectToRole,
             projects,
             username: user.username,
+            role: user.role,
           };
           result.push(obj);
         });
@@ -1116,6 +1195,7 @@ async function epaddb(fastify, options, done) {
           projectToRole,
           projects,
           username: user[0].username,
+          role: user[0].role,
         };
         reply.code(200).send(obj);
       } else {
