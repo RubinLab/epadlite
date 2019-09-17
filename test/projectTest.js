@@ -99,8 +99,6 @@ describe('Project Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
       .then(res => {
-        console.log('---- project create body in test -----');
-        console.log(JSON.stringify(res.body));
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
         expect(res.body[0].loginNames).to.include('admin');

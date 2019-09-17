@@ -207,19 +207,15 @@ async function epaddb(fastify, options, done) {
             // numberOfStudies:
             // numberOfSubjects:
             // subjectIDs:
-            loginnames: [],
+            loginNames: [],
             type: project.type,
           };
 
           project.users.forEach(user => {
-            obj.loginnames.push(user.username);
+            obj.loginNames.push(user.username);
           });
           result.push(obj);
         });
-        console.log('----------- / ----------');
-        console.log(result);
-        console.log('----------- / ----------');
-
         reply.code(200).send(result);
       })
       .catch(err => {
@@ -1157,7 +1153,7 @@ async function epaddb(fastify, options, done) {
           };
           result.push(obj);
         });
-        reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
+        reply.code(200).send(result);
       })
       .catch(err => {
         console.log(err.message);
