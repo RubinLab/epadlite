@@ -1002,6 +1002,77 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate(
+    'getFilesInternal',
+    query =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let format = 'json';
+          if (query.format) format = query.format.toLowerCase();
+          const view = 'files';
+          const db = fastify.couch.db.use(config.db);
+          db.view(
+            'instances',
+            view,
+            {
+              reduce: true,
+              group_level: 2,
+            },
+            (error, body) => {
+              if (!error) {
+                const res = [];
+
+                if (format === 'stream') {
+                  body.rows.forEach(file => {
+                    res.push(file.key[0]);
+                  });
+                  fastify
+                    .downloadFiles(res)
+                    .then(result => resolve(result))
+                    .catch(err => reject(err));
+                } else {
+                  // the default is json! The old APIs were XML, no XML in epadlite
+                  body.rows.forEach(template => {
+                    res.push(template.key[1]);
+                  });
+                  resolve(res);
+                }
+              } else {
+                // TODO Proper error reporting implementation required
+                fastify.log.info(`Error in get templates: ${error}`);
+                reject(error);
+              }
+            }
+          );
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  // TODO
+  // fastify.decorate(
+  //   'checkOrphanedInternal',
+  //   ids =>
+  //     new Promise(async (resolve, reject) => {
+  //       try {
+  //         const db = fastify.couch.db.use(config.db);
+  //         db.fetch({ keys: ids }).then(data => {
+  //           if (ids.length === data.rows.length) resolve([]);
+  //           else {
+  //             const notFound = ids;
+  //             data.rows.forEach(item => {
+  //               if ('doc' in item) ids.remove(item.id);
+  //             });
+  //             resolve(notFound);
+  //           }
+  //         });
+  //       } catch (err) {
+  //         reject(err);
+  //       }
+  //     })
+  // );
+
+  fastify.decorate(
     'downloadFiles',
     async ids =>
       new Promise((resolve, reject) => {
@@ -1065,20 +1136,42 @@ async function couchdb(fastify, options) {
         const db = fastify.couch.db.use(config.db);
         db.get(params.filename, (error, existing) => {
           if (error) {
-            fastify.log.info(`No document for uid ${params.uid}`);
-            reject(new Error(`No document for uid ${params.uid}`));
+            console.log(`No document for uid ${params.filename}`);
+            reject(new Error(`No document for uid ${params.filename}`));
           }
 
           db.destroy(params.filename, existing._rev)
-            .then(() => {
-              resolve();
-            })
+            .then(() => resolve())
             .catch(err => {
               // TODO Proper error reporting implementation required
-              fastify.log.info(`Error in delete: ${err}`);
+              console.log(`Error in delete: ${err}`);
               reject(err);
             });
         });
+      })
+  );
+
+  fastify.decorate(
+    'deleteCouchDocsInternal',
+    ids =>
+      new Promise((resolve, reject) => {
+        const db = fastify.couch.db.use(config.db);
+        const docsToDelete = [];
+        if (ids.length > 0)
+          db.fetch({ keys: ids })
+            .then(data => {
+              data.rows.forEach(item => {
+                if ('doc' in item)
+                  docsToDelete.push({ _id: item.id, _rev: item.doc._rev, _deleted: true });
+              });
+              if (docsToDelete.length > 0)
+                db.bulk({ docs: docsToDelete })
+                  .then(() => resolve())
+                  .catch(errBulk => reject(errBulk));
+              else resolve();
+            })
+            .catch(errFetch => reject(errFetch));
+        else resolve();
       })
   );
 

@@ -131,6 +131,7 @@ if (config.mode === 'lite') {
   fastify.register(require('./routes/projectAim')); // eslint-disable-line global-require
   fastify.register(require('./routes/projectDicomweb')); // eslint-disable-line global-require
   fastify.register(require('./routes/user')); // eslint-disable-line global-require
+  fastify.register(require('./routes/other')); // eslint-disable-line global-require
 }
 
 // }

@@ -124,17 +124,141 @@ async function epaddb(fastify, options, done) {
       .catch(err => reply.code(503).send(err));
   });
 
-  fastify.decorate('deleteProject', (request, reply) => {
-    models.project
-      .destroy({
-        where: {
-          projectid: request.params.project,
-        },
+  fastify.decorate(
+    'deleteRelationAndOprhanedCouchDocInternal',
+    (dbProjectId, relationTable, uidField) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const uidsToDeleteObjects = await models[relationTable].findAll({
+            attributes: [uidField],
+            where: { project_id: dbProjectId },
+            order: [[uidField, 'ASC']],
+          });
+          const uidsToDelete = [];
+          for (let i = 0; i < uidsToDeleteObjects.length; i += 1)
+            uidsToDelete.push(uidsToDeleteObjects[i][uidField]);
+          if (uidsToDelete.length > 0) {
+            const numDeleted = await models[relationTable].destroy({
+              where: { project_id: dbProjectId },
+            });
+            const uidsLeftObjects = await models[relationTable].findAll({
+              attributes: [uidField],
+              distinct: true,
+              where: { [uidField]: uidsToDelete },
+              order: [[uidField, 'ASC']],
+            });
+            if (uidsToDelete.length === uidsLeftObjects.length)
+              fastify.log.info('all files are being used by other projects');
+            else {
+              const safeToDelete = [];
+              let i = 0;
+              let j = 0;
+              // traverse the arrays once to find the ones that only exists in the first
+              // assumptions arrays are both sorted according to uid, second list is a subset of first
+              while (i < uidsToDelete.length && j < uidsLeftObjects.length) {
+                if (uidsToDelete[i] === uidsLeftObjects[j][uidField]) {
+                  i += 1;
+                  j += 1;
+                } else if (uidsToDelete[i] < uidsLeftObjects[j][uidField]) {
+                  safeToDelete.push(uidsToDelete[i]);
+                  i += 1;
+                } else if (uidsToDelete[i] > uidsLeftObjects[j][uidField]) {
+                  // cannot happen!
+                }
+              }
+              // add leftovers
+              while (i < uidsToDelete.length) {
+                safeToDelete.push(uidsToDelete[i]);
+                i += 1;
+              }
+              if (safeToDelete.length > 0) await fastify.deleteCouchDocsInternal(safeToDelete);
+              fastify.log.info(
+                `Deleted ${numDeleted} records from ${relationTable} and ${
+                  safeToDelete.length
+                } docs from couchdb`
+              );
+            }
+          }
+          resolve();
+        } catch (err) {
+          console.log(err.message);
+          reject(err);
+        }
       })
-      .then(() => {
-        reply.code(200).send('Deletion successful');
+  );
+
+  fastify.decorate(
+    'deleteRelationAndOprhanedSubjectsInternal',
+    (dbProjectId, projectId) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const projectSubjects = await models.project_subject.findAll({
+            where: { project_id: dbProjectId },
+          });
+          if (projectSubjects) {
+            for (let i = 0; i < projectSubjects.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.deleteSubjectFromProjectInternal(
+                { project: projectId, subject: projectSubjects[i].subject_uid },
+                {}
+              );
+            }
+            resolve();
+          } else resolve();
+        } catch (err) {
+          console.log(err.message);
+          reject(err);
+        }
       })
-      .catch(err => reply.code(503).send(err));
+  );
+
+  fastify.decorate('deleteProject', async (request, reply) => {
+    try {
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+      if (!project) {
+        reply.code(404).send('Project not found');
+      } else {
+        // delete projects files (delete orphan files)
+        await fastify.deleteRelationAndOprhanedCouchDocInternal(
+          project.id,
+          'project_file',
+          'file_uid'
+        );
+        // delete projects aims (delete orphan aims)
+        await fastify.deleteRelationAndOprhanedCouchDocInternal(
+          project.id,
+          'project_aim',
+          'aim_uid'
+        );
+        // delete projects templates (delete orphan templates)
+        await fastify.deleteRelationAndOprhanedCouchDocInternal(
+          project.id,
+          'project_template',
+          'template_uid'
+        );
+
+        // delete projects subjects (delete orphan dicom files)
+        await fastify.deleteRelationAndOprhanedSubjectsInternal(project.id, request.params.project);
+
+        models.project
+          .destroy({
+            where: {
+              projectId: request.params.project,
+            },
+          })
+          .then(() => {
+            reply.code(200).send('Deletion successful');
+          })
+          .catch(errDelete => {
+            console.log(errDelete.message);
+            reply.code(503).send(errDelete);
+          });
+      }
+    } catch (err) {
+      console.log(err.message);
+    }
   });
 
   fastify.decorate('getProjects', (request, reply) => {
@@ -497,71 +621,81 @@ async function epaddb(fastify, options, done) {
       reply.code(503).send(`Getting error: ${err}`);
     }
   });
-
-  fastify.decorate('deleteSubjectFromProject', async (request, reply) => {
-    try {
-      const subjectUid = request.params.subject;
-      const project = await models.project.findOne({
-        where: { projectid: request.params.project },
-      });
-
-      const projectSubject = await models.project_subject.findOne({
-        where: { project_id: project.id, subject_uid: request.params.subject },
-      });
-      await models.project_subject_study.destroy({
-        where: { proj_subj_id: projectSubject.id },
-      });
-      const numDeleted = await models.project_subject.destroy({
-        where: { project_id: project.id, subject_uid: subjectUid },
-      });
-      // if delete from all or it doesn't exist in any other project, delete from system
-      try {
-        if (request.query.all && request.query.all === 'true') {
-          const projectSubjects = await models.project_subject.findAll({
-            where: { subject_uid: request.params.subject },
-          });
-          const projSubjIds = [];
-          if (projectSubjects) {
-            for (let i = 0; i < projectSubjects.length; i += 1) {
-              projSubjIds.push(projectSubjects[i].id);
-              // eslint-disable-next-line no-await-in-loop
-              await models.project_subject_study.destroy({
-                where: { proj_subj_id: projectSubjects[i].id },
-              });
-            }
-            await models.project_subject.destroy({
-              where: { id: projSubjIds },
-            });
-          }
-          await fastify.deleteSubjectInternal(request.params);
-          reply
-            .code(200)
-            .send(`Subject deleted from system and removed from ${numDeleted} projects`);
-        } else {
-          const projectSubjects = await models.project_subject.findAll({
-            where: { subject_uid: subjectUid },
-          });
-          if (projectSubjects.length === 0) {
-            await models.project_subject_study.destroy({
-              where: { proj_subj_id: projectSubject.id },
-            });
-            await fastify.deleteSubjectInternal(request.params);
-            reply
-              .code(200)
-              .send(`Subject deleted from system as it didn't exist in any other project`);
-          } else
-            reply.code(200).send(`Subject not deleted from system as it exists in other project`);
-        }
-      } catch (deleteErr) {
-        console.log(deleteErr);
-        reply.code(503).send(`Deletion error: ${deleteErr}`);
-      }
-    } catch (err) {
-      // TODO Proper error reporting implementation required
-      console.log(`Error in delete: ${err}`);
-      reply.code(503).send(`Deletion error: ${err}`);
-    }
+  fastify.decorate('deleteSubjectFromProject', (request, reply) => {
+    fastify
+      .deleteSubjectFromProjectInternal(request.params, request.query)
+      .then(result => reply.code(200).send(result))
+      .catch(err => reply.code(503).send(err));
   });
+
+  fastify.decorate(
+    'deleteSubjectFromProjectInternal',
+    (params, query) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const subjectUid = params.subject;
+          const project = await models.project.findOne({
+            where: { projectid: params.project },
+          });
+          if (!project) reject(new Error('Project not found'));
+          else {
+            const projectSubject = await models.project_subject.findOne({
+              where: { project_id: project.id, subject_uid: params.subject },
+            });
+            if (!projectSubject) reject(new Error('Project subject association not found'));
+            else {
+              await models.project_subject_study.destroy({
+                where: { proj_subj_id: projectSubject.id },
+              });
+              const numDeleted = await models.project_subject.destroy({
+                where: { project_id: project.id, subject_uid: subjectUid },
+              });
+              // if delete from all or it doesn't exist in any other project, delete from system
+              try {
+                if (query.all && query.all === 'true') {
+                  const projectSubjects = await models.project_subject.findAll({
+                    where: { subject_uid: params.subject },
+                  });
+                  const projSubjIds = [];
+                  if (projectSubjects) {
+                    for (let i = 0; i < projectSubjects.length; i += 1) {
+                      projSubjIds.push(projectSubjects[i].id);
+                      // eslint-disable-next-line no-await-in-loop
+                      await models.project_subject_study.destroy({
+                        where: { proj_subj_id: projectSubjects[i].id },
+                      });
+                    }
+                    await models.project_subject.destroy({
+                      where: { id: projSubjIds },
+                    });
+                  }
+                  await fastify.deleteSubjectInternal(params);
+                  resolve(`Subject deleted from system and removed from ${numDeleted} projects`);
+                } else {
+                  const projectSubjects = await models.project_subject.findAll({
+                    where: { subject_uid: subjectUid },
+                  });
+                  if (projectSubjects.length === 0) {
+                    await models.project_subject_study.destroy({
+                      where: { proj_subj_id: projectSubject.id },
+                    });
+                    await fastify.deleteSubjectInternal(params);
+                    resolve(`Subject deleted from system as it didn't exist in any other project`);
+                  } else resolve(`Subject not deleted from system as it exists in other project`);
+                }
+              } catch (deleteErr) {
+                console.log(deleteErr.message);
+                reject(deleteErr);
+              }
+            }
+          }
+        } catch (err) {
+          // TODO Proper error reporting implementation required
+          console.log(`Error in delete: ${err}`);
+          reject(err);
+        }
+      })
+  );
 
   // from CouchDB
   // fastify.decorate('getSeriesAimsFromProject', async (request, reply) => {
@@ -1267,7 +1401,26 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('getFiles', async (request, reply) => {
+    try {
+      fastify
+        .getFilesInternal(request.query)
+        .then(result => {
+          if (request.query.format === 'stream') {
+            reply.header('Content-Disposition', `attachment; filename=files.zip`);
+          }
+          reply.code(200).send(result);
+        })
+        .catch(err => reply.code(503).send(err));
+    } catch (err) {
+      // TODO Proper error reporting implementation required
+      console.log(`Error in get: ${err}`);
+      reply.code(503).send(`Getting error: ${err}`);
+    }
+  });
+
   fastify.decorate('getProjectFile', async (request, reply) => {
+    // TODO check for project relation!
     fastify
       .getFilesFromUIDsInternal(request.query, [request.params.filename])
       .then(result => {
@@ -1336,6 +1489,22 @@ async function epaddb(fastify, options, done) {
       console.log(`Error in delete: ${err}`);
       reply.code(503).send(`Deletion error: ${err}`);
     }
+  });
+
+  fastify.decorate('getFile', async (request, reply) => {
+    fastify
+      .getFilesFromUIDsInternal(request.query, [request.params.filename])
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=files.zip`);
+          reply.code(200).send(result);
+        } else if (result.length === 1) reply.code(200).send(result[0]);
+        else {
+          fastify.log.info(`Was expecting to find 1 record, found ${result.length}`);
+          reply.code(404).send(`Was expecting to find 1 record, found ${result.length}`);
+        }
+      })
+      .catch(err => reply.code(503).send(err));
   });
 
   fastify.after(async () => {
