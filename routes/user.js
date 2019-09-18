@@ -93,6 +93,26 @@ async function routes(fastify) {
     },
     handler: fastify.updateProjectUser,
   });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/users/:user',
+    schema: {
+      tags: ['user'],
+      params: {
+        type: 'object',
+        properties: {
+          user: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+      },
+    },
+    handler: fastify.updateUser,
+  });
 }
 
 module.exports = routes;

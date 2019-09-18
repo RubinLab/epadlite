@@ -1000,7 +1000,6 @@ async function epaddb(fastify, options, done) {
   // });
 
   fastify.decorate('createUser', (request, reply) => {
-    console.log('------------------------- create user ----------------');
     models.user
       .create({
         ...request.body,
@@ -1089,7 +1088,7 @@ async function epaddb(fastify, options, done) {
         // check if new entry created
         // if not created, get the id and update the relation
         if (result[1]) {
-          reply.code(200).send(`new relation created  sucessfully on update`);
+          reply.code(200).send(`new relation created sucessfully on update`);
         } else {
           await models.project_user.update(rowsUpdated, { where: { id: result[0].dataValues.id } });
           reply.code(200).send(`update sucessful`);
@@ -1201,6 +1200,22 @@ async function epaddb(fastify, options, done) {
       console.log(err.message);
       reply.code(503).send(err.message);
     }
+  });
+
+  fastify.decorate('updateUser', async (request, reply) => {
+    const rowsUpdated = {
+      ...request.body,
+      updatetime: Date.now(),
+    };
+    models.user
+      .update(rowsUpdated, { where: { username: request.params.user } })
+      .then(() => {
+        reply.code(200).send(`update sucessful`);
+      })
+      .catch(err => {
+        console.log(err.message);
+        reply.code(503).send(err.message);
+      });
   });
 
   fastify.decorate('deleteUser', async (request, reply) => {
