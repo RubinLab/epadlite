@@ -1219,47 +1219,60 @@ async function epaddb(fastify, options, done) {
         reply.code(503).send(err.message);
       });
   });
-
   fastify.decorate('getUser', async (request, reply) => {
-    try {
-      const user = await models.user.findAll({
-        where: {
-          username: request.params.user,
-        },
-        include: ['projects'],
+    fastify
+      .getUserInternal(request.params)
+      .then(res => reply.code(200).send(res))
+      .catch(err => {
+        if (err.message.includes('No user')) reply.code(404).send(err.message);
+        else reply.code(503).send(err.message);
       });
-      if (user.length === 1) {
-        const permissions = user[0].permissions ? user[0].permissions.split(',') : [''];
-        const projects = [];
-        const projectToRole = [];
-        user[0].projects.forEach(project => {
-          projects.push(project.projectid);
-          projectToRole.push(`${project.projectid}:${project.project_user.role}`);
-        });
-        const obj = {
-          colorpreference: user[0].colorpreference,
-          creator: user[0].creator,
-          admin: user[0].admin === 1,
-          enabled: user[0].enabled === 1,
-          displayname: `${user[0].firstname} ${user[0].lastname}`,
-          email: user[0].email,
-          firstname: user[0].firstname,
-          lastname: user[0].lastname,
-          passwordExpired: user[0].passwordexpired === 1,
-          permissions,
-          projectToRole,
-          projects,
-          username: user[0].username,
-        };
-        reply.code(200).send(obj);
-      } else {
-        reply.code(404).send(`No user as ${request.params.user}`);
-      }
-    } catch (err) {
-      console.log(err.message);
-      reply.code(503).send(err.message);
-    }
   });
+
+  fastify.decorate(
+    'getUserInternal',
+    params =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const user = await models.user.findAll({
+            where: {
+              username: params.user,
+            },
+            include: ['projects'],
+          });
+          if (user.length === 1) {
+            const permissions = user[0].permissions ? user[0].permissions.split(',') : [''];
+            const projects = [];
+            const projectToRole = [];
+            user[0].projects.forEach(project => {
+              projects.push(project.projectid);
+              projectToRole.push(`${project.projectid}:${project.project_user.role}`);
+            });
+            const obj = {
+              colorpreference: user[0].colorpreference,
+              creator: user[0].creator,
+              admin: user[0].admin === 1,
+              enabled: user[0].enabled === 1,
+              displayname: `${user[0].firstname} ${user[0].lastname}`,
+              email: user[0].email,
+              firstname: user[0].firstname,
+              lastname: user[0].lastname,
+              passwordExpired: user[0].passwordexpired === 1,
+              permissions,
+              projectToRole,
+              projects,
+              username: user[0].username,
+            };
+            resolve(obj);
+          } else {
+            reject(new Error(`No user as ${params.user}`));
+          }
+        } catch (err) {
+          console.log(err.message);
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate('deleteUser', async (request, reply) => {
     models.user

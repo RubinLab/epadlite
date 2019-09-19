@@ -150,6 +150,8 @@ const authCheck = async (authHeader, res) => {
           res.code(401).send({
             message: 'Token is expired',
           });
+        } else {
+          return await fastify.fillUserInfo(verifyToken.content.preferred_username);
         }
       } catch (e) {
         fastify.log.info(e);
@@ -176,6 +178,8 @@ const authCheck = async (authHeader, res) => {
           res.code(401).send({
             message: 'Authentication unsuccessful',
           });
+        } else {
+          return await fastify.fillUserInfo(username);
         }
       } catch (err) {
         res.code(401).send({
@@ -188,7 +192,30 @@ const authCheck = async (authHeader, res) => {
       message: 'Bearer token does not exist',
     });
   }
+  return undefined;
 };
+
+fastify.decorate(
+  'fillUserInfo',
+  async username =>
+    new Promise(async (resolve, reject) => {
+      const epadAuth = { username };
+      if (config.mode === 'thick') {
+        try {
+          const user = await fastify.getUserInternal({
+            user: username,
+          });
+          epadAuth.permissions = user.permissions;
+          epadAuth.projectToRole = user.projectToRole;
+          epadAuth.admin = user.admin;
+        } catch (errUser) {
+          console.log('user error', errUser.message);
+          reject(errUser);
+        }
+      }
+      resolve(epadAuth);
+    })
+);
 
 fastify.decorate('auth', async (req, res) => {
   if (config.auth && config.auth !== 'none') {
@@ -196,12 +223,15 @@ fastify.decorate('auth', async (req, res) => {
     fastify.log.info('Request needs to be authenticated, checking the authorization header');
     const authHeader = req.headers['x-access-token'] || req.headers.authorization;
     if (authHeader) {
-      await authCheck(authHeader, res);
+      req.epadAuth = await authCheck(authHeader, res);
     } else {
       res.code(401).send({
         message: 'Authentication info does not exist or conform with the server',
       });
     }
+  } else if (req.query.username) {
+    // just see if the url has username. for testing purposes
+    req.epadAuth = await fastify.fillUserInfo(req.query.username);
   }
 });
 
