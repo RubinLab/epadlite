@@ -21,6 +21,15 @@ describe('User Tests', () => {
     try {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users')
+        .send({
+          username: 'admin',
+          firstname: 'admin',
+          lastname: 'admin',
+          email: 'admin@gmail.com',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
         .send({
           projectId: 'test1',
@@ -30,21 +39,22 @@ describe('User Tests', () => {
           type: 'private',
           userName: 'admin',
         });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'test2',
+          projectName: 'test_user2',
+          projectDescription: 'testdescUser',
+          defaultTemplate: 'ROI',
+          type: 'public',
+          userName: 'admin',
+        });
+      // done();
     } catch (err) {
+      // done(err);
       console.log(err);
     }
-
-    await chai
-      .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects')
-      .send({
-        projectId: 'test2',
-        projectName: 'test_user2',
-        projectDescription: 'testdescUser',
-        defaultTemplate: 'ROI',
-        type: 'public',
-        userName: 'admin',
-      });
   });
   after(async () => {
     try {
@@ -54,21 +64,23 @@ describe('User Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/test2');
+      await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/users/admin');
     } catch (err) {
       console.log(err);
     }
   });
-  it('should not have any user', done => {
+  it('should have 1 user', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(0);
+        expect(res.body.length).to.be.eql(1);
         done();
       })
       .catch(e => {
-        done(e);
+        console.log(e);
+        done();
       });
   });
 
@@ -91,16 +103,16 @@ describe('User Tests', () => {
       });
   });
 
-  it('should have 1 user as test1@gmail.com, without any projects linked', done => {
+  it('should have 2 users as test1@gmail.com, without any projects linked', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(1);
-        expect(res.body.ResultSet.Result[0].username).to.be.eql('test1@gmail.com');
-        expect(res.body.ResultSet.Result[0].projects.length).to.be.eql(0);
-        expect(res.body.ResultSet.Result[0].projectToRole.length).to.be.eql(0);
+        expect(res.body.length).to.be.eql(2);
+        expect(res.body[1].username).to.be.eql('test1@gmail.com');
+        expect(res.body[1].projects.length).to.be.eql(0);
+        expect(res.body[1].projectToRole.length).to.be.eql(0);
         done();
       })
       .catch(e => {
@@ -128,19 +140,19 @@ describe('User Tests', () => {
       });
   });
 
-  it('should have 2 users as test1@gmail.com with 0 project and test2@gmail.com with 2 projects', done => {
+  it('should have 3 users as test1@gmail.com with 0 project and test2@gmail.com with 2 projects', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(2);
-        expect(res.body.ResultSet.Result[0].username).to.be.eql('test1@gmail.com');
-        expect(res.body.ResultSet.Result[0].projects.length).to.be.eql(0);
-        expect(res.body.ResultSet.Result[0].projectToRole.length).to.be.eql(0);
-        expect(res.body.ResultSet.Result[1].username).to.be.eql('test2@gmail.com');
-        expect(res.body.ResultSet.Result[1].projects.length).to.be.eql(2);
-        expect(res.body.ResultSet.Result[1].projectToRole.length).to.be.eql(2);
+        expect(res.body.length).to.be.eql(3);
+        expect(res.body[1].username).to.be.eql('test1@gmail.com');
+        expect(res.body[1].projects.length).to.be.eql(0);
+        expect(res.body[1].projectToRole.length).to.be.eql(0);
+        expect(res.body[2].username).to.be.eql('test2@gmail.com');
+        expect(res.body[2].projects.length).to.be.eql(2);
+        expect(res.body[2].projectToRole.length).to.be.eql(2);
         done();
       })
       .catch(e => {
@@ -148,7 +160,7 @@ describe('User Tests', () => {
       });
   });
 
-  it('should return test1 user with 0 project', done => {
+  it('should return test1 user with 0 project and no permission', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test1@gmail.com')
@@ -157,6 +169,7 @@ describe('User Tests', () => {
         expect(res.body.username).to.be.eql('test1@gmail.com');
         expect(res.body.projects.length).to.be.eql(0);
         expect(res.body.projectToRole.length).to.be.eql(0);
+        expect(res.body.permissions).to.be.eql(['']);
         done();
       })
       .catch(e => {
@@ -177,6 +190,38 @@ describe('User Tests', () => {
         expect(res.body.projectToRole.length).to.be.eql(2);
         expect(res.body.projectToRole).to.include('test1:Member');
         expect(res.body.projectToRole).to.include('test2:StudyOnly');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('should update user to have permissions', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put('/users/test2@gmail.com')
+      .send({ updatedBy: 'admin', permissions: 'projects,users' })
+
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('should return test2 user with 2 permissions', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/users/test2@gmail.com')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.username).to.be.eql('test2@gmail.com');
+        expect(res.body.permissions.length).to.be.eql(2);
+        expect(res.body.permissions).to.include('projects');
+        expect(res.body.permissions).to.include('users');
         done();
       })
       .catch(e => {
@@ -217,12 +262,12 @@ describe('User Tests', () => {
       .get('/users')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(2);
-        expect(res.body.ResultSet.Result[0].username).to.be.eql('test1@gmail.com');
-        expect(res.body.ResultSet.Result[0].projects.length).to.be.eql(1);
-        expect(res.body.ResultSet.Result[0].projects).to.include('test2');
-        expect(res.body.ResultSet.Result[0].projectToRole.length).to.be.eql(1);
-        expect(res.body.ResultSet.Result[0].projectToRole).to.include('test2:Collaborator');
+        expect(res.body.length).to.be.eql(3);
+        expect(res.body[1].username).to.be.eql('test1@gmail.com');
+        expect(res.body[1].projects.length).to.be.eql(1);
+        expect(res.body[1].projects).to.include('test2');
+        expect(res.body[1].projectToRole.length).to.be.eql(1);
+        expect(res.body[1].projectToRole).to.include('test2:Collaborator');
         done();
       })
       .catch(e => {
@@ -250,12 +295,12 @@ describe('User Tests', () => {
       .get('/users')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(2);
-        expect(res.body.ResultSet.Result[0].username).to.be.eql('test1@gmail.com');
-        expect(res.body.ResultSet.Result[0].projects.length).to.be.eql(1);
-        expect(res.body.ResultSet.Result[0].projects).to.include('test2');
-        expect(res.body.ResultSet.Result[0].projectToRole.length).to.be.eql(1);
-        expect(res.body.ResultSet.Result[0].projectToRole).to.include('test2:Owner');
+        expect(res.body.length).to.be.eql(3);
+        expect(res.body[1].username).to.be.eql('test1@gmail.com');
+        expect(res.body[1].projects.length).to.be.eql(1);
+        expect(res.body[1].projects).to.include('test2');
+        expect(res.body[1].projectToRole.length).to.be.eql(1);
+        expect(res.body[1].projectToRole).to.include('test2:Owner');
         done();
       })
       .catch(e => {
@@ -283,10 +328,10 @@ describe('User Tests', () => {
       .get('/users')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(2);
-        expect(res.body.ResultSet.Result[0].username).to.be.eql('test1@gmail.com');
-        expect(res.body.ResultSet.Result[0].projects.length).to.be.eql(0);
-        expect(res.body.ResultSet.Result[0].projectToRole.length).to.be.eql(0);
+        expect(res.body.length).to.be.eql(3);
+        expect(res.body[1].username).to.be.eql('test1@gmail.com');
+        expect(res.body[1].projects.length).to.be.eql(0);
+        expect(res.body[1].projectToRole.length).to.be.eql(0);
         done();
       })
       .catch(e => {
@@ -312,8 +357,8 @@ describe('User Tests', () => {
       .get('/users')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(1);
-        expect(res.body.ResultSet.Result[0].username).to.be.eql('test2@gmail.com');
+        expect(res.body.length).to.be.eql(2);
+        expect(res.body[1].username).to.be.eql('test2@gmail.com');
         done();
       })
       .catch(e => {
@@ -338,7 +383,7 @@ describe('User Tests', () => {
       .get('/users')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(0);
+        expect(res.body.length).to.be.eql(1);
         done();
       })
       .catch(e => {

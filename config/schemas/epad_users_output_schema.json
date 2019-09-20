@@ -1,90 +1,73 @@
 {
   "$id": "epad_users_schema",
-  "type": "object",
-  "properties": {
-    "ResultSet": {
-      "type": "object",
-      "properties": {
-        "Result": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "admin": {
-                "type": "boolean"
-              },
-              "colorpreference": {
-                "type": "string"
-              },
-              "creator": {
-                "type": "string"
-              },
-              "displayname": {
-                "type": "string"
-              },
-              "email": {
-                "type": "string"
-              },
-              "enabled": {
-                "type": "boolean"
-              },
-              "firstname": {
-                "type": "string"
-              },
-              "lastname": {
-                "type": "string"
-              },
-              "passwordExpired": {
-                "type": "boolean"
-              },
-              "permissions": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "projectToRole": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "projects": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "role": {
-                "type": "string"
-              },
-              "username": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "admin",
-              "colorpreference",
-              "creator",
-              "displayname",
-              "email",
-              "enabled",
-              "firstname",
-              "lastname",
-              "passwordExpired",
-              "permissions",
-              "projectToRole",
-              "projects",
-              "username"
-            ]
-          }
-        },
-        "totalRecords": {
-          "type": "integer"
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "admin": {
+        "type": "boolean"
+      },
+      "colorpreference": {
+        "type": "string"
+      },
+      "creator": {
+        "type": "string"
+      },
+      "displayname": {
+        "type": "string"
+      },
+      "email": {
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "firstname": {
+        "type": "string"
+      },
+      "lastname": {
+        "type": "string"
+      },
+      "passwordExpired": {
+        "type": "boolean"
+      },
+      "permissions": {
+        "type": "array",
+        "items": {
+          "type": "string"
         }
       },
-      "required": ["Result", "totalRecords"]
-    }
-  },
-  "required": ["ResultSet"]
+      "projectToRole": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "projects": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "role": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "admin",
+      "creator",
+      "displayname",
+      "email",
+      "enabled",
+      "firstname",
+      "lastname",
+      "permissions",
+      "projectToRole",
+      "projects",
+      "username"
+    ]
+  }
 }
