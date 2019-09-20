@@ -111,10 +111,6 @@ async function epaddb(fastify, options, done) {
         // create relation as owner
         try {
           const userId = await fastify.findUserIdInternal(request.body.userName);
-          console.log('-------------- userid ---------------');
-          console.log(userId);
-          console.log('-------------- userid ---------------');
-
           const entry = {
             project_id: project.id,
             user_id: userId,
@@ -1000,54 +996,58 @@ async function epaddb(fastify, options, done) {
   // });
 
   fastify.decorate('createUser', (request, reply) => {
-    models.user
-      .create({
-        ...request.body,
-        createdtime: Date.now(),
-        updatetime: Date.now(),
-      })
-      .then(async user => {
-        const { id } = user.dataValues;
-        if (request.body.projects && request.body.projects.length > 0) {
-          const queries = [];
-          try {
-            for (let i = 0; i < request.body.projects.length; i += 1) {
-              // eslint-disable-next-line no-await-in-loop
-              let projectId = await models.project.findOne({
-                where: { projectid: request.body.projects[i].project },
-                attributes: ['id'],
-              });
-              projectId = projectId.dataValues.id;
-              const entry = {
-                project_id: projectId,
-                user_id: id,
-                role: request.body.projects[i].role,
-                createdtime: Date.now(),
-                updatetime: Date.now(),
-              };
-              queries.push(models.project_user.create(entry));
-            }
+    if (!request.body) {
+      reply.code(503).send('Invalid username');
+    } else {
+      models.user
+        .create({
+          ...request.body,
+          createdtime: Date.now(),
+          updatetime: Date.now(),
+        })
+        .then(async user => {
+          const { id } = user.dataValues;
+          if (request.body.projects && request.body.projects.length > 0) {
+            const queries = [];
+            try {
+              for (let i = 0; i < request.body.projects.length; i += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                let projectId = await models.project.findOne({
+                  where: { projectid: request.body.projects[i].project },
+                  attributes: ['id'],
+                });
+                projectId = projectId.dataValues.id;
+                const entry = {
+                  project_id: projectId,
+                  user_id: id,
+                  role: request.body.projects[i].role,
+                  createdtime: Date.now(),
+                  updatetime: Date.now(),
+                };
+                queries.push(models.project_user.create(entry));
+              }
 
-            Promise.all(queries)
-              .then(() => {
-                reply.code(200).send(`User succesfully created`);
-              })
-              .catch(err => {
-                console.log(err.message);
-                reply.code(503).send(err.message);
-              });
-          } catch (err) {
-            console.log(err.message);
-            reply.code(503).send(err.message);
+              Promise.all(queries)
+                .then(() => {
+                  reply.code(200).send(`User succesfully created`);
+                })
+                .catch(err => {
+                  console.log(err.message);
+                  reply.code(503).send(err.message);
+                });
+            } catch (err) {
+              console.log(err.message);
+              reply.code(503).send(err.message);
+            }
+          } else {
+            reply.code(200).send(`User succesfully created`);
           }
-        } else {
-          reply.code(200).send(`User succesfully created`);
-        }
-      })
-      .catch(err => {
-        console.log(err.message);
-        reply.code(503).send(err.message);
-      });
+        })
+        .catch(err => {
+          console.log(err.message);
+          reply.code(503).send(err.message);
+        });
+    }
   });
 
   fastify.decorate('getProject', (request, reply) => {
@@ -1067,6 +1067,8 @@ async function epaddb(fastify, options, done) {
       ...request.body,
       updatetime: Date.now(),
     };
+    console.log('----- rowsUpdated ----');
+    console.log(rowsUpdated);
     if (request.body.updatedBy) {
       rowsUpdated.updated_by = request.body.updatedBy;
     }
@@ -1077,6 +1079,8 @@ async function epaddb(fastify, options, done) {
         request.params.user,
         request.params.project
       );
+      console.log('-----  userId, projectId -------');
+      console.log(userId, projectId);
       if (rowsUpdated.role.toLowerCase().trim() === 'none') {
         await models.project_user.destroy({ where: { project_id: projectId, user_id: userId } });
         reply.code(200).send(`update sucessful`);
@@ -1087,6 +1091,8 @@ async function epaddb(fastify, options, done) {
         });
         // check if new entry created
         // if not created, get the id and update the relation
+        console.log('-----  result-------');
+        console.log(result);
         if (result[1]) {
           reply.code(200).send(`new relation created sucessfully on update`);
         } else {
@@ -1104,8 +1110,12 @@ async function epaddb(fastify, options, done) {
     const query = new Promise(async (resolve, reject) => {
       try {
         // find user id
+        console.log(' ----- 1-----');
+        console.log(username);
         let userId = await models.user.findOne({ where: { username }, attributes: ['id'] });
         userId = userId.dataValues.id;
+        console.log(' ----- 2 -----');
+
         // find project id
         let projectId = await models.project.findOne({ where: { projectid }, attributes: ['id'] });
         projectId = projectId.dataValues.id;

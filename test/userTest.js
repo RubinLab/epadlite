@@ -17,7 +17,7 @@ after(() => {
   server.close();
 });
 describe('User Tests', () => {
-  before(async () => {
+  before(async done => {
     try {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -30,21 +30,21 @@ describe('User Tests', () => {
           type: 'private',
           userName: 'admin',
         });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'test2',
+          projectName: 'test_user2',
+          projectDescription: 'testdescUser',
+          defaultTemplate: 'ROI',
+          type: 'public',
+          userName: 'admin',
+        });
+      done();
     } catch (err) {
       console.log(err);
     }
-
-    await chai
-      .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects')
-      .send({
-        projectId: 'test2',
-        projectName: 'test_user2',
-        projectDescription: 'testdescUser',
-        defaultTemplate: 'ROI',
-        type: 'public',
-        userName: 'admin',
-      });
   });
   after(async () => {
     try {
@@ -68,7 +68,8 @@ describe('User Tests', () => {
         done();
       })
       .catch(e => {
-        done(e);
+        console.log(e);
+        done();
       });
   });
 
