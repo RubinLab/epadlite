@@ -299,10 +299,13 @@ async function other(fastify) {
 
   fastify.decorate('getNotifications', (request, reply) => {
     reply.res.writeHead(200, {
-      Connection: 'keep-alive',
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
+      'Access-Control-Allow-Origin': '*',
     });
+    reply.res.write('id: 1\n');
+    reply.res.write('data: some text\n\n');
+
     fastify.addConnectedUser(request, reply);
     // TODO remove user and close connection on logout. stop notifications endpoint??
   });

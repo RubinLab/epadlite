@@ -130,11 +130,10 @@ const authCheck = async (authHeader, res) => {
 };
 
 fastify.decorate('connectedUsers', {});
-fastify.decorate('sse', (req, messageJson) =>
-  fastify.connectedUsers[req.query && req.query.username ? req.query.username : 'nouser'].write(
-    JSON.stringify(messageJson)
-  )
-);
+fastify.decorate('sse', (messageJson, username = 'nouser') => {
+  fastify.connectedUsers[username].write('id: 3\n');
+  fastify.connectedUsers[username].write(`data: ${JSON.stringify(messageJson)}\n\n`);
+});
 fastify.decorate(
   'addConnectedUser',
   // eslint-disable-next-line no-return-assign

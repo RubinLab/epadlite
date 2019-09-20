@@ -40,7 +40,7 @@ class EpadNotification {
   notify(fastify) {
     console.log(`sending ${JSON.stringify(this)}`);
     // TODO try catch
-    fastify.connectedUsers[this.notification.username].write(JSON.stringify(this.notification));
+    fastify.sse(this, this.notification.username);
   }
 }
 module.exports = EpadNotification;
