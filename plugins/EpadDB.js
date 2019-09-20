@@ -203,6 +203,7 @@ async function epaddb(fastify, options, done) {
             // numberOfStudies:
             // numberOfSubjects:
             // subjectIDs:
+            description: project.description,
             loginNames: [],
             type: project.type,
           };
@@ -1067,8 +1068,6 @@ async function epaddb(fastify, options, done) {
       ...request.body,
       updatetime: Date.now(),
     };
-    console.log('----- rowsUpdated ----');
-    console.log(rowsUpdated);
     if (request.body.updatedBy) {
       rowsUpdated.updated_by = request.body.updatedBy;
     }
@@ -1079,8 +1078,6 @@ async function epaddb(fastify, options, done) {
         request.params.user,
         request.params.project
       );
-      console.log('-----  userId, projectId -------');
-      console.log(userId, projectId);
       if (rowsUpdated.role.toLowerCase().trim() === 'none') {
         await models.project_user.destroy({ where: { project_id: projectId, user_id: userId } });
         reply.code(200).send(`update sucessful`);
@@ -1091,8 +1088,6 @@ async function epaddb(fastify, options, done) {
         });
         // check if new entry created
         // if not created, get the id and update the relation
-        console.log('-----  result-------');
-        console.log(result);
         if (result[1]) {
           reply.code(200).send(`new relation created sucessfully on update`);
         } else {
@@ -1110,12 +1105,8 @@ async function epaddb(fastify, options, done) {
     const query = new Promise(async (resolve, reject) => {
       try {
         // find user id
-        console.log(' ----- 1-----');
-        console.log(username);
         let userId = await models.user.findOne({ where: { username }, attributes: ['id'] });
         userId = userId.dataValues.id;
-        console.log(' ----- 2 -----');
-
         // find project id
         let projectId = await models.project.findOne({ where: { projectid }, attributes: ['id'] });
         projectId = projectId.dataValues.id;

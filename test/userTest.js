@@ -160,7 +160,7 @@ describe('User Tests', () => {
       });
   });
 
-  it('should return test1 user with 0 project', done => {
+  it('should return test1 user with 0 project and no permission', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test1@gmail.com')
@@ -169,6 +169,7 @@ describe('User Tests', () => {
         expect(res.body.username).to.be.eql('test1@gmail.com');
         expect(res.body.projects.length).to.be.eql(0);
         expect(res.body.projectToRole.length).to.be.eql(0);
+        expect(res.body.permissions).to.be.eql(['']);
         done();
       })
       .catch(e => {
@@ -189,6 +190,38 @@ describe('User Tests', () => {
         expect(res.body.projectToRole.length).to.be.eql(2);
         expect(res.body.projectToRole).to.include('test1:Member');
         expect(res.body.projectToRole).to.include('test2:StudyOnly');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('should update user to have permissions', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put('/users/test2@gmail.com')
+      .send({ updatedBy: 'admin', permissions: 'projects,users' })
+
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('should return test2 user with 2 permissions', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/users/test2@gmail.com')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.username).to.be.eql('test2@gmail.com');
+        expect(res.body.permissions.length).to.be.eql(2);
+        expect(res.body.permissions).to.include('projects');
+        expect(res.body.permissions).to.include('users');
         done();
       })
       .catch(e => {
