@@ -315,11 +315,14 @@ async function other(fastify) {
             filetype: query.filetype ? query.filetype : '',
             length,
           };
-          // add to couchdb
-          await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
           // add link to db if thick
           if (config.mode === 'thick') {
             await fastify.putOtherFileToProjectInternal(fileInfo.name, params, query);
+            // add to couchdb only if successful
+            await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
+          } else {
+            // add to couchdb
+            await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
           }
           resolve();
         } catch (err) {

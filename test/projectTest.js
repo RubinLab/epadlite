@@ -1346,7 +1346,6 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims')
         .then(res => {
-          // console.log('resr', res.body.length);
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
           done();
@@ -1785,15 +1784,6 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testfilesubject4');
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilesubject/subjects/3');
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilesubject2/subjects/3');
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilesubject3/subjects/3');
     });
     it('should return no files for subject 3 in project testfilesubject', done => {
       chai
@@ -2142,15 +2132,6 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testfilestudy4');
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilestudy/subjects/3');
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilestudy2/subjects/3');
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilestudy3/subjects/3');
     });
     it('should return no files for subject 3, study 0023.2015.09.28.3 in project testfilestudy', done => {
       chai
@@ -2413,7 +2394,11 @@ describe('Project Tests', () => {
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
-            .delete(`/projects/testfilestudy2/subjects/3/files/${res.body[0].name}`)
+            .delete(
+              `/projects/testfilestudy2/subjects/3/studies/0023.2015.09.28.3/files/${
+                res.body[0].name
+              }`
+            )
             .query({ all: 'true' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
@@ -2444,6 +2429,19 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy3/subjects/3/studies/0023.2015.09.28.3/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no files for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/files')
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2523,15 +2521,6 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testfileseries4');
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfileseries/subjects/3');
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfileseries2/subjects/3');
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfileseries3/subjects/3');
     });
     it('should return no files for subject 3, series 0023.2015.09.28.3.3590 in project testfileseries', done => {
       chai
@@ -2822,7 +2811,11 @@ describe('Project Tests', () => {
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
-            .delete(`/projects/testfileseries2/subjects/3/files/${res.body[0].name}`)
+            .delete(
+              `/projects/testfileseries2/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files/${
+                res.body[0].name
+              }`
+            )
             .query({ all: 'true' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
@@ -2860,6 +2853,448 @@ describe('Project Tests', () => {
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no files for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
+  describe('Project Association Tests', () => {
+    it('should create testassoc project ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testassoc',
+          projectName: 'testassoc',
+          projectDescription: 'testassocdesc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should return no files for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no templates for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/templates')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no aims for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should upload jpg file to testassoc project ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testassoc/files')
+        .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should save ROI template to testassoc project', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testassoc/templates')
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should save sample aim save to project testassoc', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testassoc/aims')
+        .send(jsonBuffer)
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should add subject 3 to project testassoc', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testassoc/subjects/3')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should return 1 file for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 template for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/templates')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 aim for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should return 1 file for project testassoc ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 template for project testassoc  ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc/templates')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 aim for project testassoc  ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 subject for project testassoc  ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc/subjects')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should delete project testassoc', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testassoc')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should create testassoc2 project ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testassoc2',
+          projectName: 'testassoc2',
+          projectDescription: 'testassoc2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should create testassoc3 project ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testassoc3',
+          projectName: 'testassoc3',
+          projectDescription: 'testassoc3desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+          userName: 'admin',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed uploading jpg file to project testassoc2 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testassoc2/files')
+        .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should add first file to testfile2 project (filename retrieval is done via get all) ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc2/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put(`/projects/testassoc3/files/${res.body[0].name}`)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed uploading jpg file to project testassoc2 second time ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testassoc2/files')
+        .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed uploading jpg file to project testassoc2 third time ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testassoc2/files')
+        .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testassoc2 should have 3 files ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc2/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(3);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should delete project testassoc2', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testassoc2')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 file for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('jpg file delete from system with filename retrieval from testassoc3 and delete should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc3/files')
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .delete(`/projects/testassoc3/files/${res.body[0].name}`)
+            .query({ all: 'true' })
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no files for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/files')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no templates for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/templates')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no aims for system ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/aims')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should delete project testassoc3', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testassoc3')
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
           done();
         })
         .catch(e => {
