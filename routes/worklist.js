@@ -13,6 +13,26 @@ async function routes(fastify) {
           },
         },
       },
+      body: {
+        type: 'object',
+        properties: {
+          worklistName: {
+            type: 'string',
+          },
+          worklistId: {
+            type: 'string',
+          },
+          userId: {
+            type: 'string',
+          },
+          description: {
+            type: 'string',
+          },
+          dueDate: {
+            type: 'string',
+          },
+        },
+      },
     },
     handler: fastify.createWorklist,
   });

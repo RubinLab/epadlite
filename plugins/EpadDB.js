@@ -347,6 +347,10 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('createWorklist', async (request, reply) => {
     let userId;
+    console.log('///// request auth');
+    console.log(request.epadAuth);
+    console.log(request);
+
     try {
       // find user id
       userId = await models.user.findOne({
@@ -359,13 +363,13 @@ async function epaddb(fastify, options, done) {
     }
     models.worklist
       .create({
-        name: request.body.name,
-        worklistid: request.body.worklistid,
+        name: request.body.worklistName,
+        worklistid: request.body.worklistId,
         user_id: userId,
         description: request.body.description,
         updatetime: Date.now(),
-        duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
-        creator: request.body.username,
+        duedate: request.body.dueDate ? new Date(`${request.body.dueDate}T00:00:00`) : null,
+        creator: request.epadAuth.username,
       })
       .then(worklist => {
         reply.code(200).send(`success with id ${worklist.id}`);
@@ -423,6 +427,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getWorklists', async (request, reply) => {
     let userId;
+    //query?username=admin
     try {
       // find user id
       userId = await models.user.findOne({
@@ -470,7 +475,7 @@ async function epaddb(fastify, options, done) {
           }
           result.push(obj);
         }
-        reply.code(200).send({ ResultSet: { Result: result, totalRecords: result.length } });
+        reply.code(200).send(result);
       })
 
       .catch(err => {
