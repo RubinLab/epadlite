@@ -413,8 +413,6 @@ async function epaddb(fastify, options, done) {
     } catch (err) {
       console.log(err);
     }
-    // console.log(' ======== oldUserId, newUserId =====');
-    // console.log(oldUserId, newUserId);
     models.worklist
       .update(
         { user_id: newUserId, updatetime: Date.now(), updated_by: request.epadAuth.username },
@@ -622,9 +620,8 @@ async function epaddb(fastify, options, done) {
               if (request.query.format === 'summary') {
                 // add enable disable
                 const editedResult = result;
-                for (let i = 0; i < editedResult.ResultSet.Result.length; i += 1) {
-                  editedResult.ResultSet.Result[i].enabled =
-                    enabled[editedResult.ResultSet.Result[i].containerUID] === 1;
+                for (let i = 0; i < editedResult.length; i += 1) {
+                  editedResult[i].enabled = enabled[editedResult[i].containerUID] === 1;
                 }
                 reply.code(200).send(editedResult);
               } else {
@@ -716,11 +713,11 @@ async function epaddb(fastify, options, done) {
         updatetime: Date.now(),
       });
       const studies = await fastify.getPatientStudiesInternal(request.params);
-      for (let i = 0; i < studies.ResultSet.Result.length; i += 1) {
+      for (let i = 0; i < studies.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop
         await models.project_subject_study.create({
           proj_subj_id: projectSubject.id,
-          study_uid: studies.ResultSet.Result[i].studyUID,
+          study_uid: studies[i].studyUID,
           creator: request.query.username,
           updatetime: Date.now(),
         });
@@ -750,10 +747,10 @@ async function epaddb(fastify, options, done) {
       }
       const result = await fastify.getPatientsInternal(subjectUids);
       // TODO implement better error handling/reporting
-      if (subjectUids.length !== result.ResultSet.totalRecords)
+      if (subjectUids.length !== result.length)
         console.log(
           `There are ${subjectUids.length} subjects associated with this project. But only ${
-            result.ResultSet.totalRecords
+            result.length
           } of them have dicom files`
         );
       reply.code(200).send(result);
@@ -1107,10 +1104,10 @@ async function epaddb(fastify, options, done) {
         }
       const result = await fastify.getPatientStudiesInternal(request.params, studyUids);
       // TODO implement better error handling/reporting
-      if (studyUids.length !== result.ResultSet.totalRecords)
+      if (studyUids.length !== result.length)
         console.log(
           `There are ${studyUids.length} studies associated with this project. But only ${
-            result.ResultSet.totalRecords
+            result.length
           } of them have dicom files`
         );
       reply.code(200).send(result);
@@ -1456,7 +1453,7 @@ async function epaddb(fastify, options, done) {
     try {
       const studyUids = [request.params.study];
       const result = await fastify.getPatientStudiesInternal(request.params, studyUids);
-      if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
+      if (result.length === 1) reply.code(200).send(result[0]);
       else {
         reply.code(404).send(`Study ${request.params.study} not found`);
       }
@@ -1471,7 +1468,7 @@ async function epaddb(fastify, options, done) {
     try {
       const subjectUids = [request.params.subject];
       const result = await fastify.getPatientsInternal(subjectUids);
-      if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
+      if (result.length === 1) reply.code(200).send(result[0]);
       else {
         reply.code(404).send(`Subject ${request.params.subject} not found`);
       }

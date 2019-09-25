@@ -127,7 +127,6 @@ describe('Worklist Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test3@gmail.com/worklists?username=test3@gmail.com')
       .then(res => {
-        console.log(res.body[0].worklistID);
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
         expect(res.body[0].name).to.be.eql('testUpdated2');

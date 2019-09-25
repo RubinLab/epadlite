@@ -408,7 +408,7 @@ async function couchdb(fastify, options) {
                 for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
                   res.push(filteredRows[i].key[4]);
-                resolve({ ResultSet: { Result: res } });
+                resolve(res);
               } else if (format === 'stream') {
                 for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
@@ -591,9 +591,7 @@ async function couchdb(fastify, options) {
           .getAimsInternal('summary', params)
           .then(result => {
             const aimPromisses = [];
-            result.ResultSet.Result.forEach(aim =>
-              aimPromisses.push(fastify.deleteAimInternal(aim.aimID))
-            );
+            result.forEach(aim => aimPromisses.push(fastify.deleteAimInternal(aim.aimID)));
             Promise.all(aimPromisses)
               .then(() => resolve())
               .catch(deleteErr => reject(deleteErr));
@@ -648,7 +646,7 @@ async function couchdb(fastify, options) {
                   body.rows.forEach(template => {
                     res.push(template.key[2]);
                   });
-                  resolve({ ResultSet: { Result: res } });
+                  resolve(res);
                 } else if (format === 'stream') {
                   body.rows.forEach(template => {
                     res.push(template.key[2]);
@@ -873,7 +871,7 @@ async function couchdb(fastify, options) {
                 const summary = fastify.getSummaryFromTemplate(item.doc.template);
                 res.push(summary);
               });
-              resolve({ ResultSet: { Result: res } });
+              resolve(res);
             } else if (format === 'stream') {
               data.rows.forEach(item => {
                 if ('doc' in item) res.push(item.doc.template);

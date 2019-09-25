@@ -347,7 +347,7 @@ describe('Project Tests', () => {
         .get('/projects/testtemplate2/templates?format=summary')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result[0].enabled).to.be.eql(false);
+          expect(res.body[0].enabled).to.be.eql(false);
           done();
         })
         .catch(e => {
@@ -374,7 +374,7 @@ describe('Project Tests', () => {
         .get('/projects/testtemplate2/templates?format=summary')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result[0].enabled).to.be.eql(true);
+          expect(res.body[0].enabled).to.be.eql(true);
           done();
         })
         .catch(e => {
@@ -524,7 +524,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -576,7 +576,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {
@@ -589,7 +589,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result[0].subjectID).to.be.eql('3');
+          expect(res.body[0].subjectID).to.be.eql('3');
           done();
         })
         .catch(e => {
@@ -602,7 +602,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject/subjects/3/studies')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
           done();
         })
         .catch(e => {
@@ -656,7 +656,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -670,7 +670,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject2/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {
@@ -684,7 +684,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject3/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {
@@ -711,7 +711,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -725,7 +725,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject2/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -739,7 +739,7 @@ describe('Project Tests', () => {
         .get('/projects/testsubject3/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -801,7 +801,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -853,7 +853,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {
@@ -866,7 +866,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result[0].subjectID).to.be.eql('3');
+          expect(res.body[0].subjectID).to.be.eql('3');
           done();
         })
         .catch(e => {
@@ -879,7 +879,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy/subjects/3/studies')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
           done();
         })
         .catch(e => {
@@ -931,7 +931,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -945,7 +945,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy2/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {
@@ -959,7 +959,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy3/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {
@@ -986,7 +986,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -1000,7 +1000,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy2/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -1014,7 +1014,7 @@ describe('Project Tests', () => {
         .get('/projects/teststudy3/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(0);
+          expect(res.body.length).to.be.eql(0);
           done();
         })
         .catch(e => {
@@ -3073,7 +3073,7 @@ describe('Project Tests', () => {
         .get('/projects/testassoc/subjects')
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {

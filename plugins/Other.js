@@ -357,7 +357,7 @@ async function other(fastify) {
           fastify
             .getPatientStudiesInternal(params)
             .then(result => {
-              result.ResultSet.Result.forEach(study => {
+              result.forEach(study => {
                 promisses.push(
                   fastify.deleteStudyDicomsInternal({
                     subject: params.subject,

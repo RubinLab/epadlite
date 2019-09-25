@@ -33,7 +33,7 @@ describe('Subject Tests', () => {
       .get('/subjects')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result.length).to.be.eql(1);
+        expect(res.body.length).to.be.eql(1);
         done();
       })
       .catch(e => {
@@ -46,7 +46,7 @@ describe('Subject Tests', () => {
       .get('/subjects')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result[0].subjectID).to.be.eql('3');
+        expect(res.body[0].subjectID).to.be.eql('3');
         done();
       })
       .catch(e => {
@@ -87,7 +87,7 @@ describe('Subject Tests', () => {
       .get('/studies')
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
+        expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
         done();
       })
       .catch(e => {

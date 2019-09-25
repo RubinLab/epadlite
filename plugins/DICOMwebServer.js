@@ -203,7 +203,7 @@ async function dicomwebserver(fastify) {
               // filter the results if patient id filter is given
               const { filteredStudies, filteredAims } = await fastify.filter(
                 values[0].data,
-                values[1].ResultSet.Result,
+                values[1],
                 filter,
                 '00100020',
                 'subjectID'
@@ -271,7 +271,7 @@ async function dicomwebserver(fastify) {
                   };
                 })
                 .value();
-              resolve({ ResultSet: { Result: result, totalRecords: result.length } });
+              resolve(result);
             })
             .catch(error => {
               // TODO handle error
@@ -307,7 +307,7 @@ async function dicomwebserver(fastify) {
     fastify
       .getPatientStudiesInternal(request.params, [request.params.study])
       .then(result => {
-        if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
+        if (result.length === 1) reply.code(200).send(result[0]);
         else {
           reply.code(404).send(`Subject ${request.params.subject} not found`);
         }
@@ -342,7 +342,7 @@ async function dicomwebserver(fastify) {
               // eslint-disable-next-line prefer-const
               let { filteredStudies, filteredAims } = await fastify.filter(
                 values[0].data,
-                values[1].ResultSet.Result,
+                values[1],
                 filter,
                 '0020000D',
                 'studyUID'
@@ -397,7 +397,7 @@ async function dicomwebserver(fastify) {
                 };
               });
 
-              resolve({ ResultSet: { Result: result, totalRecords: result.length } });
+              resolve(result);
             })
             .catch(error => {
               // handle error
@@ -438,7 +438,7 @@ async function dicomwebserver(fastify) {
               // handle success
               // populate an aim counts map containing each series
               const aimsCountMap = {};
-              _.chain(values[1].ResultSet.Result)
+              _.chain(values[1])
                 .groupBy(value => {
                   return value.seriesUID;
                 })
@@ -498,7 +498,7 @@ async function dicomwebserver(fastify) {
                     value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
                 };
               });
-              resolve({ ResultSet: { Result: result, totalRecords: result.length } });
+              resolve(result);
             })
             .catch(error => {
               // handle error
@@ -560,7 +560,7 @@ async function dicomwebserver(fastify) {
                 };
               });
 
-              resolve({ ResultSet: { Result: result, totalRecords: result.length } });
+              resolve(result);
             })
             .catch(error => {
               // handle error
@@ -582,7 +582,7 @@ async function dicomwebserver(fastify) {
     fastify
       .getPatientsInternal([request.params.subject])
       .then(result => {
-        if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
+        if (result.length === 1) reply.code(200).send(result[0]);
         else {
           reply.code(404).send(`Subject ${request.params.subject} not found`);
         }
