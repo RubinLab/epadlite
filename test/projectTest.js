@@ -1830,7 +1830,7 @@ describe('Project Tests', () => {
         .post('/projects/testfilesubject/subjects/7/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
         .then(res => {
-          expect(res.statusCode).to.equal(503);
+          expect(res.statusCode).to.equal(500);
           done();
         })
         .catch(e => {
@@ -2178,7 +2178,7 @@ describe('Project Tests', () => {
         .post('/projects/testfilestudy/subjects/7/studies/64363473737.86569494/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
         .then(res => {
-          expect(res.statusCode).to.equal(503);
+          expect(res.statusCode).to.equal(500);
           done();
         })
         .catch(e => {
@@ -2573,7 +2573,7 @@ describe('Project Tests', () => {
         .post('/projects/testfileseries/subjects/7/studies/64363473737.86569494/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
         .then(res => {
-          expect(res.statusCode).to.equal(503);
+          expect(res.statusCode).to.equal(500);
           done();
         })
         .catch(e => {

@@ -125,9 +125,6 @@ if (config.mode === 'lite') {
   fastify.register(require('./routes/other')); // eslint-disable-line global-require
 }
 
-const port = process.env.port || '8080';
-const host = process.env.host || '0.0.0.0';
-
 // Run the server!
 fastify.listen(port, host);
 

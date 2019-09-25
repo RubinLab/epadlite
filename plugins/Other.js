@@ -543,10 +543,12 @@ async function other(fastify) {
   fastify.decorate('messageId', 0);
   fastify.decorate('connectedUsers', {});
   fastify.decorate('sse', (messageJson, username = 'nouser') => {
-    fastify.connectedUsers[username].write(`id: ${fastify.messageId}\n`);
-    // eslint-disable-next-line no-param-reassign
-    fastify.messageId += 1;
-    fastify.connectedUsers[username].write(`data: ${JSON.stringify(messageJson)}\n\n`);
+    if (fastify.connectedUsers[username]) {
+      fastify.connectedUsers[username].write(`id: ${fastify.messageId}\n`);
+      // eslint-disable-next-line no-param-reassign
+      fastify.messageId += 1;
+      fastify.connectedUsers[username].write(`data: ${JSON.stringify(messageJson)}\n\n`);
+    }
   });
   fastify.decorate(
     'addConnectedUser',
