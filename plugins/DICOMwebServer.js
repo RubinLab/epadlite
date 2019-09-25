@@ -4,6 +4,7 @@ const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
 const config = require('../config/index');
+const { InternalError } = require('../utils/EpadErrors');
 
 // I need to import this after config as it uses config values
 // eslint-disable-next-line import/order
@@ -186,7 +187,7 @@ async function dicomwebserver(fastify) {
     fastify
       .getPatientsInternal()
       .then(result => reply.code(200).send(result))
-      .catch(err => reply.code(503).send(err.message));
+      .catch(err => reply.code(500).send(err));
   });
 
   fastify.decorate(
@@ -276,11 +277,11 @@ async function dicomwebserver(fastify) {
             .catch(error => {
               // TODO handle error
               fastify.log.info(`Error retrieving studies to populate patients: ${error.message}`);
-              reject(error);
+              reject(new InternalError('Retrieving Studies', error));
             });
         } catch (err) {
           fastify.log.info(`Error populating patients: ${err.message}`);
-          reject(err);
+          reject(new InternalError('Populating Patients', err));
         }
       })
   );
