@@ -70,6 +70,23 @@ async function routes(fastify) {
   });
 
   fastify.route({
+    method: 'GET',
+    url: '/users/:user/worklists',
+    schema: {
+      tags: ['worklist', 'user'],
+      params: {
+        type: 'object',
+        properties: {
+          user: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getWorklistsOfAssignee,
+  });
+
+  fastify.route({
     method: 'PUT',
     url: '/users/:user/worklists/:worklist',
     schema: {

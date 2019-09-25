@@ -351,7 +351,7 @@ async function epaddb(fastify, options, done) {
     try {
       // find user id
       assigneeId = await models.user.findOne({
-        where: { username: request.body.userId },
+        where: { username: request.params.user },
         attributes: ['id'],
       });
       assigneeId = assigneeId.dataValues.id;
@@ -413,7 +413,8 @@ async function epaddb(fastify, options, done) {
     } catch (err) {
       console.log(err);
     }
-
+    // console.log(' ======== oldUserId, newUserId =====');
+    // console.log(oldUserId, newUserId);
     models.worklist
       .update(
         { user_id: newUserId, updatetime: Date.now(), updated_by: request.epadAuth.username },
@@ -461,6 +462,62 @@ async function epaddb(fastify, options, done) {
         // include: ['user'],
       })
       .then(worklist => {
+        const result = [];
+        for (let i = 0; i < worklist.length; i += 1) {
+          const obj = {
+            completionDate: worklist[i].completedate,
+            dueDate: worklist[i].duedate,
+            name: worklist[i].name,
+            startDate: worklist[i].startdate,
+            username: worklist[i].user.username,
+            worklistID: worklist[i].worklistid,
+            description: worklist[i].description,
+            projectIDs: [],
+            studyStatus: [],
+            studyIDs: [],
+            subjectIDs: [],
+          };
+          const studiesArr = worklist[i].worklist_studies;
+          for (let k = 0; k < studiesArr.length; k += 1) {
+            obj.projectIDs.push(studiesArr[k].dataValues.project_id);
+            obj.studyStatus.push(studiesArr[k].dataValues.status);
+            obj.studyIDs.push(studiesArr[k].dataValues.study_id);
+            obj.subjectIDs.push(studiesArr[k].dataValues.subject_id);
+          }
+          result.push(obj);
+        }
+        reply.code(200).send(result);
+      })
+
+      .catch(err => {
+        reply.code(503).send(err.message);
+      });
+  });
+
+  fastify.decorate('getWorklistsOfAssignee', async (request, reply) => {
+    let userId;
+    try {
+      userId = await models.user.findOne({
+        where: { username: request.params.user },
+        attributes: ['id'],
+      });
+      userId = userId.dataValues.id;
+    } catch (err) {
+      console.log(err);
+    }
+    models.worklist
+      .findAll({
+        where: { user_id: userId },
+        include: [
+          {
+            model: models.worklist_study,
+          },
+          'user',
+        ],
+        // include: ['user'],
+      })
+      .then(worklist => {
+        // console.log(worklist);
         const result = [];
         for (let i = 0; i < worklist.length; i += 1) {
           const obj = {
