@@ -62,19 +62,11 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/users/:user/worklists',
+    url: '/worklists',
     schema: {
-      tags: ['worklist', 'user'],
-      params: {
-        type: 'object',
-        properties: {
-          user: {
-            type: 'string',
-          },
-        },
-      },
+      tags: ['worklist'],
     },
-    handler: fastify.getWorklists,
+    handler: fastify.getWorklistsOfCreator,
   });
 
   fastify.route({
@@ -89,6 +81,42 @@ async function routes(fastify) {
             type: 'string',
           },
           worklist: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          user: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.updateWorklistAssignee,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/worklists/:worklist',
+    schema: {
+      tags: ['worklist'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+          },
+          description: {
             type: 'string',
           },
         },

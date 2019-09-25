@@ -70,6 +70,7 @@ async function epaddb(fastify, options, done) {
           as: 'users',
           foreignKey: 'project_id',
         });
+        models.worklist.belongsTo(models.user, { foreignKey: 'user_id' });
 
         await fastify.orm.sync();
         resolve();
@@ -346,18 +347,14 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('createWorklist', async (request, reply) => {
-    let userId;
-    console.log('///// request auth');
-    console.log(request.epadAuth);
-    console.log(request);
-
+    let assigneeId;
     try {
       // find user id
-      userId = await models.user.findOne({
-        where: { username: request.params.user },
+      assigneeId = await models.user.findOne({
+        where: { username: request.body.userId },
         attributes: ['id'],
       });
-      userId = userId.dataValues.id;
+      assigneeId = assigneeId.dataValues.id;
     } catch (err) {
       console.log(err);
     }
@@ -365,7 +362,7 @@ async function epaddb(fastify, options, done) {
       .create({
         name: request.body.worklistName,
         worklistid: request.body.worklistId,
-        user_id: userId,
+        user_id: assigneeId,
         description: request.body.description,
         updatetime: Date.now(),
         duedate: request.body.dueDate ? new Date(`${request.body.dueDate}T00:00:00`) : null,
@@ -397,24 +394,32 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('updateWorklist', async (request, reply) => {
-    let userId;
+  fastify.decorate('updateWorklistAssignee', async (request, reply) => {
+    let oldUserId;
+    let newUserId;
     try {
       // find user id
-      userId = await models.user.findOne({
+      oldUserId = await models.user.findOne({
         where: { username: request.params.user },
         attributes: ['id'],
       });
-      userId = userId.dataValues.id;
+      oldUserId = oldUserId.dataValues.id;
+
+      newUserId = await models.user.findOne({
+        where: { username: request.body.user },
+        attributes: ['id'],
+      });
+      newUserId = newUserId.dataValues.id;
     } catch (err) {
       console.log(err);
     }
+
     models.worklist
       .update(
-        { ...request.body, updatetime: Date.now(), updated_by: request.body.username },
+        { user_id: newUserId, updatetime: Date.now(), updated_by: request.epadAuth.username },
         {
           where: {
-            user_id: userId,
+            user_id: oldUserId,
             worklistid: request.params.worklist,
           },
         }
@@ -425,30 +430,35 @@ async function epaddb(fastify, options, done) {
       .catch(err => reply.code(503).send(err));
   });
 
-  fastify.decorate('getWorklists', async (request, reply) => {
-    let userId;
-    //query?username=admin
-    try {
-      // find user id
-      userId = await models.user.findOne({
-        where: { username: request.params.user },
-        attributes: ['id'],
-      });
-      userId = userId.dataValues.id;
-    } catch (err) {
-      console.log(err);
-    }
+  fastify.decorate('updateWorklist', async (request, reply) => {
+    models.worklist
+      .update(
+        { ...request.body, updatetime: Date.now(), updated_by: request.epadAuth.username },
+        {
+          where: {
+            worklistid: request.params.worklist,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send('Update successful');
+      })
+      .catch(err => reply.code(503).send(err));
+  });
 
+  fastify.decorate('getWorklistsOfCreator', async (request, reply) => {
     models.worklist
       .findAll({
         where: {
-          user_id: userId,
+          creator: request.epadAuth.username,
         },
         include: [
           {
             model: models.worklist_study,
           },
+          'user',
         ],
+        // include: ['user'],
       })
       .then(worklist => {
         const result = [];
@@ -458,8 +468,8 @@ async function epaddb(fastify, options, done) {
             dueDate: worklist[i].duedate,
             name: worklist[i].name,
             startDate: worklist[i].startdate,
-            username: worklist[i].user_id,
-            workListID: worklist[i].worklistid,
+            username: worklist[i].user.username,
+            worklistID: worklist[i].worklistid,
             description: worklist[i].description,
             projectIDs: [],
             studyStatus: [],
