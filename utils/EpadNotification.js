@@ -1,37 +1,22 @@
-// class EpadError extends Error {
-//   constructor(foo = 'bar', ...params) {
-//     // Pass remaining arguments (including vendor specific ones) to parent constructor
-//     super(...params);
-//     console.log(params);
-
-//     // Maintains proper stack trace for where our error was thrown (only available on V8)
-//     if (Error.captureStackTrace) {
-//       Error.captureStackTrace(this, EpadError);
-//     }
-
-//     this.name = 'EpadError';
-//     // Custom debugging information
-//     this.foo = foo;
-//     this.date = new Date();
-//   }
-// }
 class EpadNotification {
-  constructor(request, method, reason, error) {
+  constructor(request, info, reason) {
     this.notification = {
-      projectID: this.getProject(request.req.url),
+      projectID: EpadNotification.getProject(request.req.url),
       username: request.query.username ? request.query.username : 'nouser',
-      function: method,
-      params: `${reason}${
-        // eslint-disable-next-line no-nested-ternary
-        error !== undefined ? `: ${error instanceof Error ? error.message : error}` : ''
-      }`,
+      function: typeof info === 'string' ? info : EpadNotification.prepareMethodText(info),
+      params: `${reason instanceof Error ? reason.message : reason}`,
       createdtime: new Date(),
-      error: error !== undefined ? 1 : 0,
+      error: reason instanceof Error,
     };
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  getProject(url) {
+  static prepareMethodText(reqInfo) {
+    return `${reqInfo.methodText} ${reqInfo.level ? reqInfo.level.toUpperCase() : ''} ${
+      reqInfo.object ? reqInfo.object : ''
+    }`;
+  }
+
+  static getProject(url) {
     const splitUrl = url.split('/');
     if (splitUrl[1] === 'projects') return splitUrl[2];
     return '';
