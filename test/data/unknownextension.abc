@@ -1,0 +1,63 @@
+Welcome to ePadlite Installation Guide 
+
+1. open the ports below 
+
+	3000
+	8080
+	8090
+	8899
+2. Install docker https://docs.docker.com/install
+
+3. Download ePadlite docker files from https://epad.stanford.edu/download-epad-vm-beta (ePadlite.zip)
+	Unzip ePadlite.zip file in a folder and all ePad data and necessary files will reside in here.
+
+4. Replace all  http://epad-build.stanford.edu with your ip or your hostname in the files below
+	-Below files will be in the folder where you unzip ePadlite.zip file
+
+	production_epadjs.json
+	production_epadlite_auth.json
+	production_keycloack.json
+	realm-export.json
+	realm-export_epad.json
+
+5. Start ePad Installation 
+   execute the below command in a bash(terminal) window. Switch to folder where you unziped ePadlite.zip file. You must be seeing docker-compose.yml file
+   docker-compose up -d 
+
+6. If you are using hostname instead of your ip you need to change keycloack setting to use without https.
+   -open keycloack container by executing below command in a bash(terminal) window. 
+     docker exec -it epadlite_mykeycloak_1 sh
+
+   -change the directory 
+     cd keycloak/bin
+   
+   -run below commands to change https settings.
+
+     ./kcadm.sh config credentials --server http://epad-build.stanford.edu:8899/auth --realm master --user admin
+     !!!you will be required to enter username and password. Username is admin and password is admin.
+     
+     ./kcadm.sh update realms/ePad -s sslRequired=NONE
+     ./kcadm.sh update realms/master -s sslRequired=NONE
+	
+7. Check if epad started
+	Browse
+	http://yourserveripORyourhostname:3000
+
+	or 
+
+	docker ps 
+	when you execute docker ps you need to see 3 healty mark in the status column. See example below.
+
+CONTAINER ID        IMAGE                                      STATUS                                   PORTS                                                                               NAMES
+49208e1598af        rubinlab/epadlite:beta                  Up About a minute (healthy)     80/tcp, 443/tcp, 43554/tcp, 0.0.0.0:8080->8080/tcp          epadlite_myepadlite_1
+6e036338f757        rubinlab/epadjs:beta                    Up About a minute                    80/tcp, 443/tcp, 43554/tcp, 0.0.0.0:3000->3000/tcp          epadlite_myepadjs_1
+caeff9ef0f59           rubinlab/dicomweb-server:beta    Up About a minute (healthy)     80/tcp, 443/tcp, 43554/tcp, 0.0.0.0:8090->8090/tcp          epadlite_mydicomweb_1
+391701c67a96       jboss/keycloak:latest                    Up About a minute                    8899/tcp, 0.0.0.0:8899->8080/tcp                                     epadlite_mykeycloak_1
+7582ca9f9b3e        pache/couchdb:latest                   Up About a minute (healthy)     4369/tcp, 8888/tcp, 9100/tcp, 0.0.0.0:8888->5984/tcp     epadlite_mycouchdb_1
+
+8. Upload templates if necessary.
+   When you unzip ePadlite.zip file you will have templates folder. Please upload those templates.
+   To upload you will see a gear icon on the top right corner next to admin, login/logout buttons. Click to the gear icon and select template. 
+   Locate the upload icon on the top left corner.
+
+

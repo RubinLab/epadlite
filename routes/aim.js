@@ -4,6 +4,9 @@ async function aimRoutes(fastify) {
   fastify.route({
     method: 'POST',
     url: '/aims',
+    schema: {
+      tags: ['aim'],
+    },
     handler: fastify.saveAim,
   });
 
@@ -12,6 +15,7 @@ async function aimRoutes(fastify) {
     method: 'PUT',
     url: '/aims/:aimuid',
     schema: {
+      tags: ['aim'],
       params: {
         type: 'object',
         properties: {
@@ -29,6 +33,7 @@ async function aimRoutes(fastify) {
     method: 'DELETE',
     url: '/aims/:aimuid',
     schema: {
+      tags: ['aim'],
       params: {
         type: 'object',
         properties: {
@@ -46,6 +51,7 @@ async function aimRoutes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/series/:series/aims',
     schema: {
+      tags: ['aim'],
       querystring: {
         format: { type: 'string' },
       },
@@ -68,7 +74,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getSeriesAims,
+    handler: fastify.getAims,
   });
 
   // GET {s}/subjects/:subject/studies/:study/aims
@@ -76,6 +82,7 @@ async function aimRoutes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/aims',
     schema: {
+      tags: ['aim'],
       querystring: {
         format: { type: 'string' },
       },
@@ -95,7 +102,7 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getStudyAims,
+    handler: fastify.getAims,
   });
 
   // GET {s}/subjects/:subject/aims
@@ -103,6 +110,7 @@ async function aimRoutes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/aims',
     schema: {
+      tags: ['aim'],
       querystring: {
         format: { type: 'string' },
       },
@@ -119,120 +127,21 @@ async function aimRoutes(fastify) {
       // },
     },
 
-    handler: fastify.getSubjectAims,
+    handler: fastify.getAims,
   });
 
   // GET {s}/aims
   fastify.route({
     method: 'GET',
     url: '/aims',
-    querystring: {
-      format: { type: 'string' },
-    },
     schema: {
+      tags: ['aim'],
       // response: {
       //   200: 'aim_schema#',
       // },
     },
 
-    handler: fastify.getProjectAims,
-  });
-
-  // GET {s}/subjects/:subject/studies/:study/series/:series
-  fastify.route({
-    method: 'GET',
-    url: '/subjects/:subject/studies/:study/series/:series',
-    schema: {
-      querystring: {
-        format: { type: 'string' },
-      },
-      params: {
-        type: 'object',
-        properties: {
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-          series: {
-            type: 'string',
-          },
-        },
-      },
-      // response: {
-      //   200: 'aim_schema#',
-      // },
-    },
-
-    handler: fastify.getSeriesAims,
-  });
-
-  // GET {s}/subjects/:subject/studies/:study
-  fastify.route({
-    method: 'GET',
-    url: '/subjects/:subject/studies/:study',
-    schema: {
-      querystring: {
-        format: { type: 'string' },
-      },
-      params: {
-        type: 'object',
-        properties: {
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-        },
-      },
-      // response: {
-      //   200: 'aim_schema#',
-      // },
-    },
-
-    handler: fastify.getStudyAims,
-  });
-
-  // GET {s}/subjects/:subject
-  fastify.route({
-    method: 'GET',
-    url: '/subjects/:subject',
-    schema: {
-      querystring: {
-        format: { type: 'string' },
-      },
-      params: {
-        type: 'object',
-        properties: {
-          subject: {
-            type: 'string',
-          },
-        },
-      },
-      // response: {
-      //   200: 'aim_schema#',
-      // },
-    },
-
-    handler: fastify.getSubjectAims,
-  });
-
-  // GET {s}/
-  fastify.route({
-    method: 'GET',
-    url: '/',
-    querystring: {
-      format: { type: 'string' },
-    },
-    schema: {
-      // response: {
-      //   200: 'aim_schema#',
-      // },
-    },
-
-    handler: fastify.getProjectAims,
+    handler: fastify.getAims,
   });
 
   // POST {s}/aims/download
@@ -245,6 +154,7 @@ async function aimRoutes(fastify) {
       aim: { type: 'boolean' },
     },
     schema: {
+      tags: ['aim'],
       body: {
         type: 'array',
         items: {
@@ -257,6 +167,43 @@ async function aimRoutes(fastify) {
     },
 
     handler: fastify.getAimsFromUIDs,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/aims/:aimuid',
+    schema: {
+      tags: ['aim'],
+      params: {
+        type: 'object',
+        properties: {
+          aimuid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getAim,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/subjects/:subject/aims/:aimuid',
+    schema: {
+      tags: ['aim'],
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          aimuid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getAim,
   });
 }
 

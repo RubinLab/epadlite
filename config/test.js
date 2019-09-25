@@ -6,4 +6,12 @@ module.exports = {
   auth: 'none',
   dicomweb: 'dicomweb_none',
   logger: false,
+  mode: 'thick',
+  thickDb: {
+    name: 'test_epaddb',
+    host: 'localhost',
+    port: '3306',
+    user: 'root',
+    pass: 'mymariasecret',
+  },
 };

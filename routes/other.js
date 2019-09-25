@@ -3,70 +3,34 @@ async function otherRoutes(fastify) {
   fastify.route({
     method: 'POST',
     url: '/files',
+    schema: {
+      tags: ['files'],
+    },
     handler: fastify.saveFile,
   });
-
   fastify.route({
-    method: 'DELETE',
-    url: '/subjects/:subject/studies/:study/series/:series',
+    method: 'GET',
+    url: '/files',
     schema: {
-      params: {
-        type: 'object',
-        properties: {
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-          series: {
-            type: 'string',
-          },
-        },
-      },
+      tags: ['files'],
     },
-
-    handler: fastify.deleteSeries,
+    handler: fastify.getFiles,
   });
-
   fastify.route({
-    method: 'DELETE',
-    url: '/subjects/:subject/studies/:study',
+    method: 'GET',
+    url: '/files/:filename',
     schema: {
+      tags: ['files'],
       params: {
         type: 'object',
         properties: {
-          subject: {
-            type: 'string',
-          },
-          study: {
+          filename: {
             type: 'string',
           },
         },
       },
     },
-
-    handler: fastify.deleteStudy,
-  });
-
-  fastify.route({
-    method: 'DELETE',
-    url: '/subjects/:subject',
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          subject: {
-            type: 'string',
-          },
-          study: {
-            type: 'string',
-          },
-        },
-      },
-    },
-
-    handler: fastify.deleteSubject,
+    handler: fastify.getFile,
   });
 
   fastify.route({
