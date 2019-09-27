@@ -465,7 +465,10 @@ async function other(fastify) {
     reqInfo.method = request.req.method;
     const methodText = { GET: 'GET', POST: 'CREATE', PUT: 'UPDATE', DELETE: 'DELETE' };
     reqInfo.methodText = methodText[request.req.method];
-    const urlParts = request.req.url.split('/');
+    const queryStart = request.req.url.indexOf('?');
+    let cleanUrl = request.req.url;
+    if (queryStart !== -1) cleanUrl = cleanUrl.substring(0, queryStart);
+    const urlParts = cleanUrl.split('/');
     const levels = {
       projects: 'project',
       subjects: 'subject',
@@ -475,13 +478,17 @@ async function other(fastify) {
       aims: 'aim',
       files: 'file',
       templates: 'template',
+      users: 'user',
     };
     if (levels[urlParts[urlParts.length - 1]]) {
-      reqInfo.level = urlParts[urlParts.length - 1];
+      if (reqInfo.method === 'POST') reqInfo.level = levels[urlParts[urlParts.length - 1]];
+      else reqInfo.level = urlParts[urlParts.length - 1];
     } else if (levels[urlParts[urlParts.length - 2]]) {
       reqInfo.level = levels[urlParts[urlParts.length - 2]];
-      reqInfo.object = urlParts[urlParts.length - 1];
+      reqInfo.objectId = urlParts[urlParts.length - 1];
     } else reqInfo.level = request.req.url;
+    // eslint-disable-next-line prefer-destructuring
+    if (urlParts[0] === 'projects' && urlParts.length > 1) reqInfo.project = urlParts[1];
     console.log(request.req.url, reqInfo);
     return reqInfo;
   });
@@ -501,6 +508,8 @@ async function other(fastify) {
             res.code(401).send({
               message: 'Token is expired',
             });
+          } else {
+            return await fastify.fillUserInfo(verifyToken.content.preferred_username);
           }
         } catch (e) {
           fastify.log.info(e);
@@ -527,6 +536,8 @@ async function other(fastify) {
             res.code(401).send({
               message: 'Authentication unsuccessful',
             });
+          } else {
+            return await fastify.fillUserInfo(username);
           }
         } catch (err) {
           res.code(401).send({
@@ -539,7 +550,31 @@ async function other(fastify) {
         message: 'Bearer token does not exist',
       });
     }
+    return undefined;
   });
+  fastify.decorate(
+    'fillUserInfo',
+    async username =>
+      new Promise(async (resolve, reject) => {
+        const epadAuth = { username };
+        if (config.mode === 'thick') {
+          try {
+            const user = await fastify.getUserInternal({
+              user: username,
+            });
+            console.log('user');
+            console.log(user);
+            epadAuth.permissions = user.permissions;
+            epadAuth.projectToRole = user.projectToRole;
+            epadAuth.admin = user.admin;
+          } catch (errUser) {
+            console.log('user error', errUser.message);
+            reject(errUser);
+          }
+        }
+        resolve(epadAuth);
+      })
+  );
   fastify.decorate('messageId', 0);
   fastify.decorate('connectedUsers', {});
   fastify.decorate('sse', (messageJson, username = 'nouser') => {
@@ -585,126 +620,163 @@ async function other(fastify) {
           message: 'Authentication info does not exist or conform with the server',
         });
       }
+    } else if (config.env === 'test' && req.query.username) {
+      // just see if the url has username. for testing purposes
       try {
-        if (config.mode === 'thick') await fastify.epadThickRightsCheck(authHeader, res);
-        // TODO lite?
+        req.epadAuth = await fastify.fillUserInfo(req.query.username);
       } catch (err) {
-        res.code(401).send(err);
+        res.code(401).send(err.message);
       }
+    }
+    try {
+      if (config.mode === 'thick') await fastify.epadThickRightsCheck(req, res);
+      // TODO lite?
+    } catch (err) {
+      res.code(401).send(err);
     }
   });
 
-  fastify.decorate(
-    'hasAccessToProject',
-    request =>
-      new Promise((resolve, reject) => {
-        try {
-          console.log(`Checking hasAccessToProject for url: ${request.req.url}`);
-          resolve(true);
-        } catch (err) {
-          reject(err);
-        }
-      })
-  );
-  fastify.decorate(
-    'hasCreatePermission',
-    (request, level) =>
-      new Promise((resolve, reject) => {
-        try {
-          console.log(`Checking hasCreatePermission for url: ${request.req.url} level:${level}`);
-          if (['user', 'connection', 'query'].includes(level)) resolve(true);
-          else resolve(false);
-        } catch (err) {
-          reject(err);
-        }
-      })
-  );
+  fastify.decorate('hasAccessToProject', (request, project) => {
+    try {
+      console.log(`Checking hasAccessToProject for url: ${request.req.url}`);
 
-  fastify.decorate(
-    'isOwnerOfProject',
-    request =>
-      new Promise((resolve, reject) => {
-        try {
-          console.log(`Checking isOwnerOfProject for url: ${request.req.url}`);
-          resolve(true);
-        } catch (err) {
-          reject(err);
+      if (request.epadAuth && request.epadAuth.projectToRole) {
+        for (let i = 0; i < request.epadAuth.projectToRole.length; i += 1) {
+          if (`${project}:.*`.match(request.epadAuth.projectToRole[i])) {
+            console.log(
+              `has right ${request.epadAuth.projectToRole[i].substring(
+                project.length,
+                request.epadAuth.projectToRole[i].length - 1
+              )}`
+            );
+            return request.epadAuth.projectToRole[i].substring(
+              project.length,
+              request.epadAuth.projectToRole[i].length - 1
+            );
+          }
         }
-      })
-  );
+      }
+    } catch (err) {
+      console.log(err.message);
+    }
+    return undefined;
+  });
+  fastify.decorate('hasCreatePermission', (request, level) => {
+    try {
+      console.log(`Checking hasCreatePermission for url: ${request.req.url} level:${level}`);
+      if (
+        ['project', 'user', 'connection', 'query'].includes(level) && // do we need this check
+        request.epadAuth &&
+        request.epadAuth.permissions
+      ) {
+        for (let i = 0; i < request.epadAuth.permissions.length; i += 1) {
+          if (request.epadAuth.permissions[i].toLowerCase() === `create${level.toLowerCase()}`)
+            return true;
+        }
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.log(err.message);
+    }
+    return false;
+  });
 
-  fastify.decorate(
-    'isCreatorOfObject',
-    (request, level, object) =>
-      new Promise((resolve, reject) => {
-        try {
-          console.log(
-            `Checking isCreatorOfObject for url: ${request.req.url} level:${level} object:${object}`
-          );
-          resolve(true);
-        } catch (err) {
-          reject(err);
+  fastify.decorate('isOwnerOfProject', (request, project) => {
+    try {
+      console.log(`Checking isOwnerOfProject for url: ${request.req.url}`);
+      if (request.epadAuth && request.epadAuth.projectToRole.includes(`${project}:Owner`))
+        return true;
+    } catch (err) {
+      console.log(err.message);
+    }
+    return false;
+  });
+
+  fastify.decorate('isCreatorOfObject', async (request, reqInfo) => {
+    try {
+      console.log(
+        `Checking isCreatorOfObject for url: ${request.req.url} level:${reqInfo.level} object:${
+          reqInfo.objectId
+        }`
+      );
+      const creator = await fastify.getObjectCreator(reqInfo.level, reqInfo.objectId);
+      console.log('creator', creator);
+      if (creator && creator === request.epadAuth.username) return true;
+      // not a db item return true
+      if (!creator) {
+        if (reqInfo.level === 'aim') {
+          const author = await fastify.getAimAuthorFromUID(reqInfo.objectId);
+          if (author === request.epadAuth.username) return true;
+          return false;
         }
-      })
-  );
+        return false;
+      }
+      return false;
+    } catch (err) {
+      console.log(err.message);
+      return false;
+    }
+  });
   fastify.decorate('isProjectRoute', request => request.req.url.startsWith('/projects/'));
 
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     const reqInfo = fastify.getInfoFromRequest(request);
-    // check if user type is admin
-
-    // if not admin
-    // check the method and call specific rights check
-    if (fastify.isProjectRoute(request)) {
-      switch (request.req.method) {
-        case 'GET': // check project access (projectToRole). filtering should be done in the methods
-          if (!fastify.hasAccessToProject(request))
-            reply.code(401).send('User has no access to project');
-          break;
-        case 'PUT': // check permissions
-          if (
-            !fastify.hasAccessToProject(request) ||
-            !fastify.isOwnerOfProject(request) ||
-            !fastify.isCreatorOfObject(request, reqInfo.level, reqInfo.object)
-          )
-            reply.code(401).send('User has no access to project and/or resource');
-          break;
-        case 'POST':
-          if (
-            !fastify.hasAccessToProject(request) ||
-            (reqInfo.level === 'project' && !fastify.hasCreatePermission(request, reqInfo.level))
-          )
-            reply.code(401).send('User has no access to project and/or to create');
-          break;
-        case 'DELETE': // check if owner
-          if (
-            (fastify.isProjectRoute(request) && !fastify.hasAccessToProject(request)) ||
-            !fastify.isOwnerOfProject(request) ||
-            !fastify.isCreatorOfObject(request, reqInfo.level, reqInfo.object)
-          )
-            reply.code(401).send('User has no access to project and/or resource');
-          break;
-        default:
-          break;
-      }
-    } else {
-      switch (request.req.method) {
-        case 'GET': // filtering should be done in the methods
-          break;
-        case 'PUT': // check permissions
-          if (!fastify.isCreatorOfObject(request))
-            reply.code(401).send('User has no access to resource');
-          break;
-        case 'POST':
-          if (!fastify.hasCreatePermission(request, reqInfo.level))
-            reply.code(401).send('User has no access to create');
-          break;
-        case 'DELETE': // check if owner
-          if (!fastify.isCreatorOfObject(request))
-            reply.code(401).send('User has no access to resource');
-          break;
-        default:
-          break;
+    console.log('thick', reqInfo, request.epadAuth);
+    // check if user type is admin, if not admin
+    if (!(request.epadAuth && request.epadAuth.admin && request.epadAuth.admin === true)) {
+      if (fastify.isProjectRoute(request)) {
+        // check the method and call specific rights check
+        switch (request.req.method) {
+          case 'GET': // check project access (projectToRole). filtering should be done in the methods
+            if (fastify.hasAccessToProject(request) === undefined)
+              reply.code(401).send('User has no access to project');
+            break;
+          case 'PUT': // check permissions
+            if (
+              fastify.hasAccessToProject(request) === undefined &&
+              fastify.isOwnerOfProject(request, reqInfo.project) === false &&
+              (await fastify.isCreatorOfObject(request, reqInfo)) === false
+            )
+              reply.code(401).send('User has no access to project and/or resource');
+            break;
+          case 'POST':
+            if (
+              fastify.hasAccessToProject(request) === undefined &&
+              (reqInfo.level === 'project' && !fastify.hasCreatePermission(request, reqInfo.level))
+            )
+              reply.code(401).send('User has no access to project and/or to create');
+            break;
+          case 'DELETE': // check if owner
+            if (
+              fastify.hasAccessToProject(request) === undefined &&
+              fastify.isOwnerOfProject(request, reqInfo.project) === false &&
+              (await fastify.isCreatorOfObject(request, reqInfo)) === false
+            )
+              reply.code(401).send('User has no access to project and/or resource');
+            break;
+          default:
+            break;
+        }
+      } else {
+        switch (request.req.method) {
+          case 'GET': // filtering should be done in the methods
+            break;
+          case 'PUT': // check permissions
+            if (await !fastify.isCreatorOfObject(request, reqInfo))
+              reply.code(401).send('User has no access to resource');
+            break;
+          case 'POST':
+            if (!fastify.hasCreatePermission(request, reqInfo.level))
+              reply.code(401).send('User has no access to create');
+            break;
+          case 'DELETE': // check if owner
+            if (await !fastify.isCreatorOfObject(request, reqInfo))
+              reply.code(401).send('User has no access to resource');
+            break;
+          default:
+            break;
+        }
       }
     }
   });

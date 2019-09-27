@@ -31,6 +31,7 @@ describe('Subject Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -44,6 +45,7 @@ describe('Subject Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result[0].subjectID).to.be.eql('3');
@@ -58,6 +60,7 @@ describe('Subject Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects/3')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.subjectID).to.be.eql('3');
@@ -72,6 +75,7 @@ describe('Subject Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects/7')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(404);
         done();
@@ -85,6 +89,7 @@ describe('Subject Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/studies')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
@@ -99,6 +104,7 @@ describe('Subject Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/studies/0023.2015.09.28.3')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.studyUID).to.be.eql('0023.2015.09.28.3');
@@ -113,6 +119,7 @@ describe('Subject Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/subjects/3')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();

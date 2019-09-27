@@ -10,6 +10,7 @@ describe('Template Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/templates')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -27,6 +28,7 @@ describe('Template Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/templates')
       .send(jsonBuffer)
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -40,6 +42,7 @@ describe('Template Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/templates?type=image')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -55,6 +58,7 @@ describe('Template Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/templates')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -70,6 +74,7 @@ describe('Template Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/templates')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
@@ -89,6 +94,7 @@ describe('Template Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .put(`/templates/${jsonBuffer.TemplateContainer.uid}`)
       .send(jsonBuffer)
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -102,6 +108,7 @@ describe('Template Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/templates?type=study')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only2');
@@ -116,6 +123,7 @@ describe('Template Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/templates')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(0);
@@ -131,6 +139,7 @@ describe('Template Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/templates/download')
       .send(['2.25.121060836007636801627558943005335'])
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=templates.zip');
@@ -146,6 +155,7 @@ describe('Template Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/templates/download')
       .send(['2.25.56357357548684946873754'])
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(503);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=templates.zip');
@@ -160,6 +170,7 @@ describe('Template Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/templates/2.25.121060836007636801627558943005335')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -173,6 +184,7 @@ describe('Template Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/templates')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');

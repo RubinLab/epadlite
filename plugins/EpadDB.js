@@ -72,6 +72,22 @@ async function epaddb(fastify, options, done) {
         });
 
         await fastify.orm.sync();
+        if (config.env === 'test') {
+          try {
+            await models.user.create({
+              username: 'admin',
+              firstname: 'admin',
+              lastname: 'admin',
+              email: 'admin@gmail.com',
+              admin: true,
+              createdtime: Date.now(),
+              updatetime: Date.now(),
+            });
+          } catch (userCreateErr) {
+            fastify.log.info(`Error in creating admin user in testdb ${userCreateErr.message}`);
+            reject(userCreateErr);
+          }
+        }
         resolve();
       } catch (err) {
         fastify.log.info(`Error loading models and syncronizing db: ${err.message}`);
@@ -1610,6 +1626,66 @@ async function epaddb(fastify, options, done) {
       })
       .catch(err => reply.code(503).send(err));
   });
+
+  fastify.decorate(
+    'getObjectCreator',
+    (level, objectId) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let uidField = '';
+          let model = '';
+          // see if it is a db object and check the creator
+          switch (level) {
+            case 'project':
+              uidField = 'projectid';
+              model = 'project';
+              break;
+            // case 'aim':
+            // uidField='projectid';
+            // model='project';
+            // break;
+            // case 'template':
+            // uidField='projectid';
+            // model='project';
+            // break;
+            // case 'file':
+            // uidField='projectid';
+            // model='project';
+            // break;
+            // case 'connection':
+            // uidField='projectid';
+            // model='project';
+            // break;
+            // case 'query':
+            // uidField='projectid';
+            // model='project';
+            // break;
+            case 'worklist':
+              uidField = 'worklistid';
+              model = 'worklist';
+              break;
+            // case 'plugin':
+            // uidField='projectid';
+            // model='project';
+            // break;
+            default:
+              uidField = undefined;
+              model = undefined;
+              break;
+          }
+          if (model) {
+            const object = await models[model].findOne({
+              where: { [uidField]: objectId },
+            });
+            if (object) resolve(object.creator);
+          }
+          resolve();
+        } catch (err) {
+          console.log(err);
+          reject(err);
+        }
+      })
+  );
 
   fastify.after(async () => {
     try {

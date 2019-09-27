@@ -10,6 +10,7 @@ describe('Worklist Tests', () => {
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/users')
+      .query({ username: 'admin' })
       .send({
         username: 'test3@gmail.com',
         firstname: 'test',
@@ -26,6 +27,7 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test3@gmail.com/worklists')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(0);
@@ -39,6 +41,7 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/users/test3@gmail.com/worklists')
+      .query({ username: 'admin' })
       .send({
         name: 'test',
         worklistid: 'testCreate',
@@ -46,6 +49,7 @@ describe('Worklist Tests', () => {
         duedate: '2019-12-01',
         username: 'admin',
       })
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -58,6 +62,7 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test3@gmail.com/worklists')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -71,12 +76,14 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/users/test3@gmail.com/worklists/testCreate')
+      .query({ username: 'admin' })
       .send({
         name: 'testUpdated2',
         description: 'testdescUpdated',
         duedate: '2019-12-31',
         username: 'admin',
       })
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -89,6 +96,7 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test3@gmail.com/worklists')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(1);
@@ -108,7 +116,8 @@ describe('Worklist Tests', () => {
   //     .send({
   //       studyId: '1',
   //     })
-  //     .then(res => {
+  //     .query({ username: 'admin' })
+  // .then(res => {
   //       expect(res.statusCode).to.equal(200);
   //       done();
   //     })
@@ -120,6 +129,7 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/users/test3@gmail.com/worklists/testCreate')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -132,6 +142,7 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test3@gmail.com/worklists')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(0);

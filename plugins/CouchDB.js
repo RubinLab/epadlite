@@ -477,7 +477,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate('getAimsFromUIDs', (request, reply) => {
     try {
-      if (Object.keys(request.query).length === 0) {
+      if (request.query.summary === undefined && request.query.aim === undefined) {
         reply.code(400).send("Query params shouldn't be empty");
       } else {
         const db = fastify.couch.db.use(config.db);
@@ -1174,6 +1174,18 @@ async function couchdb(fastify, options) {
         else resolve();
       })
   );
+
+  fastify.decorate('getAimAuthorFromUID', aimUid => {
+    try {
+      const db = fastify.couch.db.use(config.db);
+      db.get(aimUid).then(doc => {
+        return doc.aim.ImageAnnotationCollection.user.loginName;
+      });
+      return undefined;
+    } catch (err) {
+      return undefined;
+    }
+  });
 
   fastify.log.info(`Using db: ${config.db}`);
   // register couchdb

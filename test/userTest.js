@@ -21,16 +21,8 @@ describe('User Tests', () => {
     try {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/users')
-        .send({
-          username: 'admin',
-          firstname: 'admin',
-          lastname: 'admin',
-          email: 'admin@gmail.com',
-        });
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'test1',
           projectName: 'test_user1',
@@ -42,6 +34,7 @@ describe('User Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'test2',
           projectName: 'test_user2',
@@ -60,11 +53,12 @@ describe('User Tests', () => {
     try {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test1');
+        .delete('/projects/test1')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/test2');
-      await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/users/admin');
+        .delete('/projects/test2')
+        .query({ username: 'admin' });
     } catch (err) {
       console.log(err);
     }
@@ -73,6 +67,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
@@ -88,6 +83,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/users')
+      .query({ username: 'admin' })
       .send({
         username: 'test1@gmail.com',
         firstname: 'test',
@@ -107,6 +103,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(2);
@@ -124,6 +121,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/users')
+      .query({ username: 'admin' })
       .send({
         username: 'test2@gmail.com',
         firstname: 'test',
@@ -144,6 +142,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(3);
@@ -164,6 +163,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test1@gmail.com')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.username).to.be.eql('test1@gmail.com');
@@ -181,6 +181,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test2@gmail.com')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.username).to.be.eql('test2@gmail.com');
@@ -201,7 +202,8 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/users/test2@gmail.com')
-      .send({ updatedBy: 'admin', permissions: 'projects,users' })
+      .query({ username: 'admin' })
+      .send({ updatedBy: 'admin', permissions: 'CreateProject,CreateUser' })
 
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -216,12 +218,13 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test2@gmail.com')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.username).to.be.eql('test2@gmail.com');
         expect(res.body.permissions.length).to.be.eql(2);
-        expect(res.body.permissions).to.include('projects');
-        expect(res.body.permissions).to.include('users');
+        expect(res.body.permissions).to.include('CreateProject');
+        expect(res.body.permissions).to.include('CreateUser');
         done();
       })
       .catch(e => {
@@ -233,6 +236,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(404);
         done();
@@ -246,6 +250,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test2/users/test1@gmail.com')
+      .query({ username: 'admin' })
       .send({ updatedBy: 'admin', role: 'Collaborator' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -260,6 +265,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(3);
@@ -279,6 +285,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test2/users/test1@gmail.com')
+      .query({ username: 'admin' })
       .send({ updatedBy: 'admin', role: 'Owner' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -293,6 +300,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(3);
@@ -312,6 +320,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test2/users/test1@gmail.com')
+      .query({ username: 'admin' })
       .send({ updatedBy: 'admin', role: 'none' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -326,6 +335,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(3);
@@ -343,6 +353,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/users/test1@gmail.com')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -355,6 +366,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(2);
@@ -369,6 +381,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/users/test2@gmail.com')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -381,6 +394,7 @@ describe('User Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
