@@ -185,19 +185,24 @@ async function dicomwebserver(fastify) {
   );
   fastify.decorate('getPatients', (request, reply) => {
     fastify
-      .getPatientsInternal()
+      .getPatientsInternal(undefined, request.epadAuth)
       .then(result => reply.code(200).send(result))
       .catch(err => reply.code(500).send(err));
   });
 
   fastify.decorate(
     'getPatientsInternal',
-    filter =>
+    (filter, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           // make studies cal and aims call
           const studies = this.request.get('/studies', header);
-          const aims = fastify.getAimsInternal('summary', { subject: '', study: '', series: '' });
+          const aims = fastify.getAimsInternal(
+            'summary',
+            { subject: '', study: '', series: '' },
+            undefined,
+            epadAuth
+          );
           Promise.all([studies, aims])
             .then(async values => {
               // handle success
@@ -306,7 +311,7 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getPatientStudy', (request, reply) => {
     fastify
-      .getPatientStudiesInternal(request.params, [request.params.study])
+      .getPatientStudiesInternal(request.params, [request.params.study], request.epadAuth)
       .then(result => {
         if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
         else {
@@ -318,23 +323,28 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getPatientStudies', (request, reply) => {
     fastify
-      .getPatientStudiesInternal(request.params)
+      .getPatientStudiesInternal(request.params, undefined, request.epadAuth)
       .then(result => reply.code(200).send(result))
       .catch(err => reply.code(503).send(err.message));
   });
 
   fastify.decorate(
     'getPatientStudiesInternal',
-    (params, filter) =>
+    (params, filter, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           const studies = this.request.get('/studies', header);
           // get aims for a specific patient
-          const aims = fastify.getAimsInternal('summary', {
-            subject: params.subject ? params.subject : '',
-            study: '',
-            series: '',
-          });
+          const aims = fastify.getAimsInternal(
+            'summary',
+            {
+              subject: params.subject ? params.subject : '',
+              study: '',
+              series: '',
+            },
+            undefined,
+            epadAuth
+          );
 
           Promise.all([studies, aims])
             .then(async values => {
@@ -416,23 +426,28 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getStudySeries', (request, reply) => {
     fastify
-      .getStudySeriesInternal(request.params, request.query)
+      .getStudySeriesInternal(request.params, request.query, request.epadAuth)
       .then(result => reply.code(200).send(result))
       .catch(err => reply.code(503).send(err.message));
   });
 
   fastify.decorate(
     'getStudySeriesInternal',
-    (params, query) =>
+    (params, query, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           const series = this.request.get(`/studies/${params.study}/series`, header);
           // get aims for a specific study
-          const aims = fastify.getAimsInternal('summary', {
-            subject: params.subject,
-            study: params.study,
-            series: '',
-          });
+          const aims = fastify.getAimsInternal(
+            'summary',
+            {
+              subject: params.subject,
+              study: params.study,
+              series: '',
+            },
+            undefined,
+            epadAuth
+          );
 
           Promise.all([series, aims])
             .then(values => {
@@ -581,7 +596,7 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getPatient', (request, reply) => {
     fastify
-      .getPatientsInternal([request.params.subject])
+      .getPatientsInternal([request.params.subject], request.epadAuth)
       .then(result => {
         if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
         else {

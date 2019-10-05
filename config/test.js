@@ -5,7 +5,9 @@ module.exports = {
   dbPort: process.env.PORT || 5984,
   auth: 'none',
   dicomweb: 'dicomweb_none',
-  logger: false,
+  logger: {
+    level: 'error',
+  },
   mode: 'thick',
   thickDb: {
     name: 'test_epaddb',
@@ -13,5 +15,6 @@ module.exports = {
     port: '3306',
     user: 'root',
     pass: 'mymariasecret',
+    logger: false,
   },
 };

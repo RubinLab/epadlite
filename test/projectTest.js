@@ -2029,7 +2029,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should fail adding add file to testfilesubject4 project (filename retrieval is done via get all) ', done => {
+    it('should fail with 400 adding add file to testfilesubject4 project (filename retrieval is done via get all) ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
@@ -2040,7 +2040,7 @@ describe('Project Tests', () => {
             .put(`/projects/testfilesubject4/subjects/3/files/${res.body[0].name}`)
             .query({ username: 'admin' })
             .then(resPut => {
-              expect(resPut.statusCode).to.equal(503);
+              expect(resPut.statusCode).to.equal(400);
               done();
             })
             .catch(e => {
@@ -2434,7 +2434,7 @@ describe('Project Tests', () => {
             )
             .query({ username: 'admin' })
             .then(resPut => {
-              expect(resPut.statusCode).to.equal(503);
+              expect(resPut.statusCode).to.equal(400);
               done();
             })
             .catch(e => {
@@ -2873,7 +2873,7 @@ describe('Project Tests', () => {
             )
             .query({ username: 'admin' })
             .then(resPut => {
-              expect(resPut.statusCode).to.equal(503);
+              expect(resPut.statusCode).to.equal(400);
               done();
             })
             .catch(e => {

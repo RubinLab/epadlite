@@ -23,9 +23,12 @@ class EpadNotification {
   }
 
   notify(fastify) {
-    console.log(`sending ${JSON.stringify(this)}`);
-    // TODO try catch
-    fastify.sse(this, this.notification.username);
+    try {
+      if (this.notification.error) fastify.log.error(`Error as response ${JSON.stringify(this)}`);
+      fastify.sse(this, this.notification.username);
+    } catch (err) {
+      fastify.log.error(`Error sending notification to user ${this.notification.username}`);
+    }
   }
 }
 module.exports = EpadNotification;

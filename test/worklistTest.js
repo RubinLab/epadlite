@@ -21,7 +21,8 @@ describe('Worklist Tests', () => {
   after(async () => {
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('/users/test3@gmail.com');
+      .delete('/users/test3@gmail.com')
+      .query({ username: 'admin' });
   });
   it('worklists should have 0 worklists', done => {
     chai
@@ -58,12 +59,34 @@ describe('Worklist Tests', () => {
         done(e);
       });
   });
+  it('should fail creating a new worklist for unknown user with 400', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/users/aaaaa/worklists')
+      .query({ username: 'admin' })
+      .send({
+        name: 'test2',
+        worklistid: 'testCreate2',
+        description: 'testdesc2',
+        duedate: '2019-12-01',
+        username: 'admin',
+      })
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(400);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
   it('worklists should have 1 worklists ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test3@gmail.com/worklists')
       .query({ username: 'admin' })
       .then(res => {
+        console.log(res.body);
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(1);
         done();

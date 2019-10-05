@@ -12,9 +12,9 @@ class EpadError extends Error {
 }
 
 class ResourceNotFoundError extends EpadError {
-  constructor(resource) {
-    super(`Resource ${resource} was not found.`);
-    this.data = { resource };
+  constructor(resourceType, resourceId) {
+    super(`${resourceType} ${resourceId} was not found.`);
+    this.data = { resourceType, resourceId };
   }
 }
 
@@ -25,7 +25,23 @@ class InternalError extends EpadError {
   }
 }
 
+class BadRequestError extends EpadError {
+  constructor(reason, error) {
+    super(`${reason}. Error: ${error.message}`);
+    this.data = { error, reason };
+  }
+}
+
+class UnauthenticatedError extends EpadError {
+  constructor(message) {
+    super(message);
+    this.data = { message };
+  }
+}
+
 module.exports = {
   ResourceNotFoundError,
   InternalError,
+  BadRequestError,
+  UnauthenticatedError,
 };

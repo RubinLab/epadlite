@@ -20,7 +20,12 @@ const keycloak = require('keycloak-backend')({
 
 const EpadNotification = require('../utils/EpadNotification');
 
-const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
+const {
+  InternalError,
+  ResourceNotFoundError,
+  BadRequestError,
+  UnauthenticatedError,
+} = require('../utils/EpadErrors');
 
 async function other(fastify) {
   // eslint-disable-next-line global-require
@@ -346,7 +351,7 @@ async function other(fastify) {
 
   fastify.decorate('deleteSubject', (request, reply) => {
     fastify
-      .deleteSubjectInternal(request.params)
+      .deleteSubjectInternal(request.params, request.epadAuth)
       .then(result => {
         reply.code(200).send(result);
       })
@@ -355,12 +360,12 @@ async function other(fastify) {
 
   fastify.decorate(
     'deleteSubjectInternal',
-    params =>
+    (params, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
           fastify
-            .getPatientStudiesInternal(params)
+            .getPatientStudiesInternal(params, undefined, epadAuth)
             .then(result => {
               result.ResultSet.Result.forEach(study => {
                 promisses.push(
@@ -370,7 +375,7 @@ async function other(fastify) {
                   })
                 );
               });
-              promisses.push(fastify.deleteAimsInternal(params));
+              promisses.push(fastify.deleteAimsInternal(params, epadAuth));
               Promise.all(promisses)
                 .then(() => {
                   fastify.log.info('Success');
@@ -394,7 +399,7 @@ async function other(fastify) {
 
   fastify.decorate('deleteStudy', (request, reply) => {
     fastify
-      .deleteStudyInternal(request.params)
+      .deleteStudyInternal(request.params, request.epadAuth)
       .then(result => {
         reply.code(200).send(result);
       })
@@ -403,13 +408,13 @@ async function other(fastify) {
 
   fastify.decorate(
     'deleteStudyInternal',
-    params =>
+    (params, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           // delete study in dicomweb and annotations
           Promise.all([
             fastify.deleteStudyDicomsInternal(params),
-            fastify.deleteAimsInternal(params),
+            fastify.deleteAimsInternal(params, epadAuth),
           ])
             .then(() => {
               resolve();
@@ -430,7 +435,7 @@ async function other(fastify) {
       // delete study in dicomweb and annotations
       Promise.all([
         fastify.deleteSeriesDicomsInternal(request.params),
-        fastify.deleteAimsInternal(request.params),
+        fastify.deleteAimsInternal(request.params, request.epadAuth),
       ])
         .then(() => {
           fastify.log.info('Success');
@@ -488,8 +493,7 @@ async function other(fastify) {
       reqInfo.objectId = urlParts[urlParts.length - 1];
     } else reqInfo.level = request.req.url;
     // eslint-disable-next-line prefer-destructuring
-    if (urlParts[0] === 'projects' && urlParts.length > 1) reqInfo.project = urlParts[1];
-    console.log(request.req.url, reqInfo);
+    if (urlParts[1] === 'projects' && urlParts.length > 1) reqInfo.project = urlParts[2];
     return reqInfo;
   });
 
@@ -554,7 +558,7 @@ async function other(fastify) {
   });
   fastify.decorate(
     'fillUserInfo',
-    async username =>
+    username =>
       new Promise(async (resolve, reject) => {
         const epadAuth = { username };
         if (config.mode === 'thick') {
@@ -562,8 +566,6 @@ async function other(fastify) {
             const user = await fastify.getUserInternal({
               user: username,
             });
-            console.log('user');
-            console.log(user);
             epadAuth.permissions = user.permissions;
             epadAuth.projectToRole = user.projectToRole;
             epadAuth.admin = user.admin;
@@ -614,7 +616,7 @@ async function other(fastify) {
       fastify.log.info('Request needs to be authenticated, checking the authorization header');
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
       if (authHeader) {
-        await fastify.authCheck(authHeader, res);
+        req.epadAuth = await fastify.authCheck(authHeader, res);
       } else {
         res.code(401).send({
           message: 'Authentication info does not exist or conform with the server',
@@ -638,20 +640,20 @@ async function other(fastify) {
 
   fastify.decorate('hasAccessToProject', (request, project) => {
     try {
-      console.log(`Checking hasAccessToProject for url: ${request.req.url}`);
+      console.log(`Checking hasAccessToProject for url: ${request.req.url} and project ${project}`);
 
       if (request.epadAuth && request.epadAuth.projectToRole) {
         for (let i = 0; i < request.epadAuth.projectToRole.length; i += 1) {
-          if (`${project}:.*`.match(request.epadAuth.projectToRole[i])) {
+          if (request.epadAuth.projectToRole[i].match(`${project}:.*`)) {
             console.log(
-              `has right ${request.epadAuth.projectToRole[i].substring(
-                project.length,
-                request.epadAuth.projectToRole[i].length - 1
+              `Has right ${request.epadAuth.projectToRole[i].substring(
+                project.length + 1,
+                request.epadAuth.projectToRole[i].length
               )}`
             );
             return request.epadAuth.projectToRole[i].substring(
-              project.length,
-              request.epadAuth.projectToRole[i].length - 1
+              project.length + 1,
+              request.epadAuth.projectToRole[i].length
             );
           }
         }
@@ -701,12 +703,13 @@ async function other(fastify) {
         }`
       );
       const creator = await fastify.getObjectCreator(reqInfo.level, reqInfo.objectId);
-      console.log('creator', creator);
+      console.log('Creator is', creator);
       if (creator && creator === request.epadAuth.username) return true;
       // not a db item return true
       if (!creator) {
         if (reqInfo.level === 'aim') {
           const author = await fastify.getAimAuthorFromUID(reqInfo.objectId);
+          console.log('Author is', author);
           if (author === request.epadAuth.username) return true;
           return false;
         }
@@ -722,34 +725,42 @@ async function other(fastify) {
 
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     const reqInfo = fastify.getInfoFromRequest(request);
-    console.log('thick', reqInfo, request.epadAuth);
+    console.log(
+      'User rights check',
+      'url',
+      request.req.url,
+      'reqInfo',
+      reqInfo,
+      'epadAuth',
+      request.epadAuth
+    );
     // check if user type is admin, if not admin
     if (!(request.epadAuth && request.epadAuth.admin && request.epadAuth.admin === true)) {
       if (fastify.isProjectRoute(request)) {
         // check the method and call specific rights check
         switch (request.req.method) {
           case 'GET': // check project access (projectToRole). filtering should be done in the methods
-            if (fastify.hasAccessToProject(request) === undefined)
+            if (fastify.hasAccessToProject(request, reqInfo.project) === undefined)
               reply.code(401).send('User has no access to project');
             break;
           case 'PUT': // check permissions
             if (
-              fastify.hasAccessToProject(request) === undefined &&
-              fastify.isOwnerOfProject(request, reqInfo.project) === false &&
-              (await fastify.isCreatorOfObject(request, reqInfo)) === false
+              fastify.hasAccessToProject(request, reqInfo.project) === undefined ||
+              (fastify.isOwnerOfProject(request, reqInfo.project) === false &&
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false)
             )
               reply.code(401).send('User has no access to project and/or resource');
             break;
           case 'POST':
             if (
-              fastify.hasAccessToProject(request) === undefined &&
+              fastify.hasAccessToProject(request, reqInfo.project) === undefined &&
               (reqInfo.level === 'project' && !fastify.hasCreatePermission(request, reqInfo.level))
             )
               reply.code(401).send('User has no access to project and/or to create');
             break;
           case 'DELETE': // check if owner
             if (
-              fastify.hasAccessToProject(request) === undefined &&
+              fastify.hasAccessToProject(request, reqInfo.project) === undefined &&
               fastify.isOwnerOfProject(request, reqInfo.project) === false &&
               (await fastify.isCreatorOfObject(request, reqInfo)) === false
             )
@@ -784,6 +795,8 @@ async function other(fastify) {
   fastify.addHook('onError', (request, reply, error, done) => {
     if (error instanceof ResourceNotFoundError) reply.code(404);
     else if (error instanceof InternalError) reply.code(500);
+    else if (error instanceof BadRequestError) reply.code(400);
+    else if (error instanceof UnauthenticatedError) reply.code(401);
     new EpadNotification(request, fastify.getInfoFromRequest(request), error).notify(fastify);
     done();
   });

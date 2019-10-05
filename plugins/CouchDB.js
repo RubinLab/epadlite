@@ -7,6 +7,7 @@ const dateFormatter = require('date-format');
 const _ = require('underscore');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
+const { UnauthenticatedError } = require('../utils/EpadErrors');
 
 async function couchdb(fastify, options) {
   fastify.decorate('init', async () => {
@@ -214,7 +215,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'downloadAims',
-    async (params, aims) =>
+    (params, aims) =>
       new Promise((resolve, reject) => {
         const timestamp = new Date().getTime();
         const dir = `tmp_${timestamp}`;
@@ -346,9 +347,10 @@ async function couchdb(fastify, options) {
   // add accessor methods with decorate
   fastify.decorate(
     'getAimsInternal',
-    (format, params, filter) =>
-      new Promise(async (resolve, reject) => {
+    (format, params, filter, epadAuth) =>
+      new Promise((resolve, reject) => {
         try {
+          if (epadAuth === undefined) reject(new UnauthenticatedError('No epadauth in request'));
           // make sure there is value in all three
           // only the last ove should have \u9999 at the end
           const myParams = params;
@@ -402,7 +404,13 @@ async function couchdb(fastify, options) {
           const db = fastify.couch.db.use(config.db);
           db.view('instances', view, filterOptions, async (error, body) => {
             if (!error) {
-              const filteredRows = await fastify.filterAims(body.rows, filter, format);
+              const filteredRows = await fastify.filterAims(
+                body.rows,
+                filter,
+                format,
+                params,
+                epadAuth
+              );
               const res = [];
               if (format === 'summary') {
                 for (let i = 0; i < filteredRows.length; i += 1)
@@ -440,20 +448,40 @@ async function couchdb(fastify, options) {
       })
   );
 
+  // filter aims with aimId filter array
   fastify.decorate(
     'filterAims',
-    (aimsRows, filter, format) =>
+    (aimsRows, filter, format, params, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
+          const keyNum = 4; // view dependent
           let filteredRows = aimsRows;
           if (filter) {
-            const keyNum = 4; // view dependent
             if (format && format === 'summary') {
               filteredRows = _.filter(filteredRows, obj => filter.includes(obj.key[keyNum].aimID));
             } else {
               filteredRows = _.filter(filteredRows, obj =>
                 filter.includes(obj.key[keyNum].ImageAnnotationCollection.uniqueIdentifier.root)
               );
+            }
+          }
+          // if we have project and we are in the thick mode we should filter for project and user rights
+          if (params.project && config.mode === 'thick') {
+            // if the user is a collaborator in the project he should only see his annotations
+            if (epadAuth.projectToRole.includes(`${params.project}:Collaborator`)) {
+              if (format && format === 'summary') {
+                filteredRows = _.filter(
+                  filteredRows,
+                  obj => epadAuth.username === obj.key[keyNum].userName
+                );
+              } else {
+                filteredRows = _.filter(
+                  filteredRows,
+                  obj =>
+                    epadAuth.username ===
+                    obj.key[keyNum].ImageAnnotationCollection.user.loginName.value
+                );
+              }
             }
           }
           resolve(filteredRows);
@@ -465,7 +493,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate('getAims', (request, reply) => {
     fastify
-      .getAimsInternal(request.query.format, request.params)
+      .getAimsInternal(request.query.format, request.params, undefined, request.epadAuth)
       .then(result => {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
@@ -585,10 +613,10 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'deleteAimsInternal',
-    params =>
+    (params, epadAuth) =>
       new Promise((resolve, reject) => {
         fastify
-          .getAimsInternal('summary', params)
+          .getAimsInternal('summary', params, undefined, epadAuth)
           .then(result => {
             const aimPromisses = [];
             result.ResultSet.Result.forEach(aim =>
@@ -618,7 +646,7 @@ async function couchdb(fastify, options) {
   fastify.decorate(
     'getTemplatesInternal',
     query =>
-      new Promise(async (resolve, reject) => {
+      new Promise((resolve, reject) => {
         try {
           let type = 'image';
           let format = 'json';
@@ -754,7 +782,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'downloadTemplates',
-    async templates =>
+    templates =>
       new Promise((resolve, reject) => {
         const timestamp = new Date().getTime();
         const dir = `tmp_${timestamp}`;
@@ -860,7 +888,7 @@ async function couchdb(fastify, options) {
   fastify.decorate(
     'getTemplatesFromUIDsInternal',
     (query, ids) =>
-      new Promise(async (resolve, reject) => {
+      new Promise((resolve, reject) => {
         try {
           let format = 'json';
           if (query.format) format = query.format.toLowerCase();
@@ -898,11 +926,17 @@ async function couchdb(fastify, options) {
 
   fastify.decorate('getAim', (request, reply) => {
     fastify
-      .getAimsInternal(request.query.format, request.params, [request.params.aimuid])
+      .getAimsInternal(
+        request.query.format,
+        request.params,
+        [request.params.aimuid],
+        request.epadAuth
+      )
       .then(result => {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
         }
+        console.log('reslength', result.length);
         if (result.length === 1) reply.code(200).send(result[0]);
         else {
           reply.code(404).send(`Aim ${request.params.aimuid} not found`);
@@ -947,7 +981,7 @@ async function couchdb(fastify, options) {
   fastify.decorate(
     'filterFiles',
     (ids, filter) =>
-      new Promise(async (resolve, reject) => {
+      new Promise((resolve, reject) => {
         try {
           const db = fastify.couch.db.use(config.db);
           const filteredIds = [];
@@ -1004,7 +1038,7 @@ async function couchdb(fastify, options) {
   fastify.decorate(
     'getFilesInternal',
     query =>
-      new Promise(async (resolve, reject) => {
+      new Promise((resolve, reject) => {
         try {
           let format = 'json';
           if (query.format) format = query.format.toLowerCase();
@@ -1074,7 +1108,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'downloadFiles',
-    async ids =>
+    ids =>
       new Promise((resolve, reject) => {
         const timestamp = new Date().getTime();
         const dir = `tmp_${timestamp}`;
@@ -1175,14 +1209,13 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('getAimAuthorFromUID', aimUid => {
+  fastify.decorate('getAimAuthorFromUID', async aimUid => {
     try {
       const db = fastify.couch.db.use(config.db);
-      db.get(aimUid).then(doc => {
-        return doc.aim.ImageAnnotationCollection.user.loginName;
-      });
-      return undefined;
+      const doc = await db.get(aimUid);
+      return doc.aim.ImageAnnotationCollection.user.loginName.value;
     } catch (err) {
+      console.log('aaaa', err.message);
       return undefined;
     }
   });
