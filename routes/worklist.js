@@ -2,7 +2,7 @@
 async function routes(fastify) {
   fastify.route({
     method: 'POST',
-    url: '/users/:user/worklists',
+    url: '/worklists',
     schema: {
       tags: ['worklist', 'user'],
       params: {
@@ -22,8 +22,8 @@ async function routes(fastify) {
           worklistId: {
             type: 'string',
           },
-          userId: {
-            type: 'string',
+          assignee: {
+            type: 'array',
           },
           description: {
             type: 'string',
@@ -39,7 +39,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'POST',
-    url: '/users/:user/worklists/:worklist/projects/:project/subjects',
+    url: '/worklists/:worklist/projects/:project/subjects',
     schema: {
       tags: ['worklist', 'subject'],
       params: {
@@ -86,80 +86,80 @@ async function routes(fastify) {
     handler: fastify.getWorklistsOfAssignee,
   });
 
-  fastify.route({
-    method: 'PUT',
-    url: '/users/:user/worklists/:worklist',
-    schema: {
-      tags: ['worklist', 'user'],
-      params: {
-        type: 'object',
-        properties: {
-          user: {
-            type: 'string',
-          },
-          worklist: {
-            type: 'string',
-          },
-        },
-      },
-      body: {
-        type: 'object',
-        properties: {
-          user: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.updateWorklistAssignee,
-  });
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/worklists/:worklist',
+  //   schema: {
+  //     tags: ['worklist', 'user'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         user: {
+  //           type: 'string',
+  //         },
+  //         worklist: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //     body: {
+  //       type: 'object',
+  //       properties: {
+  //         user: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.updateWorklistAssignee,
+  // });
 
-  fastify.route({
-    method: 'PUT',
-    url: '/worklists/:worklist',
-    schema: {
-      tags: ['worklist'],
-      params: {
-        type: 'object',
-        properties: {
-          worklist: {
-            type: 'string',
-          },
-        },
-      },
-      body: {
-        type: 'object',
-        properties: {
-          name: {
-            type: 'string',
-          },
-          description: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.updateWorklist,
-  });
+  //   fastify.route({
+  //     method: 'PUT',
+  //     url: '/worklists/:worklist',
+  //     schema: {
+  //       tags: ['worklist'],
+  //       params: {
+  //         type: 'object',
+  //         properties: {
+  //           worklist: {
+  //             type: 'string',
+  //           },
+  //         },
+  //       },
+  //       body: {
+  //         type: 'object',
+  //         properties: {
+  //           name: {
+  //             type: 'string',
+  //           },
+  //           description: {
+  //             type: 'string',
+  //           },
+  //         },
+  //       },
+  //     },
+  //     handler: fastify.updateWorklist,
+  //   });
 
-  fastify.route({
-    method: 'DELETE',
-    url: '/users/:user/worklists/:worklist',
-    schema: {
-      tags: ['worklist', 'user'],
-      params: {
-        type: 'object',
-        properties: {
-          user: {
-            type: 'string',
-          },
-          worklist: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.deleteWorklist,
-  });
+  //   fastify.route({
+  //     method: 'DELETE',
+  //     url: '/worklists/:worklist',
+  //     schema: {
+  //       tags: ['worklist', 'user'],
+  //       params: {
+  //         type: 'object',
+  //         properties: {
+  //           user: {
+  //             type: 'string',
+  //           },
+  //           worklist: {
+  //             type: 'string',
+  //           },
+  //         },
+  //       },
+  //     },
+  //     handler: fastify.deleteWorklist,
+  //   });
 }
 module.exports = routes;
