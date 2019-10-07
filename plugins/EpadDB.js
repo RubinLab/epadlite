@@ -774,7 +774,11 @@ async function epaddb(fastify, options, done) {
             subjectUids.push(projectSubjects[i].subject_uid);
           }
         }
-        const result = await fastify.getPatientsInternal(subjectUids, request.epadAuth);
+        const result = await fastify.getPatientsInternal(
+          request.params,
+          subjectUids,
+          request.epadAuth
+        );
         if (subjectUids.length !== result.ResultSet.totalRecords)
           fastify.log.warning(
             `There are ${subjectUids.length} subjects associated with this project. But only ${
@@ -1634,6 +1638,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getPatientStudyFromProject', async (request, reply) => {
     try {
+      // TODO check if it is the project
       const studyUids = [request.params.study];
       const result = await fastify.getPatientStudiesInternal(
         request.params,
@@ -1649,8 +1654,13 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getSubjectFromProject', async (request, reply) => {
     try {
+      // TODO check if it is the project
       const subjectUids = [request.params.subject];
-      const result = await fastify.getPatientsInternal(subjectUids, request.epadAuth);
+      const result = await fastify.getPatientsInternal(
+        request.params,
+        subjectUids,
+        request.epadAuth
+      );
       if (result.ResultSet.Result.length === 1) reply.code(200).send(result.ResultSet.Result[0]);
       else reply.send(new ResourceNotFoundError('Subject', request.params.subject));
     } catch (err) {
