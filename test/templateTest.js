@@ -157,7 +157,7 @@ describe('Template Tests', () => {
       .send(['2.25.56357357548684946873754'])
       .query({ username: 'admin' })
       .then(res => {
-        expect(res.statusCode).to.equal(503);
+        expect(res.statusCode).to.equal(500);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=templates.zip');
         done();
       })

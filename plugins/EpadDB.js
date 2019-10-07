@@ -1031,9 +1031,6 @@ async function epaddb(fastify, options, done) {
         if (request.body) {
           // get the uid from the json and check if it is same with param, then put as id in couch document
           if (aimUid !== request.body.ImageAnnotationCollection.uniqueIdentifier.root) {
-            fastify.log.info(
-              'Conflicting aimuids: the uid sent in the url should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root'
-            );
             reply.send(
               new BadRequestError(
                 `Saving aim to project ${request.params.project}`,

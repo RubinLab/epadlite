@@ -278,7 +278,7 @@ describe('System AIM Tests', () => {
       .send(['2.25.211702350959705565754863799143359605362'])
       .query({ username: 'admin' })
       .then(res => {
-        expect(res.statusCode).to.equal(503);
+        expect(res.statusCode).to.equal(500);
         done();
       })
       .catch(e => {

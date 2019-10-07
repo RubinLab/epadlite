@@ -708,10 +708,15 @@ async function other(fastify) {
       // not a db item return true
       if (!creator) {
         if (reqInfo.level === 'aim') {
-          const author = await fastify.getAimAuthorFromUID(reqInfo.objectId);
-          console.log('Author is', author);
-          if (author === request.epadAuth.username) return true;
-          return false;
+          try {
+            const author = await fastify.getAimAuthorFromUID(reqInfo.objectId);
+            console.log('Author is', author);
+            if (author === request.epadAuth.username) return true;
+            return false;
+          } catch (err) {
+            fastify.log.error(err.message);
+            return false;
+          }
         }
         return false;
       }
