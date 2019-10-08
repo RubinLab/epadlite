@@ -1364,7 +1364,7 @@ async function epaddb(fastify, options, done) {
   // });
 
   fastify.decorate('createUser', (request, reply) => {
-    // TODO user exists check!
+    // TODO user exists check! ozge
     if (!request.body) {
       reply.send(new BadRequestError('User Creation', new Error('No body sent')));
     } else {
@@ -1638,7 +1638,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getPatientStudyFromProject', async (request, reply) => {
     try {
-      // TODO check if it is the project
+      // TODO check if it is in the project
       const studyUids = [request.params.study];
       const result = await fastify.getPatientStudiesInternal(
         request.params,
@@ -1654,7 +1654,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getSubjectFromProject', async (request, reply) => {
     try {
-      // TODO check if it is the project
+      // TODO check if it is in the project
       const subjectUids = [request.params.subject];
       const result = await fastify.getPatientsInternal(
         request.params,

@@ -631,6 +631,7 @@ async function couchdb(fastify, options) {
       });
   });
 
+  // does not do project filtering! should only be used for deleting from system
   fastify.decorate(
     'deleteAimsInternal',
     (params, epadAuth) =>

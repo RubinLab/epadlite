@@ -4,12 +4,7 @@ const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
 const config = require('../config/index');
-const {
-  InternalError,
-  ResourceNotFoundError,
-  // BadRequestError,
-  // UnauthenticatedError,
-} = require('../utils/EpadErrors');
+const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
 // I need to import this after config as it uses config values
 // eslint-disable-next-line import/order
