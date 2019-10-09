@@ -419,37 +419,41 @@ async function couchdb(fastify, options) {
           const db = fastify.couch.db.use(config.db);
           db.view('instances', view, filterOptions, async (error, body) => {
             if (!error) {
-              const filteredRows = await fastify.filterAims(
-                body.rows,
-                filter,
-                format,
-                params,
-                epadAuth
-              );
-              const res = [];
-              if (format === 'summary') {
-                for (let i = 0; i < filteredRows.length; i += 1)
-                  // get the actual instance object (tags only)
-                  res.push(filteredRows[i].key[4]);
-                resolve({ ResultSet: { Result: res } });
-              } else if (format === 'stream') {
-                for (let i = 0; i < filteredRows.length; i += 1)
-                  // get the actual instance object (tags only)
-                  // the first 3 keys are patient, study, series, image
-                  res.push(filteredRows[i].key[4]);
+              try {
+                const filteredRows = await fastify.filterAims(
+                  body.rows,
+                  filter,
+                  format,
+                  params,
+                  epadAuth
+                );
+                const res = [];
+                if (format === 'summary') {
+                  for (let i = 0; i < filteredRows.length; i += 1)
+                    // get the actual instance object (tags only)
+                    res.push(filteredRows[i].key[4]);
+                  resolve({ ResultSet: { Result: res } });
+                } else if (format === 'stream') {
+                  for (let i = 0; i < filteredRows.length; i += 1)
+                    // get the actual instance object (tags only)
+                    // the first 3 keys are patient, study, series, image
+                    res.push(filteredRows[i].key[4]);
 
-                // download aims only
-                fastify
-                  .downloadAims({ aim: 'true' }, res)
-                  .then(result => resolve(result))
-                  .catch(err => reject(err));
-              } else {
-                // the default is json! The old APIs were XML, no XML in epadlite
-                for (let i = 0; i < filteredRows.length; i += 1)
-                  // get the actual instance object (tags only)
-                  // the first 3 keys are patient, study, series, image
-                  res.push(filteredRows[i].key[4]);
-                resolve(res);
+                  // download aims only
+                  fastify
+                    .downloadAims({ aim: 'true' }, res)
+                    .then(result => resolve(result))
+                    .catch(err => reject(err));
+                } else {
+                  // the default is json! The old APIs were XML, no XML in epadlite
+                  for (let i = 0; i < filteredRows.length; i += 1)
+                    // get the actual instance object (tags only)
+                    // the first 3 keys are patient, study, series, image
+                    res.push(filteredRows[i].key[4]);
+                  resolve(res);
+                }
+              } catch (errFilter) {
+                reject(errFilter);
               }
             } else {
               reject(new InternalError('Get aims from couchdb', error));
@@ -480,6 +484,7 @@ async function couchdb(fastify, options) {
           }
           // if we have project and we are in the thick mode we should filter for project and user rights
           if (params.project && config.mode === 'thick') {
+            // TODO if we want to return sth other than 404 for aim access we should check if this filtering empties filteredAims
             // if the user is a collaborator in the project he should only see his annotations
             if (epadAuth.projectToRole.includes(`${params.project}:Collaborator`)) {
               if (format && format === 'summary') {

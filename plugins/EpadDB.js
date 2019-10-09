@@ -1373,6 +1373,7 @@ async function epaddb(fastify, options, done) {
           ...request.body,
           createdtime: Date.now(),
           updatetime: Date.now(),
+          creator: request.epadAuth.username,
         })
         .then(async user => {
           const { id } = user.dataValues;
@@ -1980,6 +1981,10 @@ async function epaddb(fastify, options, done) {
             case 'worklist':
               uidField = 'worklistid';
               model = 'worklist';
+              break;
+            case 'user':
+              uidField = 'username';
+              model = 'user';
               break;
             // case 'plugin':
             // uidField='projectid';

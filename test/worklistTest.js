@@ -48,9 +48,7 @@ describe('Worklist Tests', () => {
         worklistid: 'testCreate',
         description: 'testdesc',
         duedate: '2019-12-01',
-        username: 'admin',
       })
-      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -69,9 +67,7 @@ describe('Worklist Tests', () => {
         worklistid: 'testCreate2',
         description: 'testdesc2',
         duedate: '2019-12-01',
-        username: 'admin',
       })
-      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(400);
         done();
@@ -104,9 +100,7 @@ describe('Worklist Tests', () => {
         name: 'testUpdated2',
         description: 'testdescUpdated',
         duedate: '2019-12-31',
-        username: 'admin',
       })
-      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();

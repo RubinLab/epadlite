@@ -37,7 +37,7 @@ describe('User Rights Tests', () => {
         firstname: 'testOwner',
         lastname: 'testOwner',
         email: 'testOwner@gmail.com',
-        permissions: 'CreateProject',
+        permissions: 'CreateProject,CreateWorklist',
       });
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -48,6 +48,7 @@ describe('User Rights Tests', () => {
         firstname: 'testMember',
         lastname: 'testMember',
         email: 'testMember@gmail.com',
+        permissions: 'CreateUser',
       });
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -265,10 +266,10 @@ describe('User Rights Tests', () => {
       // create aims for all 4 users
       try {
         const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+        const aimName =
+          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value;
         jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testAdmin@gmail.com';
-        jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testAdmin_${
-          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-        }`;
+        jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testAdmin_${aimName}`;
         jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
           '2.25.3526547897685764352413254324135453';
         await chai
@@ -276,10 +277,9 @@ describe('User Rights Tests', () => {
           .post('/projects/testRights1/aims')
           .send(jsonBuffer)
           .query({ username: 'testAdmin@gmail.com' });
+
         jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testOwner@gmail.com';
-        jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testOwner_${
-          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-        }`;
+        jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testOwner_${aimName}`;
         jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
           '2.25.3526547897685764352413254324135454';
         await chai
@@ -289,9 +289,7 @@ describe('User Rights Tests', () => {
           .query({ username: 'testOwner@gmail.com' });
 
         jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testMember@gmail.com';
-        jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testMember_${
-          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-        }`;
+        jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testMember_${aimName}`;
         jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
           '2.25.3526547897685764352413254324135455';
         await chai
@@ -301,9 +299,7 @@ describe('User Rights Tests', () => {
           .query({ username: 'testMember@gmail.com' });
 
         jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testCollaborator@gmail.com';
-        jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testCollaborator_${
-          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-        }`;
+        jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testCollaborator_${aimName}`;
         jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
           '2.25.3526547897685764352413254324135456';
         await chai
@@ -578,14 +574,280 @@ describe('User Rights Tests', () => {
           done(e);
         });
     });
-    it('should fail in editing testAdmin"s aim for testmember ', done => {
+    it(`should fail getting testAdmin's aim for testCollaborator `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(404);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should fail in editing testAdmin's aim for testcollaborator assuming somehow it got the aim `, done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testAdmin@gmail.com';
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+        'collaborator_edited';
+      jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
+        '2.25.3526547897685764352413254324135453';
+
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .send(jsonBuffer)
+        .then(resPut => {
+          expect(resPut.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should fail getting testOwner's aim for testCollaborator `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(404);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should fail in editing testOwner's aim for testcollaborator assuming somehow it got the aim `, done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testOwner@gmail.com';
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+        'collaborator_edited';
+      jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
+        '2.25.3526547897685764352413254324135454';
+
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .send(jsonBuffer)
+        .then(resPut => {
+          expect(resPut.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should fail getting testMember's aim for testCollaborator `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(404);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should fail in editing testMember's aim for testcollaborator assuming somehow it got the aim `, done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testMember@gmail.com';
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+        'collaborator_edited';
+      jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
+        '2.25.3526547897685764352413254324135455';
+
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .send(jsonBuffer)
+        .then(resPut => {
+          expect(resPut.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should succeed in editing testAdmin's aim for testOwner`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+            'owner_edited';
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+            .query({ username: 'testOwner@gmail.com' })
+            .send(res.body)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should get testAdmin's aim with new name for testOwner`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
+          ).to.equal('owner_edited');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should succeed in editing own aim for testOwner`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+            'owner_edited';
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+            .query({ username: 'testOwner@gmail.com' })
+            .send(res.body)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should get own aim with new name for testOwner`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
+          ).to.equal('owner_edited');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should succeed in editing testMember's aim for testOwner`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+            'owner_edited';
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+            .query({ username: 'testOwner@gmail.com' })
+            .send(res.body)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should get testMember's aim with new name for testOwner`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
+          ).to.equal('owner_edited');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should succeed in editing testCollaborator's aim for testOwner`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+            'owner_edited';
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+            .query({ username: 'testOwner@gmail.com' })
+            .send(res.body)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should get testCollaborator's aim with new name for testOwner`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
+          ).to.equal('owner_edited');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should fail in editing testAdmin's aim for testmember`, done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'owner_edited';
+            'member_edited';
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
@@ -598,6 +860,567 @@ describe('User Rights Tests', () => {
             .catch(e => {
               done(e);
             });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should fail in editing testOwner's aim for testmember`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+            'member_edited';
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+            .query({ username: 'testMember@gmail.com' })
+            .send(res.body)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(401);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should succeed in editing own aim for testmember`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+            'member_edited';
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+            .query({ username: 'testMember@gmail.com' })
+            .send(res.body)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should get own aim with new name for testmember`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(
+            res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
+          ).to.equal('member_edited');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`should fail in editing testCollaborator's aim for testmember`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
+            'member_edited';
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+            .query({ username: 'testMember@gmail.com' })
+            .send(res.body)
+            .then(resPut => {
+              expect(resPut.statusCode).to.equal(401);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
+  describe('User Create Tests', () => {
+    it('should succeed in creating new user for testAdmin', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users')
+        .query({ username: 'testAdmin@gmail.com' })
+        .send({
+          username: 'testuser1@gmail.com',
+          firstname: 'testuser1',
+          lastname: 'testuser1',
+          email: 'testuser1@gmail.com',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return testuser1 user with 0 project and no permission', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/users/testuser1@gmail.com')
+        .query({ username: 'testAdmin@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.username).to.be.eql('testuser1@gmail.com');
+          expect(res.body.projects.length).to.be.eql(0);
+          expect(res.body.projectToRole.length).to.be.eql(0);
+          expect(res.body.permissions).to.be.eql(['']);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail creating new user for testOwner', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users')
+        .query({ username: 'testOwner@gmail.com' })
+        .send({
+          username: 'testuser2@gmail.com',
+          firstname: 'testuser2',
+          lastname: 'testuser2',
+          email: 'testuser2@gmail.com',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in creating new user for testMember', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users')
+        .query({ username: 'testMember@gmail.com' })
+        .send({
+          username: 'testuser3@gmail.com',
+          firstname: 'testuser3',
+          lastname: 'testuser3',
+          email: 'testuser3@gmail.com',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return testuser3 user with 0 project and no permission', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/users/testuser3@gmail.com')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.username).to.be.eql('testuser3@gmail.com');
+          expect(res.body.projects.length).to.be.eql(0);
+          expect(res.body.projectToRole.length).to.be.eql(0);
+          expect(res.body.permissions).to.be.eql(['']);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in creating another user for testMember', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users')
+        .query({ username: 'testMember@gmail.com' })
+        .send({
+          username: 'testuser4@gmail.com',
+          firstname: 'testuser4',
+          lastname: 'testuser4',
+          email: 'testuser4@gmail.com',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return testuser4 user with 0 project and no permission', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/users/testuser4@gmail.com')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.username).to.be.eql('testuser4@gmail.com');
+          expect(res.body.projects.length).to.be.eql(0);
+          expect(res.body.projectToRole.length).to.be.eql(0);
+          expect(res.body.permissions).to.be.eql(['']);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail in updating testuser3 for testOwner', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/users/testuser3@gmail.com')
+        .query({ username: 'testOwner@gmail.com' })
+        .send({ permissions: 'CreateProject' })
+        .then(res => {
+          expect(res.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail deleting testuser3 with testOwner user', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testuser3@gmail.com')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in updating testuser3 for testMember', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/users/testuser3@gmail.com')
+        .query({ username: 'testMember@gmail.com' })
+        .send({ permissions: 'CreateProject' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return testuser3 user with 0 project and 1 permission for testMember', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/users/testuser3@gmail.com')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.username).to.be.eql('testuser3@gmail.com');
+          expect(res.body.projects.length).to.be.eql(0);
+          expect(res.body.projectToRole.length).to.be.eql(0);
+          expect(res.body.permissions).to.be.eql(['CreateProject']);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should successfully delete testuser3 with testMember user', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testuser3@gmail.com')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in updating testuser4 for testAdmin', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/users/testuser4@gmail.com')
+        .query({ username: 'testAdmin@gmail.com' })
+        .send({ permissions: 'CreateProject,CreateUser' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return testuser4 user with 0 project and 2 permission2', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/users/testuser4@gmail.com')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.username).to.be.eql('testuser4@gmail.com');
+          expect(res.body.projects.length).to.be.eql(0);
+          expect(res.body.projectToRole.length).to.be.eql(0);
+          expect(res.body.permissions).to.be.eql(['CreateProject', 'CreateUser']);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should successfully delete testuser4 with testAdmin user', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testuser4@gmail.com')
+        .query({ username: 'testAdmin@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail deleting testuser1 with testMember user', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testuser1@gmail.com')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should successfully delete testuser1 with testAdmin user', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testuser1@gmail.com')
+        .query({ username: 'testAdmin@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
+  describe('Worklist Create Tests', () => {
+    it('should succeed in creating new worklist for testOwner by testAdmin', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users/testOwner@gmail.com/worklists')
+        .query({ username: 'testAdmin@gmail.com' })
+        .send({
+          name: 'testWorklistOwner',
+          worklistid: 'testWorklistOwner',
+          description: 'testdesc',
+          duedate: '2019-12-01',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail in deleting worklist for testOwner by testOwner', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testOwner@gmail.com/worklists/testWorklistOwner')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting worklist for testOwner by testAdmin', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testOwner@gmail.com/worklists/testWorklistOwner')
+        .query({ username: 'testAdmin@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail in creating new worklist for testMember by testMember', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users/testMember@gmail.com/worklists')
+        .query({ username: 'testMember@gmail.com' })
+        .send({
+          name: 'testWorklistMember',
+          worklistid: 'testWorklistMember',
+          description: 'testdesc',
+          duedate: '2019-12-01',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in creating new worklist for testMember by testOwner', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users/testMember@gmail.com/worklists')
+        .query({ username: 'testOwner@gmail.com' })
+        .send({
+          name: 'testWorklistMember1',
+          worklistid: 'testWorklistMember1',
+          description: 'testdesc',
+          duedate: '2019-12-01',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in creating another worklist for testMember by testOwner', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users/testMember@gmail.com/worklists')
+        .query({ username: 'testOwner@gmail.com' })
+        .send({
+          name: 'testWorklistMember2',
+          worklistid: 'testWorklistMember2',
+          description: 'testdesc',
+          duedate: '2019-12-01',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail in updating worklist testWorklistMember2 for testMember by testCollaborator', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .send({
+          name: 'testWorklistMember2',
+          worklistid: 'testWorklistMember2',
+          description: 'testdesc_edited',
+          duedate: '2019-12-01',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail in deleting worklist testWorklistMember2 for testMember by testCollaborator', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in updating worklist testWorklistMember2 for testMember by testOwner', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .query({ username: 'testOwner@gmail.com' })
+        .send({
+          name: 'testWorklistMember2',
+          worklistid: 'testWorklistMember2',
+          description: 'testdesc_edited',
+          duedate: '2019-12-01',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in updating worklist testWorklistMember2 for testMember by testAdmin', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .query({ username: 'testAdmin@gmail.com' })
+        .send({
+          name: 'testWorklistMember2',
+          worklistid: 'testWorklistMember2',
+          description: 'testdesc_edited2',
+          duedate: '2019-12-01',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting worklist testWorklistMember1 for testMember by testAdmin', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testMember@gmail.com/worklists/testWorklistMember1')
+        .query({ username: 'testAdmin@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting worklist testWorklistMember2 for testMember by testOwner', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
         })
         .catch(e => {
           done(e);

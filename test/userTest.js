@@ -203,7 +203,7 @@ describe('User Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/users/test2@gmail.com')
       .query({ username: 'admin' })
-      .send({ updatedBy: 'admin', permissions: 'CreateProject,CreateUser' })
+      .send({ permissions: 'CreateProject,CreateUser' })
 
       .then(res => {
         expect(res.statusCode).to.equal(200);

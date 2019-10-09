@@ -479,6 +479,7 @@ async function other(fastify) {
         files: 'file',
         templates: 'template',
         users: 'user',
+        worklists: 'worklist',
       };
       if (levels[urlParts[urlParts.length - 1]]) {
         if (reqInfo.method === 'POST') reqInfo.level = levels[urlParts[urlParts.length - 1]];
@@ -669,7 +670,7 @@ async function other(fastify) {
     try {
       console.log(`Checking hasCreatePermission for url: ${request.req.url} level:${level}`);
       if (
-        ['project', 'user', 'connection', 'query'].includes(level) && // do we need this check
+        ['project', 'user', 'connection', 'query', 'worklist'].includes(level) && // do we need this check
         request.epadAuth &&
         request.epadAuth.permissions
       ) {
@@ -725,7 +726,7 @@ async function other(fastify) {
             if (author === request.epadAuth.username) return true;
             return false;
           } catch (err) {
-            fastify.log.error(err.message);
+            fastify.log.error(`Getting author from aim: ${err.message}`);
             return false;
           }
         }
@@ -805,7 +806,7 @@ async function other(fastify) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
-              if (await !fastify.isCreatorOfObject(request, reqInfo))
+              if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
                 reply.send(new UnauthenticatedError('User has no access to resource'));
               break;
             case 'POST':
@@ -813,7 +814,7 @@ async function other(fastify) {
                 reply.send(new UnauthenticatedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner
-              if (await !fastify.isCreatorOfObject(request, reqInfo))
+              if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
                 reply.send(new UnauthenticatedError('User has no access to resource'));
               break;
             default:
