@@ -1147,14 +1147,14 @@ async function epaddb(fastify, options, done) {
   // });
   fastify.decorate('addPatientStudyToProject', (request, reply) => {
     fastify
-      .addPatientStudyToProjectInternal(request.params, request.query)
+      .addPatientStudyToProjectInternal(request.params, request.epadAuth)
       .then(result => reply.code(200).send(result))
       .catch(err => reply.send(err));
   });
 
   fastify.decorate(
     'addPatientStudyToProjectInternal',
-    (params, query) =>
+    (params, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
           const project = await models.project.findOne({ where: { projectid: params.project } });
@@ -1173,7 +1173,7 @@ async function epaddb(fastify, options, done) {
               projectSubject = await models.project_subject.create({
                 project_id: project.id,
                 subject_uid: params.subject,
-                creator: query.username,
+                creator: epadAuth.username,
                 updatetime: Date.now(),
               });
             // create only when that is not already there
@@ -1184,7 +1184,7 @@ async function epaddb(fastify, options, done) {
               await models.project_subject_study.create({
                 proj_subj_id: projectSubject.id,
                 study_uid: params.study,
-                creator: query.username,
+                creator: epadAuth.username,
                 updatetime: Date.now(),
               });
             resolve();
@@ -1365,6 +1365,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('createUser', (request, reply) => {
     // TODO user exists check! ozge
+    // TODO permissions added as string, retrieve as array. errorprone if there is space like 'CreateProject, CreateWorklist' ozge
     if (!request.body) {
       reply.send(new BadRequestError('User Creation', new Error('No body sent')));
     } else {
@@ -1462,7 +1463,7 @@ async function epaddb(fastify, options, done) {
       } else {
         result = await models.project_user.findOrCreate({
           where: { project_id: projectId, user_id: userId },
-          defaults: { ...rowsUpdated, creator: request.body.updatedBy },
+          defaults: { ...rowsUpdated, creator: request.epadAuth.username },
         });
         // check if new entry created
         // if not created, get the id and update the relation

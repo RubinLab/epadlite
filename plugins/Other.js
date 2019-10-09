@@ -56,13 +56,14 @@ async function other(fastify) {
                   datasets,
                   request.params,
                   request.query,
-                  studies
+                  studies,
+                  request.epadAuth
                 );
               }
               // see if it was a dicom
               if (datasets.length > 0) {
                 if (config.mode === 'thick')
-                  await fastify.addProjectReferences(request.params, request.query, studies);
+                  await fastify.addProjectReferences(request.params, request.epadAuth, studies);
                 const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                 await fastify.saveDicomsInternal(data, boundary);
                 datasets = [];
@@ -112,7 +113,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'addProjectReferences',
-    (params, query, studies) =>
+    (params, epadAuth, studies) =>
       new Promise(async (resolve, reject) => {
         try {
           // eslint-disable-next-line no-restricted-syntax
@@ -122,7 +123,7 @@ async function other(fastify) {
               ...JSON.parse(study),
             };
             // eslint-disable-next-line no-await-in-loop
-            await fastify.addPatientStudyToProjectInternal(combinedParams, query);
+            await fastify.addPatientStudyToProjectInternal(combinedParams, epadAuth);
           }
           resolve();
         } catch (err) {
@@ -155,7 +156,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'processZip',
-    (dir, filename, params, query) =>
+    (dir, filename, params, query, epadAuth) =>
       new Promise((resolve, reject) => {
         const zipTimestamp = new Date().getTime();
         const zipDir = `${dir}/tmp_${zipTimestamp}`;
@@ -167,7 +168,7 @@ async function other(fastify) {
             .on('close', () => {
               fastify.log.info(`Extracted zip ${zipDir}`);
               fastify
-                .processFolder(`${zipDir}`, params, query)
+                .processFolder(`${zipDir}`, params, query, epadAuth)
                 .then(() => resolve())
                 .catch(err => reject(err));
             })
@@ -182,7 +183,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'processFolder',
-    (zipDir, params, query) =>
+    (zipDir, params, query, epadAuth) =>
       new Promise((resolve, reject) => {
         fastify.log.info(`Processing folder ${zipDir}`);
         const datasets = [];
@@ -196,17 +197,25 @@ async function other(fastify) {
               if (files[i] !== '__MACOSX')
                 if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
                   // eslint-disable-next-line no-await-in-loop
-                  await fastify.processFolder(`${zipDir}/${files[i]}`, params, query);
+                  await fastify.processFolder(`${zipDir}/${files[i]}`, params, query, epadAuth);
                 else
                   promisses.push(
-                    fastify.processFile(zipDir, files[i], datasets, params, query, studies)
+                    fastify.processFile(
+                      zipDir,
+                      files[i],
+                      datasets,
+                      params,
+                      query,
+                      studies,
+                      epadAuth
+                    )
                   );
             }
             Promise.all(promisses)
               .then(async () => {
                 if (datasets.length > 0) {
                   if (config.mode === 'thick')
-                    await fastify.addProjectReferences(params, query, studies);
+                    await fastify.addProjectReferences(params, epadAuth, studies);
                   fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
                   const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                   fastify.log.info(
@@ -232,7 +241,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'processFile',
-    (dir, filename, datasets, params, query, studies) =>
+    (dir, filename, datasets, params, query, studies, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           let buffer = [];
@@ -285,7 +294,7 @@ async function other(fastify) {
               }
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
-                .processZip(dir, filename, params, query)
+                .processZip(dir, filename, params, query, epadAuth)
                 .then(() => resolve())
                 .catch(err => reject(err));
             } else if (fastify.checkFileType(filename))
@@ -295,7 +304,8 @@ async function other(fastify) {
                   params,
                   query,
                   buffer,
-                  Buffer.byteLength(buffer)
+                  Buffer.byteLength(buffer),
+                  epadAuth
                 )
                 .then(() => resolve())
                 .catch(err => reject(err));
@@ -309,7 +319,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'saveOtherFileToProjectInternal',
-    (filename, params, query, buffer, length) =>
+    (filename, params, query, buffer, length, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
           const timestamp = new Date().getTime();
@@ -325,7 +335,7 @@ async function other(fastify) {
           };
           // add link to db if thick
           if (config.mode === 'thick') {
-            await fastify.putOtherFileToProjectInternal(fileInfo.name, params, query);
+            await fastify.putOtherFileToProjectInternal(fileInfo.name, params, epadAuth);
             // add to couchdb only if successful
             await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
           } else {
