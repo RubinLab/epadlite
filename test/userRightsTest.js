@@ -1427,4 +1427,92 @@ describe('User Rights Tests', () => {
         });
     });
   });
+  describe('File Access Tests', () => {
+    it('should succeed uploading jpg file in project testRights1 as testMember ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testRights1/files')
+        .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 file in project testRights1 for testMember', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/files')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 file in project testRights1 for testCollaborator', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/files')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail in deleting jpg file from project testRights1 with filename retrieval and delete should be successful for testCollaborator', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/files')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .delete(`/projects/testRights1/files/${res.body[0].name}`)
+            .query({ username: 'testCollaborator@gmail.com' })
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(401);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting jpg file from project testRights1 with filename retrieval and delete should be successful for testOwner', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/files')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .delete(`/projects/testRights1/files/${res.body[0].name}`)
+            .query({ username: 'testOwner@gmail.com' })
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
 });

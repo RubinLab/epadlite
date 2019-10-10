@@ -803,9 +803,9 @@ async function other(fastify) {
               break;
             case 'DELETE': // check if owner
               if (
-                fastify.hasAccessToProject(request, reqInfo.project) === undefined &&
-                fastify.isOwnerOfProject(request, reqInfo.project) === false &&
-                (await fastify.isCreatorOfObject(request, reqInfo)) === false
+                fastify.hasAccessToProject(request, reqInfo.project) === undefined ||
+                (fastify.isOwnerOfProject(request, reqInfo.project) === false &&
+                  (await fastify.isCreatorOfObject(request, reqInfo)) === false)
               )
                 reply.send(
                   new UnauthenticatedError('User has no access to project and/or resource')
