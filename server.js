@@ -1,8 +1,9 @@
 const fs = require('fs-extra');
 const path = require('path');
-// eslint-disable-next-line import/order
 const config = require('./config/index');
+
 // Require the framework and instantiate it
+// eslint-disable-next-line import/order
 const fastify = require('fastify')({
   logger: config.logger || false,
   https:
@@ -14,16 +15,6 @@ const fastify = require('fastify')({
           cert: fs.readFileSync(path.join(__dirname, 'tls.crt')),
         }
       : '',
-});
-
-const atob = require('atob');
-
-// I need to import this after config as it uses config values
-const keycloak = require('keycloak-backend')({
-  realm: config.authConfig.realm, // required for verify
-  'auth-server-url': config.authConfig.authServerUrl, // required for verify
-  client_id: config.authConfig.clientId,
-  client_secret: config.authConfig.clientSecret,
 });
 
 fastify.addContentTypeParser('*', (req, done) => {
@@ -133,110 +124,6 @@ if (config.mode === 'lite') {
   fastify.register(require('./routes/user')); // eslint-disable-line global-require
   fastify.register(require('./routes/other')); // eslint-disable-line global-require
 }
-
-// }
-// authCheck routine checks if there is a bearer token or encoded basic authentication
-// info in the authorization header and does the authentication or verification of token
-// in keycloak
-const authCheck = async (authHeader, res) => {
-  if (authHeader.startsWith('Bearer ')) {
-    // Extract the token
-    const token = authHeader.slice(7, authHeader.length);
-    if (token) {
-      // verify token online
-      try {
-        const verifyToken = await keycloak.jwt.verify(token);
-        if (verifyToken.isExpired()) {
-          res.code(401).send({
-            message: 'Token is expired',
-          });
-        } else {
-          return await fastify.fillUserInfo(verifyToken.content.preferred_username);
-        }
-      } catch (e) {
-        fastify.log.info(e);
-        res.code(401).send({
-          message: e.message,
-        });
-      }
-    }
-  } else if (authHeader.startsWith('Basic ')) {
-    // Extract the encoded part
-    const authToken = authHeader.slice(6, authHeader.length);
-    if (authToken) {
-      // Decode and extract username and password
-      const auth = atob(authToken);
-      const [username, password] = auth.split(':');
-      // put the username and password in keycloak object
-      keycloak.accessToken.config.username = username;
-      keycloak.accessToken.config.password = password;
-      try {
-        // see if we can authenticate
-        // keycloak supports oidc, this is a workaround to support basic authentication
-        const accessToken = await keycloak.accessToken.get();
-        if (!accessToken) {
-          res.code(401).send({
-            message: 'Authentication unsuccessful',
-          });
-        } else {
-          return await fastify.fillUserInfo(username);
-        }
-      } catch (err) {
-        res.code(401).send({
-          message: `Authentication error ${err.message}`,
-        });
-      }
-    }
-  } else {
-    res.code(401).send({
-      message: 'Bearer token does not exist',
-    });
-  }
-  return undefined;
-};
-
-fastify.decorate(
-  'fillUserInfo',
-  async username =>
-    new Promise(async (resolve, reject) => {
-      const epadAuth = { username };
-      if (config.mode === 'thick') {
-        try {
-          const user = await fastify.getUserInternal({
-            user: username,
-          });
-          epadAuth.permissions = user.permissions;
-          epadAuth.projectToRole = user.projectToRole;
-          epadAuth.admin = user.admin;
-        } catch (errUser) {
-          console.log('user error', errUser.message);
-          reject(errUser);
-        }
-      }
-      resolve(epadAuth);
-    })
-);
-
-fastify.decorate('auth', async (req, res) => {
-  if (config.auth && config.auth !== 'none') {
-    // if auth has been given in config, verify authentication
-    fastify.log.info('Request needs to be authenticated, checking the authorization header');
-    const authHeader = req.headers['x-access-token'] || req.headers.authorization;
-    if (authHeader) {
-      req.epadAuth = await authCheck(authHeader, res);
-    } else {
-      res.code(401).send({
-        message: 'Authentication info does not exist or conform with the server',
-      });
-    }
-  } else if (req.query.username) {
-    // just see if the url has username. for testing purposes
-    req.epadAuth = await fastify.fillUserInfo(req.query.username);
-  }
-});
-
-// add authentication prehandler, all requests need to be authenticated
-fastify.addHook('preHandler', fastify.auth);
 
 // Run the server!
 fastify.listen(port, host);

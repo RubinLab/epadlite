@@ -4,6 +4,7 @@ const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
 const config = require('../config/index');
+const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
 // I need to import this after config as it uses config values
 // eslint-disable-next-line import/order
@@ -28,9 +29,9 @@ async function dicomwebserver(fastify) {
       return connect;
     } catch (err) {
       if (config.env !== 'test') {
-        fastify.log.info('Waiting for dicomweb server');
+        fastify.log.warn('Waiting for dicomweb server');
         setTimeout(fastify.initDicomWeb, 3000);
-      } else throw Error('No connection');
+      } else throw err;
     }
     return null;
   });
@@ -60,8 +61,7 @@ async function dicomwebserver(fastify) {
                   resolve();
                 })
                 .catch(err => {
-                  fastify.log.info(`Error retrieving studies with access token: ${err.message}`);
-                  reject(err);
+                  reject(new InternalError('Retrieving studies with access token', err));
                 });
             }
           } else if (config.dicomWebConfig.username) {
@@ -82,8 +82,7 @@ async function dicomwebserver(fastify) {
                 resolve();
               })
               .catch(err => {
-                fastify.log.info(`Error retrieving studies with basic auth: ${err.message}`);
-                reject(err);
+                reject(new InternalError('Retrieving studies with basic auth', err));
               });
           } else {
             this.request = Axios.create({
@@ -95,19 +94,17 @@ async function dicomwebserver(fastify) {
                 resolve();
               })
               .catch(err => {
-                fastify.log.info(`Error retrieving studies without authorization: ${err.message}`);
-                reject(err);
+                reject(new InternalError('Retrieving studies without authorization', err));
               });
           }
         } catch (err) {
-          fastify.log.info(`Error connecting to DICOMweb server: ${err.message}`);
-          reject(err);
+          reject(new InternalError('Error connecting to DICOMweb server', err));
         }
       })
   );
   // add accessor methods with decorate
   fastify.decorate(
-    'saveDicoms',
+    'saveDicomsInternal',
     (data, boundary) =>
       new Promise((resolve, reject) => {
         try {
@@ -129,12 +126,10 @@ async function dicomwebserver(fastify) {
               resolve();
             })
             .catch(error => {
-              fastify.log.info(`Error in saving dicoms ${error.message}`);
-              reject(error);
+              reject(new InternalError('Sending dicoms to dicomweb stow', error));
             });
         } catch (err) {
-          fastify.log.info(`Error saving dicoms: ${err.message}`);
-          reject(err);
+          reject(new InternalError('Preparing header and sending dicoms to dicomweb stow', err));
         }
       })
   );
@@ -143,21 +138,15 @@ async function dicomwebserver(fastify) {
     'deleteStudyDicomsInternal',
     params =>
       new Promise((resolve, reject) => {
-        try {
-          this.request
-            .delete(`/studies/${params.study}`)
-            .then(() => {
-              fastify.log.info('Success');
-              resolve();
-            })
-            .catch(error => {
-              fastify.log.info(`Error in deleting dicoms ${error.message}`);
-              reject(error);
-            });
-        } catch (err) {
-          fastify.log.info(`Error deleting dicoms: ${err.message}`);
-          reject(err);
-        }
+        this.request
+          .delete(`/studies/${params.study}`)
+          .then(() => {
+            fastify.log.info(`Study ${params.study} deletion request sent successfully`);
+            resolve();
+          })
+          .catch(error => {
+            reject(new InternalError(`Deleting study ${params.study}`, error));
+          });
       })
   );
 
@@ -165,38 +154,37 @@ async function dicomwebserver(fastify) {
     'deleteSeriesDicomsInternal',
     params =>
       new Promise((resolve, reject) => {
-        try {
-          this.request
-            .delete(`/studies/${params.study}/series/${params.series}`)
-            .then(() => {
-              fastify.log.info('Success');
-              resolve();
-            })
-            .catch(error => {
-              fastify.log.info(`Error in deleting dicoms ${error.message}`);
-              reject(error);
-            });
-        } catch (err) {
-          fastify.log.info(`Error deleting dicoms: ${err.message}`);
-          reject(err);
-        }
+        this.request
+          .delete(`/studies/${params.study}/series/${params.series}`)
+          .then(() => {
+            fastify.log.info(`Series ${params.series} deletion request sent successfully`);
+            resolve();
+          })
+          .catch(error => {
+            reject(new InternalError(`Deleting series ${params.series}`, error));
+          });
       })
   );
   fastify.decorate('getPatients', (request, reply) => {
     fastify
-      .getPatientsInternal()
+      .getPatientsInternal(request.params, undefined, request.epadAuth)
       .then(result => reply.code(200).send(result))
-      .catch(err => reply.code(503).send(err.message));
+      .catch(err => reply.send(err));
   });
 
   fastify.decorate(
     'getPatientsInternal',
-    filter =>
+    (params, filter, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           // make studies cal and aims call
           const studies = this.request.get('/studies', header);
-          const aims = fastify.getAimsInternal('summary', { subject: '', study: '', series: '' });
+          const aims = fastify.getAimsInternal(
+            'summary',
+            { subject: '', study: '', series: '' },
+            undefined,
+            epadAuth
+          );
           Promise.all([studies, aims])
             .then(async values => {
               // handle success
@@ -257,7 +245,7 @@ async function dicomwebserver(fastify) {
                       ? value[0]['00100010'].Value[0].Alphabetic
                       : '',
                     subjectID: value[0]['00100020'].Value[0],
-                    projectID,
+                    projectID: params.project ? params.project : projectID,
                     insertUser: '', // no user in studies call
                     xnatID: '', // no xnatID should remove
                     insertDate: '', // no date in studies call
@@ -274,13 +262,10 @@ async function dicomwebserver(fastify) {
               resolve(result);
             })
             .catch(error => {
-              // TODO handle error
-              fastify.log.info(`Error retrieving studies to populate patients: ${error.message}`);
-              reject(error);
+              reject(new InternalError('Retrieving Studies', error));
             });
         } catch (err) {
-          fastify.log.info(`Error populating patients: ${err.message}`);
-          reject(err);
+          reject(new InternalError('Populating Patients', err));
         }
       })
   );
@@ -298,42 +283,47 @@ async function dicomwebserver(fastify) {
           }
           resolve({ filteredStudies, filteredAims });
         } catch (err) {
-          reject(err);
+          reject(new InternalError('Filtering aims', err));
         }
       })
   );
 
   fastify.decorate('getPatientStudy', (request, reply) => {
     fastify
-      .getPatientStudiesInternal(request.params, [request.params.study])
+      .getPatientStudiesInternal(request.params, [request.params.study], request.epadAuth)
       .then(result => {
         if (result.length === 1) reply.code(200).send(result[0]);
         else {
-          reply.code(404).send(`Subject ${request.params.subject} not found`);
+          reply.send(new ResourceNotFoundError('Study', request.params.study));
         }
       })
-      .catch(err => reply.code(503).send(err.message));
+      .catch(err => reply.send(err));
   });
 
   fastify.decorate('getPatientStudies', (request, reply) => {
     fastify
-      .getPatientStudiesInternal(request.params)
+      .getPatientStudiesInternal(request.params, undefined, request.epadAuth)
       .then(result => reply.code(200).send(result))
-      .catch(err => reply.code(503).send(err.message));
+      .catch(err => reply.send(err));
   });
 
   fastify.decorate(
     'getPatientStudiesInternal',
-    (params, filter) =>
+    (params, filter, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           const studies = this.request.get('/studies', header);
           // get aims for a specific patient
-          const aims = fastify.getAimsInternal('summary', {
-            subject: params.subject ? params.subject : '',
-            study: '',
-            series: '',
-          });
+          const aims = fastify.getAimsInternal(
+            'summary',
+            {
+              subject: params.subject ? params.subject : '',
+              study: '',
+              series: '',
+            },
+            undefined,
+            epadAuth
+          );
 
           Promise.all([studies, aims])
             .then(async values => {
@@ -374,7 +364,7 @@ async function dicomwebserver(fastify) {
               // get the patients's studies and map each study to epadlite study object
               const result = _.map(filteredStudies, value => {
                 return {
-                  projectID,
+                  projectID: params.project ? params.project : projectID,
                   patientID: value['00100020'].Value[0],
                   patientName: value['00100010'].Value ? value['00100010'].Value[0].Alphabetic : '',
                   studyUID: value['0020000D'].Value[0],
@@ -382,8 +372,11 @@ async function dicomwebserver(fastify) {
                   firstSeriesUID: '', // TODO
                   firstSeriesDateAcquired: '', // TODO
                   physicianName: '', // TODO
-                  birthdate: '', // TODO
-                  sex: '', // TODO
+                  referringPhysicianName: value['00080090'].Value
+                    ? value['00080090'].Value[0].Alphabetic
+                    : '',
+                  birthdate: value['00100030'].Value ? value['00100030'].Value[0] : '',
+                  sex: value['00100040'].Value ? value['00100040'].Value[0] : '',
                   studyDescription:
                     value['00081030'] && value['00081030'].Value ? value['00081030'].Value[0] : '',
                   studyAccessionNumber: value['00080050'].Value ? value['00080050'].Value[0] : '',
@@ -394,44 +387,48 @@ async function dicomwebserver(fastify) {
                     ? aimsCountMap[value['0020000D'].Value[0]]
                     : 0,
                   createdTime: '', // no date in studies call
+                  // extra for flexview
+                  studyID: value['00200010'].Value ? value['00200010'].Value[0] : '',
+                  studyDate: value['00080020'].Value ? value['00080020'].Value[0] : '',
+                  studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '',
                 };
               });
 
               resolve(result);
             })
             .catch(error => {
-              // handle error
-              fastify.log.info(
-                `Error retrieving studies for populating patient studies: ${error.message}`
-              );
-              reject(error);
+              reject(new InternalError('Retrieving studies for populating patient studies', error));
             });
         } catch (err) {
-          fastify.log.info(`Error populating patient studies: ${err.message}`);
-          reject(err);
+          reject(new InternalError('Populating patient studies', err));
         }
       })
   );
 
   fastify.decorate('getStudySeries', (request, reply) => {
     fastify
-      .getStudySeriesInternal(request.params, request.query)
+      .getStudySeriesInternal(request.params, request.query, request.epadAuth)
       .then(result => reply.code(200).send(result))
-      .catch(err => reply.code(503).send(err.message));
+      .catch(err => reply.send(err));
   });
 
   fastify.decorate(
     'getStudySeriesInternal',
-    (params, query) =>
+    (params, query, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           const series = this.request.get(`/studies/${params.study}/series`, header);
           // get aims for a specific study
-          const aims = fastify.getAimsInternal('summary', {
-            subject: params.subject,
-            study: params.study,
-            series: '',
-          });
+          const aims = fastify.getAimsInternal(
+            'summary',
+            {
+              subject: params.subject,
+              study: params.study,
+              series: '',
+            },
+            undefined,
+            epadAuth
+          );
 
           Promise.all([series, aims])
             .then(values => {
@@ -460,7 +457,7 @@ async function dicomwebserver(fastify) {
                 filtered = _.filter(values[0].data, obj => obj['00080060'].Value[0] !== 'SEG');
               const result = _.map(filtered, value => {
                 return {
-                  projectID,
+                  projectID: params.project ? params.project : projectID,
                   // TODO put in dicomweb but what if other dicomweb is used
                   patientID:
                     value['00100020'] && value['00100020'].Value ? value['00100020'].Value[0] : '',
@@ -471,13 +468,11 @@ async function dicomwebserver(fastify) {
                       : '',
                   studyUID: value['0020000D'].Value[0],
                   seriesUID: value['0020000E'].Value[0],
-                  // TODO
                   seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
                   seriesDescription:
                     value['0008103E'] && value['0008103E'].Value ? value['0008103E'].Value[0] : '',
                   examType: value['00080060'].Value ? value['00080060'].Value[0] : '',
                   bodyPart: '', // TODO
-                  // TODO
                   accessionNumber:
                     value['00080050'] && value['00080050'].Value ? value['00080050'].Value[0] : '',
                   numberOfImages:
@@ -492,7 +487,7 @@ async function dicomwebserver(fastify) {
                   department: '', // TODO
                   createdTime: '', // TODO
                   firstImageUIDInSeries: '', // TODO
-                  isDSO: false, // TODO
+                  isDSO: value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
                   isNonDicomSeries: false, // TODO
                   seriesNo:
                     value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
@@ -501,15 +496,10 @@ async function dicomwebserver(fastify) {
               resolve(result);
             })
             .catch(error => {
-              // handle error
-              fastify.log.info(
-                `Error retrieving study's (${params.study}) series: ${error.message}`
-              );
-              reject(error);
+              reject(new InternalError(`Error retrieving study's (${params.study}) series`, error));
             });
         } catch (err) {
-          fastify.log.info(`Error populating study's (${params.study}) series: ${err.message}`);
-          reject(err);
+          reject(new InternalError(`Error populating study's (${params.study}) series`, err));
         }
       })
   );
@@ -518,7 +508,7 @@ async function dicomwebserver(fastify) {
     fastify
       .getSeriesImagesInternal(request.params, request.query)
       .then(result => reply.code(200).send(result))
-      .catch(err => reply.code(503).send(err.message));
+      .catch(err => reply.send(err));
   });
 
   fastify.decorate(
@@ -533,17 +523,19 @@ async function dicomwebserver(fastify) {
               // map each instance to epadlite image object
               const result = _.map(response.data, value => {
                 return {
-                  projectID,
+                  projectID: params.project ? params.project : projectID,
                   patientID:
                     value['00100020'] && value['00100020'].Value ? value['00100020'].Value[0] : '',
-                  studyUID: value['0020000D'].Value[0],
-                  seriesUID: value['0020000E'].Value[0],
-                  imageUID: value['00080018'].Value[0],
-                  classUID: value['00080016'].Value[0], // TODO
+                  studyUID: value['0020000D'].Value ? value['0020000D'].Value[0] : '',
+                  seriesUID: value['0020000E'].Value ? value['0020000E'].Value[0] : '',
+                  imageUID: value['00080018'].Value ? value['00080018'].Value[0] : '',
+                  classUID:
+                    value['00080016'] && value['00080016'].Value ? value['00080016'].Value[0] : '',
                   insertDate: '', // no date in studies call
                   imageDate: '', // TODO
                   sliceLocation: '', // TODO
-                  instanceNumber: '', // TODO
+                  instanceNumber:
+                    value['00200013'] && value['00200013'].Value ? value['00200013'].Value[0] : '',
                   losslessImage: '', // TODO
                   lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
                     value['00080018'].Value[0]
@@ -551,7 +543,7 @@ async function dicomwebserver(fastify) {
                   dicomElements: '', // TODO
                   defaultDICOMElements: '', // TODO
                   numberOfFrames: 0, // TODO
-                  isDSO: false, // TODO
+                  isDSO: value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
                   multiFrameImage: false, // TODO
                   isFlaggedImage: '', // TODO
                   rescaleIntercept: '', // TODO
@@ -563,28 +555,23 @@ async function dicomwebserver(fastify) {
               resolve(result);
             })
             .catch(error => {
-              // handle error
-              fastify.log.info(
-                `Error retrieving series's (${params.series}) instances: ${error.message}`
+              reject(
+                new InternalError(`Error retrieving series's (${params.series}) instances`, error)
               );
-              reject(error);
             });
         } catch (err) {
-          fastify.log.info(
-            `Error populating series's (${params.series}) instances: ${err.message}`
-          );
-          reject(err);
+          reject(new InternalError(`Error populating series's (${params.series}) instances`, err));
         }
       })
   );
 
   fastify.decorate('getPatient', (request, reply) => {
     fastify
-      .getPatientsInternal([request.params.subject])
+      .getPatientsInternal(request.params, [request.params.subject], request.epadAuth)
       .then(result => {
         if (result.length === 1) reply.code(200).send(result[0]);
         else {
-          reply.code(404).send(`Subject ${request.params.subject} not found`);
+          reply.send(new ResourceNotFoundError('Subject', request.params.subject));
         }
       })
       .catch(err => reply.code(503).send(err.message));
@@ -598,7 +585,9 @@ async function dicomwebserver(fastify) {
     } catch (err) {
       // do not turn off the server if in test mode. shouldn't come here in development anyway
       if (config.env !== 'test') {
-        fastify.log.info(`Cannot connect to DICOMwebServer (err:${err}), shutting down the server`);
+        fastify.log.error(
+          `Cannot connect to DICOMwebServer (err:${err.message}), shutting down the server`
+        );
         fastify.close();
       }
     }

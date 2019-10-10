@@ -18,8 +18,17 @@
                 "170437"
             ]
         },
+        "00081030": {
+            "vr": "LO",
+            "Value": [
+                "Made up study desc"
+            ]
+        },
         "00080050": {
-            "vr": "SH"
+            "vr": "SH",
+            "Value": [
+                "Made up accession"
+            ]
         },
         "00080056": {
             "vr": "CS"

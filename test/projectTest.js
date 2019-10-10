@@ -38,33 +38,11 @@ beforeEach(() => {
 });
 
 describe('Project Tests', () => {
-  before(async () => {
-    try {
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/users')
-        .send({
-          username: 'admin',
-          firstname: 'admin',
-          lastname: 'admin',
-          email: 'admin@gmail.com',
-        });
-    } catch (err) {
-      console.log(err);
-    }
-  });
-  after(async () => {
-    try {
-      await chai.request(`http://${process.env.host}:${process.env.port}`).delete('/users/admin');
-    } catch (err) {
-      console.log(err);
-    }
-  });
-
   it('projects should have no projects ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(0);
@@ -78,6 +56,7 @@ describe('Project Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/projects')
+      .query({ username: 'admin' })
       .send({
         projectId: 'test',
         projectName: 'test',
@@ -86,6 +65,7 @@ describe('Project Tests', () => {
         type: 'private',
         userName: 'admin',
       })
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -98,6 +78,7 @@ describe('Project Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
@@ -113,6 +94,7 @@ describe('Project Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test?projectName=test1')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -125,6 +107,7 @@ describe('Project Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.pop().name).to.be.eql('test1');
@@ -138,6 +121,7 @@ describe('Project Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test?projectName=testupdated&description=testupdated&type=Public')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -150,6 +134,7 @@ describe('Project Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         const lastEntry = res.body.pop();
@@ -166,6 +151,7 @@ describe('Project Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects/test')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         const lastEntry = res.body;
@@ -182,6 +168,7 @@ describe('Project Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/projects/test')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -194,6 +181,7 @@ describe('Project Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(0);
@@ -209,6 +197,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testtemplate',
           projectName: 'testtemplate',
@@ -220,6 +209,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testtemplate2',
           projectName: 'testtemplate2',
@@ -232,16 +222,19 @@ describe('Project Tests', () => {
     after(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testtemplate');
+        .delete('/projects/testtemplate')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testtemplate2');
+        .delete('/projects/testtemplate2')
+        .query({ username: 'admin' });
     });
 
     it('project testtemplate should have no template ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -257,6 +250,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testtemplate/templates')
         .send(jsonBuffer)
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -270,6 +264,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -284,6 +279,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
@@ -299,6 +295,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].TemplateContainer.uid).to.be.eql(
@@ -317,6 +314,7 @@ describe('Project Tests', () => {
         .put(
           '/projects/testtemplate2/templates/2.25.121060836007636801627558943005335?enable=false'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -330,6 +328,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate2/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
@@ -345,6 +344,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate2/templates?format=summary')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].enabled).to.be.eql(false);
@@ -359,6 +359,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testtemplate2/templates/2.25.121060836007636801627558943005335?enable=true')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -372,6 +373,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate2/templates?format=summary')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].enabled).to.be.eql(true);
@@ -386,6 +388,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testtemplate/templates/2.25.121060836007636801627558943005335')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -399,6 +402,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -413,6 +417,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate2/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
@@ -428,6 +433,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.a('array');
@@ -445,6 +451,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testtemplate2/templates/2.25.121060836007636801627558943005335')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -458,6 +465,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.a('array');
@@ -476,6 +484,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testsubject',
           projectName: 'testsubject',
@@ -487,6 +496,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testsubject2',
           projectName: 'testsubject2',
@@ -498,6 +508,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testsubject3',
           projectName: 'testsubject3',
@@ -510,18 +521,22 @@ describe('Project Tests', () => {
     after(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testsubject');
+        .delete('/projects/testsubject')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testsubject2');
+        .delete('/projects/testsubject2')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testsubject3');
+        .delete('/projects/testsubject3')
+        .query({ username: 'admin' });
     });
     it('project testsubject should have no subjects ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -535,6 +550,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testsubject/subjects/3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -548,6 +564,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testsubject2/subjects/3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -561,6 +578,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testsubject3/subjects/3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -574,6 +592,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -587,6 +606,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].subjectID).to.be.eql('3');
@@ -600,6 +620,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject/subjects/3/studies')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
@@ -614,6 +635,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject/subjects/3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.subjectID).to.be.eql('3');
@@ -628,6 +650,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject/subjects/7')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(404);
           done();
@@ -641,6 +664,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testsubject/subjects/3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -654,6 +678,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -668,6 +693,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject2/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -682,6 +708,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject3/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -696,6 +723,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testsubject3/subjects/3?all=true')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -709,6 +737,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -723,6 +752,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject2/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -737,6 +767,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubject3/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -753,6 +784,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'teststudy',
           projectName: 'teststudy',
@@ -764,6 +796,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'teststudy2',
           projectName: 'teststudy2',
@@ -775,6 +808,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'teststudy3',
           projectName: 'teststudy3',
@@ -787,18 +821,22 @@ describe('Project Tests', () => {
     after(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/teststudy');
+        .delete('/projects/teststudy')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/teststudy2');
+        .delete('/projects/teststudy2')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/teststudy3');
+        .delete('/projects/teststudy3')
+        .query({ username: 'admin' });
     });
     it('project teststudy should have no subjects ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -812,6 +850,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -825,6 +864,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/teststudy2/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -838,6 +878,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/teststudy3/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -851,6 +892,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -864,6 +906,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].subjectID).to.be.eql('3');
@@ -873,10 +916,40 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('project teststudy should have 1 study and it should be 0023.2015.09.28.3', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/studies')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.ResultSet.Result[0].patientID).to.be.eql('3');
+          expect(res.body.ResultSet.Result[0].patientName).to.be.eql('Phantom');
+          expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body.ResultSet.Result[0].referringPhysicianName).to.be.eql('');
+          expect(res.body.ResultSet.Result[0].birthdate).to.be.eql('20141212');
+          expect(res.body.ResultSet.Result[0].sex).to.be.eql('M');
+          expect(res.body.ResultSet.Result[0].studyDescription).to.be.eql('Made up study desc');
+          expect(res.body.ResultSet.Result[0].studyAccessionNumber).to.be.eql('Made up accession');
+          expect(res.body.ResultSet.Result[0].numberOfImages).to.be.eql(1);
+          expect(res.body.ResultSet.Result[0].numberOfSeries).to.be.eql(1);
+          expect(res.body.ResultSet.Result[0].numberOfAnnotations).to.be.eql(0);
+          expect(res.body.ResultSet.Result[0].studyID).to.be.eql('3');
+          expect(res.body.ResultSet.Result[0].studyDate).to.be.eql('20150928');
+          expect(res.body.ResultSet.Result[0].studyTime).to.be.eql('170437');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
     it('project teststudy should have study 0023.2015.09.28.3 of subject 3', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy/subjects/3/studies')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
@@ -890,6 +963,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.studyUID).to.be.eql('0023.2015.09.28.3');
@@ -904,6 +978,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy/subjects/3/studies/56547547373')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(404);
           done();
@@ -916,6 +991,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -929,6 +1005,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -943,6 +1020,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy2/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -957,6 +1035,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy3/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -971,6 +1050,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/teststudy3/subjects/3/studies/0023.2015.09.28.3?all=true')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -984,6 +1064,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -998,6 +1079,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy2/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1012,6 +1094,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy3/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1027,6 +1110,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testaim',
           projectName: 'testaim',
@@ -1038,6 +1122,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testaim2',
           projectName: 'testaim2',
@@ -1049,6 +1134,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testaim3',
           projectName: 'testaim3',
@@ -1061,18 +1147,22 @@ describe('Project Tests', () => {
     after(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testaim');
+        .delete('/projects/testaim')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testaim2');
+        .delete('/projects/testaim2')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testaim3');
+        .delete('/projects/testaim3')
+        .query({ username: 'admin' });
     });
     it('project testaim should have no aims ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1088,6 +1178,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testaim/aims')
         .send(jsonBuffer)
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1101,6 +1192,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.a('array');
@@ -1115,6 +1207,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims/2.25.211702350959705565754863799143359605362')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(
@@ -1132,6 +1225,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testaim2/aims/2.25.211702350959705565754863799143359605362')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1144,6 +1238,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testaim3/aims/2.25.211702350959705565754863799143359605362')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1156,6 +1251,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim2/aims/2.25.211702350959705565754863799143359605362')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
@@ -1172,6 +1268,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim2/aims/56547547373')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(404);
           done();
@@ -1186,6 +1283,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(
@@ -1205,6 +1303,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(
@@ -1222,6 +1321,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/subjects/13116/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(
@@ -1241,6 +1341,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims/2.25.211702350959705565754863799143359605362'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(
@@ -1260,6 +1361,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims/2.25.211702350959705565754863799143359605362'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(
@@ -1277,6 +1379,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/subjects/13116/aims/2.25.211702350959705565754863799143359605362')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(
@@ -1303,6 +1406,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .put(`/projects/testaim/aims/${jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root}`)
         .send(jsonBuffer)
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1315,6 +1419,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(
@@ -1332,6 +1437,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testaim/aims/2.25.211702350959705565754863799143359605362')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1345,6 +1451,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1359,6 +1466,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim2/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -1373,6 +1481,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim3/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -1387,6 +1496,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testaim/aims/2.25.211702350959705565754863799143359605362?all=true')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1400,6 +1510,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim2/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1413,6 +1524,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim3/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1428,6 +1540,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfile',
           projectName: 'testfile',
@@ -1439,6 +1552,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfile2',
           projectName: 'testfile2',
@@ -1450,6 +1564,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfile3',
           projectName: 'testfile3',
@@ -1462,18 +1577,22 @@ describe('Project Tests', () => {
     after(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfile');
+        .delete('/projects/testfile')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfile2');
+        .delete('/projects/testfile2')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfile3');
+        .delete('/projects/testfile3')
+        .query({ username: 'admin' });
     });
     it('project testfile should have no files ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1488,6 +1607,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testfile/files')
         .attach('files', 'test/data/unknownextension.abc', 'test/data/unknownextension.abc')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.not.equal(200);
           done();
@@ -1500,6 +1620,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1514,6 +1635,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testfile/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1526,6 +1648,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -1539,10 +1662,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put(`/projects/testfile2/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resPut => {
               expect(resPut.statusCode).to.equal(200);
               done();
@@ -1559,10 +1684,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put(`/projects/testfile3/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resPut => {
               expect(resPut.statusCode).to.equal(200);
               done();
@@ -1579,10 +1706,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .get(`/projects/testfile/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resGet => {
               expect(resGet.statusCode).to.equal(200);
               expect(resGet.body.name).to.equal(res.body[0].name);
@@ -1600,11 +1729,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .get(`/projects/testfile/files/${res.body[0].name}`)
-            .query({ format: 'stream' })
+            .query({ format: 'stream', username: 'admin' })
             .then(resGet => {
               expect(resGet.statusCode).to.equal(200);
               expect(resGet).to.have.header(
@@ -1625,10 +1755,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .delete(`/projects/testfile/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
               done();
@@ -1645,6 +1777,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1658,6 +1791,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile2/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -1671,11 +1805,13 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile2/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .delete(`/projects/testfile2/files/${res.body[0].name}`)
             .query({ all: 'true' })
+            .query({ username: 'admin' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
               done();
@@ -1692,6 +1828,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile2/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1705,6 +1842,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfile3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1720,6 +1858,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfilesubject',
           projectName: 'testfilesubject',
@@ -1731,6 +1870,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfilesubject2',
           projectName: 'testfilesubject2',
@@ -1742,6 +1882,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfilesubject3',
           projectName: 'testfilesubject3',
@@ -1753,6 +1894,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfilesubject4',
           projectName: 'testfilesubject4',
@@ -1763,13 +1905,16 @@ describe('Project Tests', () => {
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testfilesubject/subjects/3');
+        .put('/projects/testfilesubject/subjects/3')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testfilesubject2/subjects/3');
+        .put('/projects/testfilesubject2/subjects/3')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testfilesubject3/subjects/3');
+        .put('/projects/testfilesubject3/subjects/3')
+        .query({ username: 'admin' });
     });
     after(async () => {
       await chai
@@ -1789,6 +1934,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1803,6 +1949,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testfilesubject/subjects/3/files')
         .attach('files', 'test/data/unknownextension.abc', 'test/data/unknownextension.abc')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.not.equal(200);
           done();
@@ -1815,6 +1962,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -1829,8 +1977,9 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testfilesubject/subjects/7/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
-          expect(res.statusCode).to.equal(503);
+          expect(res.statusCode).to.equal(500);
           done();
         })
         .catch(e => {
@@ -1842,6 +1991,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testfilesubject/subjects/3/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1854,6 +2004,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -1867,10 +2018,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put(`/projects/testfilesubject2/subjects/3/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resPut => {
               expect(resPut.statusCode).to.equal(200);
               done();
@@ -1887,10 +2040,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put(`/projects/testfilesubject3/subjects/3/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resPut => {
               expect(resPut.statusCode).to.equal(200);
               done();
@@ -1903,16 +2058,18 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should fail adding add file to testfilesubject4 project (filename retrieval is done via get all) ', done => {
+    it('should fail with 400 adding add file to testfilesubject4 project (filename retrieval is done via get all) ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put(`/projects/testfilesubject4/subjects/3/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resPut => {
-              expect(resPut.statusCode).to.equal(503);
+              expect(resPut.statusCode).to.equal(400);
               done();
             })
             .catch(e => {
@@ -1927,10 +2084,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .get(`/projects/testfilesubject/subjects/3/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resGet => {
               expect(resGet.statusCode).to.equal(200);
               expect(resGet.body.name).to.equal(res.body[0].name);
@@ -1948,10 +2107,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .get(`/projects/testfilesubject/subjects/3/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .query({ format: 'stream' })
             .then(resGet => {
               expect(resGet.statusCode).to.equal(200);
@@ -1973,10 +2134,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .delete(`/projects/testfilesubject/subjects/3/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
               done();
@@ -1993,6 +2156,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2006,6 +2170,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject2/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -2019,11 +2184,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject2/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .delete(`/projects/testfilesubject2/subjects/3/files/${res.body[0].name}`)
-            .query({ all: 'true' })
+            .query({ all: 'true', username: 'admin' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
               done();
@@ -2040,6 +2206,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject2/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2053,6 +2220,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilesubject3/subjects/3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2068,6 +2236,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfilestudy',
           projectName: 'testfilestudy',
@@ -2079,6 +2248,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfilestudy2',
           projectName: 'testfilestudy2',
@@ -2090,6 +2260,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfilestudy3',
           projectName: 'testfilestudy3',
@@ -2101,6 +2272,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfilestudy4',
           projectName: 'testfilestudy4',
@@ -2111,32 +2283,40 @@ describe('Project Tests', () => {
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testfilestudy/subjects/3');
+        .put('/projects/testfilestudy/subjects/3')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testfilestudy2/subjects/3');
+        .put('/projects/testfilestudy2/subjects/3')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testfilestudy3/subjects/3');
+        .put('/projects/testfilestudy3/subjects/3')
+        .query({ username: 'admin' });
     });
     after(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilestudy');
+        .delete('/projects/testfilestudy')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilestudy2');
+        .delete('/projects/testfilestudy2')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilestudy3');
+        .delete('/projects/testfilestudy3')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilestudy4');
+        .delete('/projects/testfilestudy4')
+        .query({ username: 'admin' });
     });
     it('should return no files for subject 3, study 0023.2015.09.28.3 in project testfilestudy', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2151,6 +2331,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
         .attach('files', 'test/data/unknownextension.abc', 'test/data/unknownextension.abc')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.not.equal(200);
           done();
@@ -2163,6 +2344,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2177,8 +2359,9 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testfilestudy/subjects/7/studies/64363473737.86569494/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
-          expect(res.statusCode).to.equal(503);
+          expect(res.statusCode).to.equal(500);
           done();
         })
         .catch(e => {
@@ -2190,6 +2373,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -2202,6 +2386,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -2215,6 +2400,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2223,6 +2409,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resPut => {
               expect(resPut.statusCode).to.equal(200);
               done();
@@ -2239,6 +2426,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2247,6 +2435,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resPut => {
               expect(resPut.statusCode).to.equal(200);
               done();
@@ -2263,6 +2452,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2271,8 +2461,9 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resPut => {
-              expect(resPut.statusCode).to.equal(503);
+              expect(resPut.statusCode).to.equal(400);
               done();
             })
             .catch(e => {
@@ -2287,6 +2478,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2295,6 +2487,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resGet => {
               expect(resGet.statusCode).to.equal(200);
               expect(resGet.body.name).to.equal(res.body[0].name);
@@ -2312,6 +2505,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2320,7 +2514,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
-            .query({ format: 'stream' })
+            .query({ format: 'stream', username: 'admin' })
             .then(resGet => {
               expect(resGet.statusCode).to.equal(200);
               expect(resGet).to.have.header(
@@ -2341,6 +2535,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2349,6 +2544,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
               done();
@@ -2365,6 +2561,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2378,6 +2575,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy2/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -2391,6 +2589,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy2/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2399,7 +2598,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
-            .query({ all: 'true' })
+            .query({ all: 'true', username: 'admin' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
               done();
@@ -2416,6 +2615,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy2/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2429,6 +2629,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testfilestudy3/subjects/3/studies/0023.2015.09.28.3/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2442,6 +2643,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2457,6 +2659,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfileseries',
           projectName: 'testfileseries',
@@ -2468,6 +2671,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfileseries2',
           projectName: 'testfileseries2',
@@ -2479,6 +2683,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfileseries3',
           projectName: 'testfileseries3',
@@ -2490,6 +2695,7 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
+        .query({ username: 'admin' })
         .send({
           projectId: 'testfileseries4',
           projectName: 'testfileseries4',
@@ -2500,27 +2706,34 @@ describe('Project Tests', () => {
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testfileseries/subjects/3');
+        .put('/projects/testfileseries/subjects/3')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testfileseries2/subjects/3');
+        .put('/projects/testfileseries2/subjects/3')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/projects/testfileseries3/subjects/3');
+        .put('/projects/testfileseries3/subjects/3')
+        .query({ username: 'admin' });
     });
     after(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfileseries');
+        .delete('/projects/testfileseries')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfileseries2');
+        .delete('/projects/testfileseries2')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfileseries3');
+        .delete('/projects/testfileseries3')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfileseries4');
+        .delete('/projects/testfileseries4')
+        .query({ username: 'admin' });
     });
     it('should return no files for subject 3, series 0023.2015.09.28.3.3590 in project testfileseries', done => {
       chai
@@ -2528,6 +2741,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2544,6 +2758,7 @@ describe('Project Tests', () => {
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
         .attach('files', 'test/data/unknownextension.abc', 'test/data/unknownextension.abc')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.not.equal(200);
           done();
@@ -2558,6 +2773,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2572,8 +2788,9 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testfileseries/subjects/7/studies/64363473737.86569494/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
-          expect(res.statusCode).to.equal(503);
+          expect(res.statusCode).to.equal(500);
           done();
         })
         .catch(e => {
@@ -2587,6 +2804,7 @@ describe('Project Tests', () => {
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -2601,6 +2819,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -2616,6 +2835,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2624,6 +2844,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resPut => {
               expect(resPut.statusCode).to.equal(200);
               done();
@@ -2642,6 +2863,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2650,6 +2872,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resPut => {
               expect(resPut.statusCode).to.equal(200);
               done();
@@ -2668,6 +2891,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2676,8 +2900,9 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resPut => {
-              expect(resPut.statusCode).to.equal(503);
+              expect(resPut.statusCode).to.equal(400);
               done();
             })
             .catch(e => {
@@ -2694,6 +2919,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2702,6 +2928,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resGet => {
               expect(resGet.statusCode).to.equal(200);
               expect(resGet.body.name).to.equal(res.body[0].name);
@@ -2721,6 +2948,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2729,7 +2957,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
-            .query({ format: 'stream' })
+            .query({ format: 'stream', username: 'admin' })
             .then(resGet => {
               expect(resGet.statusCode).to.equal(200);
               expect(resGet).to.have.header(
@@ -2752,6 +2980,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2760,6 +2989,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
+            .query({ username: 'admin' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
               done();
@@ -2778,6 +3008,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2793,6 +3024,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries2/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -2808,6 +3040,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries2/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -2816,7 +3049,7 @@ describe('Project Tests', () => {
                 res.body[0].name
               }`
             )
-            .query({ all: 'true' })
+            .query({ all: 'true', username: 'admin' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
               done();
@@ -2835,6 +3068,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries2/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2850,6 +3084,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testfileseries3/subjects/3/studies/0023.2015.09.28.3/series/0023.2015.09.28.3.3590/files'
         )
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2863,6 +3098,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2886,6 +3122,7 @@ describe('Project Tests', () => {
           type: 'private',
           userName: 'admin',
         })
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -2899,6 +3136,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2912,6 +3150,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2925,6 +3164,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -2939,6 +3179,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testassoc/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -2953,6 +3194,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testassoc/templates')
         .send(jsonBuffer)
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -2967,6 +3209,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testassoc/aims')
         .send(jsonBuffer)
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -2979,6 +3222,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testassoc/subjects/3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -2992,6 +3236,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -3005,6 +3250,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -3018,6 +3264,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -3032,6 +3279,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -3045,6 +3293,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -3058,6 +3307,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -3071,6 +3321,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc/subjects')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -3084,6 +3335,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testassoc')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -3104,6 +3356,7 @@ describe('Project Tests', () => {
           type: 'private',
           userName: 'admin',
         })
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -3124,6 +3377,7 @@ describe('Project Tests', () => {
           type: 'private',
           userName: 'admin',
         })
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -3137,6 +3391,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testassoc2/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -3149,10 +3404,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc2/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put(`/projects/testassoc3/files/${res.body[0].name}`)
+            .query({ username: 'admin' })
             .then(resPut => {
               expect(resPut.statusCode).to.equal(200);
               done();
@@ -3170,6 +3427,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testassoc2/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -3183,6 +3441,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testassoc2/files')
         .attach('files', 'test/data/08240122.JPG', '08240122.JPG')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -3195,6 +3454,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc2/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(3);
@@ -3208,6 +3468,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testassoc2')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -3220,6 +3481,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
@@ -3233,11 +3495,12 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc3/files')
+        .query({ username: 'admin' })
         .then(res => {
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .delete(`/projects/testassoc3/files/${res.body[0].name}`)
-            .query({ all: 'true' })
+            .query({ all: 'true', username: 'admin' })
             .then(resDel => {
               expect(resDel.statusCode).to.equal(200);
               done();
@@ -3254,6 +3517,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/files')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -3267,6 +3531,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/templates')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -3280,6 +3545,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/aims')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
@@ -3293,6 +3559,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testassoc3')
+        .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();

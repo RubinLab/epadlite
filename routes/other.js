@@ -32,5 +32,11 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.getFile,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/notifications',
+    handler: fastify.getNotifications,
+  });
 }
 module.exports = otherRoutes;

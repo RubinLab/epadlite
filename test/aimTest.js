@@ -12,6 +12,7 @@ describe('System AIM Tests', () => {
       .get(
         '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -27,6 +28,7 @@ describe('System AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects/11111/studies/2222222/series/3333333/aims')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -44,6 +46,7 @@ describe('System AIM Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/aims')
       .send(jsonBuffer)
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -59,6 +62,7 @@ describe('System AIM Tests', () => {
       .get(
         '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -76,6 +80,7 @@ describe('System AIM Tests', () => {
       .get(
         '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.11111111111111/aims'
       )
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
@@ -93,6 +98,7 @@ describe('System AIM Tests', () => {
       .get(
         '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(
@@ -111,6 +117,7 @@ describe('System AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/aims/2.25.211702350959705565754863799143359605362')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(
@@ -138,6 +145,7 @@ describe('System AIM Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .put(`/aims/${jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root}`)
       .send(jsonBuffer)
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -153,6 +161,7 @@ describe('System AIM Tests', () => {
       .get(
         '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(
@@ -171,6 +180,7 @@ describe('System AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects/13116/aims/2.25.211702350959705565754863799143359605362')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(
@@ -189,7 +199,7 @@ describe('System AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/aims')
-      .query({ format: 'stream' })
+      .query({ format: 'stream', username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
@@ -203,7 +213,7 @@ describe('System AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects/13116/aims')
-      .query({ format: 'stream' })
+      .query({ format: 'stream', username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
@@ -219,7 +229,7 @@ describe('System AIM Tests', () => {
       .get(
         '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
       )
-      .query({ format: 'stream' })
+      .query({ format: 'stream', username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
@@ -235,7 +245,7 @@ describe('System AIM Tests', () => {
       .get(
         '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
-      .query({ format: 'stream' })
+      .query({ format: 'stream', username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
@@ -251,6 +261,7 @@ describe('System AIM Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/aims/download')
       .send(['2.25.211702350959705565754863799143359605362'])
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(400);
         done();
@@ -265,8 +276,9 @@ describe('System AIM Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/aims/download?summary=false&aim=false')
       .send(['2.25.211702350959705565754863799143359605362'])
+      .query({ username: 'admin' })
       .then(res => {
-        expect(res.statusCode).to.equal(503);
+        expect(res.statusCode).to.equal(500);
         done();
       })
       .catch(e => {
@@ -279,6 +291,7 @@ describe('System AIM Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/aims/download?summary=true&aim=true')
       .send(['2.25.211702350959705565754863799143359605362'])
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
@@ -293,6 +306,7 @@ describe('System AIM Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/aims/2.25.211702350959705565754863799143359605362')
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -308,6 +322,7 @@ describe('System AIM Tests', () => {
       .get(
         '/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
       )
+      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.be.a('array');
