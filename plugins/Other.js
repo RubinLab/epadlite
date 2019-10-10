@@ -620,7 +620,8 @@ async function other(fastify) {
   );
 
   fastify.decorate('auth', async (req, res) => {
-    if (config.auth && config.auth !== 'none') {
+    // ignore swagger routes
+    if (config.auth && config.auth !== 'none' && !req.req.url.startsWith('/documentation')) {
       // if auth has been given in config, verify authentication
       fastify.log.info('Request needs to be authenticated, checking the authorization header');
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
@@ -640,7 +641,8 @@ async function other(fastify) {
       }
     }
     try {
-      if (config.mode === 'thick') await fastify.epadThickRightsCheck(req, res);
+      if (config.mode === 'thick' && !req.req.url.startsWith('/documentation'))
+        await fastify.epadThickRightsCheck(req, res);
       // TODO lite?
     } catch (err) {
       res.send(err);
