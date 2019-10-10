@@ -373,9 +373,6 @@ async function epaddb(fastify, options, done) {
     // iterate over the userList from the request body
     const assigneeInfoArr = [];
     const assigneeIDArr = [];
-
-    console.log('create wl body');
-    console.log(request.body);
     // get user id of the assignees
     request.body.assignees.forEach(async el => {
       assigneeInfoArr.push(
@@ -387,8 +384,6 @@ async function epaddb(fastify, options, done) {
     });
     Promise.all(assigneeInfoArr)
       .then(results => {
-        console.log('create wl assignee id');
-        console.log(results);
         results.forEach(el => {
           assigneeIDArr.push(el.dataValues.id);
         });
@@ -508,8 +503,6 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('getWorklistsOfCreator', async (request, reply) => {
-    console.log('hit here creator');
-    console.log(request.epadAuth);
     models.worklist
       .findAll({
         where: {
@@ -525,13 +518,7 @@ async function epaddb(fastify, options, done) {
       })
       .then(worklist => {
         const result = [];
-        console.log(' ----- worklist users ----- ');
-        // console.log(worklist);
         for (let i = 0; i < worklist.length; i += 1) {
-          // console.log(worklist[i]);
-          // console.log(worklist[i].name);
-          console.log(worklist[i].users);
-
           const obj = {
             completionDate: worklist[i].completedate,
             dueDate: worklist[i].duedate,
@@ -557,7 +544,6 @@ async function epaddb(fastify, options, done) {
           for (let j = 0; j < assigneesArr.length; j += 1) {
             obj.assignees.push(assigneesArr[j].dataValues.username);
           }
-          console.log(obj);
           result.push(obj);
         }
         reply.code(200).send(result);
@@ -619,21 +605,21 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('deleteWorklist', async (request, reply) => {
-    let userId;
-    try {
-      // find user id
-      userId = await models.user.findOne({
-        where: { username: request.params.user },
-        attributes: ['id'],
-      });
-      userId = userId.dataValues.id;
-    } catch (err) {
-      console.log(err);
-    }
+    // let userId;
+    // try {
+    //   // find user id
+    //   userId = await models.user.findOne({
+    //     where: { username: request.params.user },
+    //     attributes: ['id'],
+    //   });
+    //   userId = userId.dataValues.id;
+    // } catch (err) {
+    //   console.log(err);
+    // }
     models.worklist
       .destroy({
         where: {
-          user_id: userId,
+          creator: request.epadAuth.username,
           worklistid: request.params.worklist,
         },
       })
