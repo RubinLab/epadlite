@@ -3,7 +3,12 @@ const fs = require('fs-extra');
 const path = require('path');
 const Sequelize = require('sequelize');
 const config = require('../config/index');
-const { InternalError, ResourceNotFoundError, BadRequestError } = require('../utils/EpadErrors');
+const {
+  InternalError,
+  ResourceNotFoundError,
+  BadRequestError,
+  UnauthorizedError,
+} = require('../utils/EpadErrors');
 
 async function epaddb(fastify, options, done) {
   const models = {};
@@ -643,7 +648,13 @@ async function epaddb(fastify, options, done) {
             new ResourceNotFoundError('Project', request.params.project)
           )
         );
-      } else {
+      } else if (
+        request.query.all &&
+        request.query.all === 'true' &&
+        request.epadAuth.admin === false
+      )
+        reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
+      else {
         const numDeleted = await models.project_template.destroy({
           where: { project_id: project.id, template_uid: templateUid },
         });
@@ -816,6 +827,8 @@ async function epaddb(fastify, options, done) {
                 new ResourceNotFoundError('Project', params.project)
               )
             );
+          else if (query.all && query.all === 'true' && epadAuth.admin === false)
+            reject(new UnauthorizedError('User is not admin, cannot delete from system'));
           else {
             const projectSubject = await models.project_subject.findOne({
               where: { project_id: project.id, subject_uid: params.subject },
@@ -1082,6 +1095,12 @@ async function epaddb(fastify, options, done) {
             new ResourceNotFoundError('Project', request.params.project)
           )
         );
+      else if (
+        request.query.all &&
+        request.query.all === 'true' &&
+        request.epadAuth.admin === false
+      )
+        reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
         const numDeleted = await models.project_aim.destroy({
           where: { project_id: project.id, aim_uid: request.params.aimuid },
@@ -1284,7 +1303,13 @@ async function epaddb(fastify, options, done) {
               new ResourceNotFoundError('Project subject association', request.params.subject)
             )
           );
-        } else {
+        } else if (
+          request.query.all &&
+          request.query.all === 'true' &&
+          request.epadAuth.admin === false
+        )
+          reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
+        else {
           let numDeleted = await models.project_subject_study.destroy({
             where: { proj_subj_id: projectSubject.id, study_uid: request.params.study },
           });
@@ -1871,6 +1896,12 @@ async function epaddb(fastify, options, done) {
             new ResourceNotFoundError('Project', request.params.project)
           )
         );
+      else if (
+        request.query.all &&
+        request.query.all === 'true' &&
+        request.epadAuth.admin === false
+      )
+        reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
         const numDeleted = await models.project_file.destroy({
           where: { project_id: project.id, file_uid: request.params.filename },

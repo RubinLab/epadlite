@@ -39,9 +39,17 @@ class UnauthenticatedError extends EpadError {
   }
 }
 
+class UnauthorizedError extends EpadError {
+  constructor(message) {
+    super(message);
+    this.data = { message };
+  }
+}
+
 module.exports = {
   ResourceNotFoundError,
   InternalError,
   BadRequestError,
   UnauthenticatedError,
+  UnauthorizedError,
 };

@@ -227,7 +227,7 @@ describe('User Rights Tests', () => {
           userName: 'testMember@gmail.com',
         })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -240,7 +240,7 @@ describe('User Rights Tests', () => {
         .delete('/projects/testRights3')
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -601,7 +601,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testCollaborator@gmail.com' })
         .send(jsonBuffer)
         .then(resPut => {
-          expect(resPut.statusCode).to.equal(401);
+          expect(resPut.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -635,7 +635,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testCollaborator@gmail.com' })
         .send(jsonBuffer)
         .then(resPut => {
-          expect(resPut.statusCode).to.equal(401);
+          expect(resPut.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -669,7 +669,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testCollaborator@gmail.com' })
         .send(jsonBuffer)
         .then(resPut => {
-          expect(resPut.statusCode).to.equal(401);
+          expect(resPut.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -854,7 +854,7 @@ describe('User Rights Tests', () => {
             .query({ username: 'testMember@gmail.com' })
             .send(res.body)
             .then(resPut => {
-              expect(resPut.statusCode).to.equal(401);
+              expect(resPut.statusCode).to.equal(403);
               done();
             })
             .catch(e => {
@@ -879,7 +879,7 @@ describe('User Rights Tests', () => {
             .query({ username: 'testMember@gmail.com' })
             .send(res.body)
             .then(resPut => {
-              expect(resPut.statusCode).to.equal(401);
+              expect(resPut.statusCode).to.equal(403);
               done();
             })
             .catch(e => {
@@ -945,7 +945,7 @@ describe('User Rights Tests', () => {
             .query({ username: 'testMember@gmail.com' })
             .send(res.body)
             .then(resPut => {
-              expect(resPut.statusCode).to.equal(401);
+              expect(resPut.statusCode).to.equal(403);
               done();
             })
             .catch(e => {
@@ -1006,7 +1006,7 @@ describe('User Rights Tests', () => {
           email: 'testuser2@gmail.com',
         })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1092,7 +1092,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testOwner@gmail.com' })
         .send({ permissions: 'CreateProject' })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1105,7 +1105,7 @@ describe('User Rights Tests', () => {
         .delete('/users/testuser3@gmail.com')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1206,7 +1206,7 @@ describe('User Rights Tests', () => {
         .delete('/users/testuser1@gmail.com')
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1253,7 +1253,7 @@ describe('User Rights Tests', () => {
         .delete('/users/testOwner@gmail.com/worklists/testWorklistOwner')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1285,7 +1285,7 @@ describe('User Rights Tests', () => {
           duedate: '2019-12-01',
         })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1342,7 +1342,7 @@ describe('User Rights Tests', () => {
           duedate: '2019-12-01',
         })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1355,7 +1355,7 @@ describe('User Rights Tests', () => {
         .delete('/users/testMember@gmail.com/worklists/testWorklistMember2')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1442,6 +1442,28 @@ describe('User Rights Tests', () => {
           done(e);
         });
     });
+    it('should succeed in putting jpg file to project testRights2 with filename retrieval and delete should be successful for testCollaborator', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/files')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .put(`/projects/testRights2/files/${res.body[0].name}`)
+            .query({ username: 'testCollaborator@gmail.com' })
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('should return 1 file in project testRights1 for testMember', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -1481,7 +1503,7 @@ describe('User Rights Tests', () => {
             .delete(`/projects/testRights1/files/${res.body[0].name}`)
             .query({ username: 'testCollaborator@gmail.com' })
             .then(resDel => {
-              expect(resDel.statusCode).to.equal(401);
+              expect(resDel.statusCode).to.equal(403);
               done();
             })
             .catch(e => {
@@ -1514,6 +1536,50 @@ describe('User Rights Tests', () => {
           done(e);
         });
     });
+    it('should fail in deleting jpg file from system with filename retrieval and delete should be successful for testOwner', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights2/files')
+        .query({ username: 'testCollaborator@gmail.com', all: true })
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .delete(`/projects/testRights2/files/${res.body[0].name}`)
+            .query({ username: 'testCollaborator@gmail.com' })
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(403);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting jpg file from system with filename retrieval and delete should be successful for testAdmin', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights2/files')
+        .query({ username: 'testAdmin@gmail.com' })
+        .then(res => {
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .delete(`/projects/testRights2/files/${res.body[0].name}`)
+            .query({ username: 'testAdmin@gmail.com', all: true })
+            .then(resDel => {
+              expect(resDel.statusCode).to.equal(200);
+              done();
+            })
+            .catch(e => {
+              done(e);
+            });
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
   });
   describe('Template Access Tests', () => {
     it('should succeed in saving template to project by testMember ', done => {
@@ -1523,6 +1589,21 @@ describe('User Rights Tests', () => {
         .post('/projects/testRights1/templates')
         .send(jsonBuffer)
         .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in adding template to project testRights2 by testCollaborator ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testRights2/templates/2.25.121060836007636801627558943005335')
+        .send(jsonBuffer)
+        .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1566,7 +1647,7 @@ describe('User Rights Tests', () => {
         .delete('/projects/testRights1/templates/2.25.121060836007636801627558943005335')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(resDel => {
-          expect(resDel.statusCode).to.equal(401);
+          expect(resDel.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1580,7 +1661,7 @@ describe('User Rights Tests', () => {
         .delete('/projects/testRights1/templates/2.25.121060836007636801627558943005335')
         .query({ username: 'testMember@gmail.com' })
         .then(resDel => {
-          expect(resDel.statusCode).to.equal(401);
+          expect(resDel.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
@@ -1601,6 +1682,34 @@ describe('User Rights Tests', () => {
           done(e);
         });
     });
+    it('should fail in deleting template file from system with uid for testOwner', done => {
+      chai
+
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testRights1/templates/2.25.121060836007636801627558943005335')
+        .query({ username: 'testOwner@gmail.com', all: true })
+        .then(resDel => {
+          expect(resDel.statusCode).to.equal(403);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting template file from system with uid for testAdmin', done => {
+      chai
+
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testRights1/templates/2.25.121060836007636801627558943005335')
+        .query({ username: 'testAdmin@gmail.com', all: true })
+        .then(resDel => {
+          expect(resDel.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
   });
   describe('Subject Access Tests', () => {
     it('should succeed adding patient 3 to project testRights1 by testMember ', done => {
@@ -1608,6 +1717,19 @@ describe('User Rights Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testRights1/subjects/3')
         .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed adding patient 3 to project testRights2 by testCollaborator ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testRights2/subjects/3')
+        .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1650,17 +1772,30 @@ describe('User Rights Tests', () => {
         .delete('/projects/testRights1/subjects/3')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
-          expect(res.statusCode).to.equal(401);
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch(e => {
           done(e);
         });
     });
-    it('should succeed in deleting of patient 3 from project testRights1 by testAdmin ', done => {
+    it('should fail in deleting of patient 3 from system using all=true by testOwner ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testRights1/subjects/3')
+        .query({ username: 'testOwner@gmail.com', all: true })
+        .then(res => {
+          expect(res.statusCode).to.equal(403);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting of patient 3 from project testRights2 by testAdmin ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testRights2/subjects/3')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);

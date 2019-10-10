@@ -25,6 +25,7 @@ const {
   ResourceNotFoundError,
   BadRequestError,
   UnauthenticatedError,
+  UnauthorizedError,
 } = require('../utils/EpadErrors');
 
 async function other(fastify) {
@@ -781,7 +782,7 @@ async function other(fastify) {
           switch (request.req.method) {
             case 'GET': // check project access (projectToRole). filtering should be done in the methods
               if (fastify.hasAccessToProject(request, reqInfo.project) === undefined)
-                reply.send(new UnauthenticatedError('User has no access to project'));
+                reply.send(new UnauthorizedError('User has no access to project'));
               break;
             case 'PUT': // check permissions
               // not really a good way to check it but
@@ -792,9 +793,7 @@ async function other(fastify) {
                   fastify.isOwnerOfProject(request, reqInfo.project) === false &&
                   (await fastify.isCreatorOfObject(request, reqInfo)) === false)
               )
-                reply.send(
-                  new UnauthenticatedError('User has no access to project and/or resource')
-                );
+                reply.send(new UnauthorizedError('User has no access to project and/or resource'));
               break;
             case 'POST':
               if (
@@ -802,18 +801,14 @@ async function other(fastify) {
                 (reqInfo.level === 'project' &&
                   !fastify.hasCreatePermission(request, reqInfo.level))
               )
-                reply.send(
-                  new UnauthenticatedError('User has no access to project and/or to create')
-                );
+                reply.send(new UnauthorizedError('User has no access to project and/or to create'));
               break;
             case 'DELETE': // check if owner
               if (
                 fastify.isOwnerOfProject(request, reqInfo.project) === false &&
                 (await fastify.isCreatorOfObject(request, reqInfo)) === false
               )
-                reply.send(
-                  new UnauthenticatedError('User has no access to project and/or resource')
-                );
+                reply.send(new UnauthorizedError('User has no access to project and/or resource'));
               break;
             default:
               break;
@@ -824,15 +819,15 @@ async function other(fastify) {
               break;
             case 'PUT': // check permissions
               if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
-                reply.send(new UnauthenticatedError('User has no access to resource'));
+                reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
               if (!fastify.hasCreatePermission(request, reqInfo.level))
-                reply.send(new UnauthenticatedError('User has no access to create'));
+                reply.send(new UnauthorizedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner
               if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
-                reply.send(new UnauthenticatedError('User has no access to resource'));
+                reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             default:
               break;
@@ -849,6 +844,7 @@ async function other(fastify) {
     else if (error instanceof InternalError) reply.code(500);
     else if (error instanceof BadRequestError) reply.code(400);
     else if (error instanceof UnauthenticatedError) reply.code(401);
+    else if (error instanceof UnauthorizedError) reply.code(403);
     try {
       new EpadNotification(request, fastify.getInfoFromRequest(request), error).notify(fastify);
     } catch (err) {
