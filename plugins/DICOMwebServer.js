@@ -29,7 +29,7 @@ async function dicomwebserver(fastify) {
       return connect;
     } catch (err) {
       if (config.env !== 'test') {
-        fastify.log.warning('Waiting for dicomweb server');
+        fastify.log.warn('Waiting for dicomweb server');
         setTimeout(fastify.initDicomWeb, 3000);
       } else throw err;
     }

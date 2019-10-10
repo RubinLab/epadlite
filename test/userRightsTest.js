@@ -1602,4 +1602,73 @@ describe('User Rights Tests', () => {
         });
     });
   });
+  describe('Subject Access Tests', () => {
+    it('should succeed adding patient 3 to project testRights1 by testMember ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testRights1/subjects/3')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 subject in project testRights1 for testMember', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 subject in project testRights1 for testCollabotator', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail in deleting of patient 3 from project testRights1 by testCollaborator ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testRights1/subjects/3')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting of patient 3 from project testRights1 by testAdmin ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testRights1/subjects/3')
+        .query({ username: 'testAdmin@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
 });

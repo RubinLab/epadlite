@@ -71,7 +71,7 @@ async function other(fastify) {
               }
               fastify.log.info('Upload completed');
               fs.remove(dir, error => {
-                if (error) fastify.log.warning(`Temp directory deletion error ${error.message}`);
+                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 fastify.log.info(`${dir} deleted`);
               });
               new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
@@ -782,9 +782,12 @@ async function other(fastify) {
                 reply.send(new UnauthenticatedError('User has no access to project'));
               break;
             case 'PUT': // check permissions
+              // not really a good way to check it but
+              // 'file', 'template', 'subject', 'study' are just associacion levels
               if (
                 fastify.hasAccessToProject(request, reqInfo.project) === undefined ||
-                (fastify.isOwnerOfProject(request, reqInfo.project) === false &&
+                (['project', 'worklist', 'user', 'aim'].includes(reqInfo.level) &&
+                  fastify.isOwnerOfProject(request, reqInfo.project) === false &&
                   (await fastify.isCreatorOfObject(request, reqInfo)) === false)
               )
                 reply.send(
@@ -793,7 +796,7 @@ async function other(fastify) {
               break;
             case 'POST':
               if (
-                fastify.hasAccessToProject(request, reqInfo.project) === undefined &&
+                fastify.hasAccessToProject(request, reqInfo.project) === undefined ||
                 (reqInfo.level === 'project' &&
                   !fastify.hasCreatePermission(request, reqInfo.level))
               )
@@ -803,9 +806,8 @@ async function other(fastify) {
               break;
             case 'DELETE': // check if owner
               if (
-                fastify.hasAccessToProject(request, reqInfo.project) === undefined ||
-                (fastify.isOwnerOfProject(request, reqInfo.project) === false &&
-                  (await fastify.isCreatorOfObject(request, reqInfo)) === false)
+                fastify.isOwnerOfProject(request, reqInfo.project) === false &&
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false
               )
                 reply.send(
                   new UnauthenticatedError('User has no access to project and/or resource')

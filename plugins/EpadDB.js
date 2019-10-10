@@ -782,7 +782,7 @@ async function epaddb(fastify, options, done) {
           request.epadAuth
         );
         if (subjectUids.length !== result.ResultSet.totalRecords)
-          fastify.log.warning(
+          fastify.log.warn(
             `There are ${subjectUids.length} subjects associated with this project. But only ${
               result.ResultSet.totalRecords
             } of them have dicom files`
@@ -1243,7 +1243,7 @@ async function epaddb(fastify, options, done) {
             request.epadAuth
           );
           if (studyUids.length !== result.ResultSet.totalRecords)
-            fastify.log.warning(
+            fastify.log.warn(
               `There are ${studyUids.length} studies associated with this project. But only ${
                 result.ResultSet.totalRecords
               } of them have dicom files`
@@ -1849,7 +1849,7 @@ async function epaddb(fastify, options, done) {
             reply.code(200).send(result);
           } else if (result.length === 1) reply.code(200).send(result[0]);
           else {
-            fastify.log.warning(`Was expecting to find 1 record, found ${result.length}`);
+            fastify.log.warn(`Was expecting to find 1 record, found ${result.length}`);
             reply.send(new ResourceNotFoundError('File', request.params.filename));
           }
         }
@@ -1944,7 +1944,7 @@ async function epaddb(fastify, options, done) {
           reply.code(200).send(result);
         } else if (result.length === 1) reply.code(200).send(result[0]);
         else {
-          fastify.log.warning(`Was expecting to find 1 record, found ${result.length}`);
+          fastify.log.warn(`Was expecting to find 1 record, found ${result.length}`);
           reply.send(new ResourceNotFoundError('File', request.params.filename));
         }
       })

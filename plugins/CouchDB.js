@@ -22,7 +22,7 @@ async function couchdb(fastify, options) {
       return fastify.checkAndCreateDb();
     } catch (err) {
       if (config.env !== 'test') {
-        fastify.log.warning('Waiting for couchdb server');
+        fastify.log.warn('Waiting for couchdb server');
         setTimeout(fastify.init, 3000);
       } else throw InternalError('No connection to couchdb', err);
     }
@@ -335,8 +335,7 @@ async function couchdb(fastify, options) {
                 readStream.once('end', () => {
                   readStream.destroy(); // make sure stream closed, not close if download aborted.
                   fs.remove(dir, error => {
-                    if (error)
-                      fastify.log.warning(`Temp directory deletion error ${error.message}`);
+                    if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                     else fastify.log.info(`${dir} deleted`);
                   });
                 });
@@ -345,7 +344,7 @@ async function couchdb(fastify, options) {
               archive.finalize();
             } else {
               fs.remove(dir, error => {
-                if (error) fastify.log.warning(`Temp directory deletion error ${error.message}`);
+                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 else fastify.log.info(`${dir} deleted`);
               });
               reject(
@@ -846,7 +845,7 @@ async function couchdb(fastify, options) {
               readStream.once('end', () => {
                 readStream.destroy(); // make sure stream closed, not close if download aborted.
                 fs.remove(dir, error => {
-                  if (error) fastify.log.warning(`Temp directory deletion error ${error.message}`);
+                  if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                   else fastify.log.info(`${dir} deleted`);
                 });
               });
@@ -855,7 +854,7 @@ async function couchdb(fastify, options) {
             archive.finalize();
           } else {
             fs.remove(dir, error => {
-              if (error) fastify.log.warning(`Temp directory deletion error ${error.message}`);
+              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
               else fastify.log.info(`${dir} deleted`);
             });
             reject(
