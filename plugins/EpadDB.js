@@ -1982,6 +1982,66 @@ async function epaddb(fastify, options, done) {
       .catch(err => reply.send(err));
   });
 
+  fastify.decorate('getStudiesFromProject', async (request, reply) => {
+    try {
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+      if (project === null)
+        reply.send(
+          new BadRequestError(
+            'Get studies from project',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      else {
+        const studyUids = [];
+        const projectSubjects = await models.project_subject.findAll({
+          where: { project_id: project.id },
+        });
+        if (projectSubjects === null) {
+          reply.send(
+            new BadRequestError(
+              'Get studies from project',
+              new ResourceNotFoundError('Project subject association', request.params.project)
+            )
+          );
+        } else {
+          // projects will be an array of Project instances with the specified name
+          for (let i = 0; i < projectSubjects.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            const projectSubjectStudies = await models.project_subject_study.findAll({
+              where: { proj_subj_id: projectSubjects[i].id },
+            });
+            if (projectSubjectStudies)
+              for (let j = 0; j < projectSubjectStudies.length; j += 1) {
+                studyUids.push(projectSubjectStudies[j].study_uid);
+              }
+          }
+          const result = await fastify.getPatientStudiesInternal(
+            request.params,
+            studyUids,
+            request.epadAuth
+          );
+          if (studyUids.length !== result.ResultSet.totalRecords)
+            fastify.log.warning(
+              `There are ${studyUids.length} studies associated with this project. But only ${
+                result.ResultSet.totalRecords
+              } of them have dicom files`
+            );
+          reply.code(200).send(result);
+        }
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(
+          `Getting studies of ${request.params.subject} from project ${request.params.project}`
+        ),
+        err
+      );
+    }
+  });
+
   fastify.decorate(
     'getObjectCreator',
     (level, objectId) =>

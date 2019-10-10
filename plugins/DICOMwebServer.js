@@ -372,8 +372,11 @@ async function dicomwebserver(fastify) {
                   firstSeriesUID: '', // TODO
                   firstSeriesDateAcquired: '', // TODO
                   physicianName: '', // TODO
-                  birthdate: '', // TODO
-                  sex: '', // TODO
+                  referringPhysicianName: value['00080090'].Value
+                    ? value['00080090'].Value[0].Alphabetic
+                    : '',
+                  birthdate: value['00100030'].Value ? value['00100030'].Value[0] : '',
+                  sex: value['00100040'].Value ? value['00100040'].Value[0] : '',
                   studyDescription:
                     value['00081030'] && value['00081030'].Value ? value['00081030'].Value[0] : '',
                   studyAccessionNumber: value['00080050'].Value ? value['00080050'].Value[0] : '',
@@ -384,6 +387,10 @@ async function dicomwebserver(fastify) {
                     ? aimsCountMap[value['0020000D'].Value[0]]
                     : 0,
                   createdTime: '', // no date in studies call
+                  // extra for flexview
+                  studyID: value['00200010'].Value ? value['00200010'].Value[0] : '',
+                  studyDate: value['00080020'].Value ? value['00080020'].Value[0] : '',
+                  studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '',
                 };
               });
 
@@ -461,13 +468,11 @@ async function dicomwebserver(fastify) {
                       : '',
                   studyUID: value['0020000D'].Value[0],
                   seriesUID: value['0020000E'].Value[0],
-                  // TODO
                   seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
                   seriesDescription:
                     value['0008103E'] && value['0008103E'].Value ? value['0008103E'].Value[0] : '',
                   examType: value['00080060'].Value ? value['00080060'].Value[0] : '',
                   bodyPart: '', // TODO
-                  // TODO
                   accessionNumber:
                     value['00080050'] && value['00080050'].Value ? value['00080050'].Value[0] : '',
                   numberOfImages:
@@ -482,7 +487,7 @@ async function dicomwebserver(fastify) {
                   department: '', // TODO
                   createdTime: '', // TODO
                   firstImageUIDInSeries: '', // TODO
-                  isDSO: false, // TODO
+                  isDSO: value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
                   isNonDicomSeries: false, // TODO
                   seriesNo:
                     value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
@@ -521,14 +526,16 @@ async function dicomwebserver(fastify) {
                   projectID: params.project ? params.project : projectID,
                   patientID:
                     value['00100020'] && value['00100020'].Value ? value['00100020'].Value[0] : '',
-                  studyUID: value['0020000D'].Value[0],
-                  seriesUID: value['0020000E'].Value[0],
-                  imageUID: value['00080018'].Value[0],
-                  classUID: value['00080016'].Value[0], // TODO
+                  studyUID: value['0020000D'].Value ? value['0020000D'].Value[0] : '',
+                  seriesUID: value['0020000E'].Value ? value['0020000E'].Value[0] : '',
+                  imageUID: value['00080018'].Value ? value['00080018'].Value[0] : '',
+                  classUID:
+                    value['00080016'] && value['00080016'].Value ? value['00080016'].Value[0] : '',
                   insertDate: '', // no date in studies call
                   imageDate: '', // TODO
                   sliceLocation: '', // TODO
-                  instanceNumber: '', // TODO
+                  instanceNumber:
+                    value['00200013'] && value['00200013'].Value ? value['00200013'].Value[0] : '',
                   losslessImage: '', // TODO
                   lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
                     value['00080018'].Value[0]
@@ -536,7 +543,7 @@ async function dicomwebserver(fastify) {
                   dicomElements: '', // TODO
                   defaultDICOMElements: '', // TODO
                   numberOfFrames: 0, // TODO
-                  isDSO: false, // TODO
+                  isDSO: value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
                   multiFrameImage: false, // TODO
                   isFlaggedImage: '', // TODO
                   rescaleIntercept: '', // TODO

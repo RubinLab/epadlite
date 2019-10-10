@@ -916,6 +916,35 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('project teststudy should have 1 study and it should be 0023.2015.09.28.3', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/studies')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.ResultSet.Result[0].patientID).to.be.eql('3');
+          expect(res.body.ResultSet.Result[0].patientName).to.be.eql('Phantom');
+          expect(res.body.ResultSet.Result[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body.ResultSet.Result[0].referringPhysicianName).to.be.eql('');
+          expect(res.body.ResultSet.Result[0].birthdate).to.be.eql('20141212');
+          expect(res.body.ResultSet.Result[0].sex).to.be.eql('M');
+          expect(res.body.ResultSet.Result[0].studyDescription).to.be.eql('Made up study desc');
+          expect(res.body.ResultSet.Result[0].studyAccessionNumber).to.be.eql('Made up accession');
+          expect(res.body.ResultSet.Result[0].numberOfImages).to.be.eql(1);
+          expect(res.body.ResultSet.Result[0].numberOfSeries).to.be.eql(1);
+          expect(res.body.ResultSet.Result[0].numberOfAnnotations).to.be.eql(0);
+          expect(res.body.ResultSet.Result[0].studyID).to.be.eql('3');
+          expect(res.body.ResultSet.Result[0].studyDate).to.be.eql('20150928');
+          expect(res.body.ResultSet.Result[0].studyTime).to.be.eql('170437');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
     it('project teststudy should have study 0023.2015.09.28.3 of subject 3', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
