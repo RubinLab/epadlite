@@ -19,14 +19,14 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(1000),
         allowNull: true,
       },
-      user_id: {
-        type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
-        references: {
-          model: 'user',
-          key: 'id',
-        },
-      },
+      // user_id: {
+      //   type: DataTypes.INTEGER(10).UNSIGNED,
+      //   allowNull: true,
+      //   references: {
+      //     model: 'user',
+      //     key: 'id',
+      //   },
+      // },
       status: {
         type: DataTypes.STRING(256),
         allowNull: true,

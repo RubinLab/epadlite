@@ -418,6 +418,18 @@ async function couchdb(fastify, options) {
           const db = fastify.couch.db.use(config.db);
           db.view('instances', view, filterOptions, async (error, body) => {
             if (!error) {
+              const filteredRows = await fastify.filterAims(body.rows, filter, format);
+              const res = [];
+              if (format === 'summary') {
+                for (let i = 0; i < filteredRows.length; i += 1)
+                  // get the actual instance object (tags only)
+                  res.push(filteredRows[i].key[4]);
+                resolve(res);
+              } else if (format === 'stream') {
+                for (let i = 0; i < filteredRows.length; i += 1)
+                  // get the actual instance object (tags only)
+                  // the first 3 keys are patient, study, series, image
+                  res.push(filteredRows[i].key[4]);
               try {
                 const filteredRows = await fastify.filterAims(
                   body.rows,
@@ -644,9 +656,7 @@ async function couchdb(fastify, options) {
           .getAimsInternal('summary', params, undefined, epadAuth)
           .then(result => {
             const aimPromisses = [];
-            result.ResultSet.Result.forEach(aim =>
-              aimPromisses.push(fastify.deleteAimInternal(aim.aimID))
-            );
+            result.forEach(aim => aimPromisses.push(fastify.deleteAimInternal(aim.aimID)));
             Promise.all(aimPromisses)
               .then(() => resolve())
               .catch(deleteErr => reject(deleteErr));
@@ -701,7 +711,7 @@ async function couchdb(fastify, options) {
                   body.rows.forEach(template => {
                     res.push(template.key[2]);
                   });
-                  resolve({ ResultSet: { Result: res } });
+                  resolve(res);
                 } else if (format === 'stream') {
                   body.rows.forEach(template => {
                     res.push(template.key[2]);
@@ -930,7 +940,7 @@ async function couchdb(fastify, options) {
                 const summary = fastify.getSummaryFromTemplate(item.doc.template);
                 res.push(summary);
               });
-              resolve({ ResultSet: { Result: res } });
+              resolve(res);
             } else if (format === 'stream') {
               data.rows.forEach(item => {
                 if ('doc' in item) res.push(item.doc.template);

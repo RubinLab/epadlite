@@ -1,80 +1,59 @@
 {
-    "$id": "epadlite_patients_schema",
+  "$id": "epadlite_patients_schema",
+
+  "type": "array",
+  "items": {
     "type": "object",
     "properties": {
-      "ResultSet": {
-        "type": "object",
-        "properties": {
-          "Result": {
-            "type": "array",
-            "items": 
-              {
-                "type": "object",
-                "properties": {
-                  "subjectName": {
-                    "type": "string"
-                  },
-                  "subjectID": {
-                    "type": "string"
-                  },
-                  "projectID": {
-                    "type": "string"
-                  },
-                  "insertUser": {
-                    "type": "string"
-                  },
-                  "xnatID": {
-                    "type": "string"
-                  },
-                  "insertDate": {
-                    "type": "string"
-                  },
-                  "uri": {
-                    "type": "string"
-                  },
-                  "displaySubjectID": {
-                    "type": "string"
-                  },
-                  "numberOfStudies": {
-                    "type": "integer"
-                  },
-                  "numberOfAnnotations": {
-                    "type": "integer"
-                  },
-                  "examTypes": {
-                    "type": "array",
-                    "items": 
-                      {
-                        "type": "string"
-                      }
-                  }
-                },
-                "required": [
-                  "subjectName",
-                  "subjectID",
-                  "projectID",
-                  "insertUser",
-                  "xnatID",
-                  "insertDate",
-                  "uri",
-                  "displaySubjectID",
-                  "numberOfStudies",
-                  "numberOfAnnotations",
-                  "examTypes"
-                ]
-              }
-          },
-          "totalRecords": {
-            "type": "integer"
-          }
-        },
-        "required": [
-          "Result",
-          "totalRecords"
-        ]
+      "subjectName": {
+        "type": "string"
+      },
+      "subjectID": {
+        "type": "string"
+      },
+      "projectID": {
+        "type": "string"
+      },
+      "insertUser": {
+        "type": "string"
+      },
+      "xnatID": {
+        "type": "string"
+      },
+      "insertDate": {
+        "type": "string"
+      },
+      "uri": {
+        "type": "string"
+      },
+      "displaySubjectID": {
+        "type": "string"
+      },
+      "numberOfStudies": {
+        "type": "integer"
+      },
+      "numberOfAnnotations": {
+        "type": "integer"
+      },
+      "examTypes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       }
     },
     "required": [
-      "ResultSet"
+      "subjectName",
+      "subjectID",
+      "projectID",
+      "insertUser",
+      "xnatID",
+      "insertDate",
+      "uri",
+      "displaySubjectID",
+      "numberOfStudies",
+      "numberOfAnnotations",
+      "examTypes"
     ]
   }
+}

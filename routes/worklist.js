@@ -2,7 +2,7 @@
 async function routes(fastify) {
   fastify.route({
     method: 'POST',
-    url: '/users/:user/worklists',
+    url: '/worklists',
     schema: {
       tags: ['worklist', 'user'],
       params: {
@@ -13,31 +13,60 @@ async function routes(fastify) {
           },
         },
       },
-    },
-    handler: fastify.createWorklist,
-  });
-
-  fastify.route({
-    method: 'POST',
-    url: '/users/:user/worklists/:worklist/projects/:project/subjects',
-    schema: {
-      tags: ['worklist', 'subject'],
-      params: {
+      body: {
         type: 'object',
         properties: {
-          user: {
+          worklistName: {
             type: 'string',
           },
-          worklist: {
+          worklistId: {
             type: 'string',
           },
-          project: {
+          assignee: {
+            type: 'array',
+          },
+          description: {
+            type: 'string',
+          },
+          dueDate: {
             type: 'string',
           },
         },
       },
     },
-    handler: fastify.linkWorklistToStudy,
+    handler: fastify.createWorklist,
+  });
+
+  // fastify.route({
+  //   method: 'POST',
+  //   url: '/worklists/:worklist/projects/:project/subjects',
+  //   schema: {
+  //     tags: ['worklist', 'subject'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         user: {
+  //           type: 'string',
+  //         },
+  //         worklist: {
+  //           type: 'string',
+  //         },
+  //         project: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.linkWorklistToStudy,
+  // });
+
+  fastify.route({
+    method: 'GET',
+    url: '/worklists',
+    schema: {
+      tags: ['worklist'],
+    },
+    handler: fastify.getWorklistsOfCreator,
   });
 
   fastify.route({
@@ -54,21 +83,84 @@ async function routes(fastify) {
         },
       },
     },
-    handler: fastify.getWorklists,
+    handler: fastify.getWorklistsOfAssignee,
   });
 
   fastify.route({
-    method: 'PUT',
-    url: '/users/:user/worklists/:worklist',
+    method: 'POST',
+    url: '/worklists/:worklist/projects/:project/subjects/:subject/studies/:study',
     schema: {
       tags: ['worklist', 'user'],
       params: {
         type: 'object',
         properties: {
-          user: {
+          worklist: {
             type: 'string',
           },
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: { type: 'string' },
+        },
+      },
+    },
+    handler: fastify.assignStudyToWorklist,
+  });
+
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/worklists/:worklist',
+  //   schema: {
+  //     tags: ['worklist', 'user'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         user: {
+  //           type: 'string',
+  //         },
+  //         worklist: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //     body: {
+  //       type: 'object',
+  //       properties: {
+  //         user: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.updateWorklistAssignee,
+  // });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/worklists/:worklist',
+    schema: {
+      tags: ['worklist'],
+      params: {
+        type: 'object',
+        properties: {
           worklist: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+          },
+          description: {
+            type: 'string',
+          },
+          duedate: {
             type: 'string',
           },
         },
@@ -79,15 +171,12 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'DELETE',
-    url: '/users/:user/worklists/:worklist',
+    url: '/worklists/:worklist',
     schema: {
       tags: ['worklist', 'user'],
       params: {
         type: 'object',
         properties: {
-          user: {
-            type: 'string',
-          },
           worklist: {
             type: 'string',
           },
