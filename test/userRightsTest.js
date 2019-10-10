@@ -1515,4 +1515,91 @@ describe('User Rights Tests', () => {
         });
     });
   });
+  describe('Template Access Tests', () => {
+    it('should succeed in saving template to project by testMember ', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testRights1/templates')
+        .send(jsonBuffer)
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 template in project testRights1 for testMember', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/templates')
+        .query({ username: 'testMember@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 template in project testRights1 for testCollaborator', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/templates')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail in deleting template file from project testRights1 with uid for testCollaborator', done => {
+      chai
+
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testRights1/templates/2.25.121060836007636801627558943005335')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then(resDel => {
+          expect(resDel.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail in deleting template file from project testRights1 with uid for testMember', done => {
+      chai
+
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testRights1/templates/2.25.121060836007636801627558943005335')
+        .query({ username: 'testMember@gmail.com' })
+        .then(resDel => {
+          expect(resDel.statusCode).to.equal(401);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed in deleting template file from project testRights1 with uid for testOwner', done => {
+      chai
+
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testRights1/templates/2.25.121060836007636801627558943005335')
+        .query({ username: 'testOwner@gmail.com' })
+        .then(resDel => {
+          expect(resDel.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
 });
