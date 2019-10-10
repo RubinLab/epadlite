@@ -82,7 +82,6 @@ describe('Worklist Tests', () => {
       .get('/users/test3@gmail.com/worklists')
       .query({ username: 'admin' })
       .then(res => {
-        console.log(res.body);
         expect(res.statusCode).to.equal(200);
         expect(res.body.ResultSet.Result.length).to.be.eql(1);
         done();

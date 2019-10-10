@@ -594,8 +594,8 @@ async function other(fastify) {
     'addConnectedUser',
     // eslint-disable-next-line no-return-assign
     (req, res) => {
-      console.log(
-        `adding ${req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'}`
+      fastify.log.info(
+        `Adding ${req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'}`
       );
       // eslint-disable-next-line no-param-reassign
       fastify.connectedUsers[
@@ -607,14 +607,15 @@ async function other(fastify) {
     'deleteDisconnectedUser',
     // eslint-disable-next-line no-return-assign
     req => {
-      console.log(
-        `deleting ${req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'}`
+      fastify.log.info(
+        `Deleting ${req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'}`
       );
       // eslint-disable-next-line no-param-reassign
       delete fastify.connectedUsers[
         req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'
       ];
-      console.log(fastify.connectedUsers);
+      fastify.log.info('Current users');
+      fastify.log.info(fastify.connectedUsers);
     }
   );
 
@@ -648,11 +649,13 @@ async function other(fastify) {
 
   fastify.decorate('hasAccessToProject', (request, project) => {
     try {
-      console.log(`Checking hasAccessToProject for url: ${request.req.url} and project ${project}`);
+      fastify.log.info(
+        `Checking hasAccessToProject for url: ${request.req.url} and project ${project}`
+      );
       if (request.epadAuth && request.epadAuth.projectToRole) {
         for (let i = 0; i < request.epadAuth.projectToRole.length; i += 1) {
           if (request.epadAuth.projectToRole[i].match(`${project}:.*`)) {
-            console.log(
+            fastify.log.info(
               `Has right ${request.epadAuth.projectToRole[i].substring(
                 project.length + 1,
                 request.epadAuth.projectToRole[i].length
@@ -678,7 +681,7 @@ async function other(fastify) {
 
   fastify.decorate('hasCreatePermission', (request, level) => {
     try {
-      console.log(`Checking hasCreatePermission for url: ${request.req.url} level:${level}`);
+      fastify.log.info(`Checking hasCreatePermission for url: ${request.req.url} level:${level}`);
       if (
         ['project', 'user', 'connection', 'query', 'worklist'].includes(level) && // do we need this check
         request.epadAuth &&
@@ -703,7 +706,7 @@ async function other(fastify) {
 
   fastify.decorate('isOwnerOfProject', (request, project) => {
     try {
-      console.log(`Checking isOwnerOfProject for url: ${request.req.url}`);
+      fastify.log.info(`Checking isOwnerOfProject for url: ${request.req.url}`);
       if (request.epadAuth && request.epadAuth.projectToRole.includes(`${project}:Owner`))
         return true;
       return false;
@@ -719,20 +722,20 @@ async function other(fastify) {
 
   fastify.decorate('isCreatorOfObject', async (request, reqInfo) => {
     try {
-      console.log(
+      fastify.log.info(
         `Checking isCreatorOfObject for url: ${request.req.url} level:${reqInfo.level} object:${
           reqInfo.objectId
         }`
       );
       const creator = await fastify.getObjectCreator(reqInfo.level, reqInfo.objectId);
-      console.log('Creator is', creator);
+      fastify.log.info('Creator is', creator);
       if (creator && creator === request.epadAuth.username) return true;
       // not a db item return true
       if (!creator) {
         if (reqInfo.level === 'aim') {
           try {
             const author = await fastify.getAimAuthorFromUID(reqInfo.objectId);
-            console.log('Author is', author);
+            fastify.log.info('Author is', author);
             if (author === request.epadAuth.username) return true;
             return false;
           } catch (err) {
@@ -760,7 +763,7 @@ async function other(fastify) {
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
       const reqInfo = fastify.getInfoFromRequest(request);
-      console.log(
+      fastify.log.info(
         'User rights check',
         'url',
         request.req.url,

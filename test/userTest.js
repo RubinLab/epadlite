@@ -251,7 +251,7 @@ describe('User Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test2/users/test1@gmail.com')
       .query({ username: 'admin' })
-      .send({ updatedBy: 'admin', role: 'Collaborator' })
+      .send({ role: 'Collaborator' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -286,7 +286,7 @@ describe('User Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test2/users/test1@gmail.com')
       .query({ username: 'admin' })
-      .send({ updatedBy: 'admin', role: 'Owner' })
+      .send({ role: 'Owner' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -321,7 +321,7 @@ describe('User Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test2/users/test1@gmail.com')
       .query({ username: 'admin' })
-      .send({ updatedBy: 'admin', role: 'none' })
+      .send({ role: 'none' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();

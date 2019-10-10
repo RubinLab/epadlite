@@ -100,22 +100,22 @@ describe('User Rights Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/testRights1/users/testOwner@gmail.com')
       .query({ username: 'admin' })
-      .send({ updatedBy: 'admin', role: 'Owner' });
+      .send({ role: 'Owner' });
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/testRights1/users/testMember@gmail.com')
       .query({ username: 'admin' })
-      .send({ updatedBy: 'admin', role: 'Member' });
+      .send({ role: 'Member' });
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/testRights1/users/testCollaborator@gmail.com')
       .query({ username: 'admin' })
-      .send({ updatedBy: 'admin', role: 'Collaborator' });
+      .send({ role: 'Collaborator' });
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/testRights2/users/testCollaborator@gmail.com')
       .query({ username: 'admin' })
-      .send({ updatedBy: 'admin', role: 'Collaborator' });
+      .send({ role: 'Collaborator' });
   });
   after(async () => {
     // delete projects

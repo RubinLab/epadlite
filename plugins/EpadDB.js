@@ -119,6 +119,7 @@ async function epaddb(fastify, options, done) {
         defaulttemplate: request.body.defaultTemplate,
         type: request.body.type,
         updatetime: Date.now(),
+        createdtime: Date.now(),
         creator: request.epadAuth.username,
       })
       .then(async project => {
@@ -382,6 +383,7 @@ async function epaddb(fastify, options, done) {
         user_id: userId,
         description: request.body.description,
         updatetime: Date.now(),
+        createdtime: Date.now(),
         duedate: request.body.due ? new Date(`${request.body.due}T00:00:00`) : null,
         creator: request.epadAuth.username,
       });
@@ -1175,6 +1177,7 @@ async function epaddb(fastify, options, done) {
                 subject_uid: params.subject,
                 creator: epadAuth.username,
                 updatetime: Date.now(),
+                createdtime: Date.now(),
               });
             // create only when that is not already there
             const projectSubjectStudy = await models.project_subject_study.findOne({
@@ -1186,6 +1189,7 @@ async function epaddb(fastify, options, done) {
                 study_uid: params.study,
                 creator: epadAuth.username,
                 updatetime: Date.now(),
+                createdtime: Date.now(),
               });
             resolve();
           }
@@ -1739,6 +1743,7 @@ async function epaddb(fastify, options, done) {
                   file_uid: filename,
                   creator: epadAuth.username,
                   updatetime: Date.now(),
+                  createdtime: Date.now(),
                 });
                 resolve();
               })
@@ -2013,7 +2018,7 @@ async function epaddb(fastify, options, done) {
       // update
       if (obj) return obj.update({ ...values, updated_by: user });
       // insert
-      return model.create({ ...values, creator: user });
+      return model.create({ ...values, creator: user, createdtime: Date.now() });
     })
   );
   fastify.after(async () => {
