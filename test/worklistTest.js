@@ -37,7 +37,7 @@ describe('Worklist Tests', () => {
   it('worklists should have 0 worklists assigned to the user', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/worklists?username=testAssignee@gmail.com')
+      .get('/users/testAssignee@gmail.com/worklists')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(0);
@@ -70,6 +70,7 @@ describe('Worklist Tests', () => {
         description: 'testdesc',
         dueDate: '2019-12-01',
         username: 'admin',
+        assignees: ['testAssignee@gmail.com'],
       })
       .then(res => {
         expect(res.statusCode).to.equal(200);

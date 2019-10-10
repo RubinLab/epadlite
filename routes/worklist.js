@@ -37,28 +37,28 @@ async function routes(fastify) {
     handler: fastify.createWorklist,
   });
 
-  fastify.route({
-    method: 'POST',
-    url: '/worklists/:worklist/projects/:project/subjects',
-    schema: {
-      tags: ['worklist', 'subject'],
-      params: {
-        type: 'object',
-        properties: {
-          user: {
-            type: 'string',
-          },
-          worklist: {
-            type: 'string',
-          },
-          project: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.linkWorklistToStudy,
-  });
+  // fastify.route({
+  //   method: 'POST',
+  //   url: '/worklists/:worklist/projects/:project/subjects',
+  //   schema: {
+  //     tags: ['worklist', 'subject'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         user: {
+  //           type: 'string',
+  //         },
+  //         worklist: {
+  //           type: 'string',
+  //         },
+  //         project: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.linkWorklistToStudy,
+  // });
 
   fastify.route({
     method: 'GET',
@@ -84,6 +84,33 @@ async function routes(fastify) {
       },
     },
     handler: fastify.getWorklistsOfAssignee,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/worklists/:worklist/users/:user/projects/:project/subjects/:subject/studies/:study',
+    schema: {
+      tags: ['worklist', 'user'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+          user: {
+            type: 'string',
+          },
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: { type: 'string' },
+        },
+      },
+    },
+    handler: fastify.assignStudyToWorklist,
   });
 
   // fastify.route({

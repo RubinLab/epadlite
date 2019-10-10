@@ -374,6 +374,8 @@ async function epaddb(fastify, options, done) {
     const assigneeInfoArr = [];
     const assigneeIDArr = [];
 
+    console.log('create wl body');
+    console.log(request.body);
     // get user id of the assignees
     request.body.assignees.forEach(async el => {
       assigneeInfoArr.push(
@@ -385,6 +387,8 @@ async function epaddb(fastify, options, done) {
     });
     Promise.all(assigneeInfoArr)
       .then(results => {
+        console.log('create wl assignee id');
+        console.log(results);
         results.forEach(el => {
           assigneeIDArr.push(el.dataValues.id);
         });
@@ -406,6 +410,7 @@ async function epaddb(fastify, options, done) {
       })
       .then(worklist => {
         const relationArr = [];
+        console.log(' in then ');
         // insert relation data to the worklist_user table
         assigneeIDArr.forEach(el => {
           relationArr.push(
@@ -564,59 +569,51 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('getWorklistsOfAssignee', async (request, reply) => {
-    console.log(' --- get assignee ---');
-    console.log(request.epadAuth);
     let userId;
     try {
       userId = await models.user.findOne({
-        where: { username: request.epadAuth.username },
+        where: { username: request.params.user },
         attributes: ['id'],
       });
       userId = userId.dataValues.id;
     } catch (err) {
       console.log(err);
     }
-    models.worklist
-      .findAll({
-        where: { user_id: userId },
-        include: [
-          {
-            model: models.worklist_user,
-          },
-          'users',
-        ],
-        // include: ['user'],
-      })
-      .then(worklist => {
-        // console.log(worklist);
-        const result = [];
-        for (let i = 0; i < worklist.length; i += 1) {
-          const obj = {
-            completionDate: worklist[i].completedate,
-            dueDate: worklist[i].duedate,
-            name: worklist[i].name,
-            startDate: worklist[i].startdate,
-            username: worklist[i].user.username,
-            worklistID: worklist[i].worklistid,
-            description: worklist[i].description,
-            projectIDs: [],
-            studyStatus: [],
-            studyIDs: [],
-            subjectIDs: [],
-          };
-          const studiesArr = worklist[i].worklist_studies;
-          for (let k = 0; k < studiesArr.length; k += 1) {
-            obj.projectIDs.push(studiesArr[k].dataValues.project_id);
-            obj.studyStatus.push(studiesArr[k].dataValues.status);
-            obj.studyIDs.push(studiesArr[k].dataValues.study_id);
-            obj.subjectIDs.push(studiesArr[k].dataValues.subject_id);
-          }
-          result.push(obj);
-        }
-        reply.code(200).send(result);
-      })
 
+    // go to worklist_user table and get worklistid's where user = user
+    // go to worklist table and get the worklists and return them
+    models.worklist_user
+      .findAll({ where: { user_id: userId }, attributes: ['worklist_id'] })
+      .then(worklistIDs => {
+        const worklistPromises = [];
+        worklistIDs.forEach(listID => {
+          worklistPromises.push(
+            models.worklist.findOne({
+              where: { id: listID.dataValues.worklist_id },
+            })
+          );
+        });
+
+        Promise.all(worklistPromises)
+          .then(worklist => {
+            const result = [];
+            worklist.forEach(el => {
+              const obj = {
+                worklistID: el.worklistid,
+                name: el.name,
+                dueDate: el.duedate,
+                projectIDs: [],
+              };
+              result.push(obj);
+            });
+            reply.code(200).send(result);
+          })
+          .catch(err => {
+            reply.code(503).send(err.message);
+          });
+      })
       .catch(err => {
+        console.log(err);
         reply.code(503).send(err.message);
       });
   });
@@ -644,6 +641,51 @@ async function epaddb(fastify, options, done) {
         reply.code(200).send('Deletion successful');
       })
       .catch(err => reply.code(503).send(err));
+  });
+
+  fastify.decorate('assignStudyToWorklist', async (request, reply) => {
+    // get id no with projectid
+    // '/worklists/:worklist/users/:user/projects/:project/subjects/:subject/studies',
+    const ids = [];
+    const promises = [];
+
+    promises.push(
+      models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+      })
+    );
+
+    Promise.all(promises)
+      .then(result => {
+        ids.push(result[0].dataValues.id);
+        ids.push(result[1].dataValues.id);
+      })
+      .catch(err => reply.code(503).send(err));
+
+    models.worklist_study
+      .create({
+        worklist_id: ids[0],
+        study_uid: request.params,
+        subject_uid: request.params,
+        project_id: ids[1],
+        creator: request.epadAuth.username,
+        createdtime: Date.now(),
+        updatetime: Date.now(),
+        updated_by: request.epadAuth.username,
+      })
+      .then(id => reply.code(200).send(`Saving successful - ${id}`))
+      .catch(err => {
+        // TODO Proper error reporting implementation required
+        console.log(`Error in save: ${err}`);
+        reply.code(503).send(`Saving error: ${err}`);
+      });
   });
 
   fastify.decorate('saveTemplateToProject', async (request, reply) => {
