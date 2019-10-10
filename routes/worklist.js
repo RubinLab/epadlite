@@ -88,16 +88,13 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'POST',
-    url: '/worklists/:worklist/users/:user/projects/:project/subjects/:subject/studies/:study',
+    url: '/worklists/:worklist/projects/:project/subjects/:subject/studies/:study',
     schema: {
       tags: ['worklist', 'user'],
       params: {
         type: 'object',
         properties: {
           worklist: {
-            type: 'string',
-          },
-          user: {
             type: 'string',
           },
           project: {

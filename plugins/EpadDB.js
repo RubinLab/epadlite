@@ -359,21 +359,8 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('createWorklist', async (request, reply) => {
-    // try {
-    //   // find user id
-    //   assigneeId = await models.user.findOne({
-    //     where: { username: request.epadAuth.username },
-    //     attributes: ['id'],
-    //   });
-    //   assigneeId = assigneeId.dataValues.id;
-    // } catch (err) {
-    //   console.log(err);
-    // }
-
-    // iterate over the userList from the request body
     const assigneeInfoArr = [];
     const assigneeIDArr = [];
-    // get user id of the assignees
     request.body.assignees.forEach(async el => {
       assigneeInfoArr.push(
         models.user.findOne({
@@ -405,8 +392,6 @@ async function epaddb(fastify, options, done) {
       })
       .then(worklist => {
         const relationArr = [];
-        console.log(' in then ');
-        // insert relation data to the worklist_user table
         assigneeIDArr.forEach(el => {
           relationArr.push(
             models.worklist_user.create({
@@ -514,7 +499,6 @@ async function epaddb(fastify, options, done) {
           },
           'users',
         ],
-        // include: ['user'],
       })
       .then(worklist => {
         const result = [];
@@ -565,9 +549,6 @@ async function epaddb(fastify, options, done) {
     } catch (err) {
       console.log(err);
     }
-
-    // go to worklist_user table and get worklistid's where user = user
-    // go to worklist table and get the worklists and return them
     models.worklist_user
       .findAll({ where: { user_id: userId }, attributes: ['worklist_id'] })
       .then(worklistIDs => {
@@ -605,17 +586,6 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('deleteWorklist', async (request, reply) => {
-    // let userId;
-    // try {
-    //   // find user id
-    //   userId = await models.user.findOne({
-    //     where: { username: request.params.user },
-    //     attributes: ['id'],
-    //   });
-    //   userId = userId.dataValues.id;
-    // } catch (err) {
-    //   console.log(err);
-    // }
     models.worklist
       .destroy({
         where: {
@@ -630,8 +600,6 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('assignStudyToWorklist', async (request, reply) => {
-    // get id no with projectid
-    // '/worklists/:worklist/users/:user/projects/:project/subjects/:subject/studies',
     const ids = [];
     const promises = [];
 
@@ -652,26 +620,25 @@ async function epaddb(fastify, options, done) {
       .then(result => {
         ids.push(result[0].dataValues.id);
         ids.push(result[1].dataValues.id);
+        models.worklist_study
+          .create({
+            worklist_id: ids[0],
+            study_uid: request.params.study,
+            subject_uid: request.params.subject,
+            project_id: ids[1],
+            creator: request.epadAuth.username,
+            createdtime: Date.now(),
+            updatetime: Date.now(),
+            updated_by: request.epadAuth.username,
+          })
+          .then(id => reply.code(200).send(`Saving successful - ${id}`))
+          .catch(err => {
+            // TODO Proper error reporting implementation required
+            console.log(`Error in save: ${err}`);
+            reply.code(503).send(`Saving error: ${err}`);
+          });
       })
       .catch(err => reply.code(503).send(err));
-
-    models.worklist_study
-      .create({
-        worklist_id: ids[0],
-        study_uid: request.params,
-        subject_uid: request.params,
-        project_id: ids[1],
-        creator: request.epadAuth.username,
-        createdtime: Date.now(),
-        updatetime: Date.now(),
-        updated_by: request.epadAuth.username,
-      })
-      .then(id => reply.code(200).send(`Saving successful - ${id}`))
-      .catch(err => {
-        // TODO Proper error reporting implementation required
-        console.log(`Error in save: ${err}`);
-        reply.code(503).send(`Saving error: ${err}`);
-      });
   });
 
   fastify.decorate('saveTemplateToProject', async (request, reply) => {
