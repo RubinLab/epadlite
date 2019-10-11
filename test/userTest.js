@@ -46,7 +46,7 @@ describe('User Tests', () => {
       // done();
     } catch (err) {
       // done(err);
-      console.log(err);
+      console.log(`User Tests before error: ${err.message}`);
     }
   });
   after(async () => {
@@ -60,7 +60,7 @@ describe('User Tests', () => {
         .delete('/projects/test2')
         .query({ username: 'admin' });
     } catch (err) {
-      console.log(err);
+      console.log(`User Tests after error: ${err.message}`);
     }
   });
   it('should have 1 user', done => {
@@ -74,8 +74,7 @@ describe('User Tests', () => {
         done();
       })
       .catch(e => {
-        console.log(e);
-        done();
+        done(e);
       });
   });
 

@@ -1231,13 +1231,14 @@ describe('User Rights Tests', () => {
     it('should succeed in creating new worklist for testOwner by testAdmin', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/users/testOwner@gmail.com/worklists')
+        .post('/worklists')
         .query({ username: 'testAdmin@gmail.com' })
         .send({
           name: 'testWorklistOwner',
-          worklistid: 'testWorklistOwner',
+          worklistId: 'testWorklistOwner',
           description: 'testdesc',
           duedate: '2019-12-01',
+          assignees: ['testOwner@gmail.com'],
         })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1250,7 +1251,7 @@ describe('User Rights Tests', () => {
     it('should fail in deleting worklist for testOwner by testOwner', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/users/testOwner@gmail.com/worklists/testWorklistOwner')
+        .delete('/worklists/testWorklistOwner')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(403);
@@ -1263,7 +1264,7 @@ describe('User Rights Tests', () => {
     it('should succeed in deleting worklist for testOwner by testAdmin', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/users/testOwner@gmail.com/worklists/testWorklistOwner')
+        .delete('/worklists/testWorklistOwner')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1276,13 +1277,14 @@ describe('User Rights Tests', () => {
     it('should fail in creating new worklist for testMember by testMember', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/users/testMember@gmail.com/worklists')
+        .post('/worklists')
         .query({ username: 'testMember@gmail.com' })
         .send({
           name: 'testWorklistMember',
-          worklistid: 'testWorklistMember',
+          worklistId: 'testWorklistMember',
           description: 'testdesc',
           duedate: '2019-12-01',
+          assignees: ['testMember@gmail.com'],
         })
         .then(res => {
           expect(res.statusCode).to.equal(403);
@@ -1295,13 +1297,14 @@ describe('User Rights Tests', () => {
     it('should succeed in creating new worklist for testMember by testOwner', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/users/testMember@gmail.com/worklists')
+        .post('/worklists')
         .query({ username: 'testOwner@gmail.com' })
         .send({
           name: 'testWorklistMember1',
-          worklistid: 'testWorklistMember1',
+          worklistId: 'testWorklistMember1',
           description: 'testdesc',
           duedate: '2019-12-01',
+          assignees: ['testMember@gmail.com'],
         })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1314,13 +1317,14 @@ describe('User Rights Tests', () => {
     it('should succeed in creating another worklist for testMember by testOwner', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/users/testMember@gmail.com/worklists')
+        .post('/worklists')
         .query({ username: 'testOwner@gmail.com' })
         .send({
           name: 'testWorklistMember2',
-          worklistid: 'testWorklistMember2',
+          worklistId: 'testWorklistMember2',
           description: 'testdesc',
           duedate: '2019-12-01',
+          assignees: ['testMember@gmail.com'],
         })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1333,13 +1337,14 @@ describe('User Rights Tests', () => {
     it('should fail in updating worklist testWorklistMember2 for testMember by testCollaborator', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .put('/worklists/testWorklistMember2')
         .query({ username: 'testCollaborator@gmail.com' })
         .send({
           name: 'testWorklistMember2',
-          worklistid: 'testWorklistMember2',
+          worklistId: 'testWorklistMember2',
           description: 'testdesc_edited',
           duedate: '2019-12-01',
+          assignees: ['testMember@gmail.com'],
         })
         .then(res => {
           expect(res.statusCode).to.equal(403);
@@ -1352,7 +1357,7 @@ describe('User Rights Tests', () => {
     it('should fail in deleting worklist testWorklistMember2 for testMember by testCollaborator', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .delete('/worklists/testWorklistMember2')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(403);
@@ -1365,13 +1370,14 @@ describe('User Rights Tests', () => {
     it('should succeed in updating worklist testWorklistMember2 for testMember by testOwner', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .put('/worklists/testWorklistMember2')
         .query({ username: 'testOwner@gmail.com' })
         .send({
           name: 'testWorklistMember2',
-          worklistid: 'testWorklistMember2',
+          worklistId: 'testWorklistMember2',
           description: 'testdesc_edited',
           duedate: '2019-12-01',
+          assignees: ['testMember@gmail.com'],
         })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1384,13 +1390,14 @@ describe('User Rights Tests', () => {
     it('should succeed in updating worklist testWorklistMember2 for testMember by testAdmin', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .put('/worklists/testWorklistMember2')
         .query({ username: 'testAdmin@gmail.com' })
         .send({
           name: 'testWorklistMember2',
-          worklistid: 'testWorklistMember2',
+          worklistId: 'testWorklistMember2',
           description: 'testdesc_edited2',
           duedate: '2019-12-01',
+          assignees: ['testMember@gmail.com'],
         })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1403,7 +1410,7 @@ describe('User Rights Tests', () => {
     it('should succeed in deleting worklist testWorklistMember1 for testMember by testAdmin', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/users/testMember@gmail.com/worklists/testWorklistMember1')
+        .delete('/worklists/testWorklistMember1')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1416,7 +1423,7 @@ describe('User Rights Tests', () => {
     it('should succeed in deleting worklist testWorklistMember2 for testMember by testOwner', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/users/testMember@gmail.com/worklists/testWorklistMember2')
+        .delete('/worklists/testWorklistMember2')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1745,7 +1752,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {
@@ -1759,7 +1766,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.ResultSet.Result.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {

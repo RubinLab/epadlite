@@ -16,10 +16,12 @@ describe('Worklist Tests', () => {
         firstname: 'test',
         lastname: 'test',
         email: 'testCreator@gmail.com',
+        permissions: 'CreateWorklist',
       });
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/users')
+      .query({ username: 'admin' })
       .send({
         username: 'testAssignee@gmail.com',
         firstname: 'test',
@@ -34,22 +36,8 @@ describe('Worklist Tests', () => {
       .query({ username: 'admin' });
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .delete('testAssignee@gmail.com');
+      .delete('testAssignee@gmail.com')
       .query({ username: 'admin' });
-  });
-  it('worklists should have 0 worklists assigned to the user', done => {
-    chai
-      .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/users/testAssignee@gmail.com/worklists')
-      .query({ username: 'admin' })
-      .then(res => {
-        expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(0);
-        done();
-      })
-      .catch(e => {
-        done(e);
-      });
   });
   it('worklists should have 0 worklists created by the user', done => {
     chai
@@ -68,7 +56,6 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/worklists?username=testCreator@gmail.com')
-      .query({ username: 'admin' })
       .send({
         worklistName: 'test',
         worklistId: 'testCreate',
@@ -85,12 +72,11 @@ describe('Worklist Tests', () => {
         done(e);
       });
   });
-  it('worklists should have 1 worklist assigned to the user', done => {
+  it('worklists should have 0 worklists created by the user', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/worklists?username=testCreator@gmail.com')
-    .query({ username: 'admin' })
-    .then(res => {
+      .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
         done();
@@ -99,11 +85,24 @@ describe('Worklist Tests', () => {
         done(e);
       });
   });
-  it('should fail creating a new worklist for unknown user with 400', done => {
+  it('worklists should have 1 worklist assigned to the user', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/users/aaaaa/worklists')
-      .query({ username: 'admin' })
+      .get('/users/testAssignee@gmail.com/worklists?username=testCreator@gmail.com')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(1);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('should fail creating a new worklist for unknown user with 401', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/worklists')
+      .query({ username: 'aaaa' })
       .send({
         name: 'test2',
         worklistid: 'testCreate2',
@@ -111,21 +110,7 @@ describe('Worklist Tests', () => {
         duedate: '2019-12-01',
       })
       .then(res => {
-        expect(res.statusCode).to.equal(400);
-        done();
-      })
-      .catch(e => {
-        done(e);
-      });
-  });
-  it('worklists should have 1 worklists ', done => {
-    chai
-      .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/users/test3@gmail.com/worklists')
-      .query({ username: 'admin' })
-      .then(res => {
-        expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(1);
+        expect(res.statusCode).to.equal(401);
         done();
       })
       .catch(e => {
@@ -136,7 +121,6 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/worklists?username=testCreator@gmail.com')
-    .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
@@ -150,7 +134,6 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/worklists/testCreate?username=testCreator@gmail.com')
-      .query({ username: 'admin' })
       .send({
         name: 'testUpdated2',
         description: 'testdescUpdated',
@@ -187,7 +170,6 @@ describe('Worklist Tests', () => {
       .send({
         user: 'testAssignee@gmail.com',
       })
-      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -229,7 +211,6 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/worklists/testCreate?username=testCreator@gmail.com')
-      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -242,7 +223,6 @@ describe('Worklist Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/worklists?username=testCreator@gmail.com')
-      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(0);

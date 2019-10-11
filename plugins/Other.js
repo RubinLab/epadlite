@@ -376,7 +376,7 @@ async function other(fastify) {
         fastify
           .getPatientStudiesInternal(params, undefined, epadAuth)
           .then(result => {
-            result.ResultSet.Result.forEach(study => {
+            result.forEach(study => {
               promisses.push(
                 fastify.deleteStudyDicomsInternal({
                   subject: params.subject,

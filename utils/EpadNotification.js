@@ -2,7 +2,7 @@ class EpadNotification {
   constructor(request, info, reason) {
     this.notification = {
       projectID: EpadNotification.getProject(request.req.url),
-      username: request.query.username ? request.query.username : 'nouser',
+      username: request.epadAuth.username ? request.epadAuth.username : 'nouser',
       function: typeof info === 'string' ? info : EpadNotification.prepareMethodText(info),
       params: `${reason instanceof Error ? reason.message : reason}`,
       createdtime: new Date(),
