@@ -110,6 +110,29 @@ async function routes(fastify) {
     handler: fastify.assignStudyToWorklist,
   });
 
+  fastify.route({
+    method: 'POST',
+    url: '/worklists/:worklist/projects/:project/subjects/:subject',
+    schema: {
+      tags: ['worklist', 'user'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.assignSubjectToWorklist,
+  });
+
   // fastify.route({
   //   method: 'PUT',
   //   url: '/worklists/:worklist',

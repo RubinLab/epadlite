@@ -668,6 +668,78 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('assignSubjectToWorklist', async (request, reply) => {
+    const ids = [];
+    const promises = [];
+
+    // find project's integer id
+    // find worklist's integer id
+    promises.push(
+      models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+      })
+    );
+
+    Promise.all(promises).then(async result => {
+      ids.push(result[0].dataValues.id);
+      ids.push(result[1].dataValues.id);
+
+      // go to project_subject get the id of where project and subject matches
+      let projectSubjectID;
+      try {
+        projectSubjectID = await models.project_subject.findOne({
+          where: { project_id: ids[1], subject_uid: request.params.subject },
+          attributes: ['id'],
+        });
+      } catch (err) {
+        reply.send(new InternalError('Creating worklist subject association in db', err));
+      }
+      projectSubjectID = projectSubjectID.dataValues.id;
+      let studyUIDs;
+      try {
+        studyUIDs = await models.project_subject_study.findAll({
+          where: { proj_subj_id: projectSubjectID },
+          attributes: ['study_uid'],
+        });
+      } catch (err) {
+        reply.send(new InternalError('Creating worklist subject association in db', err));
+      }
+
+      // iterate over the study uid's and send them to the table
+      const relationPromiseArr = [];
+
+      studyUIDs.forEach(el => {
+        // console.log();
+        // console.log(ids[0], el.dataValues.study_uid, request.params.subject, ids[1]);
+        relationPromiseArr.push(
+          models.worklist_study.create({
+            worklist_id: ids[0],
+            study_uid: el.dataValues.study_uid,
+            subject_uid: request.params.subject,
+            project_id: ids[1],
+            creator: request.epadAuth.username,
+            createdtime: Date.now(),
+            updatetime: Date.now(),
+            updated_by: request.epadAuth.username,
+          })
+        );
+      });
+
+      Promise.all(relationPromiseArr)
+        .then(() => reply.code(200).send(`Saving successful`))
+        .catch(err => {
+          reply.send(new InternalError('Creating worklist subject association in db', err));
+        });
+    });
+  });
+
   fastify.decorate('assignStudyToWorklist', async (request, reply) => {
     const ids = [];
     const promises = [];
@@ -948,7 +1020,6 @@ async function epaddb(fastify, options, done) {
             subjectUids.push(projectSubjects[i].subject_uid);
           }
         }
-
         const result = await fastify.getPatientsInternal(
           request.params,
           subjectUids,
