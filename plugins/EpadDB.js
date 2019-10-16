@@ -504,36 +504,27 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('updateWorklistAssignee', async (request, reply) => {
-    try {
-      let oldUserId;
-      let newUserId;
-      // try {
-      // find user id
-      oldUserId = await models.user.findOne({
-        where: { username: request.params.user },
-        attributes: ['id'],
-      });
-      oldUserId = oldUserId.dataValues.id;
+  fastify.decorate('updateWorklistAssigneeInternal', async (request, reply) => {
+    let worklistID;
+    const idPromiseArray = [];
+    const newAssigneeIdArr = [];
+    let existingAssigneeArr;
+    const tablePromiseArray = [];
 
-      newUserId = await models.user.findOne({
-        where: { username: request.body.user },
+    // get id numbers of worklist and existing assignees for that worklist
+    try {
+      worklistID = await models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
         attributes: ['id'],
       });
-      newUserId = newUserId.dataValues.id;
-      // } catch (err) {
-      //   console.log(err);
-      // }
-      models.worklist.update(
-        { user_id: newUserId, updatetime: Date.now(), updated_by: request.epadAuth.username },
-        {
-          where: {
-            user_id: oldUserId,
-            worklistid: request.params.worklist,
-          },
-        }
-      );
-      reply.code(200).send(`Worklist ${request.params.worklist} updated successfully`);
+      worklistID = worklistID.dataValues.id;
+      existingAssigneeArr = await models.worklist_user.findAll({
+        where: { worklist_id: worklistID },
+        attributes: ['user_id'],
+      });
+      existingAssigneeArr.forEach((el, i) => {
+        existingAssigneeArr[i] = el.dataValues.user_id;
+      });
     } catch (err) {
       if (err instanceof ResourceNotFoundError)
         reply.send(
@@ -550,22 +541,107 @@ async function epaddb(fastify, options, done) {
           )
         );
     }
+
+    // get ids of assignees for request body
+    request.body.assigneeList.forEach(assignee => {
+      idPromiseArray.push(
+        models.user.findOne({ where: { username: assignee }, attributes: ['id'] })
+      );
+    });
+
+    Promise.all(idPromiseArray)
+      .then(result => {
+        result.forEach(el => {
+          newAssigneeIdArr.push(el.dataValues.id);
+        });
+
+        // if assignee already exist skip
+        for (let i = 0; i < newAssigneeIdArr.length; i += 1) {
+          if (existingAssigneeArr.includes(newAssigneeIdArr[i])) {
+            const indexOld = existingAssigneeArr.indexOf(newAssigneeIdArr[i]);
+            newAssigneeIdArr.splice(i, 1);
+            existingAssigneeArr.splice(indexOld, 1);
+            i -= 1;
+          }
+        }
+
+        // if assignee doesn't exist create new
+        newAssigneeIdArr.forEach(el => {
+          tablePromiseArray.push(
+            models.worklist_user.create({
+              worklist_id: worklistID,
+              user_id: el,
+              role: 'assignee',
+              creator: request.epadAuth.username,
+              createdtime: Date.now(),
+            })
+          );
+        });
+
+        // if already existing is not in new list remove it
+        existingAssigneeArr.forEach(el => {
+          tablePromiseArray.push(
+            models.worklist_user.destroy({ where: { user_id: el, worklist_id: worklistID } })
+          );
+        });
+
+        Promise.all(tablePromiseArray)
+          .then(() => {
+            reply.code(200).send(`Worklist ${request.params.worklist} updated successfully`);
+          })
+          .catch(error => {
+            if (error instanceof ResourceNotFoundError)
+              reply.send(
+                new BadRequestError(
+                  `Worklist ${request.params.worklist} update by user ${request.epadAuth.username}`,
+                  error
+                )
+              );
+            else
+              reply.send(
+                new InternalError(
+                  `Worklist ${request.params.worklist} update by user ${request.epadAuth.username}`,
+                  error
+                )
+              );
+          });
+      })
+      .catch(err => {
+        if (err instanceof ResourceNotFoundError)
+          reply.send(
+            new BadRequestError(
+              `Worklist ${request.params.worklist} update by user ${request.epadAuth.username}`,
+              err
+            )
+          );
+        else
+          reply.send(
+            new InternalError(
+              `Worklist ${request.params.worklist} update by user ${request.epadAuth.username}`,
+              err
+            )
+          );
+      });
   });
 
   fastify.decorate('updateWorklist', async (request, reply) => {
-    models.worklist
-      .update(
-        { ...request.body, updatetime: Date.now(), updated_by: request.epadAuth.username },
-        {
-          where: {
-            worklistid: request.params.worklist,
-          },
-        }
-      )
-      .then(() => {
-        reply.code(200).send('Update successful');
-      })
-      .catch(err => reply.send(new InternalError('Updating worklist', err)));
+    if (request.body.assigneeList) {
+      fastify.updateWorklistAssigneeInternal(request, reply);
+    } else {
+      models.worklist
+        .update(
+          { ...request.body, updatetime: Date.now(), updated_by: request.epadAuth.username },
+          {
+            where: {
+              worklistid: request.params.worklist,
+            },
+          }
+        )
+        .then(() => {
+          reply.code(200).send('Update successful');
+        })
+        .catch(err => reply.send(new InternalError('Updating worklist', err)));
+    }
   });
 
   fastify.decorate('getWorklistsOfCreator', async (request, reply) => {
@@ -574,14 +650,8 @@ async function epaddb(fastify, options, done) {
         where: {
           creator: request.epadAuth.username,
         },
-        include: [
-          {
-            model: models.worklist_study,
-          },
-          'users',
-        ],
+        include: ['users'],
       });
-
       const result = [];
       for (let i = 0; i < worklists.length; i += 1) {
         const obj = {
@@ -596,14 +666,20 @@ async function epaddb(fastify, options, done) {
           studyStatus: [],
           studyIDs: [],
           subjectIDs: [],
+          assignees: [],
         };
-        const studiesArr = worklists[i].worklist_studies;
-        for (let k = 0; k < studiesArr.length; k += 1) {
-          obj.projectIDs.push(studiesArr[k].dataValues.project_id);
-          obj.studyStatus.push(studiesArr[k].dataValues.status);
-          obj.studyIDs.push(studiesArr[k].dataValues.study_id);
-          obj.subjectIDs.push(studiesArr[k].dataValues.subject_id);
+
+        for (let k = 0; k < worklists[i].users.length; k += 1) {
+          obj.assignees.push(worklists[i].users[k].username);
         }
+
+        // const studiesArr = worklists[i].worklist_studies;
+        // for (let k = 0; k < studiesArr.length; k += 1) {
+        //   obj.projectIDs.push(studiesArr[k].dataValues.project_id);
+        //   obj.studyStatus.push(studiesArr[k].dataValues.status);
+        //   obj.studyIDs.push(studiesArr[k].dataValues.study_id);
+        //   obj.subjectIDs.push(studiesArr[k].dataValues.subject_id);
+        // }
         result.push(obj);
       }
       reply.code(200).send(result);

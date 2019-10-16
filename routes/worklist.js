@@ -133,34 +133,6 @@ async function routes(fastify) {
     handler: fastify.assignSubjectToWorklist,
   });
 
-  // fastify.route({
-  //   method: 'PUT',
-  //   url: '/worklists/:worklist',
-  //   schema: {
-  //     tags: ['worklist', 'user'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         user: {
-  //           type: 'string',
-  //         },
-  //         worklist: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //     body: {
-  //       type: 'object',
-  //       properties: {
-  //         user: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //   },
-  //   handler: fastify.updateWorklistAssignee,
-  // });
-
   fastify.route({
     method: 'PUT',
     url: '/worklists/:worklist',
@@ -185,6 +157,9 @@ async function routes(fastify) {
           },
           duedate: {
             type: 'string',
+          },
+          assigneeList: {
+            type: 'array',
           },
         },
       },
