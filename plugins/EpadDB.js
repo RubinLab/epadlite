@@ -1196,6 +1196,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('saveAimToProject', async (request, reply) => {
     try {
       let aimUid = request.params.aimuid;
+      let aim = request.body;
       if (!request.params.aimuid)
         aimUid = request.body.ImageAnnotationCollection.uniqueIdentifier.root;
       const project = await models.project.findOne({
@@ -1209,20 +1210,24 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        if (request.body) {
+        if (aim) {
           // get the uid from the json and check if it is same with param, then put as id in couch document
-          if (aimUid !== request.body.ImageAnnotationCollection.uniqueIdentifier.root) {
+          if (aimUid !== aim.ImageAnnotationCollection.uniqueIdentifier.root) {
             reply.send(
               new BadRequestError(
                 `Saving aim to project ${request.params.project}`,
                 new Error(
                   `Conflicting aimuids: the uid sent in the url ${aimUid} should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root ${
-                    request.body.ImageAnnotationCollection.uniqueIdentifier.root
+                    aim.ImageAnnotationCollection.uniqueIdentifier.root
                   }`
                 )
               )
             );
-          } else await fastify.saveAimInternal(request.body);
+          } else await fastify.saveAimInternal(aim);
+          // TODO check if the aim is already associated with any project. warn and update the project_aim entries accordingly
+        } else {
+          // get aim to populate project_aim data
+          [aim] = await fastify.getAimsInternal('json', request.params, [aimUid], request.epadAuth);
         }
 
         await fastify.upsert(
@@ -1230,6 +1235,44 @@ async function epaddb(fastify, options, done) {
           {
             project_id: project.id,
             aim_uid: aimUid,
+            user:
+              aim && aim.ImageAnnotationCollection.user
+                ? aim.ImageAnnotationCollection.user.loginName.value
+                : '',
+            template:
+              aim &&
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code
+                ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code
+                : '',
+            subject_uid:
+              aim && aim.ImageAnnotationCollection.person
+                ? aim.ImageAnnotationCollection.person.id.value
+                : '',
+            study_uid:
+              aim &&
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .imageReferenceEntityCollection.ImageReferenceEntity[0]
+                ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid
+                    .root
+                : '',
+            series_uid:
+              aim &&
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+                ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+                    .instanceUid.root
+                : '',
+            image_uid:
+              aim &&
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+                .imageCollection.Image[0]
+                ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+                    .imageCollection.Image[0].sopInstanceUid.root
+                : '',
             updatetime: Date.now(),
           },
           {
