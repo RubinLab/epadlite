@@ -543,7 +543,7 @@ async function dicomwebserver(fastify) {
                   dicomElements: '', // TODO
                   defaultDICOMElements: '', // TODO
                   numberOfFrames: 0, // TODO
-                  isDSO: value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
+                  isDSO: false, // TODO value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
                   multiFrameImage: false, // TODO
                   isFlaggedImage: '', // TODO
                   rescaleIntercept: '', // TODO

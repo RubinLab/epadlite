@@ -2,7 +2,7 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'worklist_study',
+    'worklist_study_completeness',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -10,53 +10,29 @@ module.exports = function(sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
-      worklist_id: {
+      worklist_study_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'worklist',
+          model: 'worklist_study',
           key: 'id',
         },
       },
-      study_uid: {
+      assignee: {
         type: DataTypes.STRING(128),
-        allowNull: true,
+        allowNull: false,
       },
-      subject_uid: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
-      },
-      project_id: {
+      worklist_requirement_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
+        allowNull: false,
         references: {
-          model: 'project',
+          model: 'worklist_requirement',
           key: 'id',
         },
       },
-      sortorder: {
+      completeness: {
         type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
-      },
-      numOfSeries: {
-        type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
-      },
-      numOfImages: {
-        type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
-      },
-      status: {
-        type: DataTypes.STRING(256),
-        allowNull: true,
-      },
-      startdate: {
-        type: DataTypes.DATEONLY,
-        allowNull: true,
-      },
-      completedate: {
-        type: DataTypes.DATEONLY,
-        allowNull: true,
+        allowNull: false,
       },
       creator: {
         type: DataTypes.STRING(128),
@@ -78,7 +54,7 @@ module.exports = function(sequelize, DataTypes) {
       },
     },
     {
-      tableName: 'worklist_study',
+      tableName: 'worklist_study_completeness',
     }
   );
 };
