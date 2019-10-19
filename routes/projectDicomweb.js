@@ -43,89 +43,89 @@ async function routes(fastify) {
     handler: fastify.getPatientStudiesFromProject,
   });
 
-  // fastify.route({
-  //   method: 'GET',
-  //   url: '/projects/:project/subjects/:subject/studies/:study/series',
-  //   schema: {
-  //     tags: ['project', 'series'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //         subject: {
-  //           type: 'string',
-  //         },
-  //         study: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //     response: {
-  //       200: 'epadlite_patients_schema#',
-  //     },
-  //   },
-  //   handler: fastify.getStudySeries,
-  // });
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/subjects/:subject/studies/:study/series',
+    schema: {
+      tags: ['project', 'series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+      response: {
+        200: 'epadlite_series_schema#',
+      },
+    },
+    handler: fastify.getStudySeriesFromProject,
+  });
 
-  // // GET images
-  // fastify.route({
-  //   method: 'GET',
-  //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series/images',
-  //   schema: {
-  //     tags: ['project', 'images'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //         subject: {
-  //           type: 'string',
-  //         },
-  //         study: {
-  //           type: 'string',
-  //         },
-  //         series: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //     response: {
-  //       200: 'epadlite_images_schema#',
-  //     },
-  //   },
+  // GET images
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/subjects/:subject/studies/:study/series/:series/images',
+    schema: {
+      tags: ['project', 'images'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+        },
+      },
+      response: {
+        200: 'epadlite_images_schema#',
+      },
+    },
 
-  //   handler: fastify.getSeriesImages,
-  // });
+    handler: fastify.getSeriesImagesFromProject,
+  });
 
-  // fastify.route({
-  //   method: 'DELETE',
-  //   url: '/projects/:project/subjects/:subject/studies/:study/series/:series',
-  //   schema: {
-  //     tags: ['project', 'series'],
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //         subject: {
-  //           type: 'string',
-  //         },
-  //         study: {
-  //           type: 'string',
-  //         },
-  //         series: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //   },
-
-  //   handler: fastify.deleteSeries,
-  // });
+  fastify.route({
+    method: 'DELETE',
+    url: '/projects/:project/subjects/:subject/studies/:study/series/:series',
+    schema: {
+      tags: ['project', 'series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    // TODO should we do any project level checks
+    handler: fastify.deleteSeries,
+  });
 
   fastify.route({
     method: 'DELETE',

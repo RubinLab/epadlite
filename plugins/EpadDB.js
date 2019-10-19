@@ -544,7 +544,6 @@ async function epaddb(fastify, options, done) {
           )
         );
     }
-
     // get ids of assignees for request body
     request.body.assigneeList.forEach(assignee => {
       idPromiseArray.push(
@@ -627,7 +626,7 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('updateWorklist', async (request, reply) => {
+  fastify.decorate('updateWorklist', (request, reply) => {
     if (request.body.assigneeList) {
       fastify.updateWorklistAssigneeInternal(request, reply);
     } else {
@@ -699,36 +698,42 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('getWorklistsOfAssignee', async (request, reply) => {
-    const userId = await fastify.findUserIdInternal(request.params.user);
-    models.worklist_user
-      .findAll({ where: { user_id: userId }, attributes: ['worklist_id'] })
-      .then(worklistIDs => {
-        const worklistPromises = [];
-        worklistIDs.forEach(listID => {
-          worklistPromises.push(
-            models.worklist.findOne({
-              where: { id: listID.dataValues.worklist_id },
-            })
-          );
-        });
-
-        Promise.all(worklistPromises)
-          .then(worklist => {
-            const result = [];
-            worklist.forEach(el => {
-              const obj = {
-                workListID: el.worklistid,
-                name: el.name,
-                dueDate: el.duedate,
-                projectIDs: [],
-              };
-              result.push(obj);
+  fastify.decorate('getWorklistsOfAssignee', (request, reply) => {
+    fastify
+      .findUserIdInternal(request.params.user)
+      .then(userId => {
+        models.worklist_user
+          .findAll({ where: { user_id: userId }, attributes: ['worklist_id'] })
+          .then(worklistIDs => {
+            const worklistPromises = [];
+            worklistIDs.forEach(listID => {
+              worklistPromises.push(
+                models.worklist.findOne({
+                  where: { id: listID.dataValues.worklist_id },
+                })
+              );
             });
-            reply.code(200).send(result);
+
+            Promise.all(worklistPromises)
+              .then(worklist => {
+                const result = [];
+                worklist.forEach(el => {
+                  const obj = {
+                    worklistID: el.worklistid,
+                    name: el.name,
+                    dueDate: el.duedate,
+                    projectIDs: [],
+                  };
+                  result.push(obj);
+                });
+                reply.code(200).send(result);
+              })
+              .catch(err => {
+                reply.send(new InternalError('Get worklists of assignee', err));
+              });
           })
           .catch(err => {
-            reply.code(503).send(err.message);
+            reply.send(new InternalError('Get worklists of assignee', err));
           });
       })
       .catch(err => {
@@ -823,7 +828,7 @@ async function epaddb(fastify, options, done) {
     });
   });
 
-  fastify.decorate('assignStudyToWorklist', async (request, reply) => {
+  fastify.decorate('assignStudyToWorklist', (request, reply) => {
     const ids = [];
     const promises = [];
 
@@ -1412,6 +1417,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('saveAimToProject', async (request, reply) => {
     try {
       let aimUid = request.params.aimuid;
+      let aim = request.body;
       if (!request.params.aimuid)
         aimUid = request.body.ImageAnnotationCollection.uniqueIdentifier.root;
       const project = await models.project.findOne({
@@ -1425,27 +1431,73 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        if (request.body) {
+        if (aim) {
           // get the uid from the json and check if it is same with param, then put as id in couch document
-          if (aimUid !== request.body.ImageAnnotationCollection.uniqueIdentifier.root) {
+          if (aimUid !== aim.ImageAnnotationCollection.uniqueIdentifier.root) {
             reply.send(
               new BadRequestError(
                 `Saving aim to project ${request.params.project}`,
                 new Error(
                   `Conflicting aimuids: the uid sent in the url ${aimUid} should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root ${
-                    request.body.ImageAnnotationCollection.uniqueIdentifier.root
+                    aim.ImageAnnotationCollection.uniqueIdentifier.root
                   }`
                 )
               )
             );
-          } else await fastify.saveAimInternal(request.body);
+          } else await fastify.saveAimInternal(aim);
+          // TODO check if the aim is already associated with any project. warn and update the project_aim entries accordingly
+        } else {
+          // get aim to populate project_aim data
+          [aim] = await fastify.getAimsInternal('json', request.params, [aimUid], request.epadAuth);
         }
+        const user =
+          aim && aim.ImageAnnotationCollection.user
+            ? aim.ImageAnnotationCollection.user.loginName.value
+            : '';
+        const template =
+          aim && aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code
+            ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code
+            : '';
+        const subjectUid =
+          aim && aim.ImageAnnotationCollection.person
+            ? aim.ImageAnnotationCollection.person.id.value
+            : '';
+        const studyUid =
+          aim &&
+          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0]
+            ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root
+            : '';
+        const seriesUid =
+          aim &&
+          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+            ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+                .instanceUid.root
+            : '';
+        const imageUid =
+          aim &&
+          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+            .imageCollection.Image[0]
+            ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+                .imageCollection.Image[0].sopInstanceUid.root
+            : '';
 
         await fastify.upsert(
           models.project_aim,
           {
             project_id: project.id,
             aim_uid: aimUid,
+            user,
+            template,
+            subject_uid: subjectUid,
+            study_uid: studyUid,
+            series_uid: seriesUid,
+            image_uid: imageUid,
             updatetime: Date.now(),
           },
           {
@@ -1454,6 +1506,15 @@ async function epaddb(fastify, options, done) {
           },
           request.epadAuth.username
         );
+        // disable for now
+        // update the worklist completeness if in any
+        fastify.updateWorklistCompleteness(
+          project.id,
+          subjectUid,
+          studyUid,
+          user,
+          request.epadAuth
+        );
         reply.code(200).send('Saving successful');
       }
     } catch (err) {
@@ -1461,6 +1522,236 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate(
+    'addWorklistRequirement',
+    async (worklistId, epadAuth, level, numOfAims, template, required) => {
+      await models.worklist_requirements.insert({
+        worklist_id: worklistId,
+        updatetime: Date.now(),
+        createdtime: Date.now(),
+        creator: epadAuth.username,
+        level,
+        numOfAims,
+        template,
+        required: required === true,
+      });
+    }
+  );
+
+  fastify.decorate(
+    'updateWorklistRequirement',
+    async (worklistId, reqId, epadAuth, level, numOfAims, template, required) => {
+      await models.worklist_requirements.upsert(
+        {
+          worklist_id: worklistId,
+          updatetime: Date.now(),
+          level,
+          numOfAims,
+          template,
+          required: required === true,
+        },
+        {
+          worklist_id: worklistId,
+          id: reqId,
+        },
+        epadAuth.username
+      );
+    }
+  );
+
+  fastify.decorate('setWorklistRequirement', async (request, reply) => {
+    try {
+      const worklist = await models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
+        attributes: ['id'],
+        raw: true,
+      });
+      if (!worklist)
+        reply.send(
+          new BadRequestError(
+            `Worklist requirement ${request.params.requirement} add/update`,
+            new ResourceNotFoundError('Worklist', request.params.worklist)
+          )
+        );
+      else {
+        if (request.params.requirement !== undefined)
+          await fastify.updateWorklistRequirement(
+            worklist.id,
+            request.params.requirement,
+            request.epadAuth,
+            ...request.body
+          );
+        else await fastify.addWorklistRequirement(worklist.id, request.epadAuth, ...request.body);
+        reply.code(200).send(`Worklist requirement ${request.params.requirement} added/updated`);
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(`Worklist requirement ${request.params.requirement} add/update`, err)
+      );
+    }
+  });
+
+  fastify.decorate(
+    'updateWorklistCompleteness',
+    async (projectId, subjectUid, studyUid, user, epadAuth) => {
+      // TODO check if the user is an assignee
+
+      // get worklist studies that belong to this study and user
+      const worklistsStudies = await models.worklist_study.findAll({
+        where: { project_id: projectId, subject_uid: subjectUid, study_uid: studyUid },
+        raw: true,
+      });
+
+      // for each worklist study
+      for (let i = 0; i < worklistsStudies.length; i += 1) {
+        //  get requirements
+        // eslint-disable-next-line no-await-in-loop
+        const requirements = await models.worklist_requirements.findAll({
+          where: { worklist_id: worklistsStudies[i].worklist_id },
+          raw: true,
+        });
+
+        for (let j = 0; j < requirements.length; j += 1) {
+          //  compute worklist completeness
+          fastify.computeWorklistCompleteness(
+            worklistsStudies[i].id,
+            requirements[j],
+            {
+              numOfSeries: worklistsStudies[i].numOfSeries,
+              numOfImages: worklistsStudies[i].numOfImages,
+            },
+            projectId,
+            subjectUid,
+            studyUid,
+            user,
+            epadAuth
+          );
+        }
+      }
+    }
+  );
+
+  fastify.decorate(
+    'computeWorklistCompleteness',
+    async (
+      worklistStudyId,
+      worklistReq,
+      worklistStats,
+      projectId,
+      subjectUid,
+      studyUid,
+      user,
+      epadAuth
+    ) => {
+      // sample worklistReq
+      // eslint-disable-next-line no-param-reassign
+      // worklistReq = [{ id: 1, level: 'study', numOfAims: 1, template: 'ROI', required: true }];
+      // get all aims
+      const aims = await models.project_aim.findAll({
+        where: { project_id: projectId, subject_uid: subjectUid, study_uid: studyUid, user },
+        raw: true,
+      });
+      // do a one pass off aims and get stats
+      const aimStats = {};
+      for (let i = 0; i < aims.length; i += 1) {
+        if (!(aims[i].template in aimStats)) {
+          aimStats[aims[i].template] = {
+            subjectUids: {},
+            studyUids: {},
+            seriesUids: {},
+            imageUids: {},
+          };
+        }
+        if (!(aims[i].subject_uid in aimStats[aims[i].template].subjectUids))
+          aimStats[aims[i].template].subjectUids[aims[i].subject_uid] = 1;
+        else aimStats[aims[i].template].subjectUids[aims[i].subject_uid] += 1;
+        if (!(aims[i].study_uid in aimStats[aims[i].template].studyUids))
+          aimStats[aims[i].template].studyUids[aims[i].study_uid] = 1;
+        else aimStats[aims[i].template].studyUids[aims[i].study_uid] += 1;
+        if (!(aims[i].series_uid in aimStats[aims[i].template].seriesUids))
+          aimStats[aims[i].template].seriesUids[aims[i].series_uid] = 1;
+        else aimStats[aims[i].template].seriesUids[aims[i].series_uid] += 1;
+        if (!(aims[i].image_uid in aimStats[aims[i].template].imageUids))
+          aimStats[aims[i].template].imageUids[aims[i].image_uid] = 1;
+        else aimStats[aims[i].template].imageUids[aims[i].image_uid] += 1;
+      }
+      for (let j = 0; j < worklistReq.length; j += 1) {
+        // filter by template first
+        let completenessPercent = 0;
+        // not even started yet
+        if (!(worklistReq[j].template in aimStats)) {
+          console.log(
+            `There are no aims for the worklist req for template ${worklistReq[j].template}`
+          );
+        } else {
+          // compare and calculate completeness
+          let matchCounts = {};
+          switch (worklistReq[j].level) {
+            // case 'subject':
+            //   matched = fastify.getMatchingCount(
+            //     aimStats[worklistReq[j].template].subjectUids,
+            //     worklistReq[j].numOfAims,
+            //     worklistStats.numOfSubjects
+            //   );
+
+            //   break;
+            case 'study':
+              matchCounts = fastify.getMatchingCount(
+                aimStats[worklistReq[j].template].studyUids,
+                worklistReq[j].numOfAims,
+                1
+              );
+              break;
+            case 'series':
+              matchCounts = fastify.getMatchingCount(
+                aimStats[worklistReq[j].template].seriesUids,
+                worklistReq[j].numOfAims,
+                worklistStats.numOfSeries
+              );
+
+              break;
+            case 'image':
+              matchCounts = fastify.getMatchingCount(
+                aimStats[worklistReq[j].template].imageUids,
+                worklistReq[j].numOfAims,
+                worklistStats.numOfImages
+              );
+
+              break;
+            default:
+              console.log(`What is this unknown level ${worklistReq[j].level}`);
+          }
+          completenessPercent = (matchCounts.completed * 100) / matchCounts.required;
+        }
+        // update worklist study completeness req
+        // eslint-disable-next-line no-await-in-loop
+        await models.worklist_study_assignee.upsert(
+          {
+            worklist_study_id: worklistStudyId,
+            updatetime: Date.now(),
+            user,
+            requirement: worklistReq[j].id,
+            completeness: completenessPercent,
+          },
+          {
+            worklist_study_id: worklistStudyId,
+            user,
+            requirement: worklistReq[j].id,
+          },
+          epadAuth.username
+        );
+      }
+    }
+  );
+
+  fastify.decorate('getMatchingCount', (map, singleMatch, required) => {
+    let completed = 0;
+    // eslint-disable-next-line no-restricted-syntax
+    for (const value in map.values()) {
+      if (value >= singleMatch) completed += 1;
+    }
+    return { completed, required };
+  });
   fastify.decorate('deleteAimFromProject', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -1757,18 +2048,20 @@ async function epaddb(fastify, options, done) {
       );
     }
   });
-  // fastify.decorate('getStudySeries', (request, reply) => {
-  //   fastify
-  //     .getStudySeriesInternal(request.params)
-  //     .then(result => reply.code(200).send(result))
-  //     .catch(err => reply.code(503).send(err.message));
-  // });
-  // fastify.decorate('getSeriesImages', (request, reply) => {
-  //   fastify
-  //     .getSeriesImagesInternal(request.params, request.query)
-  //     .then(result => reply.code(200).send(result))
-  //     .catch(err => reply.code(503).send(err.message));
-  // });
+  fastify.decorate('getStudySeriesFromProject', (request, reply) => {
+    // TODO project filtering
+    fastify
+      .getStudySeriesInternal(request.params, request.query, request.epadAuth)
+      .then(result => reply.code(200).send(result))
+      .catch(err => reply.send(err));
+  });
+  fastify.decorate('getSeriesImagesFromProject', (request, reply) => {
+    // TODO project filtering
+    fastify
+      .getSeriesImagesInternal(request.params, request.query)
+      .then(result => reply.code(200).send(result))
+      .catch(err => reply.send(err));
+  });
 
   fastify.decorate('createUser', (request, reply) => {
     // TODO user exists check! ozge

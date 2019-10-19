@@ -22,6 +22,30 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: false,
       },
+      user: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      template: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      subject_uid: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      study_uid: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      series_uid: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      image_uid: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,

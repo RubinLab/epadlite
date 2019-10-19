@@ -186,6 +186,41 @@ async function routes(fastify) {
 
   // /worklists/0987iuy/users/admin/subjects - POST
 
-  fastify.route();
+  fastify.route({
+    method: 'PUT',
+    url: '/worklists/:worklist/requirement/:requirement',
+    schema: {
+      tags: ['worklist'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+          requirement: {
+            type: 'integer',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          level: {
+            type: 'string',
+          },
+          numOfAims: {
+            type: 'integer',
+          },
+          template: {
+            type: 'string',
+          },
+          required: {
+            type: 'boolean',
+          },
+        },
+      },
+    },
+    handler: fastify.updateWorklistRequirement,
+  });
 }
 module.exports = routes;
