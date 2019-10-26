@@ -81,7 +81,6 @@ describe('User Rights Tests', () => {
         projectDescription: 'testRights1',
         defaultTemplate: 'ROI',
         type: 'private',
-        userName: 'admin',
       });
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -93,7 +92,6 @@ describe('User Rights Tests', () => {
         projectDescription: 'testRights2',
         defaultTemplate: 'ROI',
         type: 'private',
-        userName: 'admin',
       });
     // define user access to project
     await chai
@@ -203,7 +201,6 @@ describe('User Rights Tests', () => {
           projectDescription: 'testRights3',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'testOwner@gmail.com',
         })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -224,7 +221,6 @@ describe('User Rights Tests', () => {
           projectDescription: 'testRights4',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'testMember@gmail.com',
         })
         .then(res => {
           expect(res.statusCode).to.equal(403);

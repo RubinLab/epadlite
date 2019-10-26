@@ -29,7 +29,6 @@ describe('User Tests', () => {
           projectDescription: 'testdescUser',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -41,7 +40,6 @@ describe('User Tests', () => {
           projectDescription: 'testdescUser',
           defaultTemplate: 'ROI',
           type: 'public',
-          userName: 'admin',
         });
       // done();
     } catch (err) {

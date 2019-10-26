@@ -22,8 +22,16 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
+      study_desc: {
+        type: DataTypes.STRING(1000),
+        allowNull: true,
+      },
       subject_uid: {
         type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      subject_name: {
+        type: DataTypes.STRING(256),
         allowNull: true,
       },
       project_id: {

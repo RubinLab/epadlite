@@ -63,7 +63,6 @@ describe('Project Tests', () => {
         projectDescription: 'testdesc',
         defaultTemplate: 'ROI',
         type: 'private',
-        userName: 'admin',
       })
       .query({ username: 'admin' })
       .then(res => {
@@ -204,7 +203,6 @@ describe('Project Tests', () => {
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -216,7 +214,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
     });
     after(async () => {
@@ -491,7 +488,6 @@ describe('Project Tests', () => {
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -503,7 +499,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -515,7 +510,6 @@ describe('Project Tests', () => {
           projectDescription: 'test3desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
     });
     after(async () => {
@@ -791,7 +785,6 @@ describe('Project Tests', () => {
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -803,7 +796,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -815,7 +807,6 @@ describe('Project Tests', () => {
           projectDescription: 'test3desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
     });
     after(async () => {
@@ -1117,7 +1108,6 @@ describe('Project Tests', () => {
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -1129,7 +1119,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -1141,7 +1130,6 @@ describe('Project Tests', () => {
           projectDescription: 'test3desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
     });
     after(async () => {
@@ -1547,7 +1535,6 @@ describe('Project Tests', () => {
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -1559,7 +1546,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -1571,7 +1557,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
     });
     after(async () => {
@@ -1865,7 +1850,6 @@ describe('Project Tests', () => {
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -1877,7 +1861,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -1889,7 +1872,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -1901,7 +1883,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -2243,7 +2224,6 @@ describe('Project Tests', () => {
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -2255,7 +2235,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -2267,7 +2246,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -2279,7 +2257,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -2666,7 +2643,6 @@ describe('Project Tests', () => {
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -2678,7 +2654,6 @@ describe('Project Tests', () => {
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -2690,7 +2665,6 @@ describe('Project Tests', () => {
           projectDescription: 'test3desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -2702,7 +2676,6 @@ describe('Project Tests', () => {
           projectDescription: 'test4desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -3120,7 +3093,6 @@ describe('Project Tests', () => {
           projectDescription: 'testassocdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         })
         .query({ username: 'admin' })
         .then(res => {
@@ -3354,7 +3326,6 @@ describe('Project Tests', () => {
           projectDescription: 'testassoc2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         })
         .query({ username: 'admin' })
         .then(res => {
@@ -3375,7 +3346,6 @@ describe('Project Tests', () => {
           projectDescription: 'testassoc3desc',
           defaultTemplate: 'ROI',
           type: 'private',
-          userName: 'admin',
         })
         .query({ username: 'admin' })
         .then(res => {

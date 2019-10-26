@@ -501,6 +501,11 @@ async function other(fastify) {
       } else reqInfo.level = request.req.url;
       // eslint-disable-next-line prefer-destructuring
       if (urlParts[1] === 'projects' && urlParts.length > 1) reqInfo.project = urlParts[2];
+      if (urlParts[1] === 'worklists') {
+        reqInfo.level = 'worklist';
+        // eslint-disable-next-line prefer-destructuring
+        if (urlParts.length > 1) reqInfo.objectId = urlParts[2];
+      }
       return reqInfo;
     } catch (err) {
       throw new InternalError('Getting request info from url', err);

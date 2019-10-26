@@ -222,5 +222,56 @@ async function routes(fastify) {
     },
     handler: fastify.updateWorklistRequirement,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/worklists/:worklist/requirements',
+    schema: {
+      tags: ['worklist'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          level: {
+            type: 'string',
+          },
+          numOfAims: {
+            type: 'integer',
+          },
+          template: {
+            type: 'string',
+          },
+          required: {
+            type: 'boolean',
+          },
+        },
+      },
+    },
+    handler: fastify.setWorklistRequirement,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/worklists/:worklist/progress',
+    schema: {
+      tags: ['worklist'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getWorklistProgress,
+  });
 }
 module.exports = routes;
