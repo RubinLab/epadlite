@@ -9,6 +9,15 @@ class EpadError extends Error {
     //  @see Node.js reference (bottom)
     Error.captureStackTrace(this, this.constructor);
   }
+
+  static get messages() {
+    return {
+      requiredField: 'Name and id required for',
+      shortName: 'Name should have at least two characters!',
+      allSpace: 'Name should include at least one alphanumeric character!',
+      badChar: 'ID can not include "/" character',
+    };
+  }
 }
 
 class ResourceNotFoundError extends EpadError {

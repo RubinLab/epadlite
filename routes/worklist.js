@@ -188,7 +188,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'PUT',
-    url: '/worklists/:worklist/requirement/:requirement',
+    url: '/worklists/:worklist/requirements/:requirement',
     schema: {
       tags: ['worklist'],
       params: {
@@ -220,7 +220,7 @@ async function routes(fastify) {
         },
       },
     },
-    handler: fastify.updateWorklistRequirement,
+    handler: fastify.setWorklistRequirement,
   });
 }
 module.exports = routes;
