@@ -9,6 +9,7 @@ const {
   ResourceNotFoundError,
   BadRequestError,
   UnauthorizedError,
+  EpadError,
 } = require('../utils/EpadErrors');
 
 async function epaddb(fastify, options, done) {
@@ -140,13 +141,19 @@ async function epaddb(fastify, options, done) {
 
   // PROJECTS
   fastify.decorate('createProject', (request, reply) => {
+    const { projectName, projectId, projectDescription, defaultTemplate, type } = request.body;
+    const validationErr = fastify.validateRequestBodyFields(projectName, projectId);
+    if (validationErr) {
+      reply.send(new BadRequestError('Creating project', new Error(validationErr)));
+    }
+
     models.project
       .create({
-        name: request.body.projectName,
-        projectid: request.body.projectId,
-        description: request.body.projectDescription,
-        defaulttemplate: request.body.defaultTemplate,
-        type: request.body.type,
+        name: projectName,
+        projectid: projectId,
+        description: projectDescription,
+        defaulttemplate: defaultTemplate,
+        type,
         updatetime: Date.now(),
         createdtime: Date.now(),
         creator: request.epadAuth.username,
@@ -403,13 +410,35 @@ async function epaddb(fastify, options, done) {
       });
   });
 
+  fastify.decorate('validateRequestBodyFields', (name, id) => {
+    if (!name || !id) {
+      return EpadError.messages.requiredField;
+      // eslint-disable-next-line no-else-return
+    } else if (name.length < 2) {
+      return EpadError.messages.shortName;
+    } else if (name === '  ') {
+      return EpadError.messages.allSpace;
+    } else if (id.includes('/')) {
+      return EpadError.messages.badChar;
+    }
+    return null;
+  });
+
   fastify.decorate('createWorklist', (request, reply) => {
     try {
       const assigneeInfoArr = [];
       const assigneeIDArr = [];
+
+      const { name, worklistId } = request.body;
+      // validate required fields
+      const validationErr = fastify.validateRequestBodyFields(name, worklistId);
+      if (validationErr) {
+        reply.send(new BadRequestError('Creating worklist', new Error(validationErr)));
+      }
       request.body.assignees.forEach(el => {
         assigneeInfoArr.push(fastify.findUserIdInternal(el));
       });
+
       Promise.all(assigneeInfoArr)
         .then(results => {
           results.forEach(el => {
@@ -417,7 +446,7 @@ async function epaddb(fastify, options, done) {
           });
           models.worklist
             .create({
-              name: request.body.worklistName,
+              name: request.body.name,
               worklistid: request.body.worklistId,
               user_id: null,
               description: request.body.description,
@@ -474,45 +503,6 @@ async function epaddb(fastify, options, done) {
           )
         );
     }
-  });
-
-  // ozge why these request.body.studyId : null, can they be empty
-  fastify.decorate('linkWorklistToStudy', (request, reply) => {
-    fastify
-      .upsert(
-        models.worklist_study,
-        {
-          worklist_id: request.params.worklist,
-          project_id: request.params.project,
-          updatetime: Date.now(),
-          study_id: request.body.studyId ? request.body.studyId : null,
-          subject_id: request.body.subjectId ? request.body.subjectId : null,
-        },
-        {
-          worklist_id: request.params.worklist,
-          project_id: request.params.project,
-          study_id: request.body.studyId ? request.body.studyId : null,
-          subject_id: request.body.subjectId ? request.body.subjectId : null,
-        },
-        request.epadAuth.username
-      )
-      .then(res => {
-        reply
-          .code(200)
-          .send(
-            `Study ${request.body.studyId} is linked to Worklist ${
-              request.params.worklist
-            } with id ${res.id}`
-          );
-      })
-      .catch(err => {
-        reply.send(
-          new InternalError(
-            `Linking Study ${request.body.studyId} is to Worklist ${request.params.worklist}`,
-            err
-          )
-        );
-      });
   });
 
   fastify.decorate('updateWorklistAssigneeInternal', async (request, reply) => {
@@ -638,9 +628,14 @@ async function epaddb(fastify, options, done) {
     if (request.body.assigneeList) {
       fastify.updateWorklistAssigneeInternal(request, reply);
     } else {
+      const obj = { ...request.body };
+      if (request.body.dueDate) {
+        obj.duedate = request.body.dueDate;
+        delete obj.dueDate;
+      }
       models.worklist
         .update(
-          { ...request.body, updatetime: Date.now(), updated_by: request.epadAuth.username },
+          { ...obj, updatetime: Date.now(), updated_by: request.epadAuth.username },
           {
             where: {
               worklistid: request.params.worklist,
@@ -727,7 +722,7 @@ async function epaddb(fastify, options, done) {
                 const result = [];
                 worklist.forEach(el => {
                   const obj = {
-                    worklistID: el.worklistid,
+                    workListID: el.worklistid,
                     name: el.name,
                     dueDate: el.duedate,
                     projectIDs: [],

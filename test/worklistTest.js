@@ -57,7 +57,7 @@ describe('Worklist Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/worklists?username=testCreator@gmail.com')
       .send({
-        worklistName: 'test',
+        name: 'test',
         worklistId: 'testCreate',
         description: 'testdesc',
         dueDate: '2019-12-01',
@@ -136,7 +136,7 @@ describe('Worklist Tests', () => {
       .send({
         name: 'testUpdated2',
         description: 'testdescUpdated',
-        duedate: '2019-12-31',
+        dueDate: '2019-12-31',
       })
       .then(res => {
         expect(res.statusCode).to.equal(200);
