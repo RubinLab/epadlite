@@ -258,7 +258,7 @@ describe('Worklist Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/worklists?username=testProgressUser1@gmail.com')
         .send({
-          worklistName: 'testProgressW',
+          name: 'testProgressW',
           worklistId: 'testProgressW',
           description: 'testdesc',
           dueDate: '2019-12-01',
@@ -303,7 +303,7 @@ describe('Worklist Tests', () => {
       //   .delete('/projects/testProgressP')
       //   .query({ username: 'admin' });
     });
-    it('should requirement to the worklist ', done => {
+    it('should add requirement to the worklist ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/worklists/testProgressW/requirements')
@@ -322,7 +322,7 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
-    it('should requirement to the worklist ', done => {
+    it('should add requirement to the worklist ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/worklists/testProgressW/requirements')
