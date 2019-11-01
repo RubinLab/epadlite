@@ -182,7 +182,29 @@ async function routes(fastify) {
   });
 
   // /worklists/:w/users/:u/projects/:p/subjects/:s/studies/:s - DELETE
-  // /worklists/:w/users/:u/projects/:p/subjects/:s - DELETE
+  fastify.route({
+    method: 'POST',
+    url: '/worklists/:worklist/studies',
+    schema: {
+      tags: ['worklist', 'user'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: { type: 'string' },
+        },
+      },
+    },
+    handler: fastify.deleteStudyToWorklistRelation,
+  });
 
   // /worklists/0987iuy/users/admin/subjects - POST
 

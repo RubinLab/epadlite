@@ -752,6 +752,8 @@ async function epaddb(fastify, options, done) {
           worklistid: request.params.worklist,
         },
       });
+      // TODO
+      // destroy relations
 
       reply.code(200).send(`Worklist ${request.params.worklist} deleted successfully`);
     } catch (err) {
@@ -762,73 +764,108 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('assignSubjectToWorklist', async (request, reply) => {
-    const ids = [];
-    const promises = [];
+    if (!request.body || request.body.subjectName === undefined) {
+      reply.send(
+        new BadRequestError(
+          'Assign subject to worklist',
+          new Error('Missing subject name in request')
+        )
+      );
+    } else {
+      const ids = [];
+      const promises = [];
 
-    // find project's integer id
-    // find worklist's integer id
-    promises.push(
-      models.worklist.findOne({
-        where: { worklistid: request.params.worklist },
-        attributes: ['id'],
-      })
-    );
-    promises.push(
-      models.project.findOne({
-        where: { projectid: request.params.project },
-        attributes: ['id'],
-      })
-    );
-
-    Promise.all(promises).then(async result => {
-      ids.push(result[0].dataValues.id);
-      ids.push(result[1].dataValues.id);
-
-      // go to project_subject get the id of where project and subject matches
-      let projectSubjectID;
-      try {
-        projectSubjectID = await models.project_subject.findOne({
-          where: { project_id: ids[1], subject_uid: request.params.subject },
+      // find project's integer id
+      // find worklist's integer id
+      promises.push(
+        models.worklist.findOne({
+          where: { worklistid: request.params.worklist },
           attributes: ['id'],
-        });
-      } catch (err) {
-        reply.send(new InternalError('Creating worklist subject association in db', err));
-      }
-      projectSubjectID = projectSubjectID.dataValues.id;
-      let studyUIDs;
-      try {
-        studyUIDs = await models.project_subject_study.findAll({
-          where: { proj_subj_id: projectSubjectID },
-          attributes: ['study_uid'],
-        });
-      } catch (err) {
-        reply.send(new InternalError('Creating worklist subject association in db', err));
-      }
+        })
+      );
+      promises.push(
+        models.project.findOne({
+          where: { projectid: request.params.project },
+          attributes: ['id'],
+        })
+      );
 
-      // iterate over the study uid's and send them to the table
-      const relationPromiseArr = [];
+      Promise.all(promises).then(async result => {
+        ids.push(result[0].dataValues.id);
+        ids.push(result[1].dataValues.id);
 
-      studyUIDs.forEach(el => {
-        relationPromiseArr.push(
-          models.worklist_study.create({
-            worklist_id: ids[0],
-            study_uid: el.dataValues.study_uid,
-            subject_uid: request.params.subject,
-            project_id: ids[1],
-            creator: request.epadAuth.username,
-            createdtime: Date.now(),
-            updatetime: Date.now(),
-            updated_by: request.epadAuth.username,
-          })
-        );
-      });
-
-      Promise.all(relationPromiseArr)
-        .then(() => reply.code(200).send(`Saving successful`))
-        .catch(err => {
+        // go to project_subject get the id of where project and subject matches
+        let projectSubjectID;
+        try {
+          projectSubjectID = await models.project_subject.findOne({
+            where: { project_id: ids[1], subject_uid: request.params.subject },
+            attributes: ['id'],
+          });
+        } catch (err) {
           reply.send(new InternalError('Creating worklist subject association in db', err));
+        }
+        projectSubjectID = projectSubjectID.dataValues.id;
+        let studyUIDs;
+        const studyUIDList = [];
+        try {
+          studyUIDs = await models.project_subject_study.findAll({
+            where: { proj_subj_id: projectSubjectID },
+            attributes: ['study_uid'],
+            raw: true,
+          });
+        } catch (err) {
+          reply.send(new InternalError('Creating worklist subject association in db', err));
+        }
+        // estract uids
+        studyUIDs.forEach(el => studyUIDList.push(el.study_uid));
+
+        // get studyDescriptions
+        const studyDetails = await fastify.getPatientStudiesInternal(
+          request.params,
+          studyUIDList,
+          request.epadAuth
+        );
+        const studyDescMap = {};
+        studyDetails.forEach(el => {
+          const { studyDescription, numberOfImages, numberOfSeries } = el;
+          studyDescMap[el.studyUID] = { studyDescription, numberOfImages, numberOfSeries };
         });
-    });
+
+        // iterate over the study uid's and send them to the table
+        const relationPromiseArr = [];
+        studyUIDList.forEach(el => {
+          relationPromiseArr.push(
+            fastify.upsert(
+              models.worklist_study,
+              {
+                worklist_id: ids[0],
+                study_uid: el,
+                subject_uid: request.params.subject,
+                project_id: ids[1],
+                updatetime: Date.now(),
+                subject_name: request.body.subjectName,
+                study_desc: studyDescMap[el].studyDescription,
+                numOfSeries: studyDescMap[el].numberOfSeries,
+                numOfImages: studyDescMap[el].numberOfImages,
+              },
+              {
+                worklist_id: ids[0],
+                study_uid: el,
+                subject_uid: request.params.subject,
+                project_id: ids[1],
+              },
+              request.epadAuth.username
+            )
+          );
+
+          Promise.all(relationPromiseArr)
+            .then(() => reply.code(200).send(`Saving successful`))
+            .catch(err => {
+              reply.send(new InternalError('Creating worklist subject association in db', err));
+            });
+        });
+      });
+    }
   });
 
   fastify.decorate('assignStudyToWorklist', (request, reply) => {
@@ -908,6 +945,39 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('deleteStudyToWorklistRelation', async (request, reply) => {
+    // find worklist id
+    const worklistId = await models.worklist.findOne({
+      where: { worklistid: request.params.worklist },
+      attributes: ['id'],
+      raw: true,
+    });
+    models.worklist_study
+      .destroy({
+        worklist_id: worklistId,
+        project_id: request.params.project,
+        subject_uid: request.params.subject,
+        study_uid: request.params.study,
+      })
+      .then(() => reply.code(200).send(`Deleted successfully`))
+      .catch(err => {
+        if (err instanceof ResourceNotFoundError)
+          reply.send(
+            new BadRequestError(
+              `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
+              err
+            )
+          );
+        else
+          reply.send(
+            new InternalError(
+              `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
+              err
+            )
+          );
+      });
+  });
+
   fastify.decorate('getWorklistSubjects', async (request, reply) => {
     // get worklist name and id from worklist
     // get details from worklist_study table
@@ -928,27 +998,24 @@ async function epaddb(fastify, options, done) {
       });
       const result = {};
       for (let i = 0; i < list.length; i += 1) {
-        if (result[list[i].dataValues.subject_uid]) {
-          result[list[i].dataValues.subject_uid].studyUIDs.push(list[i].dataValues.study_uid);
-        } else {
-          // eslint-disable-next-line no-await-in-loop
-          const projectId = await models.project.findOne({
-            where: { id: list[i].dataValues.project_id },
-            attributes: ['projectid'],
-          });
-          const obj = {
-            completionDate: list[i].dataValues.completedate,
-            projectID: projectId.dataValues.projectid,
-            sortOrder: list[i].dataValues.sortorder,
-            startDate: list[i].dataValues.startdate,
-            subjectID: list[i].dataValues.subject_uid,
-            studyUIDs: [list[i].dataValues.study_uid],
-            workListID: request.params.worklist,
-            workListName,
-            subjectName: '',
-          };
-          result[list[i].dataValues.subject_uid] = obj;
-        }
+        // eslint-disable-next-line no-await-in-loop
+        const projectId = await models.project.findOne({
+          where: { id: list[i].dataValues.project_id },
+          attributes: ['projectid'],
+        });
+        const obj = {
+          completionDate: list[i].dataValues.completedate,
+          projectID: projectId.dataValues.projectid,
+          sortOrder: list[i].dataValues.sortorder,
+          startDate: list[i].dataValues.startdate,
+          subjectID: list[i].dataValues.subject_uid,
+          studyUIDs: list[i].dataValues.study_uid,
+          workListID: request.params.worklist,
+          workListName,
+          subjectName: list[i].dataValues.subject_name,
+          studyDescription: list[i].dataValues.study_desc,
+        };
+        result[list[i].dataValues.subject_uid] = obj;
       }
       reply.code(200).send(Object.values(result));
     } catch (err) {
