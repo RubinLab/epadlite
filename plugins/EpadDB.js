@@ -354,21 +354,6 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  // TODO is it needed? ozge
-  fastify.decorate('getCircularReplacer', () => {
-    const seen = new WeakSet();
-    return (key, value) => {
-      if (typeof value === 'object' && value !== null) {
-        if (seen.has(value)) {
-          return;
-        }
-        seen.add(value);
-      }
-      // eslint-disable-next-line consistent-return
-      return value;
-    };
-  });
-
   fastify.decorate('getProjects', (request, reply) => {
     models.project
       .findAll({
@@ -946,36 +931,51 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('deleteStudyToWorklistRelation', async (request, reply) => {
-    // find worklist id
-    const worklistId = await models.worklist.findOne({
-      where: { worklistid: request.params.worklist },
-      attributes: ['id'],
-      raw: true,
-    });
-    models.worklist_study
-      .destroy({
-        worklist_id: worklistId,
-        project_id: request.params.project,
-        subject_uid: request.params.subject,
-        study_uid: request.params.study,
-      })
-      .then(() => reply.code(200).send(`Deleted successfully`))
-      .catch(err => {
-        if (err instanceof ResourceNotFoundError)
-          reply.send(
-            new BadRequestError(
-              `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
-              err
-            )
-          );
-        else
-          reply.send(
-            new InternalError(
-              `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
-              err
-            )
-          );
+    if (!request.body || !Array.isArray(request.body) || request.body.length === 0) {
+      reply.send(
+        new BadRequestError(
+          'Delete study worklist relation',
+          new Error('Missing study list in request')
+        )
+      );
+    } else {
+      // find worklist id
+      const promises = [];
+      const worklistId = await models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
+        attributes: ['id'],
+        raw: true,
       });
+
+      request.body.forEach(el => {
+        promises.push(
+          models.worklist_study.destroy({
+            worklist_id: worklistId,
+            project_id: el.projectID,
+            subject_uid: el.subjectID,
+            study_uid: el.studyUID,
+          })
+        );
+      });
+      Promise.all(promises)
+        .then(() => reply.code(200).send(`Deleted successfully`))
+        .catch(err => {
+          if (err instanceof ResourceNotFoundError)
+            reply.send(
+              new BadRequestError(
+                `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
+                err
+              )
+            );
+          else
+            reply.send(
+              new InternalError(
+                `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
+                err
+              )
+            );
+        });
+    }
   });
 
   fastify.decorate('getWorklistSubjects', async (request, reply) => {
@@ -983,16 +983,19 @@ async function epaddb(fastify, options, done) {
     // get details from worklist_study table
     let workListName;
     let worklistIdKey;
+    let worklistDuedate;
+
     let list;
     try {
       const worklist = await models.worklist.findOne({
         where: {
           worklistid: request.params.worklist,
         },
-        attributes: ['name', 'id'],
+        attributes: ['name', 'id', 'duedate'],
       });
       workListName = worklist.dataValues.name;
       worklistIdKey = worklist.dataValues.id;
+      worklistDuedate = worklist.dataValues.duedate;
       list = await models.worklist_study.findAll({
         where: { worklist_id: worklistIdKey },
       });
@@ -1009,9 +1012,10 @@ async function epaddb(fastify, options, done) {
           sortOrder: list[i].dataValues.sortorder,
           startDate: list[i].dataValues.startdate,
           subjectID: list[i].dataValues.subject_uid,
-          studyUIDs: list[i].dataValues.study_uid,
+          studyUID: list[i].dataValues.study_uid,
           workListID: request.params.worklist,
           workListName,
+          worklistDuedate,
           subjectName: list[i].dataValues.subject_name,
           studyDescription: list[i].dataValues.study_desc,
         };
@@ -2335,11 +2339,6 @@ async function epaddb(fastify, options, done) {
       updated_by: request.epadAuth.username,
       updatetime: Date.now(),
     };
-    // what is this?? ozge
-    // if (request.body.updatedBy) {
-    //   rowsUpdated.updated_by = request.body.updatedBy;
-    // }
-    // delete rowsUpdated.updatedBy;
     let result;
     try {
       const { userId, projectId } = await fastify.getUserProjectIdsInternal(
@@ -2681,6 +2680,65 @@ async function epaddb(fastify, options, done) {
       }
     } catch (err) {
       reply.send(new InternalError(`Getting files for project ${request.params.project}`, err));
+    }
+  });
+
+  fastify.decorate('getProjectUsers', async (request, reply) => {
+    try {
+      const projectId = await models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+        raw: true,
+      });
+      if (projectId === null || !projectId.id)
+        reply.send(
+          new BadRequestError(
+            'Getting project users',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      else {
+        const result = [];
+        const projectUsers = await models.project_user.findAll({
+          where: { project_id: projectId.id },
+          raw: true,
+        });
+        const userPromise = [];
+        // get users
+        projectUsers.forEach(el => {
+          userPromise.push(
+            models.user.findOne({
+              where: { id: el.user_id },
+              raw: true,
+            })
+          );
+        });
+        Promise.all(userPromise)
+          .then(data => {
+            data.forEach((user, index) => {
+              const obj = {
+                displayname: `${user.firstname} ${user.lastname}`,
+                username: user.username,
+                firstname: user.firstname,
+                lastname: user.lastname,
+                email: user.email,
+                permissions: user.permissions.split(','),
+                enabled: user.enabled,
+                admin: user.admin,
+                passwordexpired: user.passwordexpired,
+                creator: user.creator,
+                role: projectUsers[index].role,
+              };
+              result.push(obj);
+            });
+            reply.code(200).send(result);
+          })
+          .catch(errUser => {
+            reply.send(new InternalError(`Getting users for project`, errUser));
+          });
+      }
+    } catch (err) {
+      reply.send(new InternalError(`Getting users for project ${request.params.project}`, err));
     }
   });
 

@@ -175,6 +175,24 @@ async function routes(fastify) {
     },
     handler: fastify.getProjectFiles,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/users',
+    schema: {
+      tags: ['project', 'users'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getProjectUsers,
+  });
+
   fastify.route({
     method: 'GET',
     url: '/projects/:project/subjects/:subject/files',

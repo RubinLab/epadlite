@@ -181,9 +181,9 @@ async function routes(fastify) {
     handler: fastify.deleteWorklist,
   });
 
-  // /worklists/:w/users/:u/projects/:p/subjects/:s/studies/:s - DELETE
+  // /worklists/:w/studies - DELETE
   fastify.route({
-    method: 'POST',
+    method: 'DELETE',
     url: '/worklists/:worklist/studies',
     schema: {
       tags: ['worklist', 'user'],
@@ -193,13 +193,17 @@ async function routes(fastify) {
           worklist: {
             type: 'string',
           },
-          project: {
-            type: 'string',
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            projectID: { type: 'string' },
+            subjectID: { type: 'string' },
+            studyUID: { type: 'string' },
           },
-          subject: {
-            type: 'string',
-          },
-          study: { type: 'string' },
         },
       },
     },
