@@ -2717,13 +2717,14 @@ async function epaddb(fastify, options, done) {
         Promise.all(userPromise)
           .then(data => {
             data.forEach((user, index) => {
+              const permissions = user.permissions ? user.permissions.split(',') : '';
               const obj = {
                 displayname: `${user.firstname} ${user.lastname}`,
                 username: user.username,
                 firstname: user.firstname,
                 lastname: user.lastname,
                 email: user.email,
-                permissions: user.permissions.split(','),
+                permissions,
                 enabled: user.enabled,
                 admin: user.admin,
                 passwordexpired: user.passwordexpired,
@@ -2791,6 +2792,47 @@ async function epaddb(fastify, options, done) {
           request.epadAuth.username
         );
         reply.code(200).send('Update successful');
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(`Updating user role for project ${request.params.project}`, err)
+      );
+    }
+  });
+
+  fastify.decorate('deleteProjectUser', async (request, reply) => {
+    try {
+      const projectId = await models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+        raw: true,
+      });
+
+      const userId = await models.user.findOne({
+        where: { username: request.params.user },
+        attributes: ['id'],
+        raw: true,
+      });
+
+      if (!projectId.id) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      } else if (!userId.id) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('User', request.params.user)
+          )
+        );
+      } else {
+        await models.project_user.destroy({
+          where: { user_id: userId.id, project_id: projectId.id },
+        });
+        reply.code(200).send('Delete successful');
       }
     } catch (err) {
       reply.send(
