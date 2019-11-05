@@ -7,6 +7,7 @@ const config = require('../config/index');
 const {
   InternalError,
   ResourceNotFoundError,
+  ResourceAlreadyExistsError,
   BadRequestError,
   UnauthorizedError,
   EpadError,
@@ -1122,6 +1123,7 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  // if there is no subject and there is request.body it is a post request to create a nondicom subject
   fastify.decorate('addSubjectToProject', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -1135,39 +1137,71 @@ async function epaddb(fastify, options, done) {
           )
         );
       } else {
-        const projectSubject = await fastify.upsert(
-          models.project_subject,
-          {
-            project_id: project.id,
-            subject_uid: request.params.subject,
-            updatetime: Date.now(),
-          },
-          {
-            project_id: project.id,
-            subject_uid: request.params.subject,
-          },
-          request.epadAuth.username
-        );
-        const studies = await fastify.getPatientStudiesInternal(
-          request.params,
-          undefined,
-          request.epadAuth
-        );
-        for (let i = 0; i < studies.length; i += 1) {
-          // eslint-disable-next-line no-await-in-loop
-          await fastify.upsert(
-            models.project_subject_study,
-            {
-              proj_subj_id: projectSubject.id,
-              study_uid: studies[i].studyUID,
-              updatetime: Date.now(),
-            },
-            {
-              proj_subj_id: projectSubject.id,
-              study_uid: studies[i].studyUID,
-            },
-            request.epadAuth.username
+        if (
+          request.params.subject === undefined &&
+          (!request.body || request.body.subjectUid === undefined)
+        )
+          reply.send(
+            new BadRequestError(
+              'Adding subject to project',
+              new ResourceNotFoundError('Subject', 'No id')
+            )
           );
+        else {
+          let projectSubject = await models.project_subject.findOne({
+            where: {
+              project_id: project.id,
+              subject_uid: request.params.subject
+                ? request.params.subject
+                : request.body.subjectUid,
+            },
+          });
+
+          if (!projectSubject) {
+            projectSubject = await models.project_subject.create({
+              project_id: project.id,
+              subject_uid: request.params.subject
+                ? request.params.subject
+                : request.body.subjectUid,
+              subject_name:
+                request.body && request.body.subjectName ? request.body.subjectName : null,
+              creator: request.epadAuth.username,
+              updatetime: Date.now(),
+              createdtime: Date.now(),
+            });
+          } else if (request.body) {
+            reply.send(
+              new BadRequestError(
+                'Adding subject to project',
+                new ResourceAlreadyExistsError('Subject', request.body.subjectUid)
+              )
+            );
+          }
+          console.log(request.body, request.params.subject);
+          // if it is a dicom subject sent via put add studies to project
+          if (!request.body && request.params.subject) {
+            const studies = await fastify.getPatientStudiesInternal(
+              request.params,
+              undefined,
+              request.epadAuth
+            );
+            for (let i = 0; i < studies.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.upsert(
+                models.project_subject_study,
+                {
+                  proj_subj_id: projectSubject.id,
+                  study_uid: studies[i].studyUID,
+                  updatetime: Date.now(),
+                },
+                {
+                  proj_subj_id: projectSubject.id,
+                  study_uid: studies[i].studyUID,
+                },
+                request.epadAuth.username
+              );
+            }
+          }
         }
         reply.code(200).send('Saving successful');
       }

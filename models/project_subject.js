@@ -22,6 +22,10 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: false,
       },
+      subject_name: {
+        type: DataTypes.STRING(256),
+        allowNull: true,
+      },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,
