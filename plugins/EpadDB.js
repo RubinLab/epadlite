@@ -2332,7 +2332,7 @@ async function epaddb(fastify, options, done) {
         reply.send(new InternalError(`Getting project ${request.params.project}`, err));
       });
   });
-
+  /*
   fastify.decorate('updateProjectUser', async (request, reply) => {
     const rowsUpdated = {
       ...request.body,
@@ -2379,6 +2379,7 @@ async function epaddb(fastify, options, done) {
         );
     }
   });
+  */
 
   fastify.decorate('getUserProjectIdsInternal', (username, projectid) => {
     const query = new Promise(async (resolve, reject) => {
@@ -2739,6 +2740,62 @@ async function epaddb(fastify, options, done) {
       }
     } catch (err) {
       reply.send(new InternalError(`Getting users for project ${request.params.project}`, err));
+    }
+  });
+
+  fastify.decorate('updateProjectUserRole', async (request, reply) => {
+    try {
+      const projectId = await models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+        raw: true,
+      });
+
+      const userId = await models.user.findOne({
+        where: { username: request.params.user },
+        attributes: ['id'],
+        raw: true,
+      });
+
+      if (!projectId.id) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      } else if (!userId.id) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('User', request.params.user)
+          )
+        );
+      } else if (!request.body || !request.body.role) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('Role', request.params.user)
+          )
+        );
+      } else {
+        await fastify.upsert(
+          models.project_user,
+          {
+            role: request.body.role,
+            updatetime: Date.now(),
+            project_id: projectId.id,
+            user_id: userId.id,
+          },
+          { project_id: projectId.id, user_id: userId.id },
+          request.epadAuth.username
+        );
+        reply.code(200).send('Update successful');
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(`Updating user role for project ${request.params.project}`, err)
+      );
     }
   });
 

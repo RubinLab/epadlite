@@ -75,7 +75,7 @@ async function routes(fastify) {
     method: 'PUT',
     url: '/projects/:project/users/:user',
     schema: {
-      tags: ['user'],
+      tags: ['project', 'users'],
       params: {
         type: 'object',
         properties: {
@@ -89,9 +89,14 @@ async function routes(fastify) {
       },
       body: {
         type: 'object',
+        properties: {
+          role: {
+            type: 'string',
+          },
+        },
       },
     },
-    handler: fastify.updateProjectUser,
+    handler: fastify.updateProjectUserRole,
   });
 
   fastify.route({
