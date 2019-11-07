@@ -3616,19 +3616,19 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    // it('should get 2 subjects ', done => {
-    //   chai
-    //     .request(`http://${process.env.host}:${process.env.port}`)
-    //     .get('/projects/testsubjectnondicom/subjects')
-    //     .query({ username: 'admin' })
-    //     .then(res => {
-    //       expect(res.statusCode).to.equal(200);
-    //       expect(res.body.length).to.be.eql(2);
-    //       done();
-    //     })
-    //     .catch(e => {
-    //       done(e);
-    //     });
-    // });
+    it('should get 2 subjects ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubjectnondicom/subjects')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
   });
 });

@@ -1177,7 +1177,6 @@ async function epaddb(fastify, options, done) {
               )
             );
           }
-          console.log(request.body, request.params.subject);
           // if it is a dicom subject sent via put add studies to project
           if (!request.body && request.params.subject) {
             const studies = await fastify.getPatientStudiesInternal(
@@ -1229,6 +1228,7 @@ async function epaddb(fastify, options, done) {
         );
       } else {
         const subjectUids = [];
+        const nondicoms = [];
         const projectSubjects = await models.project_subject.findAll({
           where: { project_id: project.id },
         });
@@ -1236,6 +1236,9 @@ async function epaddb(fastify, options, done) {
           // projects will be an array of Project instances with the specified name
           for (let i = 0; i < projectSubjects.length; i += 1) {
             subjectUids.push(projectSubjects[i].subject_uid);
+            if (projectSubjects[i].subject_name) {
+              nondicoms.push(projectSubjects[i]);
+            }
           }
         }
         const result = await fastify.getPatientsInternal(
@@ -1243,12 +1246,38 @@ async function epaddb(fastify, options, done) {
           subjectUids,
           request.epadAuth
         );
-        if (subjectUids.length !== result.length)
-          fastify.log.warn(
-            `There are ${subjectUids.length} subjects associated with this project. But only ${
-              result.length
-            } of them have dicom files`
-          );
+        if (subjectUids.length !== result.length) {
+          if (subjectUids.length === result.length + nondicoms.length) {
+            for (let i = 0; i < nondicoms.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              const numberOfStudies = await models.project_subject_study.count({
+                where: { proj_subj_id: nondicoms[i].id },
+              });
+              // eslint-disable-next-line no-await-in-loop
+              const numberOfAnnotations = await models.project_aim.count({
+                where: { project_id: project.id, subject_uid: nondicoms[i].subject_uid },
+              });
+              result.push({
+                subjectName: nondicoms[i].subject_name,
+                subjectID: nondicoms[i].subject_uid,
+                projectID: request.params.project,
+                insertUser: '', // no user in studies call
+                xnatID: '', // no xnatID should remove
+                insertDate: '', // no date in studies call
+                uri: '', // no uri should remove
+                displaySubjectID: nondicoms[i].subject_uid,
+                numberOfStudies,
+                numberOfAnnotations,
+                examTypes: '',
+              });
+            }
+          } else
+            fastify.log.warn(
+              `There are ${subjectUids.length} subjects associated with this project. But only ${
+                result.length
+              } of them have dicom files`
+            );
+        }
         reply.code(200).send(result);
       }
     } catch (err) {
