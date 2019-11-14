@@ -463,11 +463,12 @@ async function other(fastify) {
         fastify.deleteDisconnectedUser(request);
       }); // <- Remove this user when he disconnects
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        reply.send(new UnauthenticatedError('No epadauth in request'));
+      else
         reply.send(
           new InternalError(`Adding user ${request.epadAuth.username} to notification list`, err)
         );
-      else reply.send(new UnauthenticatedError('No epadauth in request'));
     }
   });
 
@@ -679,12 +680,13 @@ async function other(fastify) {
       }
       return undefined;
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        throw new UnauthenticatedError('No epadauth in request');
+      else
         throw new InternalError(
           `Checking access for ${request.epadAuth.username}, project ${project}`,
           err
         );
-      else throw new UnauthenticatedError('No epadauth in request');
     }
   });
 
@@ -704,12 +706,13 @@ async function other(fastify) {
       }
       return true;
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        throw new UnauthenticatedError('No epadauth in request');
+      else
         throw new InternalError(
           `Checking create permission for ${request.epadAuth.username}, level ${level}`,
           err
         );
-      else throw new UnauthenticatedError('No epadauth in request');
     }
   });
 
@@ -720,12 +723,13 @@ async function other(fastify) {
         return true;
       return false;
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        throw new UnauthenticatedError('No epadauth in request');
+      else
         throw new InternalError(
           `Checking ownership for ${request.epadAuth.username}, project ${project}`,
           err
         );
-      else throw new UnauthenticatedError('No epadauth in request');
     }
   });
 
@@ -756,14 +760,15 @@ async function other(fastify) {
       }
       return false;
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        throw new UnauthenticatedError('No epadauth in request');
+      else
         throw new InternalError(
           `Checking creatorship for ${request.epadAuth.username}, level ${reqInfo.level}, object ${
             reqInfo.objectId
           }`,
           err
         );
-      else throw new UnauthenticatedError('No epadauth in request');
     }
   });
 

@@ -364,7 +364,8 @@ async function couchdb(fastify, options) {
     (format, params, filter, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
-          if (epadAuth === undefined) reject(new UnauthenticatedError('No epadauth in request'));
+          if (config.auth && config.auth !== 'none' && epadAuth === undefined)
+            reject(new UnauthenticatedError('No epadauth in request'));
           // make sure there is value in all three
           // only the last ove should have \u9999 at the end
           const myParams = params;
