@@ -665,9 +665,6 @@ async function epaddb(fastify, options, done) {
       });
       const result = [];
       for (let i = 0; i < worklists.length; i += 1) {
-        // console.log('--------> worklists');
-        // console.log(worklists[i].requirements);
-        // console.log('--------> worklists');
         const obj = {
           completionDate: worklists[i].completedate,
           dueDate: worklists[i].duedate,
@@ -961,8 +958,6 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('deleteStudyToWorklistRelation', async (request, reply) => {
-    console.log(' ----- deleteStudyToWorklistRelation ----');
-    console.log(request.body);
     if (!request.body || !Array.isArray(request.body) || request.body.length === 0) {
       reply.send(
         new BadRequestError(
@@ -2306,6 +2301,7 @@ async function epaddb(fastify, options, done) {
       models.user
         .create({
           ...request.body,
+          // permissions: trimmedPermission,
           createdtime: Date.now(),
           updatetime: Date.now(),
           creator: request.epadAuth.username,
@@ -2461,7 +2457,6 @@ async function epaddb(fastify, options, done) {
           const permissions = user.permissions ? user.permissions.split(',') : [''];
           const trimmedPermission = [];
           permissions.forEach(el => trimmedPermission.push(el.trim()));
-          console.log(trimmedPermission);
           const obj = {
             colorpreference: user.colorpreference,
             creator: user.creator,
