@@ -101,6 +101,14 @@ if (config.env !== 'test' && config.mode === 'thick') {
     }
   );
 
+  // register epaddb plugin we created
+  // eslint-disable-next-line global-require
+  fastify.register(require('./plugins/EpadDB'));
+  // register routes
+  // this should be done after CouchDB plugin to be able to use the accessor methods
+  // for both thick and lite
+  fastify.register(require('./routes/worklist')); // eslint-disable-line global-require
+
   // adding generic routes for completion, in lite, they work the same as the projects/lite prefix
   fastify.register(require('./routes/template')); // eslint-disable-line global-require
   fastify.register(require('./routes/aim')); // eslint-disable-line global-require
@@ -112,15 +120,6 @@ if (config.env !== 'test' && config.mode === 'thick') {
     fastify.register(require('./routes/aim'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
     fastify.register(require('./routes/dicomweb'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
   } else if (config.mode === 'thick') {
-    // these are supposted to be in lite too, moved in thick for now
-    // register epaddb plugin we created
-    // eslint-disable-next-line global-require
-    fastify.register(require('./plugins/EpadDB'));
-    // register routes
-    // this should be done after CouchDB plugin to be able to use the accessor methods
-    // for both thick and lite
-    fastify.register(require('./routes/worklist')); // eslint-disable-line global-require
-
     fastify.register(require('./routes/project')); // eslint-disable-line global-require
     fastify.register(require('./routes/projectTemplate')); // eslint-disable-line global-require
     fastify.register(require('./routes/projectAim')); // eslint-disable-line global-require
