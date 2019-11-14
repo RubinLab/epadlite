@@ -3683,7 +3683,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should fail trying to add same nondicom study 4315541363646543 ABC to project testsubjectnondicom patient 4 should be successful ', done => {
+    it('should fail trying to add same nondicom study 4315541363646543 ABC to project testsubjectnondicom patient 4 ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testsubjectnondicom/subjects/4/studies')
@@ -3691,6 +3691,33 @@ describe('Project Tests', () => {
         .send({ studyUid: '4315541363646543', studyDesc: 'ABC' })
         .then(res => {
           expect(res.statusCode).to.equal(409);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed to adding nondicom series 14356765342 DESC to study 4315541363646543 to project testsubjectnondicom patient 4 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/series')
+        .query({ username: 'admin' })
+        .send({ seriesUid: '14356765342', description: 'DESC' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return one nondicom series 14356765342 DESC for study 4315541363646543 to project testsubjectnondicom patient 4 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/series')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
           done();
         })
         .catch(e => {

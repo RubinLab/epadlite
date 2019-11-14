@@ -2291,8 +2291,65 @@ async function epaddb(fastify, options, done) {
     fastify
       .getStudySeriesInternal(request.params, request.query, request.epadAuth)
       .then(result => reply.code(200).send(result))
-      .catch(err => reply.send(err));
+      .catch(err =>
+        fastify
+          .getNondicomStudySeriesFromProjectInternal(request.params)
+          .then(nondicomResult => reply.code(200).send(nondicomResult))
+          .catch(nondicomErr => {
+            reply.send(
+              new InternalError(
+                'Retrieving series',
+                new Error(
+                  `Failed from dicomweb with ${err.message} and from nondicom with ${
+                    nondicomErr.message
+                  }`
+                )
+              )
+            );
+          })
+      );
   });
+  fastify.decorate(
+    'getNondicomStudySeriesFromProjectInternal',
+    params =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const result = [];
+          const series = await models.nondicom_series.findAll({
+            where: { study_uid: params.study },
+            raw: true,
+          });
+          for (let i = 0; i < series.length; i += 1) {
+            result.push({
+              projectID: params.project,
+              patientID: params.subject,
+              patientName: '', // TODO
+              studyUID: params.study,
+              seriesUID: series[i].seriesuid,
+              seriesDate: series[i].seriesdate,
+              seriesDescription: series[i].description,
+              examType: '',
+              bodyPart: '', // TODO
+              accessionNumber: '',
+              numberOfImages: 0, // TODO
+              numberOfSeriesRelatedInstances: 0, // TODO
+              numberOfAnnotations: 0, // TODO
+              institution: '',
+              stationName: '',
+              department: '',
+              createdTime: '', // TODO
+              firstImageUIDInSeries: '', // TODO
+              isDSO: false,
+              isNonDicomSeries: true,
+              seriesNo: '',
+            });
+          }
+          resolve(result);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
   fastify.decorate('getSeriesImagesFromProject', (request, reply) => {
     // TODO project filtering
     fastify
@@ -2948,6 +3005,40 @@ async function epaddb(fastify, options, done) {
         ),
         err
       );
+    }
+  });
+
+  fastify.decorate('addNondicomSeries', async (request, reply) => {
+    // eslint-disable-next-line prefer-destructuring
+    let seriesUid = request.params.seriesUid;
+    if (!seriesUid) {
+      // eslint-disable-next-line prefer-destructuring
+      seriesUid = request.body.seriesUid;
+    }
+    if (!seriesUid) {
+      reply.send(
+        new BadRequestError(
+          'Adding nondicom series to project',
+          new ResourceNotFoundError('Nondicom series', 'No id')
+        )
+      );
+    }
+    const series = await models.nondicom_series.findOne({
+      where: { seriesuid: seriesUid },
+    });
+    if (series) {
+      reply.send(new ResourceAlreadyExistsError('Nondicom series', seriesUid));
+    } else {
+      await models.nondicom_series.create({
+        seriesuid: seriesUid,
+        study_uid: request.params.study,
+        description: request.body.description,
+        seriesdate: Date.now(),
+        updatetime: Date.now(),
+        createdtime: Date.now(),
+        creator: request.epadAuth.username,
+      });
+      reply.code(200).send(`${seriesUid} added successfully`);
     }
   });
 

@@ -15,13 +15,10 @@ module.exports = function(sequelize, DataTypes) {
         allowNull: true,
         unique: true,
       },
-      study_id: {
-        type: DataTypes.INTEGER(10).UNSIGNED,
+      study_uid: {
+        type: DataTypes.STRING(128),
         allowNull: true,
-        references: {
-          model: 'study',
-          key: 'id',
-        },
+        unique: true,
       },
       description: {
         type: DataTypes.STRING(1000),

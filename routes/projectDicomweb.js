@@ -379,5 +379,73 @@ async function routes(fastify) {
 
     handler: fastify.getStudiesFromProject,
   });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/subjects/:subject/studies/:study/series/:series',
+    schema: {
+      tags: ['project', 'series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          description: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.addNondicomSeries,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/subjects/:subject/studies/:study/series',
+    schema: {
+      tags: ['project', 'series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          seriesUid: {
+            type: 'string',
+          },
+          description: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.addNondicomSeries,
+  });
 }
 module.exports = routes;
