@@ -26,6 +26,7 @@ const {
   BadRequestError,
   UnauthenticatedError,
   UnauthorizedError,
+  ResourceAlreadyExistsError,
 } = require('../utils/EpadErrors');
 
 async function other(fastify) {
@@ -850,6 +851,7 @@ async function other(fastify) {
     else if (error instanceof BadRequestError) reply.code(400);
     else if (error instanceof UnauthenticatedError) reply.code(401);
     else if (error instanceof UnauthorizedError) reply.code(403);
+    else if (error instanceof ResourceAlreadyExistsError) reply.code(409);
     try {
       new EpadNotification(request, fastify.getInfoFromRequest(request), error).notify(fastify);
     } catch (err) {

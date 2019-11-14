@@ -3593,7 +3593,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .send({ subjectUid: '3', subjectName: 'testnondicom' })
         .then(res => {
-          expect(res.statusCode).to.equal(400);
+          expect(res.statusCode).to.equal(409);
           done();
         })
         .catch(e => {
@@ -3622,6 +3622,20 @@ describe('Project Tests', () => {
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(2);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail adding nondicom patient 4 to project testsubjectnondicom again ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testsubjectnondicom/subjects')
+        .query({ username: 'admin' })
+        .send({ subjectUid: '4', subjectName: 'testnondicom' })
+        .then(res => {
+          expect(res.statusCode).to.equal(409);
           done();
         })
         .catch(e => {
@@ -3663,6 +3677,20 @@ describe('Project Tests', () => {
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail trying to add same nondicom study 4315541363646543 ABC to project testsubjectnondicom patient 4 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testsubjectnondicom/subjects/4/studies')
+        .query({ username: 'admin' })
+        .send({ studyUid: '4315541363646543', studyDesc: 'ABC' })
+        .then(res => {
+          expect(res.statusCode).to.equal(409);
           done();
         })
         .catch(e => {

@@ -1170,12 +1170,7 @@ async function epaddb(fastify, options, done) {
               createdtime: Date.now(),
             });
           } else if (request.body) {
-            reply.send(
-              new BadRequestError(
-                'Adding subject to project',
-                new ResourceAlreadyExistsError('Subject', request.body.subjectUid)
-              )
-            );
+            reply.send(new ResourceAlreadyExistsError('Subject', request.body.subjectUid));
           }
           // if it is a dicom subject sent via put add studies to project
           if (!request.body && request.params.subject) {
@@ -2036,6 +2031,7 @@ async function epaddb(fastify, options, done) {
           if (!studyUid && body) {
             // eslint-disable-next-line prefer-destructuring
             studyUid = body.studyUid;
+            // check if the studyUid exists and return duplicate entity error
           }
           if (!studyUid)
             reject(
@@ -2082,6 +2078,8 @@ async function epaddb(fastify, options, done) {
                 updatetime: Date.now(),
                 createdtime: Date.now(),
               });
+            } else if (body) {
+              reject(new ResourceAlreadyExistsError('Study', body.studyUid));
             }
             resolve();
           }
