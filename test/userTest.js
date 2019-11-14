@@ -316,9 +316,8 @@ describe('User Tests', () => {
   it('should delete the relation of project1 if the role is none', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .put('/projects/test2/users/test1@gmail.com')
+      .delete('/projects/test2/users/test1@gmail.com')
       .query({ username: 'admin' })
-      .send({ role: 'none' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();

@@ -399,10 +399,8 @@ async function epaddb(fastify, options, done) {
     if (!name || !id) {
       return EpadError.messages.requiredField;
       // eslint-disable-next-line no-else-return
-    } else if (name.length < 2) {
+    } else if ((name.length === 2 && name.includes(' ')) || name.length < 2) {
       return EpadError.messages.shortName;
-    } else if (name === '  ') {
-      return EpadError.messages.allSpace;
     } else if (id.includes('/')) {
       return EpadError.messages.badChar;
     }
@@ -413,77 +411,100 @@ async function epaddb(fastify, options, done) {
     try {
       const assigneeInfoArr = [];
       const assigneeIDArr = [];
+      const creator = request.epadAuth.username;
 
       const { name, worklistId } = request.body;
       // validate required fields
       const validationErr = fastify.validateRequestBodyFields(name, worklistId);
       if (validationErr) {
         reply.send(new BadRequestError('Creating worklist', new Error(validationErr)));
-      }
-      request.body.assignees.forEach(el => {
-        assigneeInfoArr.push(fastify.findUserIdInternal(el));
-      });
-
-      Promise.all(assigneeInfoArr)
-        .then(results => {
-          results.forEach(el => {
-            assigneeIDArr.push(el);
+      } else {
+        if (request.body.assignees) {
+          request.body.assignees.forEach(el => {
+            assigneeInfoArr.push(fastify.findUserIdInternal(el));
           });
-          models.worklist
-            .create({
-              name: request.body.name,
-              worklistid: request.body.worklistId,
-              user_id: null,
-              description: request.body.description,
-              updatetime: Date.now(),
-              createdtime: Date.now(),
-              duedate: request.body.dueDate ? new Date(`${request.body.dueDate}T00:00:00`) : null,
-              creator: request.epadAuth.username,
-            })
-            .then(worklist => {
-              const relationArr = [];
-              assigneeIDArr.forEach(el => {
-                relationArr.push(
-                  models.worklist_user.create({
-                    worklist_id: worklist.id,
-                    user_id: el,
-                    role: 'Assignee',
-                    createdtime: Date.now(),
-                    creator: request.epadAuth.username,
-                  })
-                );
-              });
-              // after resolving all send 200 or in catch send 503
-              Promise.all(relationArr)
-                .then(() => {
-                  reply.code(200).send(`Worklist ${worklist.id} is created successfully`);
-                })
-                .catch(relationErr => {
-                  reply.send(new InternalError('Creating worklist user association', relationErr));
-                });
-            })
-            .catch(worklistCreationErr => {
-              reply.send(new InternalError('Creating worklist', worklistCreationErr));
+        }
+
+        Promise.all(assigneeInfoArr)
+          .then(results => {
+            results.forEach(el => {
+              assigneeIDArr.push(el);
             });
-        })
-        .catch(userIDErr => {
-          if (userIDErr instanceof ResourceNotFoundError)
-            reply.send(new BadRequestError('Creating worklist', userIDErr));
-          else reply.send(userIDErr);
-        });
+            models.worklist
+              .create({
+                name: request.body.name,
+                worklistid: request.body.worklistId,
+                user_id: null,
+                description: request.body.description,
+                updatetime: Date.now(),
+                createdtime: Date.now(),
+                duedate: request.body.dueDate ? new Date(`${request.body.dueDate}T00:00:00`) : null,
+                creator,
+              })
+              .then(worklist => {
+                const relationArr = [];
+                assigneeIDArr.forEach(el => {
+                  relationArr.push(
+                    models.worklist_user.create({
+                      worklist_id: worklist.id,
+                      user_id: el,
+                      role: 'Assignee',
+                      createdtime: Date.now(),
+                      creator,
+                    })
+                  );
+                });
+
+                if (request.body.requirement) {
+                  request.body.requirement.forEach(req => {
+                    relationArr.push(
+                      models.worklist_requirement.create({
+                        worklist_id: worklist.id,
+                        level: req.level,
+                        template: req.template,
+                        numOfAims: req.numOfAims,
+                        creator,
+                        updatetime: Date.now(),
+                        createdtime: Date.now(),
+                      })
+                    );
+                  });
+                }
+
+                // after resolving all send 200 or in catch send 503
+                Promise.all(relationArr)
+                  .then(() => {
+                    reply.code(200).send(`Worklist ${worklist.id} is created successfully`);
+                  })
+                  .catch(relationErr => {
+                    reply.send(
+                      new InternalError('Creating worklist user association', relationErr)
+                    );
+                  });
+              })
+              .catch(worklistCreationErr => {
+                reply.send(new InternalError('Creating worklist', worklistCreationErr));
+              });
+          })
+          .catch(userIDErr => {
+            if (userIDErr instanceof ResourceNotFoundError)
+              reply.send(new BadRequestError('Creating worklist', userIDErr));
+            else reply.send(userIDErr);
+          });
+      }
       // TODO: give more detailed err  message about not finding assignee id
     } catch (err) {
       if (err instanceof ResourceNotFoundError)
         reply.send(
           new BadRequestError(
-            `Worklist ${request.body.worklistid} creation by user ${request.epadAuth.username}`,
+            `Worklist ${request.body.worklistId} creation by user ${request.epadAuth.username}`,
             err
           )
         );
       else
         reply.send(
           new InternalError(
-            `Worklist ${request.body.worklistid} creation by user ${request.epadAuth.username}`,
+            `Worklist ${request.body.worklistId} creation by user ${request.epadAuth.username}`,
             err
           )
         );
@@ -640,10 +661,13 @@ async function epaddb(fastify, options, done) {
         where: {
           creator: request.epadAuth.username,
         },
-        include: ['users', 'studies'],
+        include: ['users', 'studies', 'requirements'],
       });
       const result = [];
       for (let i = 0; i < worklists.length; i += 1) {
+        // console.log('--------> worklists');
+        // console.log(worklists[i].requirements);
+        // console.log('--------> worklists');
         const obj = {
           completionDate: worklists[i].completedate,
           dueDate: worklists[i].duedate,
@@ -657,7 +681,13 @@ async function epaddb(fastify, options, done) {
           studyUIDs: [],
           subjectUIDs: [],
           assignees: [],
+          requirements: [],
         };
+
+        for (let k = 0; k < worklists[i].requirements.length; k += 1) {
+          const { level, numOfAims, template } = worklists[i].requirements[k];
+          obj.requirements.push({ level, numOfAims, template });
+        }
 
         for (let k = 0; k < worklists[i].users.length; k += 1) {
           obj.assignees.push(worklists[i].users[k].username);
@@ -931,6 +961,8 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('deleteStudyToWorklistRelation', async (request, reply) => {
+    console.log(' ----- deleteStudyToWorklistRelation ----');
+    console.log(request.body);
     if (!request.body || !Array.isArray(request.body) || request.body.length === 0) {
       reply.send(
         new BadRequestError(
@@ -2262,6 +2294,15 @@ async function epaddb(fastify, options, done) {
     if (!request.body) {
       reply.send(new BadRequestError('User Creation', new Error('No body sent')));
     } else {
+      // check permissions if there is a space
+      // remove spaces
+      const permissions = request.body.permissions ? request.body.permissions.split(',') : [''];
+      const trimmedPermission = [];
+      permissions.forEach(el => trimmedPermission.push(el.trim()));
+      if (request.body.permissions) {
+        delete request.body.permissions;
+      }
+      request.body.permissions = trimmedPermission.join(',');
       models.user
         .create({
           ...request.body,
@@ -2418,6 +2459,9 @@ async function epaddb(fastify, options, done) {
           });
 
           const permissions = user.permissions ? user.permissions.split(',') : [''];
+          const trimmedPermission = [];
+          permissions.forEach(el => trimmedPermission.push(el.trim()));
+          console.log(trimmedPermission);
           const obj = {
             colorpreference: user.colorpreference,
             creator: user.creator,
@@ -2428,7 +2472,7 @@ async function epaddb(fastify, options, done) {
             firstname: user.firstname,
             lastname: user.lastname,
             passwordExpired: user.passwordexpired,
-            permissions,
+            permissions: trimmedPermission,
             projectToRole,
             projects,
             username: user.username,

@@ -31,6 +31,22 @@ async function routes(fastify) {
           dueDate: {
             type: 'string',
           },
+          requirement: {
+            type: 'array',
+            items: {
+              properties: {
+                level: {
+                  type: 'string',
+                },
+                template: {
+                  type: 'string',
+                },
+                numOfAims: {
+                  type: 'string',
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -101,6 +117,17 @@ async function routes(fastify) {
             type: 'string',
           },
           study: { type: 'string' },
+        },
+      },
+    },
+    body: {
+      type: 'object',
+      properties: {
+        studyDesc: {
+          type: 'string',
+        },
+        subjectName: {
+          type: 'string',
         },
       },
     },
