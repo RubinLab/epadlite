@@ -2022,16 +2022,28 @@ async function epaddb(fastify, options, done) {
   // });
   fastify.decorate('addPatientStudyToProject', (request, reply) => {
     fastify
-      .addPatientStudyToProjectInternal(request.params, request.epadAuth)
+      .addPatientStudyToProjectInternal(request.params, request.epadAuth, request.body)
       .then(result => reply.code(200).send(result))
       .catch(err => reply.send(err));
   });
 
   fastify.decorate(
     'addPatientStudyToProjectInternal',
-    (params, epadAuth) =>
+    (params, epadAuth, body) =>
       new Promise(async (resolve, reject) => {
         try {
+          let studyUid = params.study;
+          if (!studyUid && body) {
+            // eslint-disable-next-line prefer-destructuring
+            studyUid = body.studyUid;
+          }
+          if (!studyUid)
+            reject(
+              new BadRequestError(
+                'Adding study to project',
+                new ResourceNotFoundError('Study', 'No study UID')
+              )
+            );
           const project = await models.project.findOne({ where: { projectid: params.project } });
           if (project === null)
             reject(
@@ -2054,16 +2066,23 @@ async function epaddb(fastify, options, done) {
               });
             // create only when that is not already there
             const projectSubjectStudy = await models.project_subject_study.findOne({
-              where: { proj_subj_id: projectSubject.id, study_uid: params.study },
+              where: { proj_subj_id: projectSubject.id, study_uid: studyUid },
             });
-            if (!projectSubjectStudy)
+            if (!projectSubjectStudy) {
+              let studyDesc = null;
+              if (body && body.studyDesc) {
+                // eslint-disable-next-line prefer-destructuring
+                studyDesc = body.studyDesc;
+              }
               await models.project_subject_study.create({
                 proj_subj_id: projectSubject.id,
-                study_uid: params.study,
+                study_uid: studyUid,
+                study_desc: studyDesc,
                 creator: epadAuth.username,
                 updatetime: Date.now(),
                 createdtime: Date.now(),
               });
+            }
             resolve();
           }
         } catch (err) {
@@ -2088,6 +2107,7 @@ async function epaddb(fastify, options, done) {
         );
       else {
         const studyUids = [];
+        const nondicoms = [];
         const projectSubjects = await models.project_subject.findAll({
           where: { project_id: project.id, subject_uid: request.params.subject },
         });
@@ -2108,6 +2128,9 @@ async function epaddb(fastify, options, done) {
             if (projectSubjectStudies)
               for (let j = 0; j < projectSubjectStudies.length; j += 1) {
                 studyUids.push(projectSubjectStudies[j].study_uid);
+                if (projectSubjectStudies[j].study_desc) {
+                  nondicoms.push({ subject: projectSubjects[i], study: projectSubjectStudies[j] });
+                }
               }
           }
           const result = await fastify.getPatientStudiesInternal(
@@ -2116,20 +2139,52 @@ async function epaddb(fastify, options, done) {
             request.epadAuth
           );
           if (studyUids.length !== result.length)
-            fastify.log.warn(
-              `There are ${studyUids.length} studies associated with this project. But only ${
-                result.length
-              } of them have dicom files`
-            );
+            if (studyUids.length === result.length + nondicoms.length) {
+              for (let i = 0; i < nondicoms.length; i += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                const numberOfAnnotations = await models.project_aim.count({
+                  where: { project_id: project.id, study_uid: nondicoms[i].study.study_uid },
+                });
+                result.push({
+                  projectID: request.params.project,
+                  patientID: nondicoms[i].subject.subject_uid,
+                  patientName: nondicoms[i].subject.subject_name,
+                  studyUID: nondicoms[i].study.study_uid,
+                  insertDate: '',
+                  firstSeriesUID: '',
+                  firstSeriesDateAcquired: '',
+                  physicianName: '',
+                  referringPhysicianName: '',
+                  birthdate: '',
+                  sex: '',
+                  studyDescription: nondicoms[i].study.study_desc,
+                  studyAccessionNumber: '',
+                  examTypes: [],
+                  numberOfImages: 0, // TODO
+                  numberOfSeries: 0, // TODO
+                  numberOfAnnotations,
+                  createdTime: '',
+                  // extra for flexview
+                  studyID: '',
+                  studyDate: '',
+                  studyTime: '',
+                });
+              }
+            } else
+              fastify.log.warn(
+                `There are ${studyUids.length} studies associated with this project. But only ${
+                  result.length
+                } of them have dicom files`
+              );
           reply.code(200).send(result);
         }
       }
     } catch (err) {
       reply.send(
         new InternalError(
-          `Getting studies of ${request.params.subject} from project ${request.params.project}`
-        ),
-        err
+          `Getting studies of ${request.params.subject} from project ${request.params.project}`,
+          err
+        )
       );
     }
   });

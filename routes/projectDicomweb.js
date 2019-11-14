@@ -281,6 +281,40 @@ async function routes(fastify) {
   });
 
   fastify.route({
+    method: 'POST',
+    url: '/projects/:project/subjects/:subject/studies',
+    schema: {
+      tags: ['project', 'study'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          studyUid: {
+            type: 'string',
+          },
+          studyDesc: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.addPatientStudyToProject,
+  });
+
+  fastify.route({
     method: 'GET',
     url: '/projects/:project/subjects/:subject/studies/:study',
     schema: {

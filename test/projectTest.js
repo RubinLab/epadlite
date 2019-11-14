@@ -617,8 +617,6 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          console.log(res.body);
-
           expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
           done();
         })
@@ -3624,6 +3622,47 @@ describe('Project Tests', () => {
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(2);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project study add of study 0023.2015.09.28.3 to project testsubjectnondicom should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testsubjectnondicom/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project study add of nondicom study 4315541363646543 ABC to project testsubjectnondicom patient 4 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testsubjectnondicom/subjects/4/studies')
+        .query({ username: 'admin' })
+        .send({ studyUid: '4315541363646543', studyDesc: 'ABC' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should get 1 study for patient 4 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubjectnondicom/subjects/4/studies')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {
