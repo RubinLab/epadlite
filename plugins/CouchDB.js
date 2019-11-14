@@ -24,7 +24,7 @@ async function couchdb(fastify, options) {
       if (config.env !== 'test') {
         fastify.log.warn('Waiting for couchdb server');
         setTimeout(fastify.init, 3000);
-      } else throw InternalError('No connection to couchdb', err);
+      } else throw new InternalError('No connection to couchdb', err);
     }
     return null;
   });
@@ -1240,6 +1240,50 @@ async function couchdb(fastify, options) {
     } catch (err) {
       throw new InternalError('Getting author from aimuid', err);
     }
+  });
+
+  fastify.decorate('deleteTemplateFromSystem', async (request, reply) => {
+    try {
+      let numDeleted = 0;
+      if (config.mode === 'thick') numDeleted = await fastify.deleteTemplateFromDB(request.params);
+      await fastify.deleteTemplateInternal(request.params);
+      reply.code(200).send(`Template deleted from system and removed from ${numDeleted} projects`);
+    } catch (err) {
+      reply.send(new InternalError(`Template ${request.params.uid} deletion from system`, err));
+    }
+  });
+
+  // TODO filter for user??
+  fastify.decorate('getFiles', (request, reply) => {
+    try {
+      fastify
+        .getFilesInternal(request.query)
+        .then(result => {
+          if (request.query.format === 'stream') {
+            reply.header('Content-Disposition', `attachment; filename=files.zip`);
+          }
+          reply.code(200).send(result);
+        })
+        .catch(err => reply.send(err));
+    } catch (err) {
+      reply.send(new InternalError('Getting system files', err));
+    }
+  });
+
+  fastify.decorate('getFile', (request, reply) => {
+    fastify
+      .getFilesFromUIDsInternal(request.query, [request.params.filename])
+      .then(result => {
+        if (request.query.format === 'stream') {
+          reply.header('Content-Disposition', `attachment; filename=files.zip`);
+          reply.code(200).send(result);
+        } else if (result.length === 1) reply.code(200).send(result[0]);
+        else {
+          fastify.log.warn(`Was expecting to find 1 record, found ${result.length}`);
+          reply.send(new ResourceNotFoundError('File', request.params.filename));
+        }
+      })
+      .catch(err => reply.send(err));
   });
 
   fastify.log.info(`Using db: ${config.db}`);

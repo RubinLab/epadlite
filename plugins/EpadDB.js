@@ -17,111 +17,115 @@ async function epaddb(fastify, options, done) {
   const models = {};
 
   fastify.decorate('initMariaDB', async () => {
-    const sequelizeConfig = {
-      dialect: 'mariadb',
-      database: config.thickDb.name,
-      host: config.thickDb.host,
-      port: config.thickDb.port,
-      username: config.thickDb.user,
-      password: config.thickDb.pass,
-      pool: {
-        max: 5,
-        min: 0,
-        acquire: 30000,
-        idle: 10000,
-      },
-      define: {
-        timestamps: false,
-      },
-      logging: config.thickDb.logger,
-    };
+    try {
+      const sequelizeConfig = {
+        dialect: 'mariadb',
+        database: config.thickDb.name,
+        host: config.thickDb.host,
+        port: config.thickDb.port,
+        username: config.thickDb.user,
+        password: config.thickDb.pass,
+        pool: {
+          max: 5,
+          min: 0,
+          acquire: 30000,
+          idle: 10000,
+        },
+        define: {
+          timestamps: false,
+        },
+        logging: config.thickDb.logger,
+      };
 
-    // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
-    // used sequelize itself to get the latest version with mariadb support
-    await new Promise(async (resolve, reject) => {
-      try {
-        const sequelize = new Sequelize(sequelizeConfig);
-        fastify.decorate('orm', sequelize);
-        await fastify.orm.authenticate();
-      } catch (err) {
-        if (config.env === 'test') {
-          try {
-            sequelizeConfig.database = '';
-            const sequelize = new Sequelize(sequelizeConfig);
-            await sequelize.query(`CREATE DATABASE ${config.thickDb.name};`);
-            await fastify.orm.authenticate();
-          } catch (testDBErr) {
-            reject(new InternalError('Creating test mariadb database', testDBErr));
-          }
-        } else {
-          reject(new InternalError(`Connecting to mariadb ${config.thickDb.name}`, err));
-        }
-      }
-      try {
-        const filenames = fs.readdirSync(`${__dirname}/../models`);
-        for (let i = 0; i < filenames.length; i += 1) {
-          models[filenames[i].replace(/\.[^/.]+$/, '')] = fastify.orm.import(
-            path.join(__dirname, '/../models', filenames[i])
-          );
-        }
-        models.user.belongsToMany(models.project, {
-          through: 'project_user',
-          as: 'projects',
-          foreignKey: 'user_id',
-        });
-        models.worklist.hasMany(models.worklist_study, {
-          as: 'studies',
-          foreignKey: 'worklist_id',
-        });
-        models.worklist.hasMany(models.worklist_requirement, {
-          as: 'requirements',
-          foreignKey: 'worklist_id',
-        });
-        models.worklist_study.hasMany(models.worklist_study_completeness, {
-          as: 'progress',
-          foreignKey: 'worklist_study_id',
-        });
-
-        models.project.belongsToMany(models.user, {
-          through: 'project_user',
-          as: 'users',
-          foreignKey: 'project_id',
-        });
-        // models.worklist.belongsTo(models.user, { foreignKey: 'user_id' });
-
-        models.worklist.belongsToMany(models.user, {
-          through: 'worklist_user',
-          as: 'users',
-          foreignKey: 'worklist_id',
-        });
-
-        models.user.belongsToMany(models.worklist, {
-          through: 'worklist_user',
-          as: 'worklists',
-          foreignKey: 'user_id',
-        });
-
-        await fastify.orm.sync();
-        if (config.env === 'test') {
-          try {
-            await models.user.create({
-              username: 'admin',
-              firstname: 'admin',
-              lastname: 'admin',
-              email: 'admin@gmail.com',
-              admin: true,
-              createdtime: Date.now(),
-              updatetime: Date.now(),
-            });
-          } catch (userCreateErr) {
-            reject(new InternalError('Creating admin user in testdb', userCreateErr));
+      // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
+      // used sequelize itself to get the latest version with mariadb support
+      await new Promise(async (resolve, reject) => {
+        try {
+          const sequelize = new Sequelize(sequelizeConfig);
+          fastify.decorate('orm', sequelize);
+          await fastify.orm.authenticate();
+        } catch (err) {
+          if (config.env === 'test') {
+            try {
+              sequelizeConfig.database = '';
+              const sequelize = new Sequelize(sequelizeConfig);
+              await sequelize.query(`CREATE DATABASE ${config.thickDb.name};`);
+              await fastify.orm.authenticate();
+            } catch (testDBErr) {
+              reject(new InternalError('Creating test mariadb database', testDBErr));
+            }
+          } else {
+            reject(new InternalError(`Connecting to mariadb ${config.thickDb.name}`, err));
           }
         }
-        resolve();
-      } catch (err) {
-        reject(new InternalError('Leading models and syncing db', err));
-      }
-    });
+        try {
+          const filenames = fs.readdirSync(`${__dirname}/../models`);
+          for (let i = 0; i < filenames.length; i += 1) {
+            models[filenames[i].replace(/\.[^/.]+$/, '')] = fastify.orm.import(
+              path.join(__dirname, '/../models', filenames[i])
+            );
+          }
+          models.user.belongsToMany(models.project, {
+            through: 'project_user',
+            as: 'projects',
+            foreignKey: 'user_id',
+          });
+          models.worklist.hasMany(models.worklist_study, {
+            as: 'studies',
+            foreignKey: 'worklist_id',
+          });
+          models.worklist.hasMany(models.worklist_requirement, {
+            as: 'requirements',
+            foreignKey: 'worklist_id',
+          });
+          models.worklist_study.hasMany(models.worklist_study_completeness, {
+            as: 'progress',
+            foreignKey: 'worklist_study_id',
+          });
+
+          models.project.belongsToMany(models.user, {
+            through: 'project_user',
+            as: 'users',
+            foreignKey: 'project_id',
+          });
+          // models.worklist.belongsTo(models.user, { foreignKey: 'user_id' });
+
+          models.worklist.belongsToMany(models.user, {
+            through: 'worklist_user',
+            as: 'users',
+            foreignKey: 'worklist_id',
+          });
+
+          models.user.belongsToMany(models.worklist, {
+            through: 'worklist_user',
+            as: 'worklists',
+            foreignKey: 'user_id',
+          });
+
+          await fastify.orm.sync();
+          if (config.env === 'test') {
+            try {
+              await models.user.create({
+                username: 'admin',
+                firstname: 'admin',
+                lastname: 'admin',
+                email: 'admin@gmail.com',
+                admin: true,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+              });
+            } catch (userCreateErr) {
+              reject(new InternalError('Creating admin user in testdb', userCreateErr));
+            }
+          }
+          resolve();
+        } catch (err) {
+          reject(new InternalError('Leading models and syncing db', err));
+        }
+      });
+    } catch (err) {
+      throw err;
+    }
   });
 
   fastify.decorate('findUserIdInternal', username => {
@@ -1110,18 +1114,11 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('deleteTemplateFromSystem', async (request, reply) => {
-    try {
-      const templateUid = request.params.uid;
-      const numDeleted = await models.project_template.destroy({
-        where: { template_uid: templateUid },
-      });
-      await fastify.deleteTemplateInternal(request.params);
-      reply.code(200).send(`Template deleted from system and removed from ${numDeleted} projects`);
-    } catch (err) {
-      reply.send(new InternalError(`Template ${request.params.uid} deletion from system`, err));
-    }
-  });
+  fastify.decorate('deleteTemplateFromDB', params =>
+    models.project_template.destroy({
+      where: { template_uid: params.uid },
+    })
+  );
 
   // if there is no subject and there is request.body it is a post request to create a nondicom subject
   fastify.decorate('addSubjectToProject', async (request, reply) => {
@@ -2790,23 +2787,6 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  // TODO filter for user??
-  fastify.decorate('getFiles', (request, reply) => {
-    try {
-      fastify
-        .getFilesInternal(request.query)
-        .then(result => {
-          if (request.query.format === 'stream') {
-            reply.header('Content-Disposition', `attachment; filename=files.zip`);
-          }
-          reply.code(200).send(result);
-        })
-        .catch(err => reply.send(err));
-    } catch (err) {
-      reply.send(new InternalError('Getting system files', err));
-    }
-  });
-
   fastify.decorate('getProjectFile', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -2930,22 +2910,6 @@ async function epaddb(fastify, options, done) {
         new InternalError(`File ${request.params.filename} check and deletion from system`, err)
       );
     }
-  });
-
-  fastify.decorate('getFile', (request, reply) => {
-    fastify
-      .getFilesFromUIDsInternal(request.query, [request.params.filename])
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=files.zip`);
-          reply.code(200).send(result);
-        } else if (result.length === 1) reply.code(200).send(result[0]);
-        else {
-          fastify.log.warn(`Was expecting to find 1 record, found ${result.length}`);
-          reply.send(new ResourceNotFoundError('File', request.params.filename));
-        }
-      })
-      .catch(err => reply.send(err));
   });
 
   fastify.decorate('getStudiesFromProject', async (request, reply) => {
@@ -3131,7 +3095,11 @@ async function epaddb(fastify, options, done) {
           fastify.log.error(`Cannot destroy mariadb test database (err:${err.message})`);
         }
       }
-      await instance.orm.close();
+      try {
+        await instance.orm.close();
+      } catch (err) {
+        fastify.log.error(`Cannot close connection to (err:${err.message})`);
+      }
       doneClose();
     });
   });
