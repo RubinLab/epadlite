@@ -16,7 +16,7 @@ describe('Worklist Tests', () => {
         firstname: 'test',
         lastname: 'test',
         email: 'testCreator@gmail.com',
-        permissions: 'CreateWorklist',
+        permissions: 'CreateWorklist,CreateProject',
       });
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -28,6 +28,30 @@ describe('Worklist Tests', () => {
         lastname: 'test',
         email: 'testAssignee@gmail.com',
       });
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/users')
+      .query({ username: 'admin' })
+      .send({
+        username: 'test2ndAssignee',
+        firstname: 'test',
+        lastname: 'test',
+        email: 'test2ndAssignee@gmail.com',
+      });
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/projects?username=testCreator@gmail.com')
+      .send({
+        projectId: 'testStRelation',
+        projectName: 'testStRelation',
+        projectDescription: 'testdesc',
+        defaultTemplate: 'ROI',
+        type: 'private',
+      });
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put('/projects/testStRelation/subjects/3/studies/0023.2015.09.28.3')
+      .query({ username: 'admin' });
   });
   after(async () => {
     await chai
@@ -37,6 +61,14 @@ describe('Worklist Tests', () => {
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/users/testAssignee@gmail.com')
+      .query({ username: 'admin' });
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/users/test2ndAssignee')
+      .query({ username: 'admin' });
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/projects/testStRelation')
       .query({ username: 'admin' });
   });
   it('worklists should have 0 worklists created by the user', done => {
@@ -71,13 +103,18 @@ describe('Worklist Tests', () => {
         done(e);
       });
   });
-  it('worklists should have 0 worklists created by the user', done => {
+  it('worklists should have 1 worklists created by the user', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/worklists?username=testCreator@gmail.com')
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
+        expect(res.body[0].name).to.be.eql('test');
+        expect(res.body[0].workListID).to.be.eql('testCreate');
+        expect(res.body[0].description).to.be.eql('testdesc');
+        expect(res.body[0].dueDate).to.be.eql('2019-12-01');
+        expect(res.body[0].assignees).to.be.eql(['testAssignee@gmail.com']);
         done();
       })
       .catch(e => {
@@ -104,7 +141,7 @@ describe('Worklist Tests', () => {
       .query({ username: 'aaaa' })
       .send({
         name: 'test2',
-        worklistid: 'testCreate2',
+        worklistId: 'testCreate2',
         description: 'testdesc2',
         duedate: '2019-12-01',
       })
@@ -123,6 +160,11 @@ describe('Worklist Tests', () => {
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
+        expect(res.body[0].name).to.be.eql('test');
+        expect(res.body[0].workListID).to.be.eql('testCreate');
+        expect(res.body[0].description).to.be.eql('testdesc');
+        expect(res.body[0].dueDate).to.be.eql('2019-12-01');
+        expect(res.body[0].assignees).to.be.eql(['testAssignee@gmail.com']);
         done();
       })
       .catch(e => {
@@ -167,7 +209,7 @@ describe('Worklist Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/worklists/testCreate?username=testCreator@gmail.com')
       .send({
-        user: 'testAssignee@gmail.com',
+        assigneeList: ['test2ndAssignee', 'testAssignee@gmail.com'],
       })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -177,35 +219,38 @@ describe('Worklist Tests', () => {
         done(e);
       });
   });
-  // it('The new worklist should be updated with the new assignee data', done => {
-  //   chai
-  //     .request(`http://${process.env.host}:${process.env.port}`)
-  //     .get('/users/testAdmin@gmail.com/worklists?username=testCreator@gmail.com')
-  //     .then(res => {
-  //       expect(res.statusCode).to.equal(200);
-  //       expect(res.body.length).to.be.eql(1);
-  //       done();
-  //     })
-  //     .catch(e => {
-  //       done(e);
-  //     });
-  // });
-  // it('should create a link between a worklist and a study', done => {
-  //   chai
-  //     .request(`http://${process.env.host}:${process.env.port}`)
-  //     .post('/users/1/worklists/2/projects/1/subjects')
-  //     .send({
-  //       studyId: '1',
-  //     })
-  //     .query({ username: 'admin' })
-  // .then(res => {
-  //       expect(res.statusCode).to.equal(200);
-  //       done();
-  //     })
-  //     .catch(e => {
-  //       done(e);
-  //     });
-  // });
+  it('The new worklist should be updated with the new assignee data', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/users/test2ndAssignee/worklists?username=testCreator@gmail.com')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(1);
+        expect(res.body[0].name).to.be.eql('testUpdated2');
+        expect(res.body[0].workListID).to.be.eql('testCreate');
+        expect(res.body[0].dueDate).to.be.eql('2019-12-31');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('should create a link between a worklist and a study', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/worklists/testCreate/projects/testStRelation/subjects/3/studies/0023.2015.09.28.3')
+      .query({ username: 'testCreator@gmail.com' })
+      .send({ studyDesc: 'test study desc', subjectName: 'test subject name' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('should delete the worklist', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

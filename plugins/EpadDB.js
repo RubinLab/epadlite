@@ -359,21 +359,6 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  // TODO is it needed? ozge
-  fastify.decorate('getCircularReplacer', () => {
-    const seen = new WeakSet();
-    return (key, value) => {
-      if (typeof value === 'object' && value !== null) {
-        if (seen.has(value)) {
-          return;
-        }
-        seen.add(value);
-      }
-      // eslint-disable-next-line consistent-return
-      return value;
-    };
-  });
-
   fastify.decorate('getProjects', (request, reply) => {
     models.project
       .findAll({
@@ -419,10 +404,8 @@ async function epaddb(fastify, options, done) {
     if (!name || !id) {
       return EpadError.messages.requiredField;
       // eslint-disable-next-line no-else-return
-    } else if (name.length < 2) {
+    } else if ((name.length === 2 && name.includes(' ')) || name.length < 2) {
       return EpadError.messages.shortName;
-    } else if (name === '  ') {
-      return EpadError.messages.allSpace;
     } else if (id.includes('/')) {
       return EpadError.messages.badChar;
     }
@@ -433,77 +416,100 @@ async function epaddb(fastify, options, done) {
     try {
       const assigneeInfoArr = [];
       const assigneeIDArr = [];
+      const creator = request.epadAuth.username;
 
       const { name, worklistId } = request.body;
       // validate required fields
       const validationErr = fastify.validateRequestBodyFields(name, worklistId);
       if (validationErr) {
         reply.send(new BadRequestError('Creating worklist', new Error(validationErr)));
-      }
-      request.body.assignees.forEach(el => {
-        assigneeInfoArr.push(fastify.findUserIdInternal(el));
-      });
-
-      Promise.all(assigneeInfoArr)
-        .then(results => {
-          results.forEach(el => {
-            assigneeIDArr.push(el);
+      } else {
+        if (request.body.assignees) {
+          request.body.assignees.forEach(el => {
+            assigneeInfoArr.push(fastify.findUserIdInternal(el));
           });
-          models.worklist
-            .create({
-              name: request.body.name,
-              worklistid: request.body.worklistId,
-              user_id: null,
-              description: request.body.description,
-              updatetime: Date.now(),
-              createdtime: Date.now(),
-              duedate: request.body.dueDate ? new Date(`${request.body.dueDate}T00:00:00`) : null,
-              creator: request.epadAuth.username,
-            })
-            .then(worklist => {
-              const relationArr = [];
-              assigneeIDArr.forEach(el => {
-                relationArr.push(
-                  models.worklist_user.create({
-                    worklist_id: worklist.id,
-                    user_id: el,
-                    role: 'Assignee',
-                    createdtime: Date.now(),
-                    creator: request.epadAuth.username,
-                  })
-                );
-              });
-              // after resolving all send 200 or in catch send 503
-              Promise.all(relationArr)
-                .then(() => {
-                  reply.code(200).send(`Worklist ${worklist.id} is created successfully`);
-                })
-                .catch(relationErr => {
-                  reply.send(new InternalError('Creating worklist user association', relationErr));
-                });
-            })
-            .catch(worklistCreationErr => {
-              reply.send(new InternalError('Creating worklist', worklistCreationErr));
+        }
+
+        Promise.all(assigneeInfoArr)
+          .then(results => {
+            results.forEach(el => {
+              assigneeIDArr.push(el);
             });
-        })
-        .catch(userIDErr => {
-          if (userIDErr instanceof ResourceNotFoundError)
-            reply.send(new BadRequestError('Creating worklist', userIDErr));
-          else reply.send(userIDErr);
-        });
+            models.worklist
+              .create({
+                name: request.body.name,
+                worklistid: request.body.worklistId,
+                user_id: null,
+                description: request.body.description,
+                updatetime: Date.now(),
+                createdtime: Date.now(),
+                duedate: request.body.dueDate ? new Date(`${request.body.dueDate}T00:00:00`) : null,
+                creator,
+              })
+              .then(worklist => {
+                const relationArr = [];
+                assigneeIDArr.forEach(el => {
+                  relationArr.push(
+                    models.worklist_user.create({
+                      worklist_id: worklist.id,
+                      user_id: el,
+                      role: 'Assignee',
+                      createdtime: Date.now(),
+                      creator,
+                    })
+                  );
+                });
+
+                if (request.body.requirement) {
+                  request.body.requirement.forEach(req => {
+                    relationArr.push(
+                      models.worklist_requirement.create({
+                        worklist_id: worklist.id,
+                        level: req.level,
+                        template: req.template,
+                        numOfAims: req.numOfAims,
+                        creator,
+                        updatetime: Date.now(),
+                        createdtime: Date.now(),
+                      })
+                    );
+                  });
+                }
+
+                // after resolving all send 200 or in catch send 503
+                Promise.all(relationArr)
+                  .then(() => {
+                    reply.code(200).send(`Worklist ${worklist.id} is created successfully`);
+                  })
+                  .catch(relationErr => {
+                    reply.send(
+                      new InternalError('Creating worklist user association', relationErr)
+                    );
+                  });
+              })
+              .catch(worklistCreationErr => {
+                reply.send(new InternalError('Creating worklist', worklistCreationErr));
+              });
+          })
+          .catch(userIDErr => {
+            if (userIDErr instanceof ResourceNotFoundError)
+              reply.send(new BadRequestError('Creating worklist', userIDErr));
+            else reply.send(userIDErr);
+          });
+      }
       // TODO: give more detailed err  message about not finding assignee id
     } catch (err) {
       if (err instanceof ResourceNotFoundError)
         reply.send(
           new BadRequestError(
-            `Worklist ${request.body.worklistid} creation by user ${request.epadAuth.username}`,
+            `Worklist ${request.body.worklistId} creation by user ${request.epadAuth.username}`,
             err
           )
         );
       else
         reply.send(
           new InternalError(
-            `Worklist ${request.body.worklistid} creation by user ${request.epadAuth.username}`,
+            `Worklist ${request.body.worklistId} creation by user ${request.epadAuth.username}`,
             err
           )
         );
@@ -660,7 +666,7 @@ async function epaddb(fastify, options, done) {
         where: {
           creator: request.epadAuth.username,
         },
-        include: ['users', 'studies'],
+        include: ['users', 'studies', 'requirements'],
       });
       const result = [];
       for (let i = 0; i < worklists.length; i += 1) {
@@ -677,7 +683,13 @@ async function epaddb(fastify, options, done) {
           studyUIDs: [],
           subjectUIDs: [],
           assignees: [],
+          requirements: [],
         };
+
+        for (let k = 0; k < worklists[i].requirements.length; k += 1) {
+          const { level, numOfAims, template } = worklists[i].requirements[k];
+          obj.requirements.push({ level, numOfAims, template });
+        }
 
         for (let k = 0; k < worklists[i].users.length; k += 1) {
           obj.assignees.push(worklists[i].users[k].username);
@@ -757,6 +769,8 @@ async function epaddb(fastify, options, done) {
           worklistid: request.params.worklist,
         },
       });
+      // TODO
+      // destroy relations
 
       reply.code(200).send(`Worklist ${request.params.worklist} deleted successfully`);
     } catch (err) {
@@ -767,73 +781,108 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('assignSubjectToWorklist', async (request, reply) => {
-    const ids = [];
-    const promises = [];
+    if (!request.body || request.body.subjectName === undefined) {
+      reply.send(
+        new BadRequestError(
+          'Assign subject to worklist',
+          new Error('Missing subject name in request')
+        )
+      );
+    } else {
+      const ids = [];
+      const promises = [];
 
-    // find project's integer id
-    // find worklist's integer id
-    promises.push(
-      models.worklist.findOne({
-        where: { worklistid: request.params.worklist },
-        attributes: ['id'],
-      })
-    );
-    promises.push(
-      models.project.findOne({
-        where: { projectid: request.params.project },
-        attributes: ['id'],
-      })
-    );
-
-    Promise.all(promises).then(async result => {
-      ids.push(result[0].dataValues.id);
-      ids.push(result[1].dataValues.id);
-
-      // go to project_subject get the id of where project and subject matches
-      let projectSubjectID;
-      try {
-        projectSubjectID = await models.project_subject.findOne({
-          where: { project_id: ids[1], subject_uid: request.params.subject },
+      // find project's integer id
+      // find worklist's integer id
+      promises.push(
+        models.worklist.findOne({
+          where: { worklistid: request.params.worklist },
           attributes: ['id'],
-        });
-      } catch (err) {
-        reply.send(new InternalError('Creating worklist subject association in db', err));
-      }
-      projectSubjectID = projectSubjectID.dataValues.id;
-      let studyUIDs;
-      try {
-        studyUIDs = await models.project_subject_study.findAll({
-          where: { proj_subj_id: projectSubjectID },
-          attributes: ['study_uid'],
-        });
-      } catch (err) {
-        reply.send(new InternalError('Creating worklist subject association in db', err));
-      }
+        })
+      );
+      promises.push(
+        models.project.findOne({
+          where: { projectid: request.params.project },
+          attributes: ['id'],
+        })
+      );
 
-      // iterate over the study uid's and send them to the table
-      const relationPromiseArr = [];
+      Promise.all(promises).then(async result => {
+        ids.push(result[0].dataValues.id);
+        ids.push(result[1].dataValues.id);
 
-      studyUIDs.forEach(el => {
-        relationPromiseArr.push(
-          models.worklist_study.create({
-            worklist_id: ids[0],
-            study_uid: el.dataValues.study_uid,
-            subject_uid: request.params.subject,
-            project_id: ids[1],
-            creator: request.epadAuth.username,
-            createdtime: Date.now(),
-            updatetime: Date.now(),
-            updated_by: request.epadAuth.username,
-          })
-        );
-      });
-
-      Promise.all(relationPromiseArr)
-        .then(() => reply.code(200).send(`Saving successful`))
-        .catch(err => {
+        // go to project_subject get the id of where project and subject matches
+        let projectSubjectID;
+        try {
+          projectSubjectID = await models.project_subject.findOne({
+            where: { project_id: ids[1], subject_uid: request.params.subject },
+            attributes: ['id'],
+          });
+        } catch (err) {
           reply.send(new InternalError('Creating worklist subject association in db', err));
+        }
+        projectSubjectID = projectSubjectID.dataValues.id;
+        let studyUIDs;
+        const studyUIDList = [];
+        try {
+          studyUIDs = await models.project_subject_study.findAll({
+            where: { proj_subj_id: projectSubjectID },
+            attributes: ['study_uid'],
+            raw: true,
+          });
+        } catch (err) {
+          reply.send(new InternalError('Creating worklist subject association in db', err));
+        }
+        // estract uids
+        studyUIDs.forEach(el => studyUIDList.push(el.study_uid));
+
+        // get studyDescriptions
+        const studyDetails = await fastify.getPatientStudiesInternal(
+          request.params,
+          studyUIDList,
+          request.epadAuth
+        );
+        const studyDescMap = {};
+        studyDetails.forEach(el => {
+          const { studyDescription, numberOfImages, numberOfSeries } = el;
+          studyDescMap[el.studyUID] = { studyDescription, numberOfImages, numberOfSeries };
         });
-    });
+
+        // iterate over the study uid's and send them to the table
+        const relationPromiseArr = [];
+        studyUIDList.forEach(el => {
+          relationPromiseArr.push(
+            fastify.upsert(
+              models.worklist_study,
+              {
+                worklist_id: ids[0],
+                study_uid: el,
+                subject_uid: request.params.subject,
+                project_id: ids[1],
+                updatetime: Date.now(),
+                subject_name: request.body.subjectName,
+                study_desc: studyDescMap[el].studyDescription,
+                numOfSeries: studyDescMap[el].numberOfSeries,
+                numOfImages: studyDescMap[el].numberOfImages,
+              },
+              {
+                worklist_id: ids[0],
+                study_uid: el,
+                subject_uid: request.params.subject,
+                project_id: ids[1],
+              },
+              request.epadAuth.username
+            )
+          );
+
+          Promise.all(relationPromiseArr)
+            .then(() => reply.code(200).send(`Saving successful`))
+            .catch(err => {
+              reply.send(new InternalError('Creating worklist subject association in db', err));
+            });
+        });
+      });
+    }
   });
 
   fastify.decorate('assignStudyToWorklist', (request, reply) => {
@@ -913,47 +962,96 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('deleteStudyToWorklistRelation', async (request, reply) => {
+    if (!request.body || !Array.isArray(request.body) || request.body.length === 0) {
+      reply.send(
+        new BadRequestError(
+          'Delete study worklist relation',
+          new Error('Missing study list in request')
+        )
+      );
+    } else {
+      // find worklist id
+      const promises = [];
+      const worklistId = await models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
+        attributes: ['id'],
+        raw: true,
+      });
+
+      request.body.forEach(el => {
+        promises.push(
+          models.worklist_study.destroy({
+            worklist_id: worklistId,
+            project_id: el.projectID,
+            subject_uid: el.subjectID,
+            study_uid: el.studyUID,
+          })
+        );
+      });
+      Promise.all(promises)
+        .then(() => reply.code(200).send(`Deleted successfully`))
+        .catch(err => {
+          if (err instanceof ResourceNotFoundError)
+            reply.send(
+              new BadRequestError(
+                `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
+                err
+              )
+            );
+          else
+            reply.send(
+              new InternalError(
+                `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
+                err
+              )
+            );
+        });
+    }
+  });
+
   fastify.decorate('getWorklistSubjects', async (request, reply) => {
     // get worklist name and id from worklist
     // get details from worklist_study table
     let workListName;
     let worklistIdKey;
+    let worklistDuedate;
+
     let list;
     try {
       const worklist = await models.worklist.findOne({
         where: {
           worklistid: request.params.worklist,
         },
-        attributes: ['name', 'id'],
+        attributes: ['name', 'id', 'duedate'],
       });
       workListName = worklist.dataValues.name;
       worklistIdKey = worklist.dataValues.id;
+      worklistDuedate = worklist.dataValues.duedate;
       list = await models.worklist_study.findAll({
         where: { worklist_id: worklistIdKey },
       });
       const result = {};
       for (let i = 0; i < list.length; i += 1) {
-        if (result[list[i].dataValues.subject_uid]) {
-          result[list[i].dataValues.subject_uid].studyUIDs.push(list[i].dataValues.study_uid);
-        } else {
-          // eslint-disable-next-line no-await-in-loop
-          const projectId = await models.project.findOne({
-            where: { id: list[i].dataValues.project_id },
-            attributes: ['projectid'],
-          });
-          const obj = {
-            completionDate: list[i].dataValues.completedate,
-            projectID: projectId.dataValues.projectid,
-            sortOrder: list[i].dataValues.sortorder,
-            startDate: list[i].dataValues.startdate,
-            subjectID: list[i].dataValues.subject_uid,
-            studyUIDs: [list[i].dataValues.study_uid],
-            workListID: request.params.worklist,
-            workListName,
-            subjectName: '',
-          };
-          result[list[i].dataValues.subject_uid] = obj;
-        }
+        // eslint-disable-next-line no-await-in-loop
+        const projectId = await models.project.findOne({
+          where: { id: list[i].dataValues.project_id },
+          attributes: ['projectid'],
+        });
+        const obj = {
+          completionDate: list[i].dataValues.completedate,
+          projectID: projectId.dataValues.projectid,
+          sortOrder: list[i].dataValues.sortorder,
+          startDate: list[i].dataValues.startdate,
+          subjectID: list[i].dataValues.subject_uid,
+          studyUID: list[i].dataValues.study_uid,
+          workListID: request.params.worklist,
+          workListName,
+          worklistDuedate,
+          subjectName: list[i].dataValues.subject_name,
+          studyDescription: list[i].dataValues.study_desc,
+        };
+        result[list[i].dataValues.subject_uid] = obj;
       }
       reply.code(200).send(Object.values(result));
     } catch (err) {
@@ -2361,9 +2459,19 @@ async function epaddb(fastify, options, done) {
     if (!request.body) {
       reply.send(new BadRequestError('User Creation', new Error('No body sent')));
     } else {
+      // check permissions if there is a space
+      // remove spaces
+      const permissions = request.body.permissions ? request.body.permissions.split(',') : [''];
+      const trimmedPermission = [];
+      permissions.forEach(el => trimmedPermission.push(el.trim()));
+      if (request.body.permissions) {
+        delete request.body.permissions;
+      }
+      request.body.permissions = trimmedPermission.join(',');
       models.user
         .create({
           ...request.body,
+          // permissions: trimmedPermission,
           createdtime: Date.now(),
           updatetime: Date.now(),
           creator: request.epadAuth.username,
@@ -2431,18 +2539,13 @@ async function epaddb(fastify, options, done) {
         reply.send(new InternalError(`Getting project ${request.params.project}`, err));
       });
   });
-
+  /*
   fastify.decorate('updateProjectUser', async (request, reply) => {
     const rowsUpdated = {
       ...request.body,
       updated_by: request.epadAuth.username,
       updatetime: Date.now(),
     };
-    // what is this?? ozge
-    // if (request.body.updatedBy) {
-    //   rowsUpdated.updated_by = request.body.updatedBy;
-    // }
-    // delete rowsUpdated.updatedBy;
     let result;
     try {
       const { userId, projectId } = await fastify.getUserProjectIdsInternal(
@@ -2483,6 +2586,7 @@ async function epaddb(fastify, options, done) {
         );
     }
   });
+  */
 
   fastify.decorate('getUserProjectIdsInternal', (username, projectid) => {
     const query = new Promise(async (resolve, reject) => {
@@ -2521,6 +2625,8 @@ async function epaddb(fastify, options, done) {
           });
 
           const permissions = user.permissions ? user.permissions.split(',') : [''];
+          const trimmedPermission = [];
+          permissions.forEach(el => trimmedPermission.push(el.trim()));
           const obj = {
             colorpreference: user.colorpreference,
             creator: user.creator,
@@ -2531,7 +2637,7 @@ async function epaddb(fastify, options, done) {
             firstname: user.firstname,
             lastname: user.lastname,
             passwordExpired: user.passwordexpired,
-            permissions,
+            permissions: trimmedPermission,
             projectToRole,
             projects,
             username: user.username,
@@ -2784,6 +2890,181 @@ async function epaddb(fastify, options, done) {
       }
     } catch (err) {
       reply.send(new InternalError(`Getting files for project ${request.params.project}`, err));
+    }
+  });
+
+
+  fastify.decorate('getProjectUsers', async (request, reply) => {
+    try {
+      const projectId = await models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+        raw: true,
+      });
+      if (projectId === null || !projectId.id)
+        reply.send(
+          new BadRequestError(
+            'Getting project users',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      else {
+        const result = [];
+        const projectUsers = await models.project_user.findAll({
+          where: { project_id: projectId.id },
+          raw: true,
+        });
+        const userPromise = [];
+        // get users
+        projectUsers.forEach(el => {
+          userPromise.push(
+            models.user.findOne({
+              where: { id: el.user_id },
+              raw: true,
+            })
+          );
+        });
+        Promise.all(userPromise)
+          .then(data => {
+            data.forEach((user, index) => {
+              const permissions = user.permissions ? user.permissions.split(',') : '';
+              const obj = {
+                displayname: `${user.firstname} ${user.lastname}`,
+                username: user.username,
+                firstname: user.firstname,
+                lastname: user.lastname,
+                email: user.email,
+                permissions,
+                enabled: user.enabled,
+                admin: user.admin,
+                passwordexpired: user.passwordexpired,
+                creator: user.creator,
+                role: projectUsers[index].role,
+              };
+              result.push(obj);
+            });
+            reply.code(200).send(result);
+          })
+          .catch(errUser => {
+            reply.send(new InternalError(`Getting users for project`, errUser));
+          });
+      }
+    } catch (err) {
+      reply.send(new InternalError(`Getting users for project ${request.params.project}`, err));
+    }
+  });
+
+  fastify.decorate('updateProjectUserRole', async (request, reply) => {
+    try {
+      const projectId = await models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+        raw: true,
+      });
+
+      const userId = await models.user.findOne({
+        where: { username: request.params.user },
+        attributes: ['id'],
+        raw: true,
+      });
+
+      if (!projectId.id) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      } else if (!userId.id) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('User', request.params.user)
+          )
+        );
+      } else if (!request.body || !request.body.role) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('Role', request.params.user)
+          )
+        );
+      } else {
+        await fastify.upsert(
+          models.project_user,
+          {
+            role: request.body.role,
+            updatetime: Date.now(),
+            project_id: projectId.id,
+            user_id: userId.id,
+          },
+          { project_id: projectId.id, user_id: userId.id },
+          request.epadAuth.username
+        );
+        reply.code(200).send('Update successful');
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(`Updating user role for project ${request.params.project}`, err)
+      );
+    }
+  });
+
+  fastify.decorate('deleteProjectUser', async (request, reply) => {
+    try {
+      const projectId = await models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+        raw: true,
+      });
+
+      const userId = await models.user.findOne({
+        where: { username: request.params.user },
+        attributes: ['id'],
+        raw: true,
+      });
+
+      if (!projectId.id) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      } else if (!userId.id) {
+        reply.send(
+          new BadRequestError(
+            'Updating project users role',
+            new ResourceNotFoundError('User', request.params.user)
+          )
+        );
+      } else {
+        await models.project_user.destroy({
+          where: { user_id: userId.id, project_id: projectId.id },
+        });
+        reply.code(200).send('Delete successful');
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(`Updating user role for project ${request.params.project}`, err)
+      );
+    }
+  });
+
+  // TODO filter for user??
+  fastify.decorate('getFiles', (request, reply) => {
+    try {
+      fastify
+        .getFilesInternal(request.query)
+        .then(result => {
+          if (request.query.format === 'stream') {
+            reply.header('Content-Disposition', `attachment; filename=files.zip`);
+          }
+          reply.code(200).send(result);
+        })
+        .catch(err => reply.send(err));
+    } catch (err) {
+      reply.send(new InternalError('Getting system files', err));
     }
   });
 

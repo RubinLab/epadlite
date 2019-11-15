@@ -12,9 +12,9 @@ class EpadError extends Error {
 
   static get messages() {
     return {
-      requiredField: 'Name and id required for',
-      shortName: 'Name should have at least two characters!',
-      allSpace: 'Name should include at least one alphanumeric character!',
+      requiredField: 'Name and id required!',
+      shortName: 'Name should have at least two alphanumeric characters!',
+      // allSpace: 'Name should include at least two alphanumeric characters!',
       badChar: 'ID can not include "/" character',
     };
   }
@@ -68,5 +68,6 @@ module.exports = {
   BadRequestError,
   UnauthenticatedError,
   UnauthorizedError,
+  EpadError,
   ResourceAlreadyExistsError,
 };

@@ -31,6 +31,22 @@ async function routes(fastify) {
           dueDate: {
             type: 'string',
           },
+          requirement: {
+            type: 'array',
+            items: {
+              properties: {
+                level: {
+                  type: 'string',
+                },
+                template: {
+                  type: 'string',
+                },
+                numOfAims: {
+                  type: 'string',
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -101,6 +117,17 @@ async function routes(fastify) {
             type: 'string',
           },
           study: { type: 'string' },
+        },
+      },
+    },
+    body: {
+      type: 'object',
+      properties: {
+        studyDesc: {
+          type: 'string',
+        },
+        subjectName: {
+          type: 'string',
         },
       },
     },
@@ -181,8 +208,34 @@ async function routes(fastify) {
     handler: fastify.deleteWorklist,
   });
 
-  // /worklists/:w/users/:u/projects/:p/subjects/:s/studies/:s - DELETE
-  // /worklists/:w/users/:u/projects/:p/subjects/:s - DELETE
+  // /worklists/:w/studies - DELETE
+  fastify.route({
+    method: 'DELETE',
+    url: '/worklists/:worklist/studies',
+    schema: {
+      tags: ['worklist', 'user'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            projectID: { type: 'string' },
+            subjectID: { type: 'string' },
+            studyUID: { type: 'string' },
+          },
+        },
+      },
+    },
+    handler: fastify.deleteStudyToWorklistRelation,
+  });
 
   // /worklists/0987iuy/users/admin/subjects - POST
 
