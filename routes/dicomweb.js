@@ -5,6 +5,7 @@ async function routes(fastify) {
     method: 'GET',
     url: '/subjects',
     schema: {
+      tags: ['subject'],
       response: {
         200: 'epadlite_patients_schema#',
       },
@@ -18,10 +19,11 @@ async function routes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies',
     schema: {
+      tags: ['study'],
       params: {
         type: 'object',
         properties: {
-          patient: {
+          subject: {
             type: 'string',
           },
         },
@@ -38,6 +40,7 @@ async function routes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/series',
     schema: {
+      tags: ['series'],
       params: {
         type: 'object',
         properties: {
@@ -62,6 +65,7 @@ async function routes(fastify) {
     method: 'GET',
     url: '/subjects/:subject/studies/:study/series/:series/images',
     schema: {
+      tags: ['images'],
       params: {
         type: 'object',
         properties: {
@@ -82,6 +86,121 @@ async function routes(fastify) {
     },
 
     handler: fastify.getSeriesImages,
+  });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/subjects/:subject/studies/:study/series/:series',
+    schema: {
+      tags: ['series'],
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.deleteSeries,
+  });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/subjects/:subject/studies/:study',
+    schema: {
+      tags: ['study'],
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.deleteStudy,
+  });
+  // moved to dicomweb to keep together the routes related to dicomweb server
+  fastify.route({
+    method: 'DELETE',
+    url: '/subjects/:subject',
+    schema: {
+      tags: ['subject'],
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.deleteSubject,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/subjects/:subject',
+    schema: {
+      tags: ['subject'],
+      params: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.getPatient,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/studies',
+    schema: {
+      tags: ['study'],
+      response: {
+        200: 'epadlite_studies_schema#',
+      },
+    },
+    handler: fastify.getPatientStudies,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/studies/:study',
+    schema: {
+      tags: ['study'],
+      params: {
+        type: 'object',
+        properties: {
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getPatientStudy,
   });
 }
 

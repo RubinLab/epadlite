@@ -3,8 +3,9 @@ module.exports = {
   dbServer: 'http://localhost',
   db: 'epadlite',
   dbPort: process.env.PORT || 5984,
-  auth: 'none',
+  auth: 'auth',
   dicomweb: 'dicomweb_none',
   logger: true,
-  https: true,
+  https: false,
+  mode: 'lite',
 };

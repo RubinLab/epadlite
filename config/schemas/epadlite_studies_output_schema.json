@@ -1,108 +1,88 @@
 {
   "$id": "epadlite_studies_schema",
-  "type": "object",
-  "properties": {
-    "ResultSet": {
-      "type": "object",
-      "properties": {
-        "Result": {
-          "type": "array",
-          "items": 
-            {
-              "type": "object",
-              "properties": {
-                "projectID": {
-                  "type": "string"
-                },
-                "patientID": {
-                  "type": "string"
-                },
-                "patientName": {
-                  "type": "string"
-                },
-                "studyUID": {
-                  "type": "string"
-                },
-                "insertDate": {
-                  "type": "string"
-                },
-                "firstSeriesUID": {
-                  "type": "string"
-                },
-                "firstSeriesDateAcquired": {
-                  "type": "string"
-                },
-                "physicianName": {
-                  "type": "string"
-                },
-                "birthdate": {
-                  "type": "string"
-                },
-                "sex": {
-                  "type": "string"
-                },
-                "studyDescription": {
-                  "type": "string"
-                },
-                "studyAccessionNumber": {
-                  "type": "string"
-                },
-                "examTypes": {
-                  "type": "array",
-                  "items": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "string"
-                    }
-                  ]
-                },
-                "numberOfImages": {
-                  "type": "integer"
-                },
-                "numberOfSeries": {
-                  "type": "integer"
-                },
-                "numberOfAnnotations": {
-                  "type": "integer"
-                },
-                "createdTime": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "projectID",
-                "patientID",
-                "patientName",
-                "studyUID",
-                "insertDate",
-                "firstSeriesUID",
-                "firstSeriesDateAcquired",
-                "physicianName",
-                "birthdate",
-                "sex",
-                "studyDescription",
-                "studyAccessionNumber",
-                "examTypes",
-                "numberOfImages",
-                "numberOfSeries",
-                "numberOfAnnotations",
-                "createdTime"
-              ]
-            }
-        },
-        "totalRecords": {
-          "type": "integer"
-        }
+
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "projectID": {
+        "type": "string"
       },
-      "required": [
-        "Result",
-        "totalRecords"
-      ]
-    }
-  },
-  "required": [
-    "ResultSet"
-  ]
+      "patientID": {
+        "type": "string"
+      },
+      "patientName": {
+        "type": "string"
+      },
+      "studyUID": {
+        "type": "string"
+      },
+      "insertDate": {
+        "type": "string"
+      },
+      "firstSeriesUID": {
+        "type": "string"
+      },
+      "firstSeriesDateAcquired": {
+        "type": "string"
+      },
+      "physicianName": {
+        "type": "string"
+      },
+      "birthdate": {
+        "type": "string"
+      },
+      "sex": {
+        "type": "string"
+      },
+      "studyDescription": {
+        "type": "string"
+      },
+      "studyAccessionNumber": {
+        "type": "string"
+      },
+      "examTypes": {
+        "type": "array",
+        "items": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "numberOfImages": {
+        "type": "integer"
+      },
+      "numberOfSeries": {
+        "type": "integer"
+      },
+      "numberOfAnnotations": {
+        "type": "integer"
+      },
+      "createdTime": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "projectID",
+      "patientID",
+      "patientName",
+      "studyUID",
+      "insertDate",
+      "firstSeriesUID",
+      "firstSeriesDateAcquired",
+      "physicianName",
+      "birthdate",
+      "sex",
+      "studyDescription",
+      "studyAccessionNumber",
+      "examTypes",
+      "numberOfImages",
+      "numberOfSeries",
+      "numberOfAnnotations",
+      "createdTime"
+    ]
+  }
 }
