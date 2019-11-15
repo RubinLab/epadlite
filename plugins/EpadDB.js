@@ -7,6 +7,7 @@ const config = require('../config/index');
 const {
   InternalError,
   ResourceNotFoundError,
+  ResourceAlreadyExistsError,
   BadRequestError,
   UnauthorizedError,
   EpadError,
@@ -16,111 +17,115 @@ async function epaddb(fastify, options, done) {
   const models = {};
 
   fastify.decorate('initMariaDB', async () => {
-    const sequelizeConfig = {
-      dialect: 'mariadb',
-      database: config.thickDb.name,
-      host: config.thickDb.host,
-      port: config.thickDb.port,
-      username: config.thickDb.user,
-      password: config.thickDb.pass,
-      pool: {
-        max: 5,
-        min: 0,
-        acquire: 30000,
-        idle: 10000,
-      },
-      define: {
-        timestamps: false,
-      },
-      logging: config.thickDb.logger,
-    };
+    try {
+      const sequelizeConfig = {
+        dialect: 'mariadb',
+        database: config.thickDb.name,
+        host: config.thickDb.host,
+        port: config.thickDb.port,
+        username: config.thickDb.user,
+        password: config.thickDb.pass,
+        pool: {
+          max: 5,
+          min: 0,
+          acquire: 30000,
+          idle: 10000,
+        },
+        define: {
+          timestamps: false,
+        },
+        logging: config.thickDb.logger,
+      };
 
-    // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
-    // used sequelize itself to get the latest version with mariadb support
-    await new Promise(async (resolve, reject) => {
-      try {
-        const sequelize = new Sequelize(sequelizeConfig);
-        fastify.decorate('orm', sequelize);
-        await fastify.orm.authenticate();
-      } catch (err) {
-        if (config.env === 'test') {
-          try {
-            sequelizeConfig.database = '';
-            const sequelize = new Sequelize(sequelizeConfig);
-            await sequelize.query(`CREATE DATABASE ${config.thickDb.name};`);
-            await fastify.orm.authenticate();
-          } catch (testDBErr) {
-            reject(new InternalError('Creating test mariadb database', testDBErr));
-          }
-        } else {
-          reject(new InternalError(`Connecting to mariadb ${config.thickDb.name}`, err));
-        }
-      }
-      try {
-        const filenames = fs.readdirSync(`${__dirname}/../models`);
-        for (let i = 0; i < filenames.length; i += 1) {
-          models[filenames[i].replace(/\.[^/.]+$/, '')] = fastify.orm.import(
-            path.join(__dirname, '/../models', filenames[i])
-          );
-        }
-        models.user.belongsToMany(models.project, {
-          through: 'project_user',
-          as: 'projects',
-          foreignKey: 'user_id',
-        });
-        models.worklist.hasMany(models.worklist_study, {
-          as: 'studies',
-          foreignKey: 'worklist_id',
-        });
-        models.worklist.hasMany(models.worklist_requirement, {
-          as: 'requirements',
-          foreignKey: 'worklist_id',
-        });
-        models.worklist_study.hasMany(models.worklist_study_completeness, {
-          as: 'progress',
-          foreignKey: 'worklist_study_id',
-        });
-
-        models.project.belongsToMany(models.user, {
-          through: 'project_user',
-          as: 'users',
-          foreignKey: 'project_id',
-        });
-        // models.worklist.belongsTo(models.user, { foreignKey: 'user_id' });
-
-        models.worklist.belongsToMany(models.user, {
-          through: 'worklist_user',
-          as: 'users',
-          foreignKey: 'worklist_id',
-        });
-
-        models.user.belongsToMany(models.worklist, {
-          through: 'worklist_user',
-          as: 'worklists',
-          foreignKey: 'user_id',
-        });
-
-        await fastify.orm.sync();
-        if (config.env === 'test') {
-          try {
-            await models.user.create({
-              username: 'admin',
-              firstname: 'admin',
-              lastname: 'admin',
-              email: 'admin@gmail.com',
-              admin: true,
-              createdtime: Date.now(),
-              updatetime: Date.now(),
-            });
-          } catch (userCreateErr) {
-            reject(new InternalError('Creating admin user in testdb', userCreateErr));
+      // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
+      // used sequelize itself to get the latest version with mariadb support
+      await new Promise(async (resolve, reject) => {
+        try {
+          const sequelize = new Sequelize(sequelizeConfig);
+          fastify.decorate('orm', sequelize);
+          await fastify.orm.authenticate();
+        } catch (err) {
+          if (config.env === 'test') {
+            try {
+              sequelizeConfig.database = '';
+              const sequelize = new Sequelize(sequelizeConfig);
+              await sequelize.query(`CREATE DATABASE ${config.thickDb.name};`);
+              await fastify.orm.authenticate();
+            } catch (testDBErr) {
+              reject(new InternalError('Creating test mariadb database', testDBErr));
+            }
+          } else {
+            reject(new InternalError(`Connecting to mariadb ${config.thickDb.name}`, err));
           }
         }
-        resolve();
-      } catch (err) {
-        reject(new InternalError('Leading models and syncing db', err));
-      }
-    });
+        try {
+          const filenames = fs.readdirSync(`${__dirname}/../models`);
+          for (let i = 0; i < filenames.length; i += 1) {
+            models[filenames[i].replace(/\.[^/.]+$/, '')] = fastify.orm.import(
+              path.join(__dirname, '/../models', filenames[i])
+            );
+          }
+          models.user.belongsToMany(models.project, {
+            through: 'project_user',
+            as: 'projects',
+            foreignKey: 'user_id',
+          });
+          models.worklist.hasMany(models.worklist_study, {
+            as: 'studies',
+            foreignKey: 'worklist_id',
+          });
+          models.worklist.hasMany(models.worklist_requirement, {
+            as: 'requirements',
+            foreignKey: 'worklist_id',
+          });
+          models.worklist_study.hasMany(models.worklist_study_completeness, {
+            as: 'progress',
+            foreignKey: 'worklist_study_id',
+          });
+
+          models.project.belongsToMany(models.user, {
+            through: 'project_user',
+            as: 'users',
+            foreignKey: 'project_id',
+          });
+          // models.worklist.belongsTo(models.user, { foreignKey: 'user_id' });
+
+          models.worklist.belongsToMany(models.user, {
+            through: 'worklist_user',
+            as: 'users',
+            foreignKey: 'worklist_id',
+          });
+
+          models.user.belongsToMany(models.worklist, {
+            through: 'worklist_user',
+            as: 'worklists',
+            foreignKey: 'user_id',
+          });
+
+          await fastify.orm.sync();
+          if (config.env === 'test') {
+            try {
+              await models.user.create({
+                username: 'admin',
+                firstname: 'admin',
+                lastname: 'admin',
+                email: 'admin@gmail.com',
+                admin: true,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+              });
+            } catch (userCreateErr) {
+              reject(new InternalError('Creating admin user in testdb', userCreateErr));
+            }
+          }
+          resolve();
+        } catch (err) {
+          reject(new InternalError('Leading models and syncing db', err));
+        }
+      });
+    } catch (err) {
+      throw err;
+    }
   });
 
   fastify.decorate('findUserIdInternal', username => {
@@ -1207,19 +1212,13 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('deleteTemplateFromSystem', async (request, reply) => {
-    try {
-      const templateUid = request.params.uid;
-      const numDeleted = await models.project_template.destroy({
-        where: { template_uid: templateUid },
-      });
-      await fastify.deleteTemplateInternal(request.params);
-      reply.code(200).send(`Template deleted from system and removed from ${numDeleted} projects`);
-    } catch (err) {
-      reply.send(new InternalError(`Template ${request.params.uid} deletion from system`, err));
-    }
-  });
+  fastify.decorate('deleteTemplateFromDB', params =>
+    models.project_template.destroy({
+      where: { template_uid: params.uid },
+    })
+  );
 
+  // if there is no subject and there is request.body it is a post request to create a nondicom subject
   fastify.decorate('addSubjectToProject', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -1233,39 +1232,65 @@ async function epaddb(fastify, options, done) {
           )
         );
       } else {
-        const projectSubject = await fastify.upsert(
-          models.project_subject,
-          {
-            project_id: project.id,
-            subject_uid: request.params.subject,
-            updatetime: Date.now(),
-          },
-          {
-            project_id: project.id,
-            subject_uid: request.params.subject,
-          },
-          request.epadAuth.username
-        );
-        const studies = await fastify.getPatientStudiesInternal(
-          request.params,
-          undefined,
-          request.epadAuth
-        );
-        for (let i = 0; i < studies.length; i += 1) {
-          // eslint-disable-next-line no-await-in-loop
-          await fastify.upsert(
-            models.project_subject_study,
-            {
-              proj_subj_id: projectSubject.id,
-              study_uid: studies[i].studyUID,
-              updatetime: Date.now(),
-            },
-            {
-              proj_subj_id: projectSubject.id,
-              study_uid: studies[i].studyUID,
-            },
-            request.epadAuth.username
+        if (
+          request.params.subject === undefined &&
+          (!request.body || request.body.subjectUid === undefined)
+        )
+          reply.send(
+            new BadRequestError(
+              'Adding subject to project',
+              new ResourceNotFoundError('Subject', 'No id')
+            )
           );
+        else {
+          let projectSubject = await models.project_subject.findOne({
+            where: {
+              project_id: project.id,
+              subject_uid: request.params.subject
+                ? request.params.subject
+                : request.body.subjectUid,
+            },
+          });
+
+          if (!projectSubject) {
+            projectSubject = await models.project_subject.create({
+              project_id: project.id,
+              subject_uid: request.params.subject
+                ? request.params.subject
+                : request.body.subjectUid,
+              subject_name:
+                request.body && request.body.subjectName ? request.body.subjectName : null,
+              creator: request.epadAuth.username,
+              updatetime: Date.now(),
+              createdtime: Date.now(),
+            });
+          } else if (request.body) {
+            reply.send(new ResourceAlreadyExistsError('Subject', request.body.subjectUid));
+          }
+          // if it is a dicom subject sent via put add studies to project
+          if (!request.body && request.params.subject) {
+            const studies = await fastify.getPatientStudiesInternal(
+              request.params,
+              undefined,
+              request.epadAuth
+            );
+            for (let i = 0; i < studies.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.upsert(
+                models.project_subject_study,
+                {
+                  proj_subj_id: projectSubject.id,
+                  study_uid: studies[i].studyUID,
+                  updatetime: Date.now(),
+                },
+                {
+                  proj_subj_id: projectSubject.id,
+                  study_uid: studies[i].studyUID,
+                },
+                request.epadAuth.username
+              );
+            }
+          }
         }
         reply.code(200).send('Saving successful');
       }
@@ -1293,6 +1318,7 @@ async function epaddb(fastify, options, done) {
         );
       } else {
         const subjectUids = [];
+        const nondicoms = [];
         const projectSubjects = await models.project_subject.findAll({
           where: { project_id: project.id },
         });
@@ -1300,6 +1326,9 @@ async function epaddb(fastify, options, done) {
           // projects will be an array of Project instances with the specified name
           for (let i = 0; i < projectSubjects.length; i += 1) {
             subjectUids.push(projectSubjects[i].subject_uid);
+            if (projectSubjects[i].subject_name) {
+              nondicoms.push(projectSubjects[i]);
+            }
           }
         }
         const result = await fastify.getPatientsInternal(
@@ -1307,12 +1336,38 @@ async function epaddb(fastify, options, done) {
           subjectUids,
           request.epadAuth
         );
-        if (subjectUids.length !== result.length)
-          fastify.log.warn(
-            `There are ${subjectUids.length} subjects associated with this project. But only ${
-              result.length
-            } of them have dicom files`
-          );
+        if (subjectUids.length !== result.length) {
+          if (subjectUids.length === result.length + nondicoms.length) {
+            for (let i = 0; i < nondicoms.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              const numberOfStudies = await models.project_subject_study.count({
+                where: { proj_subj_id: nondicoms[i].id },
+              });
+              // eslint-disable-next-line no-await-in-loop
+              const numberOfAnnotations = await models.project_aim.count({
+                where: { project_id: project.id, subject_uid: nondicoms[i].subject_uid },
+              });
+              result.push({
+                subjectName: nondicoms[i].subject_name,
+                subjectID: nondicoms[i].subject_uid,
+                projectID: request.params.project,
+                insertUser: '', // no user in studies call
+                xnatID: '', // no xnatID should remove
+                insertDate: '', // no date in studies call
+                uri: '', // no uri should remove
+                displaySubjectID: nondicoms[i].subject_uid,
+                numberOfStudies,
+                numberOfAnnotations,
+                examTypes: '',
+              });
+            }
+          } else
+            fastify.log.warn(
+              `There are ${subjectUids.length} subjects associated with this project. But only ${
+                result.length
+              } of them have dicom files`
+            );
+        }
         reply.code(200).send(result);
       }
     } catch (err) {
@@ -2057,16 +2112,29 @@ async function epaddb(fastify, options, done) {
   // });
   fastify.decorate('addPatientStudyToProject', (request, reply) => {
     fastify
-      .addPatientStudyToProjectInternal(request.params, request.epadAuth)
+      .addPatientStudyToProjectInternal(request.params, request.epadAuth, request.body)
       .then(result => reply.code(200).send(result))
       .catch(err => reply.send(err));
   });
 
   fastify.decorate(
     'addPatientStudyToProjectInternal',
-    (params, epadAuth) =>
+    (params, epadAuth, body) =>
       new Promise(async (resolve, reject) => {
         try {
+          let studyUid = params.study;
+          if (!studyUid && body) {
+            // eslint-disable-next-line prefer-destructuring
+            studyUid = body.studyUid;
+            // check if the studyUid exists and return duplicate entity error
+          }
+          if (!studyUid)
+            reject(
+              new BadRequestError(
+                'Adding study to project',
+                new ResourceNotFoundError('Study', 'No study UID')
+              )
+            );
           const project = await models.project.findOne({ where: { projectid: params.project } });
           if (project === null)
             reject(
@@ -2089,16 +2157,25 @@ async function epaddb(fastify, options, done) {
               });
             // create only when that is not already there
             const projectSubjectStudy = await models.project_subject_study.findOne({
-              where: { proj_subj_id: projectSubject.id, study_uid: params.study },
+              where: { proj_subj_id: projectSubject.id, study_uid: studyUid },
             });
-            if (!projectSubjectStudy)
+            if (!projectSubjectStudy) {
+              let studyDesc = null;
+              if (body && body.studyDesc) {
+                // eslint-disable-next-line prefer-destructuring
+                studyDesc = body.studyDesc;
+              }
               await models.project_subject_study.create({
                 proj_subj_id: projectSubject.id,
-                study_uid: params.study,
+                study_uid: studyUid,
+                study_desc: studyDesc,
                 creator: epadAuth.username,
                 updatetime: Date.now(),
                 createdtime: Date.now(),
               });
+            } else if (body) {
+              reject(new ResourceAlreadyExistsError('Study', body.studyUid));
+            }
             resolve();
           }
         } catch (err) {
@@ -2123,6 +2200,7 @@ async function epaddb(fastify, options, done) {
         );
       else {
         const studyUids = [];
+        const nondicoms = [];
         const projectSubjects = await models.project_subject.findAll({
           where: { project_id: project.id, subject_uid: request.params.subject },
         });
@@ -2143,6 +2221,9 @@ async function epaddb(fastify, options, done) {
             if (projectSubjectStudies)
               for (let j = 0; j < projectSubjectStudies.length; j += 1) {
                 studyUids.push(projectSubjectStudies[j].study_uid);
+                if (projectSubjectStudies[j].study_desc) {
+                  nondicoms.push({ subject: projectSubjects[i], study: projectSubjectStudies[j] });
+                }
               }
           }
           const result = await fastify.getPatientStudiesInternal(
@@ -2151,20 +2232,52 @@ async function epaddb(fastify, options, done) {
             request.epadAuth
           );
           if (studyUids.length !== result.length)
-            fastify.log.warn(
-              `There are ${studyUids.length} studies associated with this project. But only ${
-                result.length
-              } of them have dicom files`
-            );
+            if (studyUids.length === result.length + nondicoms.length) {
+              for (let i = 0; i < nondicoms.length; i += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                const numberOfAnnotations = await models.project_aim.count({
+                  where: { project_id: project.id, study_uid: nondicoms[i].study.study_uid },
+                });
+                result.push({
+                  projectID: request.params.project,
+                  patientID: nondicoms[i].subject.subject_uid,
+                  patientName: nondicoms[i].subject.subject_name,
+                  studyUID: nondicoms[i].study.study_uid,
+                  insertDate: '',
+                  firstSeriesUID: '',
+                  firstSeriesDateAcquired: '',
+                  physicianName: '',
+                  referringPhysicianName: '',
+                  birthdate: '',
+                  sex: '',
+                  studyDescription: nondicoms[i].study.study_desc,
+                  studyAccessionNumber: '',
+                  examTypes: [],
+                  numberOfImages: 0, // TODO
+                  numberOfSeries: 0, // TODO
+                  numberOfAnnotations,
+                  createdTime: '',
+                  // extra for flexview
+                  studyID: '',
+                  studyDate: '',
+                  studyTime: '',
+                });
+              }
+            } else
+              fastify.log.warn(
+                `There are ${studyUids.length} studies associated with this project. But only ${
+                  result.length
+                } of them have dicom files`
+              );
           reply.code(200).send(result);
         }
       }
     } catch (err) {
       reply.send(
         new InternalError(
-          `Getting studies of ${request.params.subject} from project ${request.params.project}`
-        ),
-        err
+          `Getting studies of ${request.params.subject} from project ${request.params.project}`,
+          err
+        )
       );
     }
   });
@@ -2273,8 +2386,65 @@ async function epaddb(fastify, options, done) {
     fastify
       .getStudySeriesInternal(request.params, request.query, request.epadAuth)
       .then(result => reply.code(200).send(result))
-      .catch(err => reply.send(err));
+      .catch(err =>
+        fastify
+          .getNondicomStudySeriesFromProjectInternal(request.params)
+          .then(nondicomResult => reply.code(200).send(nondicomResult))
+          .catch(nondicomErr => {
+            reply.send(
+              new InternalError(
+                'Retrieving series',
+                new Error(
+                  `Failed from dicomweb with ${err.message} and from nondicom with ${
+                    nondicomErr.message
+                  }`
+                )
+              )
+            );
+          })
+      );
   });
+  fastify.decorate(
+    'getNondicomStudySeriesFromProjectInternal',
+    params =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const result = [];
+          const series = await models.nondicom_series.findAll({
+            where: { study_uid: params.study },
+            raw: true,
+          });
+          for (let i = 0; i < series.length; i += 1) {
+            result.push({
+              projectID: params.project,
+              patientID: params.subject,
+              patientName: '', // TODO
+              studyUID: params.study,
+              seriesUID: series[i].seriesuid,
+              seriesDate: series[i].seriesdate,
+              seriesDescription: series[i].description,
+              examType: '',
+              bodyPart: '', // TODO
+              accessionNumber: '',
+              numberOfImages: 0, // TODO
+              numberOfSeriesRelatedInstances: 0, // TODO
+              numberOfAnnotations: 0, // TODO
+              institution: '',
+              stationName: '',
+              department: '',
+              createdTime: '', // TODO
+              firstImageUIDInSeries: '', // TODO
+              isDSO: false,
+              isNonDicomSeries: true,
+              seriesNo: '',
+            });
+          }
+          resolve(result);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
   fastify.decorate('getSeriesImagesFromProject', (request, reply) => {
     // TODO project filtering
     fastify
@@ -2723,6 +2893,7 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+
   fastify.decorate('getProjectUsers', async (request, reply) => {
     try {
       const projectId = await models.project.findOne({
@@ -3022,22 +3193,6 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('getFile', (request, reply) => {
-    fastify
-      .getFilesFromUIDsInternal(request.query, [request.params.filename])
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=files.zip`);
-          reply.code(200).send(result);
-        } else if (result.length === 1) reply.code(200).send(result[0]);
-        else {
-          fastify.log.warn(`Was expecting to find 1 record, found ${result.length}`);
-          reply.send(new ResourceNotFoundError('File', request.params.filename));
-        }
-      })
-      .catch(err => reply.send(err));
-  });
-
   fastify.decorate('getStudiesFromProject', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -3095,6 +3250,40 @@ async function epaddb(fastify, options, done) {
         ),
         err
       );
+    }
+  });
+
+  fastify.decorate('addNondicomSeries', async (request, reply) => {
+    // eslint-disable-next-line prefer-destructuring
+    let seriesUid = request.params.seriesUid;
+    if (!seriesUid) {
+      // eslint-disable-next-line prefer-destructuring
+      seriesUid = request.body.seriesUid;
+    }
+    if (!seriesUid) {
+      reply.send(
+        new BadRequestError(
+          'Adding nondicom series to project',
+          new ResourceNotFoundError('Nondicom series', 'No id')
+        )
+      );
+    }
+    const series = await models.nondicom_series.findOne({
+      where: { seriesuid: seriesUid },
+    });
+    if (series) {
+      reply.send(new ResourceAlreadyExistsError('Nondicom series', seriesUid));
+    } else {
+      await models.nondicom_series.create({
+        seriesuid: seriesUid,
+        study_uid: request.params.study,
+        description: request.body.description,
+        seriesdate: Date.now(),
+        updatetime: Date.now(),
+        createdtime: Date.now(),
+        creator: request.epadAuth.username,
+      });
+      reply.code(200).send(`${seriesUid} added successfully`);
     }
   });
 
@@ -3187,7 +3376,11 @@ async function epaddb(fastify, options, done) {
           fastify.log.error(`Cannot destroy mariadb test database (err:${err.message})`);
         }
       }
-      await instance.orm.close();
+      try {
+        await instance.orm.close();
+      } catch (err) {
+        fastify.log.error(`Cannot close connection to (err:${err.message})`);
+      }
       doneClose();
     });
   });

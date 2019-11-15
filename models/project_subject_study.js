@@ -22,6 +22,10 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: false,
       },
+      study_desc: {
+        type: DataTypes.STRING(1000),
+        allowNull: true,
+      },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,

@@ -175,21 +175,66 @@ async function routes(fastify) {
     handler: fastify.deleteSubjectFromProject,
   });
 
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/subjects',
+    schema: {
+      tags: ['project', 'subject'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          subjectUid: {
+            type: 'string',
+          },
+          subjectName: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.addSubjectToProject,
+  });
+
   // fastify.route({
   //   method: 'POST',
-  //   url: '/projects/:project/subjects',
+  //   url: '/projects/:project/subjects/:subject/studies',
   //   schema: {
-  //     tags: ['project', 'subject'],
+  //     tags: ['project', 'study'],
   //     params: {
   //       type: 'object',
   //       properties: {
   //         project: {
   //           type: 'string',
   //         },
+  //         subject: {
+  //           type: 'string',
+  //         },
+  //         study: {
+  //           type: 'string',
+  //         },
+  //       },
+  //     },
+  //     body: {
+  //       type: 'object',
+  //       properties: {
+  //         studyUid: {
+  //           type: 'string',
+  //         },
+  //         studyDescription: {
+  //           type: 'string',
+  //         },
   //       },
   //     },
   //   },
-  //   handler: fastify.addProjectSubject,
+  //   handler: fastify.addPatientStudyToProject,
   // });
 
   fastify.route({
@@ -227,6 +272,40 @@ async function routes(fastify) {
             type: 'string',
           },
           study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.addPatientStudyToProject,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/subjects/:subject/studies',
+    schema: {
+      tags: ['project', 'study'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          studyUid: {
+            type: 'string',
+          },
+          studyDesc: {
             type: 'string',
           },
         },
@@ -299,6 +378,74 @@ async function routes(fastify) {
     },
 
     handler: fastify.getStudiesFromProject,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/subjects/:subject/studies/:study/series/:series',
+    schema: {
+      tags: ['project', 'series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          description: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.addNondicomSeries,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/subjects/:subject/studies/:study/series',
+    schema: {
+      tags: ['project', 'series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          seriesUid: {
+            type: 'string',
+          },
+          description: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.addNondicomSeries,
   });
 }
 module.exports = routes;

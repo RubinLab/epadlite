@@ -4,16 +4,7 @@ const fs = require('fs');
 
 chai.use(chaiHttp);
 const { expect } = chai;
-let server;
-before(async () => {
-  process.env.host = '0.0.0.0';
-  process.env.port = 5987;
-  server = require('../server'); // eslint-disable-line
-  await server.ready();
-});
-after(() => {
-  server.close();
-});
+
 describe('User Rights Tests', () => {
   before(async () => {
     // create users

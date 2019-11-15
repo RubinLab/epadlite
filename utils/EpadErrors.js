@@ -27,6 +27,13 @@ class ResourceNotFoundError extends EpadError {
   }
 }
 
+class ResourceAlreadyExistsError extends EpadError {
+  constructor(resourceType, resourceId) {
+    super(`${resourceType} ${resourceId} already exists.`);
+    this.data = { resourceType, resourceId };
+  }
+}
+
 class InternalError extends EpadError {
   constructor(reason, error) {
     super(`${reason}. Error: ${error.message}`);
@@ -62,4 +69,5 @@ module.exports = {
   UnauthenticatedError,
   UnauthorizedError,
   EpadError,
+  ResourceAlreadyExistsError,
 };

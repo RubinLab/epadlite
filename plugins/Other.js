@@ -26,6 +26,7 @@ const {
   BadRequestError,
   UnauthenticatedError,
   UnauthorizedError,
+  ResourceAlreadyExistsError,
 } = require('../utils/EpadErrors');
 
 async function other(fastify) {
@@ -462,11 +463,12 @@ async function other(fastify) {
         fastify.deleteDisconnectedUser(request);
       }); // <- Remove this user when he disconnects
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        reply.send(new UnauthenticatedError('No epadauth in request'));
+      else
         reply.send(
           new InternalError(`Adding user ${request.epadAuth.username} to notification list`, err)
         );
-      else reply.send(new UnauthenticatedError('No epadauth in request'));
     }
   });
 
@@ -638,7 +640,7 @@ async function other(fastify) {
           new UnauthenticatedError('Authentication info does not exist or conform with the server')
         );
       }
-    } else if (config.env === 'test' && req.query.username) {
+    } else if ((config.env === 'test' || config.auth === 'none') && req.query.username) {
       // just see if the url has username. for testing purposes
       try {
         req.epadAuth = await fastify.fillUserInfo(req.query.username);
@@ -678,12 +680,13 @@ async function other(fastify) {
       }
       return undefined;
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        throw new UnauthenticatedError('No epadauth in request');
+      else
         throw new InternalError(
           `Checking access for ${request.epadAuth.username}, project ${project}`,
           err
         );
-      else throw new UnauthenticatedError('No epadauth in request');
     }
   });
 
@@ -703,12 +706,13 @@ async function other(fastify) {
       }
       return true;
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        throw new UnauthenticatedError('No epadauth in request');
+      else
         throw new InternalError(
           `Checking create permission for ${request.epadAuth.username}, level ${level}`,
           err
         );
-      else throw new UnauthenticatedError('No epadauth in request');
     }
   });
 
@@ -719,12 +723,13 @@ async function other(fastify) {
         return true;
       return false;
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        throw new UnauthenticatedError('No epadauth in request');
+      else
         throw new InternalError(
           `Checking ownership for ${request.epadAuth.username}, project ${project}`,
           err
         );
-      else throw new UnauthenticatedError('No epadauth in request');
     }
   });
 
@@ -755,14 +760,15 @@ async function other(fastify) {
       }
       return false;
     } catch (err) {
-      if (request.epadAuth)
+      if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
+        throw new UnauthenticatedError('No epadauth in request');
+      else
         throw new InternalError(
           `Checking creatorship for ${request.epadAuth.username}, level ${reqInfo.level}, object ${
             reqInfo.objectId
           }`,
           err
         );
-      else throw new UnauthenticatedError('No epadauth in request');
     }
   });
 
@@ -850,6 +856,7 @@ async function other(fastify) {
     else if (error instanceof BadRequestError) reply.code(400);
     else if (error instanceof UnauthenticatedError) reply.code(401);
     else if (error instanceof UnauthorizedError) reply.code(403);
+    else if (error instanceof ResourceAlreadyExistsError) reply.code(409);
     try {
       new EpadNotification(request, fastify.getInfoFromRequest(request), error).notify(fastify);
     } catch (err) {

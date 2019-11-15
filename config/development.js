@@ -7,5 +7,5 @@ module.exports = {
   dicomweb: 'dicomweb_none',
   logger: true,
   https: false,
-  mode: 'thick',
+  mode: 'lite',
 };
