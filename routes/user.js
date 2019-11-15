@@ -73,54 +73,6 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'PUT',
-    url: '/projects/:project/users/:user',
-    schema: {
-      tags: ['project', 'users'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          user: {
-            type: 'string',
-          },
-        },
-      },
-      body: {
-        type: 'object',
-        properties: {
-          role: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.updateProjectUserRole,
-  });
-
-  fastify.route({
-    method: 'DELETE',
-    url: '/projects/:project/users/:user',
-    schema: {
-      tags: ['project', 'users'],
-      params: {
-        type: 'object',
-        properties: {
-          project: {
-            type: 'string',
-          },
-          user: {
-            type: 'string',
-          },
-        },
-      },
-    },
-    handler: fastify.deleteProjectUser,
-  });
-
-  fastify.route({
-    method: 'PUT',
     url: '/users/:user',
     schema: {
       tags: ['user'],

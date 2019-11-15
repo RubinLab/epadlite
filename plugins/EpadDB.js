@@ -2893,7 +2893,6 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-
   fastify.decorate('getProjectUsers', async (request, reply) => {
     try {
       const projectId = await models.project.findOne({
@@ -3048,23 +3047,6 @@ async function epaddb(fastify, options, done) {
       reply.send(
         new InternalError(`Updating user role for project ${request.params.project}`, err)
       );
-    }
-  });
-
-  // TODO filter for user??
-  fastify.decorate('getFiles', (request, reply) => {
-    try {
-      fastify
-        .getFilesInternal(request.query)
-        .then(result => {
-          if (request.query.format === 'stream') {
-            reply.header('Content-Disposition', `attachment; filename=files.zip`);
-          }
-          reply.code(200).send(result);
-        })
-        .catch(err => reply.send(err));
-    } catch (err) {
-      reply.send(new InternalError('Getting system files', err));
     }
   });
 
