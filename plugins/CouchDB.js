@@ -609,8 +609,22 @@ async function couchdb(fastify, options) {
           if (error) {
             reject(new ResourceNotFoundError('Aim', aimuid));
           }
+          const promisses = [];
+          // check if it is a segmentation aim and delete dso
+          const segEntity =
+            existing.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .segmentationEntityCollection;
+          // this is a segmentation aim
+          if (segEntity) {
+            const params = {
+              study: segEntity.SegmentationEntity[0].studyInstanceUid,
+              series: segEntity.SegmentationEntity[0].seriesInstanceUid,
+            };
+            promisses.push(fastify.deleteSeriesDicomsInternal(params));
+          }
 
-          db.destroy(aimuid, existing._rev)
+          promisses.push(db.destroy(aimuid, existing._rev));
+          Promise.all(promisses)
             .then(() => {
               resolve();
             })
