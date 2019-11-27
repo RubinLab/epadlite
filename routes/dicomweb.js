@@ -202,6 +202,24 @@ async function routes(fastify) {
     },
     handler: fastify.getPatientStudy,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/series',
+    schema: {
+      tags: ['series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.getAllStudySeries,
+  });
 }
 
 module.exports = routes;

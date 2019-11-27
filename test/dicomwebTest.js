@@ -115,6 +115,25 @@ describe('Subject Tests', () => {
       });
   });
 
+  it('system should have 1 series and it should be 0023.2015.09.28.3.3590', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/series')
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(1);
+        expect(res.body[0].patientID).to.be.eql('3');
+        expect(res.body[0].patientName).to.be.eql('Phantom');
+        expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+        expect(res.body[0].seriesUID).to.be.eql('0023.2015.09.28.3.3590');
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
   it('subject deletion of patient 3 should return 200 ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

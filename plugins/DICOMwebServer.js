@@ -405,6 +405,30 @@ async function dicomwebserver(fastify) {
       })
   );
 
+  fastify.decorate('getAllStudySeries', async (request, reply) => {
+    try {
+      const studies = await this.request.get('/studies', header);
+      const studyUids = _.map(studies.data, value => {
+        return value['0020000D'].Value[0];
+      });
+      let result = [];
+      for (let j = 0; j < studyUids.length; j += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const studySeries = await fastify.getStudySeriesInternal(
+          { study: studyUids[j] },
+          request.query,
+          request.epadAuth,
+          true
+        );
+        result = result.concat(studySeries);
+      }
+
+      reply.code(200).send(result);
+    } catch (err) {
+      reply.send(new InternalError(`Getting all series`), err);
+    }
+  });
+
   fastify.decorate('getStudySeries', (request, reply) => {
     fastify
       .getStudySeriesInternal(request.params, request.query, request.epadAuth)
