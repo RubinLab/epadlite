@@ -521,36 +521,46 @@ async function dicomwebserver(fastify) {
             .then(response => {
               // handle success
               // map each instance to epadlite image object
-              const result = _.map(response.data, value => {
-                return {
-                  projectID: params.project ? params.project : projectID,
-                  patientID:
-                    value['00100020'] && value['00100020'].Value ? value['00100020'].Value[0] : '',
-                  studyUID: value['0020000D'].Value ? value['0020000D'].Value[0] : '',
-                  seriesUID: value['0020000E'].Value ? value['0020000E'].Value[0] : '',
-                  imageUID: value['00080018'].Value ? value['00080018'].Value[0] : '',
-                  classUID:
-                    value['00080016'] && value['00080016'].Value ? value['00080016'].Value[0] : '',
-                  insertDate: '', // no date in studies call
-                  imageDate: '', // TODO
-                  sliceLocation: '', // TODO
-                  instanceNumber:
-                    value['00200013'] && value['00200013'].Value ? value['00200013'].Value[0] : '',
-                  losslessImage: '', // TODO
-                  lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
-                    value['00080018'].Value[0]
-                  }`,
-                  dicomElements: '', // TODO
-                  defaultDICOMElements: '', // TODO
-                  numberOfFrames: 0, // TODO
-                  isDSO: false, // TODO value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
-                  multiFrameImage: false, // TODO
-                  isFlaggedImage: '', // TODO
-                  rescaleIntercept: '', // TODO
-                  rescaleSlope: '', // TODO
-                  sliceOrder: '', // TODO
-                };
-              });
+              const result = _.chain(response.data)
+                .map(value => {
+                  return {
+                    projectID: params.project ? params.project : projectID,
+                    patientID:
+                      value['00100020'] && value['00100020'].Value
+                        ? value['00100020'].Value[0]
+                        : '',
+                    studyUID: value['0020000D'].Value ? value['0020000D'].Value[0] : '',
+                    seriesUID: value['0020000E'].Value ? value['0020000E'].Value[0] : '',
+                    imageUID: value['00080018'].Value ? value['00080018'].Value[0] : '',
+                    classUID:
+                      value['00080016'] && value['00080016'].Value
+                        ? value['00080016'].Value[0]
+                        : '',
+                    insertDate: '', // no date in studies call
+                    imageDate: '', // TODO
+                    sliceLocation: '', // TODO
+                    instanceNumber: Number(
+                      value['00200013'] && value['00200013'].Value
+                        ? value['00200013'].Value[0]
+                        : '1'
+                    ),
+                    losslessImage: '', // TODO
+                    lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
+                      value['00080018'].Value[0]
+                    }`,
+                    dicomElements: '', // TODO
+                    defaultDICOMElements: '', // TODO
+                    numberOfFrames: 0, // TODO
+                    isDSO: false, // TODO value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
+                    multiFrameImage: false, // TODO
+                    isFlaggedImage: '', // TODO
+                    rescaleIntercept: '', // TODO
+                    rescaleSlope: '', // TODO
+                    sliceOrder: '', // TODO
+                  };
+                })
+                .sortBy('instanceNumber')
+                .value();
 
               resolve(result);
             })
