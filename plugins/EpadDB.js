@@ -42,15 +42,16 @@ async function epaddb(fastify, options, done) {
       await new Promise(async (resolve, reject) => {
         try {
           const sequelize = new Sequelize(sequelizeConfig);
+          await sequelize.authenticate();
           fastify.decorate('orm', sequelize);
-          await fastify.orm.authenticate();
         } catch (err) {
           if (config.env === 'test') {
             try {
               sequelizeConfig.database = '';
               const sequelize = new Sequelize(sequelizeConfig);
               await sequelize.query(`CREATE DATABASE ${config.thickDb.name};`);
-              await fastify.orm.authenticate();
+              await sequelize.authenticate();
+              fastify.decorate('orm', sequelize);
             } catch (testDBErr) {
               reject(new InternalError('Creating test mariadb database', testDBErr));
             }
@@ -118,13 +119,17 @@ async function epaddb(fastify, options, done) {
               reject(new InternalError('Creating admin user in testdb', userCreateErr));
             }
           }
+          fastify.log.info('Connected to mariadb server');
           resolve();
         } catch (err) {
           reject(new InternalError('Leading models and syncing db', err));
         }
       });
     } catch (err) {
-      throw err;
+      if (config.env !== 'test') {
+        fastify.log.warn(`Waiting for mariadb server. ${err.message}`);
+        setTimeout(fastify.initMariaDB, 3000);
+      } else throw new InternalError('No connection to mariadb', err);
     }
   });
 
