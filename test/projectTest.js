@@ -35,6 +35,11 @@ beforeEach(() => {
   nock(config.dicomWebConfig.baseUrl)
     .delete('/studies/0023.2015.09.28.3')
     .reply(200);
+  nock(config.dicomWebConfig.baseUrl)
+    .delete(
+      '/studies/1.2.752.24.7.19011385.453825/series/1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000'
+    )
+    .reply(200);
 });
 
 describe('Project Tests', () => {

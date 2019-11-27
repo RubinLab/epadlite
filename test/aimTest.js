@@ -333,4 +333,34 @@ describe('System AIM Tests', () => {
         done(e);
       });
   });
+
+  it('seg aim save should be successful ', done => {
+    const jsonBuffer = JSON.parse(fs.readFileSync('test/data/testsegaim.json'));
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/aims')
+      .send(jsonBuffer)
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it('aim delete with uid 2.25.279022005483174190474579775643265129014 should be successful ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/aims/2.25.279022005483174190474579775643265129014')
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
 });

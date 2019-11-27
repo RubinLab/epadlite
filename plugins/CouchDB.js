@@ -617,8 +617,8 @@ async function couchdb(fastify, options) {
           // this is a segmentation aim
           if (segEntity) {
             const params = {
-              study: segEntity.SegmentationEntity[0].studyInstanceUid,
-              series: segEntity.SegmentationEntity[0].seriesInstanceUid,
+              study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
+              series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
             };
             promisses.push(fastify.deleteSeriesDicomsInternal(params));
           }
