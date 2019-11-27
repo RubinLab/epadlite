@@ -414,42 +414,48 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'getStudySeriesInternal',
-    (params, query, epadAuth) =>
+    (params, query, epadAuth, noStats) =>
       new Promise((resolve, reject) => {
         try {
-          const series = this.request.get(`/studies/${params.study}/series`, header);
+          const promisses = [];
+          promisses.push(this.request.get(`/studies/${params.study}/series`, header));
           // get aims for a specific study
-          const aims = fastify.getAimsInternal(
-            'summary',
-            {
-              subject: params.subject,
-              study: params.study,
-              series: '',
-            },
-            undefined,
-            epadAuth
-          );
+          if (noStats === undefined || noStats === false)
+            promisses.push(
+              fastify.getAimsInternal(
+                'summary',
+                {
+                  subject: params.subject,
+                  study: params.study,
+                  series: '',
+                },
+                undefined,
+                epadAuth
+              )
+            );
 
-          Promise.all([series, aims])
+          Promise.all(promisses)
             .then(values => {
               // handle success
               // populate an aim counts map containing each series
               const aimsCountMap = {};
-              _.chain(values[1])
-                .groupBy(value => {
-                  return value.seriesUID;
-                })
-                .map(value => {
-                  const numberOfAims = _.reduce(
-                    value,
-                    memo => {
-                      return memo + 1;
-                    },
-                    0
-                  );
-                  aimsCountMap[value[0].seriesUID] = numberOfAims;
-                })
-                .value();
+              if (noStats === undefined || noStats === false) {
+                _.chain(values[1])
+                  .groupBy(value => {
+                    return value.seriesUID;
+                  })
+                  .map(value => {
+                    const numberOfAims = _.reduce(
+                      value,
+                      memo => {
+                        return memo + 1;
+                      },
+                      0
+                    );
+                    aimsCountMap[value[0].seriesUID] = numberOfAims;
+                  })
+                  .value();
+              }
               // handle success
               // map each series to epadlite series object
               let filtered = values[0].data;

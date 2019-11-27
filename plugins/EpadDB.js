@@ -3235,6 +3235,67 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('getSeriesFromProject', async (request, reply) => {
+    try {
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+      if (project === null)
+        reply.send(
+          new BadRequestError(
+            'Get series from project',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      else {
+        const studyUids = [];
+        const projectSubjects = await models.project_subject.findAll({
+          where: { project_id: project.id },
+        });
+        if (projectSubjects === null) {
+          reply.send(
+            new BadRequestError(
+              'Get series from project',
+              new ResourceNotFoundError('Project subject association', request.params.project)
+            )
+          );
+        } else {
+          // projects will be an array of Project instances with the specified name
+          for (let i = 0; i < projectSubjects.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            const projectSubjectStudies = await models.project_subject_study.findAll({
+              where: { proj_subj_id: projectSubjects[i].id },
+            });
+            if (projectSubjectStudies)
+              for (let j = 0; j < projectSubjectStudies.length; j += 1) {
+                studyUids.push(projectSubjectStudies[j].study_uid);
+              }
+          }
+          let result = [];
+          for (let j = 0; j < studyUids.length; j += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            const studySeries = await fastify.getStudySeriesInternal(
+              { study: studyUids[j] },
+              request.query,
+              request.epadAuth,
+              true
+            );
+            result = result.concat(studySeries);
+          }
+
+          reply.code(200).send(result);
+        }
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(
+          `Getting studies of ${request.params.subject} from project ${request.params.project}`
+        ),
+        err
+      );
+    }
+  });
+
   fastify.decorate('addNondicomSeries', async (request, reply) => {
     // eslint-disable-next-line prefer-destructuring
     let seriesUid = request.params.seriesUid;

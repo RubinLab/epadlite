@@ -447,5 +447,23 @@ async function routes(fastify) {
     },
     handler: fastify.addNondicomSeries,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/series',
+    schema: {
+      tags: ['project', 'series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+
+    handler: fastify.getSeriesFromProject,
+  });
 }
 module.exports = routes;
