@@ -936,6 +936,25 @@ describe('Project Tests', () => {
         });
     });
 
+    it('project teststudy should have 1 series and it should be 0023.2015.09.28.3.3590', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/series')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0].seriesUID).to.be.eql('0023.2015.09.28.3.3590');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
     it('project teststudy should have study 0023.2015.09.28.3 of subject 3', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
