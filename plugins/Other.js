@@ -43,24 +43,37 @@ async function other(fastify) {
       } else {
         Promise.all(fileSavePromisses)
           .then(async () => {
+            let errors = [];
+            let success = false;
             let datasets = [];
             let studies = new Set();
             if (config.env !== 'test') {
               fastify.log.info('Files copy completed. sending response');
-              reply.code(200).send();
+              reply.code(202).send('Files received succesfully, saving..');
             }
             try {
               for (let i = 0; i < filenames.length; i += 1) {
-                // eslint-disable-next-line no-await-in-loop
-                await fastify.processFile(
-                  dir,
-                  filenames[i],
-                  datasets,
-                  request.params,
-                  request.query,
-                  studies,
-                  request.epadAuth
-                );
+                try {
+                  // eslint-disable-next-line no-await-in-loop
+                  const fileResult = await fastify.processFile(
+                    dir,
+                    filenames[i],
+                    datasets,
+                    request.params,
+                    request.query,
+                    studies,
+                    request.epadAuth
+                  );
+                  if (fileResult && fileResult.errors && fileResult.errors.length > 0)
+                    errors = errors.concat(fileResult.errors);
+                  if (
+                    (fileResult && fileResult.errors && fileResult.errors.length === 0) ||
+                    (fileResult && fileResult.success && fileResult.success === true)
+                  )
+                    success = success || true;
+                } catch (fileErr) {
+                  errors.push(fileErr);
+                }
               }
               // see if it was a dicom
               if (datasets.length > 0) {
@@ -71,21 +84,61 @@ async function other(fastify) {
                 datasets = [];
                 studies = new Set();
               }
-              fastify.log.info('Upload completed');
               fs.remove(dir, error => {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 fastify.log.info(`${dir} deleted`);
               });
-              new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
-              // test should wait for the upload to actually finish to send the response.
-              // sending the reply early is to handle very large files and to avoid browser repeating the request
-              if (config.env === 'test') reply.code(200).send();
+
+              if (success) {
+                if (errors.length > 0) {
+                  const errMessages = errors.reduce((all, item) => {
+                    all.push(item.message);
+                    return all;
+                  }, []);
+                  if (errMessages.length > 0) {
+                    if (config.env === 'test')
+                      reply.send(
+                        new InternalError(
+                          'Upload Completed with errors',
+                          new Error(errMessages.toString())
+                        )
+                      );
+                    else
+                      new EpadNotification(
+                        request,
+                        'Upload Completed with errors',
+                        new Error(errMessages.toString())
+                      ).notify(fastify);
+                  }
+                  // test should wait for the upload to actually finish to send the response.
+                  // sending the reply early is to handle very large files and to avoid browser repeating the request
+                } else if (config.env === 'test') reply.code(200).send();
+                else new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
+              } else if (config.env === 'test')
+                reply.send(
+                  new InternalError(
+                    'Upload Failed as none of the files were uploaded successfully',
+                    new Error(filenames.toString())
+                  )
+                );
+              else
+                new EpadNotification(
+                  request,
+                  'Upload Failed as none of the files were uploaded successfully',
+                  new Error(filenames.toString())
+                ).notify(fastify);
             } catch (filesErr) {
               fs.remove(dir, error => {
                 if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                 else fastify.log.info(`${dir} deleted`);
               });
-              reply.send(new InternalError('Upload Error', filesErr));
+              if (config.env === 'test') reply.send(new InternalError('Upload Error', filesErr));
+              else
+                new EpadNotification(
+                  request,
+                  'Upload files',
+                  new InternalError('Upload Error', filesErr)
+                ).notify(fastify);
             }
           })
           .catch(fileSaveErr => {
@@ -93,7 +146,13 @@ async function other(fastify) {
               if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
               else fastify.log.info(`${dir} deleted`);
             });
-            reply.send(new InternalError('Upload Error', fileSaveErr));
+            if (config.env === 'test') reply.send(new InternalError('Upload Error', fileSaveErr));
+            else
+              new EpadNotification(
+                request,
+                'Upload files',
+                new InternalError('Upload Error', fileSaveErr)
+              ).notify(fastify);
           });
       }
     }
@@ -171,7 +230,7 @@ async function other(fastify) {
               fastify.log.info(`Extracted zip ${zipDir}`);
               fastify
                 .processFolder(`${zipDir}`, params, query, epadAuth)
-                .then(() => resolve())
+                .then(result => resolve(result))
                 .catch(err => reject(err));
             })
             .on('error', error => {
@@ -189,6 +248,8 @@ async function other(fastify) {
       new Promise((resolve, reject) => {
         fastify.log.info(`Processing folder ${zipDir}`);
         const datasets = [];
+        // success variable is to check if there was at least one successful processing
+        const result = { success: false, errors: [] };
         const studies = new Set();
         fs.readdir(zipDir, async (err, files) => {
           if (err) {
@@ -198,44 +259,60 @@ async function other(fastify) {
             for (let i = 0; i < files.length; i += 1) {
               if (files[i] !== '__MACOSX')
                 if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
-                  // eslint-disable-next-line no-await-in-loop
-                  await fastify.processFolder(`${zipDir}/${files[i]}`, params, query, epadAuth);
-                else
-                  promisses.push(
-                    fastify.processFile(
-                      zipDir,
-                      files[i],
-                      datasets,
+                  try {
+                    // eslint-disable-next-line no-await-in-loop
+                    const subdirResult = await fastify.processFolder(
+                      `${zipDir}/${files[i]}`,
                       params,
                       query,
-                      studies,
                       epadAuth
-                    )
+                    );
+                    if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
+                      result.errors = result.errors.concat(subdirResult.errors);
+                    }
+                    if (subdirResult && subdirResult.success) {
+                      result.success = result.success || subdirResult.success;
+                    }
+                  } catch (folderErr) {
+                    reject(folderErr);
+                  }
+                else
+                  promisses.push(
+                    fastify
+                      .processFile(zipDir, files[i], datasets, params, query, studies, epadAuth)
+                      // eslint-disable-next-line no-loop-func
+                      .catch(error => {
+                        result.errors.push(error);
+                      })
                   );
             }
-            Promise.all(promisses)
-              .then(async () => {
-                if (datasets.length > 0) {
-                  if (config.mode === 'thick')
-                    await fastify.addProjectReferences(params, epadAuth, studies);
-                  fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
-                  const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
-                  fastify.log.info(
-                    `Sending ${Buffer.byteLength(
-                      data
-                    )} bytes of data to dicom web server for saving`
-                  );
-                  fastify
-                    .saveDicomsInternal(data, boundary)
-                    .then(() => resolve())
-                    .catch(error => reject(error));
-                } else {
-                  resolve();
+            Promise.all(promisses).then(async values => {
+              for (let i = 0; values.length; i += 1) {
+                if (
+                  values[i] === undefined ||
+                  (values[i].errors && values[i].errors.length === 0)
+                ) {
+                  // one success is enough
+                  result.success = result.success || true;
+                  break;
                 }
-              })
-              .catch(errProcessAllFiles => {
-                reject(errProcessAllFiles);
-              });
+              }
+              if (datasets.length > 0) {
+                if (config.mode === 'thick')
+                  await fastify.addProjectReferences(params, epadAuth, studies);
+                fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
+                const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
+                fastify.log.info(
+                  `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
+                );
+                fastify
+                  .saveDicomsInternal(data, boundary)
+                  .then(() => resolve(result))
+                  .catch(error => reject(error));
+              } else {
+                resolve(result);
+              }
+            });
           }
         });
       })
@@ -266,7 +343,7 @@ async function other(fastify) {
                 const arrayBuffer = toArrayBuffer(buffer);
                 studies.add(fastify.getDicomInfo(arrayBuffer));
                 datasets.push(arrayBuffer);
-                resolve();
+                resolve({ success: true, errors: [] });
               } catch (err) {
                 reject(new InternalError(`Reading dicom file ${filename}`));
               }
@@ -278,7 +355,7 @@ async function other(fastify) {
                   .saveTemplateInternal(jsonBuffer)
                   .then(() => {
                     fastify.log.info(`Saving successful for ${filename}`);
-                    resolve();
+                    resolve({ success: true, errors: [] });
                   })
                   .catch(err => {
                     reject(err);
@@ -288,7 +365,7 @@ async function other(fastify) {
                   .saveAimInternal(jsonBuffer)
                   .then(() => {
                     fastify.log.info(`Saving successful for ${filename}`);
-                    resolve();
+                    resolve({ success: true, errors: [] });
                   })
                   .catch(err => {
                     reject(err);
@@ -297,7 +374,7 @@ async function other(fastify) {
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
-                .then(() => resolve())
+                .then(result => resolve(result))
                 .catch(err => reject(err));
             } else if (fastify.checkFileType(filename))
               fastify
@@ -309,9 +386,15 @@ async function other(fastify) {
                   Buffer.byteLength(buffer),
                   epadAuth
                 )
-                .then(() => resolve())
+                .then(() => resolve({ success: true, errors: [] }))
                 .catch(err => reject(err));
-            else reject(new BadRequestError('Uploading files', new Error('Unsupported filetype')));
+            else
+              reject(
+                new BadRequestError(
+                  'Uploading files',
+                  new Error(`Unsupported filetype for file ${dir}/${filename}`)
+                )
+              );
           });
         } catch (err) {
           reject(new InternalError(`Processing file ${filename}`, err));

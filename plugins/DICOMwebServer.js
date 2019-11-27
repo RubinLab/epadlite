@@ -122,7 +122,7 @@ async function dicomwebserver(fastify) {
           this.request
             .post('/studies', data, postHeader)
             .then(() => {
-              fastify.log.info('Success');
+              fastify.log.info('Dicoms sent to dicomweb with success');
               resolve();
             })
             .catch(error => {
