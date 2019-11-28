@@ -48,8 +48,10 @@ async function epaddb(fastify, options, done) {
           if (config.env === 'test') {
             try {
               sequelizeConfig.database = '';
-              const sequelize = new Sequelize(sequelizeConfig);
+              let sequelize = new Sequelize(sequelizeConfig);
               await sequelize.query(`CREATE DATABASE ${config.thickDb.name};`);
+              sequelizeConfig.database = config.thickDb.name;
+              sequelize = new Sequelize(sequelizeConfig);
               await sequelize.authenticate();
               fastify.decorate('orm', sequelize);
             } catch (testDBErr) {
