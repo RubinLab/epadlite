@@ -107,25 +107,25 @@ if (config.env !== 'test' && config.mode === 'thick') {
   // register routes
   // this should be done after CouchDB plugin to be able to use the accessor methods
   // for both thick and lite
-  fastify.register(require('./routes/worklist')); // eslint-disable-line global-require
+  fastify.register(require('./routes/worklist'), { prefix: config.prefix }); // eslint-disable-line global-require
 
   // adding generic routes for completion, in lite, they work the same as the projects/lite prefix
-  fastify.register(require('./routes/template')); // eslint-disable-line global-require
-  fastify.register(require('./routes/aim')); // eslint-disable-line global-require
-  fastify.register(require('./routes/dicomweb')); // eslint-disable-line global-require
-  fastify.register(require('./routes/user')); // eslint-disable-line global-require
-  fastify.register(require('./routes/other')); // eslint-disable-line global-require
+  fastify.register(require('./routes/template'), { prefix: config.prefix }); // eslint-disable-line global-require
+  fastify.register(require('./routes/aim'), { prefix: config.prefix }); // eslint-disable-line global-require
+  fastify.register(require('./routes/dicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
+  fastify.register(require('./routes/user'), { prefix: config.prefix }); // eslint-disable-line global-require
+  fastify.register(require('./routes/other'), { prefix: config.prefix }); // eslint-disable-line global-require
 
   if (config.mode === 'lite') {
-    fastify.register(require('./routes/other'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
-    fastify.register(require('./routes/template'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
-    fastify.register(require('./routes/aim'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
-    fastify.register(require('./routes/dicomweb'), { prefix: '/projects/lite' }); // eslint-disable-line global-require
+    fastify.register(require('./routes/other'), { prefix: `${config.prefix}/projects/lite` }); // eslint-disable-line global-require
+    fastify.register(require('./routes/template'), { prefix: `${config.prefix}/projects/lite` }); // eslint-disable-line global-require
+    fastify.register(require('./routes/aim'), { prefix: `${config.prefix}/projects/lite` }); // eslint-disable-line global-require
+    fastify.register(require('./routes/dicomweb'), { prefix: `${config.prefix}/projects/lite` }); // eslint-disable-line global-require
   } else if (config.mode === 'thick') {
-    fastify.register(require('./routes/project')); // eslint-disable-line global-require
-    fastify.register(require('./routes/projectTemplate')); // eslint-disable-line global-require
-    fastify.register(require('./routes/projectAim')); // eslint-disable-line global-require
-    fastify.register(require('./routes/projectDicomweb')); // eslint-disable-line global-require
+    fastify.register(require('./routes/project'), { prefix: config.prefix }); // eslint-disable-line global-require
+    fastify.register(require('./routes/projectTemplate'), { prefix: config.prefix }); // eslint-disable-line global-require
+    fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // eslint-disable-line global-require
+    fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
   }
 
   // Run the server!
