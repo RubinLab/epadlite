@@ -244,13 +244,13 @@ async function dicomwebserver(fastify) {
                     subjectName: value[0]['00100010'].Value
                       ? value[0]['00100010'].Value[0].Alphabetic
                       : '',
-                    subjectID: value[0]['00100020'].Value[0].replace('\u0000', ' '),
+                    subjectID: fastify.replaceNull(value[0]['00100020'].Value[0]),
                     projectID: params.project ? params.project : projectID,
                     insertUser: '', // no user in studies call
                     xnatID: '', // no xnatID should remove
                     insertDate: '', // no date in studies call
                     uri: '', // no uri should remove
-                    displaySubjectID: value[0]['00100020'].Value[0].replace('\u0000', ' '),
+                    displaySubjectID: fastify.replaceNull(value[0]['00100020'].Value[0]),
                     numberOfStudies,
                     numberOfAnnotations: aimsCountMap[value[0]['00100020'].Value[0]]
                       ? aimsCountMap[value[0]['00100020'].Value[0]]
@@ -358,14 +358,14 @@ async function dicomwebserver(fastify) {
               if (params.subject)
                 filteredStudies = _.filter(
                   filteredStudies,
-                  obj => obj['00100020'].Value[0].replace('\u0000', ' ') === params.subject
+                  obj => fastify.replaceNull(obj['00100020'].Value[0]) === params.subject
                 );
 
               // get the patients's studies and map each study to epadlite study object
               const result = _.map(filteredStudies, value => {
                 return {
                   projectID: params.project ? params.project : projectID,
-                  patientID: value['00100020'].Value[0].replace('\u0000', ' '),
+                  patientID: fastify.replaceNull(value['00100020'].Value[0]),
                   patientName: value['00100010'].Value ? value['00100010'].Value[0].Alphabetic : '',
                   studyUID: value['0020000D'].Value[0],
                   insertDate: value['00080020'].Value ? value['00080020'].Value[0] : '', // study date
@@ -491,7 +491,7 @@ async function dicomwebserver(fastify) {
                   // TODO put in dicomweb but what if other dicomweb is used
                   patientID:
                     value['00100020'] && value['00100020'].Value
-                      ? value['00100020'].Value[0].replace('\u0000', ' ')
+                      ? fastify.replaceNull(value['00100020'].Value[0])
                       : '',
                   // TODO
                   patientName:
@@ -559,7 +559,7 @@ async function dicomwebserver(fastify) {
                     projectID: params.project ? params.project : projectID,
                     patientID:
                       value['00100020'] && value['00100020'].Value
-                        ? value['00100020'].Value[0].replace('\u0000', ' ')
+                        ? fastify.replaceNull(value['00100020'].Value[0])
                         : '',
                     studyUID: value['0020000D'].Value ? value['0020000D'].Value[0] : '',
                     seriesUID: value['0020000E'].Value ? value['0020000E'].Value[0] : '',

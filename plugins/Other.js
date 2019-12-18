@@ -464,7 +464,7 @@ async function other(fastify) {
             result.forEach(study => {
               promisses.push(
                 fastify.deleteStudyDicomsInternal({
-                  subject: params.subject.replace('\u0000', ' '),
+                  subject: params.subject,
                   study: study.studyUID,
                 })
               );
@@ -857,6 +857,9 @@ async function other(fastify) {
   });
 
   fastify.decorate('isProjectRoute', request => request.req.url.startsWith('/projects/'));
+
+  // remove null in patient id
+  fastify.decorate('replaceNull', text => text.replace('\u0000', ''));
 
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
