@@ -8,6 +8,7 @@ config.mode = config.mode || 'lite'; // default lite
 config.imageExt = config.imageExt || 'jpg|jpeg|png';
 config.reportExt = config.reportExt || 'txt|pdf';
 config.validExt = `${config.imageExt}|${config.reportExt}`;
+config.prefix = config.prefix || '';
 config.thickDb = config.thickDb || {
   name: 'epaddb',
   host: 'localhost',
