@@ -460,7 +460,6 @@ async function other(fastify) {
         fastify
           .getPatientStudiesInternal(params, undefined, epadAuth)
           .then(result => {
-            console.log(params, result);
             result.forEach(study => {
               promisses.push(
                 fastify.deleteStudyDicomsInternal({
