@@ -31,12 +31,15 @@ const {
 } = require('../utils/EpadErrors');
 
 async function other(fastify) {
-  console.log('config.maxConcurrent', config.maxConcurrent);
+  fastify.log.info(`Starting a promise queue with ${config.maxConcurrent} concurrent promisses`);
   const pq = new PQueue({ concurrency: config.maxConcurrent });
   let count = 0;
   pq.on('active', () => {
+    count += 1;
     // eslint-disable-next-line no-plusplus
-    console.log(`Working on item #${++count}.  Size: ${pq.size}  Pending: ${pq.pending}`);
+    fastify.log.info(
+      `P-queue working on item #${count}.  Size: ${pq.size}  Pending: ${pq.pending}`
+    );
   });
   // eslint-disable-next-line global-require
   fastify.register(require('fastify-multipart'));
