@@ -16,4 +16,5 @@ config.thickDb = config.thickDb || {
   user: 'pacs',
   pass: 'pacs',
 };
+config.maxConcurrent = config.maxConcurrent || 5;
 module.exports = config;

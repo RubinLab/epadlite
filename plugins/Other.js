@@ -2,6 +2,7 @@ const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const unzip = require('unzip-stream');
 const toArrayBuffer = require('to-array-buffer');
+const { default: PQueue } = require('p-queue');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -30,6 +31,13 @@ const {
 } = require('../utils/EpadErrors');
 
 async function other(fastify) {
+  console.log('config.maxConcurrent', config.maxConcurrent);
+  const pq = new PQueue({ concurrency: config.maxConcurrent });
+  let count = 0;
+  pq.on('active', () => {
+    // eslint-disable-next-line no-plusplus
+    console.log(`Working on item #${++count}.  Size: ${pq.size}  Pending: ${pq.pending}`);
+  });
   // eslint-disable-next-line global-require
   fastify.register(require('fastify-multipart'));
   fastify.decorate('saveFile', (request, reply) => {
@@ -113,7 +121,10 @@ async function other(fastify) {
                   // test should wait for the upload to actually finish to send the response.
                   // sending the reply early is to handle very large files and to avoid browser repeating the request
                 } else if (config.env === 'test') reply.code(200).send();
-                else new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
+                else {
+                  fastify.log.info(`Upload Completed ${filenames}`);
+                  new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
+                }
               } else if (config.env === 'test')
                 reply.send(
                   new InternalError(
@@ -220,7 +231,7 @@ async function other(fastify) {
     (dir, filename, params, query, epadAuth) =>
       new Promise((resolve, reject) => {
         const zipTimestamp = new Date().getTime();
-        const zipDir = `${dir}/tmp_${zipTimestamp}`;
+        const zipDir = `${dir}/${filename}_${zipTimestamp}`;
         try {
           fs.mkdirSync(zipDir);
           fastify.log.info(`Extracting ${dir}/${filename} to ${zipDir}`);
@@ -230,7 +241,12 @@ async function other(fastify) {
               fastify.log.info(`Extracted zip ${zipDir}`);
               fastify
                 .processFolder(`${zipDir}`, params, query, epadAuth)
-                .then(result => resolve(result))
+                .then(result => {
+                  fastify.log.info(
+                    `Finished processing ${filename} at ${new Date().getTime()} started at ${zipTimestamp}`
+                  );
+                  resolve(result);
+                })
                 .catch(err => reject(err));
             })
             .on('error', error => {
@@ -337,7 +353,7 @@ async function other(fastify) {
           });
           readableStream.on('end', () => {
             buffer = Buffer.concat(buffer);
-            fastify.log.info(`Finished reading ${dir}/${filename}. Buffer length ${buffer.length}`);
+            // fastify.log.info(`Finished reading ${dir}/${filename}. Buffer length ${buffer.length}`);
             if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
               try {
                 const arrayBuffer = toArrayBuffer(buffer);
@@ -444,10 +460,21 @@ async function other(fastify) {
   });
 
   fastify.decorate('deleteSubject', (request, reply) => {
+    fastify.log.info(`Deleting subject ${request.params.subject}`);
+    if (config.env !== 'test') {
+      fastify.log.info(
+        `Subject ${request.params.subject} deletion request recieved, sending response`
+      );
+      reply
+        .code(202)
+        .send(`Subject ${request.params.subject} deletion request recieved. deleting..`);
+    }
     fastify
       .deleteSubjectInternal(request.params, request.epadAuth)
       .then(result => {
-        reply.code(200).send(result);
+        if (config.env !== 'test')
+          new EpadNotification(request, 'Deleted subject', request.params.subject).notify(fastify);
+        else reply.code(200).send(result);
       })
       .catch(err => reply.send(err));
   });
@@ -461,15 +488,17 @@ async function other(fastify) {
           .getPatientStudiesInternal(params, undefined, epadAuth)
           .then(result => {
             result.forEach(study => {
-              promisses.push(
-                fastify.deleteStudyDicomsInternal({
+              promisses.push(() => {
+                return fastify.deleteStudyDicomsInternal({
                   subject: params.subject,
                   study: study.studyUID,
-                })
-              );
+                });
+              });
             });
-            promisses.push(fastify.deleteAimsInternal(params, epadAuth));
-            Promise.all(promisses)
+            promisses.push(() => {
+              return fastify.deleteAimsInternal(params, epadAuth);
+            });
+            pq.addAll(promisses)
               .then(() => {
                 fastify.log.info(`Subject ${params.subject} deletion is initiated successfully`);
                 resolve(`Subject ${params.subject} deletion is initiated successfully`);
@@ -487,10 +516,20 @@ async function other(fastify) {
   );
 
   fastify.decorate('deleteStudy', (request, reply) => {
+    if (config.env !== 'test') {
+      fastify.log.info(
+        `Study ${request.params.study} of Subject ${
+          request.params.subject
+        } deletion request recieved, sending response`
+      );
+      reply.code(202).send(`Study ${request.params.study} deletion request recieved. deleting..`);
+    }
     fastify
       .deleteStudyInternal(request.params, request.epadAuth)
       .then(result => {
-        reply.code(200).send(result);
+        if (config.env !== 'test')
+          new EpadNotification(request, 'Deleted study', request.params.study).notify(fastify);
+        else reply.code(200).send(result);
       })
       .catch(err => reply.send(err));
   });
@@ -500,10 +539,14 @@ async function other(fastify) {
     (params, epadAuth) =>
       new Promise((resolve, reject) => {
         // delete study in dicomweb and annotations
-        Promise.all([
-          fastify.deleteStudyDicomsInternal(params),
-          fastify.deleteAimsInternal(params, epadAuth),
-        ])
+        const promisses = [];
+        promisses.push(() => {
+          return fastify.deleteStudyDicomsInternal(params);
+        });
+        promisses.push(() => {
+          return fastify.deleteAimsInternal(params, epadAuth);
+        });
+        pq.addAll(promisses)
           .then(() => {
             fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
             resolve();
@@ -517,13 +560,30 @@ async function other(fastify) {
   fastify.decorate('deleteSeries', (request, reply) => {
     try {
       // delete study in dicomweb and annotations
-      Promise.all([
-        fastify.deleteSeriesDicomsInternal(request.params),
-        fastify.deleteAimsInternal(request.params, request.epadAuth),
-      ])
+      const promisses = [];
+      promisses.push(() => {
+        return fastify.deleteSeriesDicomsInternal(request.params);
+      });
+      promisses.push(() => {
+        return fastify.deleteAimsInternal(request.params, request.epadAuth);
+      });
+      if (config.env !== 'test') {
+        fastify.log.info(
+          `Series ${request.params.series} of Subject ${
+            request.params.subject
+          } deletion request recieved, sending response`
+        );
+        reply.code(202).send(`Study ${request.params.study} deletion request recieved. deleting..`);
+      }
+      pq.addAll(promisses)
         .then(() => {
           fastify.log.info(`Series ${request.params.series} deletion is initiated successfully`);
-          reply.code(200).send();
+          if (config.env !== 'test')
+            new EpadNotification(request, 'Deleted series', request.params.series).notify(fastify);
+          else
+            reply
+              .code(200)
+              .send(`Series ${request.params.series} deletion is initiated successfully`);
         })
         .catch(error => {
           reply.send(error);
