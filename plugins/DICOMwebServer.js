@@ -558,18 +558,15 @@ async function dicomwebserver(fastify) {
               // but I don't want to make unneccessary calls to dicomweb
               // we should find a better way. maybe include in dicom query
               if (response.data.length === 1) {
-                // console.log(response.data[0]['00080018'].Value[0]);
                 const metadata = await this.request.get(
                   `/studies/${params.study}/series/${params.series}/instances/${
                     response.data[0]['00080018'].Value[0]
                   }/metadata`,
                   header
                 );
-                // console.log(metadata.data);
                 if (metadata.data[0]['00280008'] && metadata.data[0]['00280008'].Value)
                   multiframe = true;
               }
-              console.log('is it multiframe', multiframe);
               // map each instance to epadlite image object
               const result = _.chain(response.data)
                 .map(value => {
@@ -611,7 +608,6 @@ async function dicomwebserver(fastify) {
                 })
                 .sortBy('instanceNumber')
                 .value();
-              console.log(result);
               resolve(result);
             })
             .catch(error => {
