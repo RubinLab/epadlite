@@ -407,6 +407,27 @@ async function epaddb(fastify, options, done) {
       });
   });
 
+  fastify.decorate('getPlugins', (request, reply) => {
+    models.plugin
+      .findAll()
+      .then(plugins => {
+        // projects will be an array of all Project instances
+        const result = [];
+        console.log('**************expecting all plugins ' + plugins);
+        reply.code(200).send(plugins);
+      })
+      .catch(err => {
+        reply.send(
+          new InternalError(
+            `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+              request.epadAuth.admin
+            }`,
+            err
+          )
+        );
+      });
+  });
+
   fastify.decorate('validateRequestBodyFields', (name, id) => {
     if (!name || !id) {
       return EpadError.messages.requiredField;
