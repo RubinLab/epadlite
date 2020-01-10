@@ -18,9 +18,10 @@ const fastify = require('fastify')({
       : '',
 });
 
-if (config.env !== 'test' && config.mode === 'thick') {
-  fastify.log.error('Thick mode is currently not supported!');
-} else {
+//if (config.env !== 'test' && config.mode === 'thick') {
+// fastify.log.error('Thick mode is currently not supported!');
+//} else
+{
   fastify.addContentTypeParser('*', (req, done) => {
     let data = [];
     req.on('data', chunk => {
@@ -88,6 +89,7 @@ if (config.env !== 'test' && config.mode === 'thick') {
           { name: 'worklist', description: 'Worklist related end-points' },
           { name: 'user', description: 'User related end-points' },
           { name: 'images', description: 'Image related end-points' },
+          { name: 'plugins', description: 'Image related end-points' },
         ],
         externalDocs: {
           url: 'https://swagger.io',
@@ -126,6 +128,7 @@ if (config.env !== 'test' && config.mode === 'thick') {
     fastify.register(require('./routes/projectTemplate'), { prefix: config.prefix }); // eslint-disable-line global-require
     fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // eslint-disable-line global-require
     fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
+    fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require
   }
 
   // Run the server!
