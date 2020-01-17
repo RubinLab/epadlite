@@ -479,7 +479,15 @@ async function other(fastify) {
           new EpadNotification(request, 'Deleted subject', request.params.subject).notify(fastify);
         else reply.code(200).send(result);
       })
-      .catch(err => reply.send(err));
+      .catch(err => {
+        if (config.env !== 'test')
+          new EpadNotification(
+            request,
+            'Delete subject failed',
+            new Error(request.params.subject)
+          ).notify(fastify);
+        else reply.send(err);
+      });
   });
 
   fastify.decorate(
@@ -534,7 +542,15 @@ async function other(fastify) {
           new EpadNotification(request, 'Deleted study', request.params.study).notify(fastify);
         else reply.code(200).send(result);
       })
-      .catch(err => reply.send(err));
+      .catch(err => {
+        if (config.env !== 'test')
+          new EpadNotification(
+            request,
+            'Delete study failed',
+            new Error(request.params.subject)
+          ).notify(fastify);
+        else reply.send(err);
+      });
   });
 
   fastify.decorate(
@@ -592,8 +608,13 @@ async function other(fastify) {
           reply.send(error);
         });
     } catch (err) {
-      fastify.log.info(`Error deleting: ${err.message}`);
-      reply.code(503).send(err.message);
+      if (config.env !== 'test')
+        new EpadNotification(
+          request,
+          'Delete series failed',
+          new Error(request.params.subject)
+        ).notify(fastify);
+      else reply.send(err);
     }
   });
 
