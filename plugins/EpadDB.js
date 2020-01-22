@@ -68,6 +68,7 @@ async function epaddb(fastify, options, done) {
               path.join(__dirname, '/../models', filenames[i])
             );
           }
+
           models.user.belongsToMany(models.project, {
             through: 'project_user',
             as: 'projects',
@@ -104,6 +105,42 @@ async function epaddb(fastify, options, done) {
             as: 'worklists',
             foreignKey: 'user_id',
           });
+          //cavit
+          /*
+          models.project.belongsToMany(models.plugin, {
+            through: 'project_plugin',
+            as: 'pluginprojects',
+            foreignKey: 'project_id',
+          });
+          */
+          /*
+          models.plugin.belongsToMany(models.project, {
+            through: 'project_plugin',
+            foreignKey: 'plugin_id',
+            as: 'plugpr',
+          });
+          */
+          /*
+          models.project.belongsToMany(models.plugin, {
+            through: 'project_plugin',
+            foreignKey: 'project_id',
+            as: 'prplug',
+          });
+          */
+          //models.project_plugin.belongsTo('project', { foreignKey: 'project_id' });
+          //models.project_plugin.belongsTo('plugin', { foreignKey: 'plugin_id' });
+          models.plugin.belongsToMany(models.project, {
+            through: 'project_plugin',
+            as: 'plplug',
+            foreignKey: 'plugin_id',
+          });
+          models.project.belongsToMany(models.plugin, {
+            through: 'project_plugin',
+            as: 'prplug',
+            foreignKey: 'project_id',
+          });
+
+          //cavit
 
           await fastify.orm.sync();
           if (config.env === 'test') {
@@ -406,14 +443,14 @@ async function epaddb(fastify, options, done) {
         );
       });
   });
-
-  fastify.decorate('getPlugins', (request, reply) => {
+  //cavit
+  fastify.decorate('getPlugins', async (request, reply) => {
     models.plugin
       .findAll()
       .then(plugins => {
         // projects will be an array of all Project instances
         const result = [];
-        console.log('**************expecting all plugins ' + plugins);
+        //console.log('**************expecting all plugins ', plugins);
         reply.code(200).send(plugins);
       })
       .catch(err => {
@@ -428,6 +465,50 @@ async function epaddb(fastify, options, done) {
       });
   });
 
+  fastify.decorate('getPluginsWithProject', (request, reply) => {
+    models.plugin
+      .findAll({
+        include: ['plplug'],
+        required: false,
+      })
+      .then(plugins => {
+        // projects will be an array of all Project instances
+        const result = [];
+
+        plugins.forEach(data => {
+          const obj = {
+            id: data.dataValues.id,
+            plugin_id: data.dataValues.plugin_id,
+            name: data.dataValues.name,
+            description: data.dataValues.description,
+            enabled: data.dataValues.enabled,
+            status: data.dataValues.status,
+            modality: data.dataValues.modality,
+            processmultipleaims: data.dataValues.processmultipleaims,
+            projects: [],
+          };
+          console.log('++++++++++++++ here each plugin  id', data.dataValues.plugin_id);
+          data.dataValues.plplug.forEach(project => {
+            const projectObj = {
+              id: project.id,
+              projectid: project.projectid,
+            };
+            console.log('project ->', project.dataValues);
+            obj.projects.push(projectObj);
+          });
+          console.log('++++++++++++++ resulting return  obj', obj);
+          result.push(obj);
+        });
+
+        //console.log('**************expecting all getPluginsWithProject ', plugins);
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply.send(new InternalError(`getPluginsWithProject error `, err));
+      });
+  });
+
+  //cavit
   fastify.decorate('validateRequestBodyFields', (name, id) => {
     if (!name || !id) {
       return EpadError.messages.requiredField;
@@ -2644,6 +2725,9 @@ async function epaddb(fastify, options, done) {
       })
       .then(users => {
         const result = [];
+        //cavit
+        console.log('users --------->', users);
+        //cavit
         users.forEach(user => {
           const projects = [];
           const projectToRole = [];
@@ -2671,6 +2755,9 @@ async function epaddb(fastify, options, done) {
             username: user.username,
             role: user.role,
           };
+          //cavit
+          console.log(' after adding project to each user --->>', obj);
+          //cavit
           result.push(obj);
         });
         reply.code(200).send(result);

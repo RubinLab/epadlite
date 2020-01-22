@@ -12,6 +12,17 @@ async function routes(fastify) {
     },
     handler: fastify.getPlugins,
   });
+  fastify.route({
+    method: 'GET',
+    url: '/pluginswithproject',
+    schema: {
+      tags: ['plugins'],
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getPluginsWithProject,
+  });
   /*
     fastify.route({
       method: 'POST',

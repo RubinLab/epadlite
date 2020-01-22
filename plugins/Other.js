@@ -807,8 +807,10 @@ async function other(fastify) {
           new UnauthenticatedError('Authentication info does not exist or conform with the server')
         );
       }
-    } else if ((config.env === 'test' || config.auth === 'none') && req.query.username) {
+      //} else if ((config.env === 'test' || config.auth === 'none') && req.query.username) {
+    } else if (config.env === 'test' || config.auth === 'none') {
       // just see if the url has username. for testing purposes
+      if (!req.query.username) req.query.username = 'admin';
       try {
         req.epadAuth = await fastify.fillUserInfo(req.query.username);
       } catch (err) {
