@@ -131,13 +131,24 @@ async function epaddb(fastify, options, done) {
           //models.project_plugin.belongsTo('plugin', { foreignKey: 'plugin_id' });
           models.plugin.belongsToMany(models.project, {
             through: 'project_plugin',
-            as: 'plplug',
+            as: 'pluginproject',
             foreignKey: 'plugin_id',
           });
           models.project.belongsToMany(models.plugin, {
             through: 'project_plugin',
-            as: 'prplug',
+            as: 'projectplugin',
             foreignKey: 'project_id',
+          });
+
+          models.plugin.belongsToMany(models.template, {
+            through: 'plugin_template',
+            as: 'plugintemplate',
+            foreignKey: 'plugin_id',
+          });
+          models.template.belongsToMany(models.plugin, {
+            through: 'plugin_template',
+            as: 'templateplugin',
+            foreignKey: 'template_id',
           });
 
           //cavit
@@ -468,7 +479,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getPluginsWithProject', (request, reply) => {
     models.plugin
       .findAll({
-        include: ['plplug'],
+        include: ['pluginproject', 'plugintemplate'],
         required: false,
       })
       .then(plugins => {
@@ -476,7 +487,7 @@ async function epaddb(fastify, options, done) {
         const result = [];
 
         plugins.forEach(data => {
-          const obj = {
+          const pluginObj = {
             id: data.dataValues.id,
             plugin_id: data.dataValues.plugin_id,
             name: data.dataValues.name,
@@ -486,18 +497,30 @@ async function epaddb(fastify, options, done) {
             modality: data.dataValues.modality,
             processmultipleaims: data.dataValues.processmultipleaims,
             projects: [],
+            templates: [],
           };
-          console.log('++++++++++++++ here each plugin  id', data.dataValues.plugin_id);
-          data.dataValues.plplug.forEach(project => {
+          //console.log('++++++++++++++ here each plugin  id', data.dataValues.plugin_id);
+          data.dataValues.pluginproject.forEach(project => {
             const projectObj = {
               id: project.id,
               projectid: project.projectid,
             };
-            console.log('project ->', project.dataValues);
-            obj.projects.push(projectObj);
+            //console.log('project ->', project.dataValues);
+            pluginObj.projects.push(projectObj);
           });
-          console.log('++++++++++++++ resulting return  obj', obj);
-          result.push(obj);
+
+          data.dataValues.plugintemplate.forEach(template => {
+            const templateObj = {
+              id: template.id,
+              templateName: template.templateName,
+            };
+            //console.log('project ->', project.dataValues);
+            pluginObj.templates.push(templateObj);
+          });
+          //console.log('++++++++++++++ resulting return  obj', obj);
+          result.push(pluginObj);
+
+          console.log('************** plugin template ', data.dataValues.plugintemplate);
         });
 
         //console.log('**************expecting all getPluginsWithProject ', plugins);
