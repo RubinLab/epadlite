@@ -476,6 +476,27 @@ async function epaddb(fastify, options, done) {
       });
   });
 
+  fastify.decorate('getTemplatesDataFromDb', async (request, reply) => {
+    models.template
+      .findAll()
+      .then(templates => {
+        // projects will be an array of all Project instances
+        const result = [];
+        console.log('**************expecting all templates ', templates);
+        reply.code(200).send(templates);
+      })
+      .catch(err => {
+        reply.send(
+          new InternalError(
+            `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+              request.epadAuth.admin
+            }`,
+            err
+          )
+        );
+      });
+  });
+
   fastify.decorate('getPluginsWithProject', (request, reply) => {
     models.plugin
       .findAll({
@@ -529,6 +550,34 @@ async function epaddb(fastify, options, done) {
       .catch(err => {
         reply.send(new InternalError(`getPluginsWithProject error `, err));
       });
+  });
+
+  fastify.decorate('updatePluginProject', (request, reply) => {
+    //
+    if (request.body.assigneeList) {
+      fastify.updateWorklistAssigneeInternal(request, reply);
+    } else {
+      const obj = { ...request.body };
+      if (request.body.dueDate) {
+        obj.duedate = request.body.dueDate;
+        delete obj.dueDate;
+      }
+      models.worklist
+        .update(
+          { ...obj, updatetime: Date.now(), updated_by: request.epadAuth.username },
+          {
+            where: {
+              worklistid: request.params.worklist,
+            },
+          }
+        )
+        .then(() => {
+          reply.code(200).send('Update successful');
+        })
+        .catch(err => reply.send(new InternalError('Updating worklist', err)));
+    }
+
+    //
   });
 
   //cavit
