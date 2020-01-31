@@ -56,7 +56,7 @@ async function routes(fastify) {
 
     handler: fastify.getTemplates,
   });
-
+  //cavit
   // GET {s}/templates data from db (this is not downloading template as file)
   fastify.route({
     method: 'GET',
@@ -70,7 +70,7 @@ async function routes(fastify) {
 
     handler: fastify.getTemplatesDataFromDb,
   });
-
+  //cavit
   fastify.route({
     method: 'POST',
     url: '/templates/download',

@@ -23,6 +23,31 @@ async function routes(fastify) {
     },
     handler: fastify.getPluginsWithProject,
   });
+  fastify.route({
+    method: 'PUT',
+    url: '/plugins/:pluginid/projects/:projectids',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.updateProjectsForPlugin,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/plugins/:pluginid/templates/:templateids',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.updateTemplatesForPlugin,
+  });
   /*
     fastify.route({
       method: 'POST',

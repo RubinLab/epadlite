@@ -455,6 +455,54 @@ async function epaddb(fastify, options, done) {
       });
   });
   //cavit
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
+    models.project
+      .findAll({
+        include: ['users'],
+      })
+      .then(projects => {
+        // projects will be an array of all Project instances
+        const result = [];
+        projects.forEach(project => {
+          const obj = {
+            id: project.id,
+            name: project.name,
+            projectid: project.projectid,
+            // numberOfAnnotations:
+            // numberOfStudies:
+            // numberOfSubjects:
+            // subjectIDs:
+            description: project.description,
+            loginNames: [],
+            type: project.type,
+          };
+
+          project.users.forEach(user => {
+            obj.loginNames.push(user.username);
+          });
+          if (request.epadAuth.admin || obj.loginNames.includes(request.epadAuth.username))
+            result.push(obj);
+        });
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply.send(
+          new InternalError(
+            `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+              request.epadAuth.admin
+            }`,
+            err
+          )
+        );
+      });
+  });
+
   fastify.decorate('getPlugins', async (request, reply) => {
     models.plugin
       .findAll()
@@ -476,13 +524,13 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('getTemplatesDataFromDb', async (request, reply) => {
+  fastify.decorate('getTemplatesDataFromDb', (request, reply) => {
     models.template
       .findAll()
       .then(templates => {
         // projects will be an array of all Project instances
         const result = [];
-        console.log('**************expecting all templates ', templates);
+        //console.log('**************expecting all templates ', templates);
         reply.code(200).send(templates);
       })
       .catch(err => {
@@ -525,6 +573,7 @@ async function epaddb(fastify, options, done) {
             const projectObj = {
               id: project.id,
               projectid: project.projectid,
+              projectname: project.name,
             };
             //console.log('project ->', project.dataValues);
             pluginObj.projects.push(projectObj);
@@ -552,34 +601,161 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('updatePluginProject', (request, reply) => {
-    //
-    if (request.body.assigneeList) {
-      fastify.updateWorklistAssigneeInternal(request, reply);
-    } else {
-      const obj = { ...request.body };
-      if (request.body.dueDate) {
-        obj.duedate = request.body.dueDate;
-        delete obj.dueDate;
-      }
-      models.worklist
-        .update(
-          { ...obj, updatetime: Date.now(), updated_by: request.epadAuth.username },
-          {
-            where: {
-              worklistid: request.params.worklist,
-            },
-          }
-        )
-        .then(() => {
-          reply.code(200).send('Update successful');
+  fastify.decorate('updateProjectsForPlugin', (request, reply) => {
+    const pluginid = request.params.pluginid;
+    const projectsToRemove = request.body.projectsToRemove;
+    const projectsToAdd = request.body.projectsToAdd;
+    const dbPromisesForCreate = [];
+    const formattedProjects = [];
+
+    if (projectsToRemove && projectsToAdd) {
+      models.project_plugin
+        .destroy({
+          where: {
+            plugin_id: pluginid,
+            project_id: projectsToRemove,
+          },
         })
-        .catch(err => reply.send(new InternalError('Updating worklist', err)));
+        .then(() => {
+          projectsToAdd.forEach(projectid => {
+            dbPromisesForCreate.push(
+              models.project_plugin.create({
+                project_id: projectid,
+                plugin_id: pluginid,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+                enabled: 1,
+                creator: null,
+                updated_by: null,
+              })
+            );
+          });
+
+          Promise.all(dbPromisesForCreate).then(() => {
+            models.plugin
+              .findOne({
+                include: ['pluginproject'],
+                required: false,
+                where: {
+                  id: pluginid,
+                },
+              })
+              .then(allTProjectsForPlugin => {
+                console.log(allTProjectsForPlugin.dataValues.pluginproject);
+                allTProjectsForPlugin.dataValues.pluginproject.forEach(project => {
+                  const projectObj = {
+                    id: project.id,
+                    projectid: project.projectid,
+                    projectname: project.name,
+                  };
+                  formattedProjects.push(projectObj);
+                });
+                reply.code(200).send(formattedProjects);
+              });
+          });
+        });
+    } else {
+      reply.send(
+        new InternalError(
+          `Editing projects for plugin failed. Necessary parameters { projectsToAdd,projectsToAdd} are not in the body `
+        )
+      );
     }
 
     //
   });
 
+  fastify.decorate('updateTemplatesForPlugin', (request, reply) => {
+    const pluginid = request.params.pluginid;
+    const templatesToRemove = request.body.templatesToRemove;
+    const templatesToAdd = request.body.templatesToAdd;
+    const dbPromisesForCreate = [];
+    const formattedTemplates = [];
+    if (templatesToRemove && templatesToAdd) {
+      models.plugin_template
+        .destroy({
+          where: {
+            plugin_id: pluginid,
+            template_id: templatesToRemove,
+          },
+        })
+        .then(() => {
+          templatesToAdd.forEach(templateid => {
+            dbPromisesForCreate.push(
+              models.plugin_template.create({
+                template_id: templateid,
+                plugin_id: pluginid,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+                enabled: 1,
+                creator: 'null',
+                updated_by: 'null',
+              })
+            );
+          });
+
+          Promise.all(dbPromisesForCreate).then(() => {
+            models.plugin
+              .findOne({
+                include: ['plugintemplate'],
+                required: false,
+                where: {
+                  id: pluginid,
+                },
+              })
+              .then(allTemplatesForPlugin => {
+                allTemplatesForPlugin.dataValues.plugintemplate.forEach(template => {
+                  const templateObj = {
+                    id: template.id,
+                    templateName: template.templateName,
+                  };
+                  formattedTemplates.push(templateObj);
+                });
+                reply.send(formattedTemplates);
+              });
+          });
+        });
+
+      /*
+      Promise.all(dbPromisesForCreate).then(async () => {
+        const allTemplatesForPlugin = await models.plugin.findOne({
+          include: ['plugintemplate'],
+          required: false,
+          where: {
+            id: pluginid,
+          },
+        });
+
+        const formattedTemplates = [];
+
+        allTemplatesForPlugin.dataValues.plugintemplate.forEach(template => {
+          const templateObj = {
+            id: template.id,
+            templateName: template.templateName,
+          };
+          formattedTemplates.push(templateObj);
+        });
+
+        reply.code(204).send(formattedTemplates);
+      });
+
+*/
+    } else {
+      reply.send(
+        new InternalError(
+          `Editing templates for plugin failed. Necessary parameters { templatesToAdd,templatesToAdd} are not in the body `
+        )
+      );
+    }
+
+    //
+  });
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
   //cavit
   fastify.decorate('validateRequestBodyFields', (name, id) => {
     if (!name || !id) {
