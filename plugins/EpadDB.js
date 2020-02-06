@@ -783,6 +783,37 @@ async function epaddb(fastify, options, done) {
 
     //reply.code(200).send('Plugin deleted seccessfully');
   });
+
+  fastify.decorate('savePlugin', (request, reply) => {
+    console.log('back end saved the plugin', request.body);
+    const pluginform = request.body.pluginform;
+    models.plugin
+      .create({
+        plugin_id: pluginform.id,
+        name: pluginform.name,
+        description: pluginform.description,
+        enabled: pluginform.enabled,
+        modality: pluginform.modality,
+        creator: null,
+        createdtime: Date.now(),
+        updatetime: '1970-01-01 00:00:01',
+        developer: pluginform.developer,
+        documentation: pluginform.documentation,
+      })
+      .then(() => {
+        reply.code(200).send('ok');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while creating a new plugin in plugin table',
+              err
+            )
+          );
+      });
+  });
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////

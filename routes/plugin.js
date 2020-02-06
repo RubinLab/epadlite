@@ -61,6 +61,18 @@ async function routes(fastify) {
     },
     handler: fastify.deletePlugin,
   });
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/addnew',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.savePlugin,
+  });
   /*
     fastify.route({
       method: 'POST',
