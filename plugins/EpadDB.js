@@ -467,17 +467,12 @@ async function epaddb(fastify, options, done) {
         include: ['users'],
       })
       .then(projects => {
-        // projects will be an array of all Project instances
         const result = [];
         projects.forEach(project => {
           const obj = {
             id: project.id,
             name: project.name,
             projectid: project.projectid,
-            // numberOfAnnotations:
-            // numberOfStudies:
-            // numberOfSubjects:
-            // subjectIDs:
             description: project.description,
             loginNames: [],
             type: project.type,
@@ -492,14 +487,16 @@ async function epaddb(fastify, options, done) {
         reply.code(200).send(result);
       })
       .catch(err => {
-        reply.send(
-          new InternalError(
-            `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
-              request.epadAuth.admin
-            }`,
-            err
-          )
-        );
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+                request.epadAuth.admin
+              }`,
+              err
+            )
+          );
       });
   });
 
@@ -507,20 +504,20 @@ async function epaddb(fastify, options, done) {
     models.plugin
       .findAll()
       .then(plugins => {
-        // projects will be an array of all Project instances
         const result = [];
-        //console.log('**************expecting all plugins ', plugins);
         reply.code(200).send(plugins);
       })
       .catch(err => {
-        reply.send(
-          new InternalError(
-            `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
-              request.epadAuth.admin
-            }`,
-            err
-          )
-        );
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+                request.epadAuth.admin
+              }`,
+              err
+            )
+          );
       });
   });
 
@@ -528,20 +525,20 @@ async function epaddb(fastify, options, done) {
     models.template
       .findAll()
       .then(templates => {
-        // projects will be an array of all Project instances
         const result = [];
-        //console.log('**************expecting all templates ', templates);
         reply.code(200).send(templates);
       })
       .catch(err => {
-        reply.send(
-          new InternalError(
-            `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
-              request.epadAuth.admin
-            }`,
-            err
-          )
-        );
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+                request.epadAuth.admin
+              }`,
+              err
+            )
+          );
       });
   });
 
@@ -552,7 +549,6 @@ async function epaddb(fastify, options, done) {
         required: false,
       })
       .then(plugins => {
-        // projects will be an array of all Project instances
         const result = [];
 
         plugins.forEach(data => {
@@ -568,14 +564,14 @@ async function epaddb(fastify, options, done) {
             projects: [],
             templates: [],
           };
-          //console.log('++++++++++++++ here each plugin  id', data.dataValues.plugin_id);
+
           data.dataValues.pluginproject.forEach(project => {
             const projectObj = {
               id: project.id,
               projectid: project.projectid,
               projectname: project.name,
             };
-            //console.log('project ->', project.dataValues);
+
             pluginObj.projects.push(projectObj);
           });
 
@@ -584,20 +580,17 @@ async function epaddb(fastify, options, done) {
               id: template.id,
               templateName: template.templateName,
             };
-            //console.log('project ->', project.dataValues);
+
             pluginObj.templates.push(templateObj);
           });
-          //console.log('++++++++++++++ resulting return  obj', obj);
-          result.push(pluginObj);
 
-          console.log('************** plugin template ', data.dataValues.plugintemplate);
+          result.push(pluginObj);
         });
 
-        //console.log('**************expecting all getPluginsWithProject ', plugins);
         reply.code(200).send(result);
       })
       .catch(err => {
-        reply.send(new InternalError(`getPluginsWithProject error `, err));
+        reply.code(500).send(new InternalError(`getPluginsWithProject error `, err));
       });
   });
 
@@ -641,7 +634,6 @@ async function epaddb(fastify, options, done) {
                 },
               })
               .then(allTProjectsForPlugin => {
-                console.log(allTProjectsForPlugin.dataValues.pluginproject);
                 allTProjectsForPlugin.dataValues.pluginproject.forEach(project => {
                   const projectObj = {
                     id: project.id,
@@ -655,11 +647,13 @@ async function epaddb(fastify, options, done) {
           });
         });
     } else {
-      reply.send(
-        new InternalError(
-          `Editing projects for plugin failed. Necessary parameters { projectsToAdd,projectsToAdd} are not in the body `
-        )
-      );
+      reply
+        .code(500)
+        .send(
+          new InternalError(
+            `Editing projects for plugin failed. Necessary parameters { projectsToAdd,projectsToAdd} are not in the body `
+          )
+        );
     }
 
     //
@@ -715,40 +709,79 @@ async function epaddb(fastify, options, done) {
               });
           });
         });
-
-      /*
-      Promise.all(dbPromisesForCreate).then(async () => {
-        const allTemplatesForPlugin = await models.plugin.findOne({
-          include: ['plugintemplate'],
-          required: false,
-          where: {
-            id: pluginid,
-          },
-        });
-
-        const formattedTemplates = [];
-
-        allTemplatesForPlugin.dataValues.plugintemplate.forEach(template => {
-          const templateObj = {
-            id: template.id,
-            templateName: template.templateName,
-          };
-          formattedTemplates.push(templateObj);
-        });
-
-        reply.code(204).send(formattedTemplates);
-      });
-
-*/
     } else {
-      reply.send(
-        new InternalError(
-          `Editing templates for plugin failed. Necessary parameters { templatesToAdd,templatesToAdd} are not in the body `
-        )
-      );
+      reply
+        .code(500)
+        .send(
+          new InternalError(
+            `Editing templates for plugin failed. Necessary parameters { templatesToAdd,templatesToAdd} are not in the body `
+          )
+        );
     }
 
     //
+  });
+
+  fastify.decorate('deletePlugin', (request, reply) => {
+    const { selectedRowPluginId, pluginIdsToDelete } = request.body;
+    let pluginid = -1;
+    if (typeof selectedRowPluginId !== 'undefined') {
+      pluginid = selectedRowPluginId;
+    } else {
+      pluginid = pluginIdsToDelete;
+    }
+
+    models.plugin_template
+      .destroy({
+        where: {
+          plugin_id: pluginid,
+        },
+      })
+      .then(() => {
+        return models.project_plugin
+          .destroy({
+            where: {
+              plugin_id: pluginid,
+            },
+          })
+          .then(() => {
+            return models.plugin
+              .destroy({
+                where: {
+                  id: pluginid,
+                },
+              })
+              .then(() => {
+                reply.code(200).send('Plugin deleted seccessfully');
+              })
+              .catch(err => {
+                reply
+                  .code(500)
+                  .send(
+                    new InternalError('Something went wrong when deleting from plugin table', err)
+                  );
+              });
+          })
+          .catch(err => {
+            reply
+              .code(500)
+              .send(
+                new InternalError(
+                  'Something went wrong when deleting from project_plugin table',
+                  err
+                )
+              );
+          });
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError('Something went wrong when deleting from plugin_template table', err)
+          );
+      });
+
+    //reply.code(200).send('Plugin deleted seccessfully');
   });
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
