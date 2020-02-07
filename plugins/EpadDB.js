@@ -467,8 +467,8 @@ async function epaddb(fastify, options, done) {
                   );
                 });
 
-                if (request.body.requirement) {
-                  request.body.requirement.forEach(req => {
+                if (request.body.requirements) {
+                  request.body.requirements.forEach(req => {
                     relationArr.push(
                       models.worklist_requirement.create({
                         worklist_id: worklist.id,
@@ -1764,11 +1764,11 @@ async function epaddb(fastify, options, done) {
             request.body
           );
         else await fastify.addWorklistRequirement(worklist.id, request.epadAuth, request.body);
-        reply.code(200).send(`Worklist requirement ${request.params.requirement} added/updated`);
+        reply.code(200).send(`Worklist requirement ${request.params.requirements} added/updated`);
       }
     } catch (err) {
       reply.send(
-        new InternalError(`Worklist requirement ${request.params.requirement} add/update`, err)
+        new InternalError(`Worklist requirement ${request.params.requirements} add/update`, err)
       );
     }
   });
