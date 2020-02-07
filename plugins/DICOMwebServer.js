@@ -174,18 +174,22 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'getPatientsInternal',
-    (params, filter, epadAuth) =>
+    (params, filter, epadAuth, noStats) =>
       new Promise((resolve, reject) => {
         try {
-          // make studies cal and aims call
-          const studies = this.request.get('/studies', header);
-          const aims = fastify.getAimsInternal(
-            'summary',
-            { subject: '', study: '', series: '' },
-            undefined,
-            epadAuth
-          );
-          Promise.all([studies, aims])
+          // make studies call and aims call
+          const promisses = [];
+          promisses.push(this.request.get('/studies', header));
+          if (!noStats)
+            promisses.push(
+              fastify.getAimsInternal(
+                'summary',
+                { subject: '', study: '', series: '' },
+                undefined,
+                epadAuth
+              )
+            );
+          Promise.all(promisses)
             .then(async values => {
               // handle success
               // filter the results if patient id filter is given
@@ -198,21 +202,22 @@ async function dicomwebserver(fastify) {
               );
               // populate an aim counts map containing each subject
               const aimsCountMap = {};
-              _.chain(filteredAims)
-                .groupBy(value => {
-                  return value.subjectID;
-                })
-                .map(value => {
-                  const numberOfAims = _.reduce(
-                    value,
-                    memo => {
-                      return memo + 1;
-                    },
-                    0
-                  );
-                  aimsCountMap[value[0].subjectID] = numberOfAims;
-                })
-                .value();
+              if (!noStats)
+                _.chain(filteredAims)
+                  .groupBy(value => {
+                    return value.subjectID;
+                  })
+                  .map(value => {
+                    const numberOfAims = _.reduce(
+                      value,
+                      memo => {
+                        return memo + 1;
+                      },
+                      0
+                    );
+                    aimsCountMap[value[0].subjectID] = numberOfAims;
+                  })
+                  .value();
               // populate the subjects data by grouping the studies by patient id
               // and map each subject to epadlite subject object
               const result = _.chain(filteredStudies)
@@ -309,23 +314,26 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'getPatientStudiesInternal',
-    (params, filter, epadAuth) =>
+    (params, filter, epadAuth, noStats) =>
       new Promise((resolve, reject) => {
         try {
-          const studies = this.request.get('/studies', header);
+          const promisses = [];
+          promisses.push(this.request.get('/studies', header));
           // get aims for a specific patient
-          const aims = fastify.getAimsInternal(
-            'summary',
-            {
-              subject: params.subject ? params.subject : '',
-              study: '',
-              series: '',
-            },
-            undefined,
-            epadAuth
-          );
-
-          Promise.all([studies, aims])
+          if (!noStats)
+            promisses.push(
+              fastify.getAimsInternal(
+                'summary',
+                {
+                  subject: params.subject ? params.subject : '',
+                  study: '',
+                  series: '',
+                },
+                undefined,
+                epadAuth
+              )
+            );
+          Promise.all(promisses)
             .then(async values => {
               // handle success
               // filter the results if patient id filter is given
@@ -339,21 +347,23 @@ async function dicomwebserver(fastify) {
               );
               // populate an aim counts map containing each study
               const aimsCountMap = {};
-              _.chain(filteredAims)
-                .groupBy(value => {
-                  return value.studyUID;
-                })
-                .map(value => {
-                  const numberOfAims = _.reduce(
-                    value,
-                    memo => {
-                      return memo + 1;
-                    },
-                    0
-                  );
-                  aimsCountMap[value[0].studyUID] = numberOfAims;
-                })
-                .value();
+              if (!noStats)
+                _.chain(filteredAims)
+                  .groupBy(value => {
+                    return value.studyUID;
+                  })
+                  .map(value => {
+                    const numberOfAims = _.reduce(
+                      value,
+                      memo => {
+                        return memo + 1;
+                      },
+                      0
+                    );
+                    aimsCountMap[value[0].studyUID] = numberOfAims;
+                  })
+                  .value();
+
               // filter by patient id
               if (params.subject)
                 filteredStudies = _.filter(
@@ -405,29 +415,40 @@ async function dicomwebserver(fastify) {
       })
   );
 
-  fastify.decorate('getAllStudySeries', async (request, reply) => {
-    try {
-      const studies = await this.request.get('/studies', header);
-      const studyUids = _.map(studies.data, value => {
-        return value['0020000D'].Value[0];
-      });
-      let result = [];
-      for (let j = 0; j < studyUids.length; j += 1) {
-        // eslint-disable-next-line no-await-in-loop
-        const studySeries = await fastify.getStudySeriesInternal(
-          { study: studyUids[j] },
-          request.query,
-          request.epadAuth,
-          true
-        );
-        result = result.concat(studySeries);
-      }
-
-      reply.code(200).send(result);
-    } catch (err) {
-      reply.send(new InternalError(`Getting all series`), err);
-    }
+  fastify.decorate('getAllStudySeries', (request, reply) => {
+    fastify
+      .getAllStudySeriesInternal(request.query, request.epadAuth)
+      .then(result => reply.code(200).send(result))
+      .catch(err => reply.send(err));
   });
+
+  fastify.decorate(
+    'getAllStudySeriesInternal',
+    (query, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const studies = await this.request.get('/studies', header);
+          const studyUids = _.map(studies.data, value => {
+            return value['0020000D'].Value[0];
+          });
+          let result = [];
+          for (let j = 0; j < studyUids.length; j += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            const studySeries = await fastify.getStudySeriesInternal(
+              { study: studyUids[j] },
+              query,
+              epadAuth,
+              true
+            );
+            result = result.concat(studySeries);
+          }
+
+          resolve(result);
+        } catch (err) {
+          reject(new InternalError(`Getting all series`), err);
+        }
+      })
+  );
 
   fastify.decorate('getStudySeries', (request, reply) => {
     fastify

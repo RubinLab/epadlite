@@ -3,6 +3,8 @@ const fs = require('fs-extra');
 const path = require('path');
 const Sequelize = require('sequelize');
 const _ = require('lodash');
+const Axios = require('axios');
+const os = require('os');
 const config = require('../config/index');
 const {
   InternalError,
@@ -3407,9 +3409,121 @@ async function epaddb(fastify, options, done) {
       return model.create({ ...values, creator: user, createdtime: Date.now() });
     })
   );
+
+  fastify.decorate(
+    'getStats',
+    () =>
+      new Promise(async (resolve, reject) => {
+        fastify.log.info('Getting stats');
+        const numOfUsers = await models.user.count();
+        const numOfProjects = await models.project.count();
+
+        let numOfPatients = 0;
+        if (config.mode === 'thick') {
+          numOfPatients = await models.project_subject.count({
+            col: 'subject_uid',
+            distinct: true,
+          });
+        } else {
+          const patients = await fastify.getPatientsInternal({}, undefined, undefined, true);
+          numOfPatients = patients.length;
+        }
+
+        let numOfStudies = 0;
+        if (config.mode === 'thick') {
+          numOfStudies = await models.project_subject_study.count({
+            col: 'study_uid',
+            distinct: true,
+          });
+        } else {
+          const studies = await fastify.getPatientStudiesInternal({}, undefined, undefined, true);
+          numOfStudies = studies.length;
+        }
+
+        // always from dicomweb server
+        const series = await fastify.getAllStudySeriesInternal({}, undefined, undefined, true);
+        const numOfSeries = series.length;
+
+        let numOfAims = 0;
+        if (config.mode === 'thick') {
+          numOfAims = await models.project_aim.count({
+            col: 'aim_uid',
+            distinct: true,
+          });
+        } else {
+          // sending empty epadAuth, would fail in thick mode, but this is not called on thick mode
+          const aims = await fastify.getAimsInternal('summary', {}, undefined, {});
+          numOfAims = aims.length;
+        }
+
+        // TODO
+        const numOfDSOs = 0;
+
+        // are these correct?
+        const numOfFiles = await models.epad_file.count();
+        let numOfTemplates = 0;
+        if (config.mode === 'thick') {
+          numOfTemplates = await models.template.count();
+        } else {
+          const templates = await fastify.getTemplatesInternal('summary');
+          numOfTemplates = templates.length;
+        }
+        const numOfPlugins = await models.plugin.count();
+
+        // no plans to implement these yet
+        // const numOfPacs = RemotePACService.getInstance().getRemotePACs().size();
+        // const numOfAutoQueries = new RemotePACQuery().getCount("");
+        const numOfWorkLists = await models.worklist.count();
+
+        const hostname = os.hostname();
+
+        // save to db
+        await models.epadstatistics.create({
+          host: hostname,
+          numOfUsers,
+          numOfProjects,
+          numOfPatients,
+          numOfStudies,
+          numOfSeries,
+          numOfAims,
+          numOfDSOs,
+          numOfWorkLists,
+          creator: 'admin',
+          createdtime: Date.now(),
+          updatetime: Date.now(),
+          numOfFiles,
+          numOfPlugins,
+          numOfTemplates,
+        });
+        // send to statistics collector
+        if (!config.disableStats) {
+          this.request = Axios.create({
+            baseURL: config.statsEpad,
+          });
+          const epadUrl = `/epad/statistics?numOfUsers=${numOfUsers}&numOfProjects=${numOfProjects}&numOfPatients=${numOfPatients}&numOfStudies=${numOfStudies}&numOfSeries=${numOfSeries}&numOfAims=${numOfAims}&numOfDSOs=${numOfDSOs}&numOfWorkLists=${numOfWorkLists}&numOfFiles=${numOfFiles}&numOfPlugins=${numOfPlugins}&numOfTemplates=${numOfTemplates}&host=${hostname}`;
+
+          this.request
+            .post(encodeURI(epadUrl))
+            .then(() => {
+              fastify.log.info(`Statistics sent to ${epadUrl} with success`);
+              resolve('Stats sent');
+            })
+            .catch(error => {
+              reject(
+                new InternalError(
+                  `Sending statistics to ${config.statsEpad} with ${epadUrl}`,
+                  error
+                )
+              );
+            });
+        } else resolve('No stats');
+      })
+  );
+
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
+      if (config.env !== 'test') fastify.getStats();
       done();
     } catch (err) {
       fastify.log.error(`Cannot connect to mariadb (err:${err.message}), shutting down the server`);
