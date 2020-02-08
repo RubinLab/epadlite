@@ -4,6 +4,7 @@ const path = require('path');
 const Sequelize = require('sequelize');
 const _ = require('lodash');
 const config = require('../config/index');
+const dockerService = require('../utils/Docker');
 const {
   InternalError,
   ResourceNotFoundError,
@@ -454,6 +455,7 @@ async function epaddb(fastify, options, done) {
         );
       });
   });
+
   //cavit
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
@@ -814,6 +816,14 @@ async function epaddb(fastify, options, done) {
           );
       });
   });
+  //docker section
+  fastify.decorate('getDockerImages', (request, reply) => {
+    console.log('getting docker images');
+    const dock = new dockerService();
+    dock.pullImage('ubuntu', 'latest');
+    reply.code(200).send('ok');
+  });
+  //docker section end
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
