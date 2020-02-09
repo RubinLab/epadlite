@@ -1715,15 +1715,15 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('addWorklistRequirement', async (worklistId, epadAuth, body) => {
-    return models.worklist_requirement.create({
-      ...body,
-      worklist_id: worklistId,
-      updatetime: Date.now(),
-      createdtime: Date.now(),
-      creator: epadAuth.username,
-    });
-  });
+  // fastify.decorate('addWorklistRequirement', async (worklistId, epadAuth, body) => {
+  //   return models.worklist_requirement.create({
+  //     ...body,
+  //     worklist_id: worklistId,
+  //     updatetime: Date.now(),
+  //     createdtime: Date.now(),
+  //     creator: epadAuth.username,
+  //   });
+  // });
 
   fastify.decorate('updateWorklistRequirement', async (worklistId, reqId, epadAuth, body) => {
     return fastify.upsert(
@@ -1742,7 +1742,9 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('setWorklistRequirement', async (request, reply) => {
+    // iterate throught the body and add each of them to the requirement table
     try {
+      const promises = [];
       const worklist = await models.worklist.findOne({
         where: { worklistid: request.params.worklist },
         attributes: ['id'],
@@ -1756,20 +1758,22 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        if (request.params.requirement !== undefined)
-          await fastify.updateWorklistRequirement(
-            worklist.id,
-            request.params.requirement,
-            request.epadAuth,
-            request.body
-          );
-        else await fastify.addWorklistRequirement(worklist.id, request.epadAuth, request.body);
-        reply.code(200).send(`Worklist requirement ${request.params.requirements} added/updated`);
+        request.body.forEach(req => {
+          const promise = models.worklist_requirement.create({
+            ...req,
+            worklist_id: worklist.id,
+            updatetime: Date.now(),
+            createdtime: Date.now(),
+            creator: request.epadAuth.username,
+          });
+          promises.push(promise);
+        });
+
+        // fastify.addWorklistRequirement(worklist.id, request.epadAuth, request.body);
+        reply.code(200).send(`Worklist requirement ${request.params.requirements} added`);
       }
     } catch (err) {
-      reply.send(
-        new InternalError(`Worklist requirement ${request.params.requirements} add/update`, err)
-      );
+      reply.send(new InternalError(`Worklist requirement ${request.params.requirements} add`, err));
     }
   });
 

@@ -239,42 +239,42 @@ async function routes(fastify) {
 
   // /worklists/0987iuy/users/admin/subjects - POST
 
-  fastify.route({
-    method: 'PUT',
-    url: '/worklists/:worklist/requirements/:requirement',
-    schema: {
-      tags: ['worklist'],
-      params: {
-        type: 'object',
-        properties: {
-          worklist: {
-            type: 'string',
-          },
-          requirement: {
-            type: 'integer',
-          },
-        },
-      },
-      body: {
-        type: 'object',
-        properties: {
-          level: {
-            type: 'string',
-          },
-          numOfAims: {
-            type: 'integer',
-          },
-          template: {
-            type: 'string',
-          },
-          required: {
-            type: 'boolean',
-          },
-        },
-      },
-    },
-    handler: fastify.setWorklistRequirement,
-  });
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/worklists/:worklist/requirements/:requirement',
+  //   schema: {
+  //     tags: ['worklist'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         worklist: {
+  //           type: 'string',
+  //         },
+  //         requirement: {
+  //           type: 'integer',
+  //         },
+  //       },
+  //     },
+  //     body: {
+  //       type: 'object',
+  //       properties: {
+  //         level: {
+  //           type: 'string',
+  //         },
+  //         numOfAims: {
+  //           type: 'integer',
+  //         },
+  //         template: {
+  //           type: 'string',
+  //         },
+  //         required: {
+  //           type: 'boolean',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.setWorklistRequirement,
+  // });
 
   fastify.route({
     method: 'POST',
@@ -290,19 +290,22 @@ async function routes(fastify) {
         },
       },
       body: {
-        type: 'object',
-        properties: {
-          level: {
-            type: 'string',
-          },
-          numOfAims: {
-            type: 'integer',
-          },
-          template: {
-            type: 'string',
-          },
-          required: {
-            type: 'boolean',
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            level: {
+              type: 'string',
+            },
+            numOfAims: {
+              type: 'integer',
+            },
+            template: {
+              type: 'string',
+            },
+            required: {
+              type: 'boolean',
+            },
           },
         },
       },
