@@ -803,6 +803,8 @@ async function epaddb(fastify, options, done) {
         documentation: pluginform.documentation,
       })
       .then(() => {
+        const dock = new dockerService();
+        dock.createContainer('5f81ef91ee2e', 'test');
         reply.code(200).send('ok');
       })
       .catch(err => {
@@ -820,7 +822,8 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getDockerImages', (request, reply) => {
     console.log('getting docker images');
     const dock = new dockerService();
-    dock.pullImage('ubuntu', 'latest');
+    //dock.pullImage('ubuntu', 'latest');
+    dock.createContainer('5f81ef91ee2e', 'test');
     reply.code(200).send('ok');
   });
   //docker section end

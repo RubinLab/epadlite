@@ -14,28 +14,24 @@ class DockerService {
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
   }
 
-  createContainer(containerName) {
+  createContainer(containerImage, containerName) {
     this.docker.container
       .create({
-        Image: 'ubuntu',
-        name: 'test',
+        Image: containerImage,
+        name: containerName,
       })
       .then(container => container.start())
+      .then(console.log('container started'))
       // .then(container => container.stop())
       // .then(container => container.restart())
       // .then(container => container.delete({ force: true }))
       .catch(error => console.log(error));
   }
 
-  pullImage(imageLocation, imagetag) {
-    this.docker.image
-      .create({}, { fromImage: imageLocation, tag: imagetag })
-      .then(stream => this.promisifyStream(stream))
-      .then(() => this.docker.image.get(imageLocation).status())
-      .then(image => image.history())
-      .then(events => console.log(events))
-      .catch(error => console.log(error));
-  }
+  startContainer(containerId, containerName) {}
+
+  stopContainer(containerId, containerName) {}
+  deleteContainer() {}
 
   listContainers() {
     this.docker.container
@@ -48,6 +44,18 @@ class DockerService {
       })
       .catch(error => console.log(error));
   }
+  pullImage(imagerepository, imagetag) {
+    this.docker.image
+      .create({}, { fromImage: imagerepository, tag: imagetag })
+      .then(stream => this.promisifyStream(stream))
+      .then(() => this.docker.image.get(imageLocation).status())
+      .then(image => image.history())
+      .then(events => console.log(events))
+      .catch(error => console.log(error));
+  }
+
+  listImages() {}
+  deleteImage() {}
 }
 
 module.exports = DockerService;
