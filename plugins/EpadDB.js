@@ -694,8 +694,8 @@ async function epaddb(fastify, options, done) {
         };
 
         for (let k = 0; k < worklists[i].requirements.length; k += 1) {
-          const { level, numOfAims, template } = worklists[i].requirements[k];
-          obj.requirements.push({ level, numOfAims, template });
+          const { level, numOfAims, template, id } = worklists[i].requirements[k];
+          obj.requirements.push({ level, numOfAims, template, id });
         }
 
         for (let k = 0; k < worklists[i].users.length; k += 1) {
@@ -1739,6 +1739,43 @@ async function epaddb(fastify, options, done) {
       },
       epadAuth.username
     );
+  });
+
+  fastify.decorate('deleteWorklistRequirement', async (request, reply) => {
+    try {
+      const worklist = await models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
+        attributes: ['id'],
+        raw: true,
+      });
+      if (!worklist) {
+        reply.send(
+          new BadRequestError(
+            `Worklist requirement ${request.params.requirement} add/update`,
+            new ResourceNotFoundError('Worklist', request.params.worklist)
+          )
+        );
+      } else {
+        const worklistReqCompleteness = await models.worklist_study_completeness.findOne({
+          where: { worklist_requirement_id: request.params.requirement },
+          attributes: ['id'],
+          raw: true,
+        });
+        if (worklistReqCompleteness) {
+          await models.worklist_study_completeness.destroy({
+            where: { worklist_requirement_id: request.params.requirement },
+          });
+        }
+        const deletedItem = await models.worklist_requirement.destroy({
+          where: { worklist_id: worklist.id, id: request.params.requirement },
+        });
+        reply.code(200).send(`${deletedItem} requirement(s) deleted from worklist`);
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(`Worklist requirement delete ${request.params.requirement}`, err)
+      );
+    }
   });
 
   fastify.decorate('setWorklistRequirement', async (request, reply) => {

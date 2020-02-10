@@ -277,6 +277,26 @@ async function routes(fastify) {
   // });
 
   fastify.route({
+    method: 'DELETE',
+    url: '/worklists/:worklist/requirements/:requirement',
+    schema: {
+      tags: ['worklist'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+          requirement: {
+            type: 'integer',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteWorklistRequirement,
+  });
+
+  fastify.route({
     method: 'POST',
     url: '/worklists/:worklist/requirements',
     schema: {
