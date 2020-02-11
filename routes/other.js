@@ -38,5 +38,22 @@ async function otherRoutes(fastify) {
     url: '/notifications',
     handler: fastify.getNotifications,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/scanfolder',
+    schema: {
+      tags: ['files'],
+      body: {
+        type: 'object',
+        properties: {
+          dirpath: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.scanFolder,
+  });
 }
 module.exports = otherRoutes;

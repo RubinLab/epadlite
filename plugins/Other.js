@@ -261,6 +261,25 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate('scanFolder', (request, reply) => {
+    const scanTimestamp = new Date().getTime();
+    fastify.log.info(`Started processing ${request.body.scanFolder}`);
+    reply.send(`Started processing ${request.body.scanFolder}`);
+    fastify
+      .processFolder(request.body.scanFolder, {}, {}, { username: 'admin' })
+      .then(result => {
+        fastify.log.info(
+          `Finished processing ${
+            request.body.scanFolder
+          } at ${new Date().getTime()} started at ${scanTimestamp}`
+        );
+        console.log(result);
+      })
+      .catch(err =>
+        console.log(`Error processing ${request.body.scanFolder} Error: ${err.message}`)
+      );
+  });
+
   fastify.decorate(
     'processFolder',
     (zipDir, params, query, epadAuth) =>
@@ -796,7 +815,12 @@ async function other(fastify) {
 
   fastify.decorate('auth', async (req, res) => {
     // ignore swagger routes
-    if (config.auth && config.auth !== 'none' && !req.req.url.startsWith('/documentation')) {
+    if (
+      config.auth &&
+      config.auth !== 'none' &&
+      !req.req.url.startsWith('/documentation') &&
+      !req.req.url.startsWith('/projects/lite/scanfolder')
+    ) {
       // if auth has been given in config, verify authentication
       fastify.log.info('Request needs to be authenticated, checking the authorization header');
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
