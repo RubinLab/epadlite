@@ -548,7 +548,7 @@ async function dicomwebserver(fastify) {
     params =>
       new Promise((resolve, reject) => {
         try {
-          let multiframe = false;
+          let numOfFrames = 0;
           this.request
             .get(`/studies/${params.study}/series/${params.series}/instances`, header)
             .then(async response => {
@@ -565,7 +565,7 @@ async function dicomwebserver(fastify) {
                   header
                 );
                 if (metadata.data[0]['00280008'] && metadata.data[0]['00280008'].Value)
-                  multiframe = true;
+                  numOfFrames = parseInt(metadata.data[0]['00280008'].Value, 10);
               }
               // map each instance to epadlite image object
               const result = _.chain(response.data)
@@ -597,9 +597,12 @@ async function dicomwebserver(fastify) {
                     }`,
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
-                    numberOfFrames: 0, // TODO
-                    isDSO: false, // TODO value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
-                    multiFrameImage: multiframe,
+                    numberOfFrames: numOfFrames,
+                    isDSO:
+                      value['00080060'] && value['00080060'].Value
+                        ? value['00080060'].Value[0] === 'SEG'
+                        : false,
+                    multiFrameImage: numOfFrames !== 0,
                     isFlaggedImage: '', // TODO
                     rescaleIntercept: '', // TODO
                     rescaleSlope: '', // TODO
