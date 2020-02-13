@@ -3497,12 +3497,12 @@ async function epaddb(fastify, options, done) {
         });
         // send to statistics collector
         if (!config.disableStats) {
-          this.request = Axios.create({
+          const request = Axios.create({
             baseURL: config.statsEpad,
           });
           const epadUrl = `/epad/statistics?numOfUsers=${numOfUsers}&numOfProjects=${numOfProjects}&numOfPatients=${numOfPatients}&numOfStudies=${numOfStudies}&numOfSeries=${numOfSeries}&numOfAims=${numOfAims}&numOfDSOs=${numOfDSOs}&numOfWorkLists=${numOfWorkLists}&numOfFiles=${numOfFiles}&numOfPlugins=${numOfPlugins}&numOfTemplates=${numOfTemplates}&host=${hostname}`;
 
-          this.request
+          request
             .post(encodeURI(epadUrl))
             .then(() => {
               fastify.log.info(`Statistics sent to ${epadUrl} with success`);
