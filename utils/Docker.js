@@ -3,17 +3,80 @@
 
 class DockerService {
   constructor() {
-    const { Docker } = require('node-docker-api');
-    this.promisifyStream = stream =>
-      new Promise((resolve, reject) => {
-        stream.on('data', d => console.log(d.toString()));
-        stream.on('end', resolve);
-        stream.on('error', reject);
-      });
+    const Docker = require('dockerode');
+
     //this.tar = require('tar-fs');
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
   }
+  startContainer(containerId, containerName) {
+    console.log('container started dockerode');
+    const container = this.docker.getContainer(containerId);
+    return new Promise((resolve, reject) => {
+      container.start((err, data) => {
+        console.log('starting container ......');
+        if (err) {
+          reject(err);
+        }
+        if (data) {
+          console.log('we call inspect promise');
+          resolve(
+            new Promise((resolve, reject) => {
+              setTimeout(function() {
+                container.inspect((err, data) => {
+                  if (data) {
+                    resolve(data);
+                  }
+                  if (err) {
+                    reject(err);
+                  }
+                });
+              }, 3000);
+            })
+          );
+        }
+      });
+    });
+    /*
+    container.start(
+      function(err, data) {
+        console.log('------------ start :', data);
+      },
+      () => {
+        container.inspect(function(err, data) {
+          console.log('------------- inspect : ', data.State.Status);
+        });
+      }
+    );
+    */
+  }
 
+  createContainer(imageId, containerNameToGive) {
+    let auxContainer;
+    return this.docker
+      .createContainer({
+        Image: imageId,
+        name: containerNameToGive,
+        AttachStdin: false,
+        AttachStdout: true,
+        AttachStderr: true,
+        Tty: true,
+        //Cmd: ['/bin/bash', '-c', 'tail -f /var/log/dmesg'],
+        OpenStdin: false,
+        StdinOnce: false,
+        HostConfig: {
+          Binds: ['/Users/cavit/epadlitev1/distribution/ePad/exampleContaienr/sharewcont:/stuff'],
+        },
+      })
+      .then(function(container) {
+        auxContainer = container;
+        return auxContainer.start();
+      })
+      .catch(function(err) {
+        console.log(err);
+      });
+  }
+
+  /*
   createContainer(containerImage, containerName) {
     this.docker.container
       .create({
@@ -56,6 +119,7 @@ class DockerService {
 
   listImages() {}
   deleteImage() {}
+*/
 }
 
 module.exports = DockerService;

@@ -19,6 +19,22 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
+      image_repo: {
+        type: DataTypes.STRING(256),
+        allowNull: true,
+      },
+      image_tag: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+      },
+      image_name: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      image_id: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
       description: {
         type: DataTypes.STRING(128),
         allowNull: true,

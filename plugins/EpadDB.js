@@ -152,6 +152,8 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'template_id',
           });
 
+          //Post.find({ where: { ...}, include: [User]})
+
           //cavit
 
           await fastify.orm.sync();
@@ -804,8 +806,19 @@ async function epaddb(fastify, options, done) {
       })
       .then(() => {
         const dock = new dockerService();
-        dock.createContainer('5f81ef91ee2e', 'test');
-        reply.code(200).send('ok');
+        // dock.createContainer('myimage:1.0', 'test').then(data => {
+        //   console.log('returned outer', data);
+        //   reply.code(200).send('ok');
+        // });
+        dock
+          .startContainer('test', 'test')
+          .then(data => {
+            console.log('returned outer', data.State.Status);
+            reply.code(200).send('ok');
+          })
+          .catch(err => {
+            reply.code(500).send(new InternalError('couldnt inspect container', err));
+          });
       })
       .catch(err => {
         reply
@@ -818,6 +831,121 @@ async function epaddb(fastify, options, done) {
           );
       });
   });
+
+  //***************************************************************
+  //
+  //
+  //trigger section
+  fastify.decorate('getAnnotationTemplates', (request, reply) => {
+    const templateCodes = [];
+    const templates = [];
+    models.project_aim
+      .findAll({
+        attributes: ['template'],
+        distinct: ['template'],
+      })
+      .then(results => {
+        results.forEach(template => {
+          templateCodes.push(template.dataValues.template);
+        });
+        return models.template
+          .findAll({
+            where: { templateCode: templateCodes },
+          })
+          .then(result => {
+            result.forEach(template => {
+              const templateObj = {
+                id: template.dataValues.id,
+                templateName: template.dataValues.templateName,
+                templateCode: template.dataValues.templateCode,
+                modality: template.dataValues.modality,
+              };
+
+              templates.push(templateObj);
+            });
+            console.log('templates ------>', templates);
+            reply.code(200).send(templates);
+          })
+          .catch(err => {
+            reply
+              .code(500)
+              .send(
+                new InternalError(
+                  'Something went wrong while getting template list from Template table',
+                  err
+                )
+              );
+          });
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting template codes from annotations table',
+              err
+            )
+          );
+      });
+    //reply.code(200).send('ok');
+  });
+  fastify.decorate('getAnnotationProjects', (request, reply) => {
+    const projectUids = [];
+    const projects = [];
+    models.project_aim
+      .findAll({
+        attributes: ['project_id'],
+        distinct: ['project_id'],
+      })
+      .then(results => {
+        results.forEach(project => {
+          projectUids.push(project.dataValues.project_id);
+        });
+        return models.project
+          .findAll({
+            where: { id: projectUids },
+          })
+          .then(result => {
+            result.forEach(project => {
+              const projectObj = {
+                id: project.dataValues.id,
+                name: project.dataValues.name,
+                projectid: project.dataValues.projectid,
+                type: project.dataValues.type,
+                creator: project.dataValues.creator,
+              };
+
+              projects.push(projectObj);
+            });
+            console.log('projects ------>', projects);
+            reply.code(200).send(projects);
+          })
+          .catch(err => {
+            reply
+              .code(500)
+              .send(
+                new InternalError(
+                  'Something went wrong while getting project list from Project table',
+                  err
+                )
+              );
+          });
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting project uids from annotations table',
+              err
+            )
+          );
+      });
+  });
+  //trigger section ends
+  //
+  //***************************************************************
+
   //docker section
   fastify.decorate('getDockerImages', (request, reply) => {
     console.log('getting docker images');

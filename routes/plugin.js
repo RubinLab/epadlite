@@ -86,6 +86,35 @@ async function routes(fastify) {
     },
     handler: fastify.getDockerImages,
   });
+  //trigger
+
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/annotation/templates',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getAnnotationTemplates,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/annotation/projects',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getAnnotationProjects,
+  });
+
+  //trigger section ends
   //docker section below
 }
 module.exports = routes;
