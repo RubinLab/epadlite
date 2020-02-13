@@ -548,25 +548,10 @@ async function dicomwebserver(fastify) {
     params =>
       new Promise((resolve, reject) => {
         try {
-          let numOfFrames = 0;
           this.request
             .get(`/studies/${params.study}/series/${params.series}/instances`, header)
             .then(async response => {
               // handle success
-              // for now: if there is only one instance, check if it is multiframe
-              // not going to handle if there are more than one multiframe or image in a series
-              // but I don't want to make unneccessary calls to dicomweb
-              // we should find a better way. maybe include in dicom query
-              if (response.data.length === 1) {
-                const metadata = await this.request.get(
-                  `/studies/${params.study}/series/${params.series}/instances/${
-                    response.data[0]['00080018'].Value[0]
-                  }/metadata`,
-                  header
-                );
-                if (metadata.data[0]['00280008'] && metadata.data[0]['00280008'].Value)
-                  numOfFrames = parseInt(metadata.data[0]['00280008'].Value, 10);
-              }
               // map each instance to epadlite image object
               const result = _.chain(response.data)
                 .map(value => {
@@ -597,12 +582,18 @@ async function dicomwebserver(fastify) {
                     }`,
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
-                    numberOfFrames: numOfFrames,
+                    numberOfFrames:
+                      value['00280008'] && value['00280008'].Value
+                        ? value['00280008'].Value[0]
+                        : '',
                     isDSO:
                       value['00080060'] && value['00080060'].Value
                         ? value['00080060'].Value[0] === 'SEG'
                         : false,
-                    multiFrameImage: numOfFrames !== 0,
+                    multiFrameImage:
+                      value['00280008'] && value['00280008'].Value
+                        ? value['00280008'].Value[0] > 1
+                        : false,
                     isFlaggedImage: '', // TODO
                     rescaleIntercept: '', // TODO
                     rescaleSlope: '', // TODO
