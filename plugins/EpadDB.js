@@ -3573,6 +3573,22 @@ async function epaddb(fastify, options, done) {
             }
           }
 
+          // done with calculating and sending the statistics
+          // calculate a monthly cumulative if it is there is no record for the month
+          const month = new Date().getMonth() + 1;
+          const monthlyStats = await models.epadstatistics_monthly.count({
+            where: {
+              $and: fastify.orm.where(
+                fastify.orm.fn('month', fastify.orm.col('createdtime')),
+                month
+              ),
+            },
+          });
+          if (monthlyStats === 0) {
+            fastify.orm.query(
+              `insert into epadstatistics_monthly(numOfUsers, numOfProjects,numOfPatients,numOfStudies,numOfSeries,numOfAims,numOfDSOs,numOfWorkLists,numOfPacs,numOfAutoQueries,numOfFiles,numOfPlugins,numOfTemplates,creator,updatetime) (select sum(numOfUsers), sum(numOfProjects), sum(numOfPatients), sum(numOfStudies), sum(numOfSeries), sum(numOfAims),sum(numOfDSOs),sum(numOfWorkLists),sum(numOfPacs),sum(numOfAutoQueries),sum(numOfFiles),sum(numOfPlugins),sum(numOfTemplates),'admin',now()  from (select * from epadstatistics a where createdtime =(select max(createdtime) from epadstatistics b where b.host = a.host) group by host order by host) ab)`
+            );
+          }
           resolve('Stats sent');
         } catch (error) {
           reject(new InternalError(`Sending statistics to ${config.statsEpad}`, error));
