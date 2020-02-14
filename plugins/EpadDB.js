@@ -3411,7 +3411,7 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
-    'getStats',
+    'calcStats',
     () =>
       new Promise(async (resolve, reject) => {
         try {
@@ -3599,7 +3599,7 @@ async function epaddb(fastify, options, done) {
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
-      if (config.env !== 'test') fastify.getStats();
+      if (config.env !== 'test') fastify.calcStats();
       done();
     } catch (err) {
       fastify.log.error(`Cannot connect to mariadb (err:${err.message}), shutting down the server`);
