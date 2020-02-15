@@ -3568,6 +3568,7 @@ async function epaddb(fastify, options, done) {
                   request.defaults.baseURL
                 }${templatesEpadUrl}`
               );
+              // eslint-disable-next-line no-await-in-loop
               // await request.put(encodeURI(templatesEpadUrl), templateText);
               fastify.log.info(`Template statistics sent with success`);
             }
@@ -3608,6 +3609,78 @@ async function epaddb(fastify, options, done) {
       {}
     );
     reply.send(statsEdited);
+  });
+
+  fastify.decorate('saveStats', async (request, reply) => {
+    try {
+      const {
+        host,
+        numOfUsers,
+        numOfProjects,
+        numOfPatients,
+        numOfStudies,
+        numOfSeries,
+        numOfAims,
+        numOfDSOs,
+        numOfWorkLists,
+        numOfFiles,
+        numOfPlugins,
+        numOfTemplates,
+      } = request.query;
+      await models.epadstatistics.create({
+        host,
+        numOfUsers,
+        numOfProjects,
+        numOfPatients,
+        numOfStudies,
+        numOfSeries,
+        numOfAims,
+        numOfDSOs,
+        numOfWorkLists,
+        creator: 'admin',
+        createdtime: Date.now(),
+        updatetime: Date.now(),
+        numOfFiles,
+        numOfPlugins,
+        numOfTemplates,
+      });
+      reply.send('Statistics saved');
+    } catch (err) {
+      reply.send(new InternalError('Saving statistics', err));
+    }
+  });
+
+  fastify.decorate('saveTemplateStats', async (request, reply) => {
+    try {
+      const {
+        host,
+        templateCode,
+        templateName,
+        authors,
+        version,
+        templateLevelType,
+        templateDescription,
+        numOfAims,
+      } = request.query;
+      const templateText = request.body;
+      await models.epadstatistics_template.create({
+        host,
+        templateCode,
+        templateName,
+        authors,
+        version,
+        templateLevelType,
+        templateDescription,
+        numOfAims,
+        templateText,
+        creator: 'admin',
+        createdtime: Date.now(),
+        updatetime: Date.now(),
+      });
+      reply.send('Template statistics saved');
+    } catch (err) {
+      reply.send(new InternalError('Saving template statistics', err));
+    }
   });
 
   fastify.after(async () => {

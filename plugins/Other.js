@@ -800,7 +800,8 @@ async function other(fastify) {
       config.auth &&
       config.auth !== 'none' &&
       !req.req.url.startsWith('/documentation') &&
-      !req.req.url.startsWith('/epads/stats')
+      !req.req.url.startsWith('/epads/stats') &&
+      !req.req.url.startsWith('/epad/statistics') // disabling auth for put is dangerous
     ) {
       // if auth has been given in config, verify authentication
       fastify.log.info('Request needs to be authenticated, checking the authorization header');

@@ -55,5 +55,96 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.getStats,
   });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/epad/statistics/templates/',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          host: {
+            type: 'string',
+          },
+          templateCode: {
+            type: 'string',
+          },
+          templateName: {
+            type: 'string',
+          },
+          authors: {
+            type: 'string',
+          },
+          version: {
+            type: 'string',
+          },
+          templateLevelType: {
+            type: 'string',
+          },
+          templateDescription: {
+            type: 'string',
+          },
+          numOfAims: {
+            type: 'integer',
+          },
+        },
+        body: {
+          type: 'string',
+        },
+      },
+    },
+    handler: fastify.saveTemplateStats,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/epad/statistics/',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          host: {
+            type: 'string',
+          },
+          numOfUsers: {
+            type: 'integer',
+          },
+          numOfProjects: {
+            type: 'integer',
+          },
+          numOfPatients: {
+            type: 'integer',
+          },
+          numOfStudies: {
+            type: 'integer',
+          },
+          numOfSeries: {
+            type: 'integer',
+          },
+          numOfAims: {
+            type: 'integer',
+          },
+          numOfDSOs: {
+            type: 'integer',
+          },
+          numOfWorkLists: {
+            type: 'integer',
+          },
+          numOfFiles: {
+            type: 'integer',
+          },
+          numOfTemplates: {
+            type: 'integer',
+          },
+          numOfPlugins: {
+            type: 'integer',
+          },
+        },
+      },
+    },
+    handler: fastify.saveStats,
+  });
 }
 module.exports = otherRoutes;
