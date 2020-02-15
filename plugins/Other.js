@@ -796,7 +796,12 @@ async function other(fastify) {
 
   fastify.decorate('auth', async (req, res) => {
     // ignore swagger routes
-    if (config.auth && config.auth !== 'none' && !req.req.url.startsWith('/documentation')) {
+    if (
+      config.auth &&
+      config.auth !== 'none' &&
+      !req.req.url.startsWith('/documentation') &&
+      !req.req.url.startsWith('/epads/stats')
+    ) {
       // if auth has been given in config, verify authentication
       fastify.log.info('Request needs to be authenticated, checking the authorization header');
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;

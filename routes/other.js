@@ -38,5 +38,22 @@ async function otherRoutes(fastify) {
     url: '/notifications',
     handler: fastify.getNotifications,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/epads/stats',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          year: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getStats,
+  });
 }
 module.exports = otherRoutes;

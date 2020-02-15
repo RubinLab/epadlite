@@ -3585,7 +3585,7 @@ async function epaddb(fastify, options, done) {
             },
           });
           if (monthlyStats === 0) {
-            fastify.orm.query(
+            await fastify.orm.query(
               `insert into epadstatistics_monthly(numOfUsers, numOfProjects,numOfPatients,numOfStudies,numOfSeries,numOfAims,numOfDSOs,numOfWorkLists,numOfPacs,numOfAutoQueries,numOfFiles,numOfPlugins,numOfTemplates,creator,updatetime) (select sum(numOfUsers), sum(numOfProjects), sum(numOfPatients), sum(numOfStudies), sum(numOfSeries), sum(numOfAims),sum(numOfDSOs),sum(numOfWorkLists),sum(numOfPacs),sum(numOfAutoQueries),sum(numOfFiles),sum(numOfPlugins),sum(numOfTemplates),'admin',now()  from (select * from epadstatistics a where createdtime =(select max(createdtime) from epadstatistics b where b.host = a.host) group by host order by host) ab)`
             );
           }
@@ -3595,6 +3595,20 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
+
+  fastify.decorate('getStats', async (request, reply) => {
+    let { year } = request.query;
+    if (!year) year = new Date().getFullYear();
+    const stats = await fastify.orm.query(
+      `select sum(numOfUsers) numOfUsers,sum(numOfProjects) numOfProjects, sum(numOfPatients) numOfPatients,sum(numOfStudies) numOfStudies,sum(numOfSeries) numOfSeries,sum(numofAims) numofAims,sum(numOfDsos) numOfDSOs,sum(numOfPacs) numOfPacs,sum(numOfAutoQueries) numOfAutoQueries,sum(numOfWorkLists) numOfWorkLists,sum(numOfFiles) numOfFiles,max(numOfTemplates) numOfTemplates,max(numOfPlugins) numOfPlugins from epadstatistics mt inner join(select max(id) id from epadstatistics where host not like '%epad-build.stanford.edu%' and host not like '%epad-dev5.stanford.edu%' and host not like '%epad-dev4.stanford.edu%' and updatetime like '%${year}%' group by host ) st on mt.id = st.id `
+    );
+    const statsJson = stats[0][0];
+    const statsEdited = Object.keys(statsJson).reduce(
+      (p, c) => ({ ...p, [c]: statsJson[c] === null ? 0 : statsJson[c] }),
+      {}
+    );
+    reply.send(statsEdited);
+  });
 
   fastify.after(async () => {
     try {
