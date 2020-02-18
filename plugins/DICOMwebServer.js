@@ -577,9 +577,13 @@ async function dicomwebserver(fastify) {
                         : '1'
                     ),
                     losslessImage: '', // TODO
-                    lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
-                      value['00080018'].Value[0]
-                    }`,
+                    // lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
+                    //   value['00080018'].Value[0]
+                    // }`,
+                    // send wado-uri instead of wado-rs
+                    lossyImage: `/?requestType=WADO&studyUID=${params.study}&seriesUID=${
+                      params.series
+                    }&objectUID=${value['00080018'].Value[0]}`,
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
                     numberOfFrames:
