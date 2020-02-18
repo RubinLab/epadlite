@@ -5,6 +5,7 @@ const Sequelize = require('sequelize');
 const _ = require('lodash');
 const Axios = require('axios');
 const os = require('os');
+const schedule = require('node-schedule');
 const config = require('../config/index');
 const {
   InternalError,
@@ -3686,7 +3687,13 @@ async function epaddb(fastify, options, done) {
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
-      if (config.env !== 'test') fastify.calcStats();
+      if (config.env !== 'test') {
+        // schedule calculating statistics at 1 am at night
+        schedule.scheduleJob('0 1 * * *', fireDate => {
+          fastify.log.info(`Calculating and sending statistics at ${fireDate}`);
+          fastify.calcStats();
+        });
+      }
       done();
     } catch (err) {
       fastify.log.error(`Cannot connect to mariadb (err:${err.message}), shutting down the server`);
