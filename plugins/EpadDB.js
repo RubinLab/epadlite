@@ -5,7 +5,7 @@ const Sequelize = require('sequelize');
 const _ = require('lodash');
 const Axios = require('axios');
 const os = require('os');
-const schedule = require('node-schedule');
+const schedule = require('node-schedule-tz');
 const config = require('../config/index');
 const {
   InternalError,
@@ -3444,6 +3444,14 @@ async function epaddb(fastify, options, done) {
 
           // always from dicomweb server
           const series = await fastify.getAllStudySeriesInternal({}, undefined, undefined, true);
+          const numOfDSOs = _.reduce(
+            series,
+            (count, serie) => {
+              if (serie.isDSO) return count + 1;
+              return count;
+            },
+            0
+          );
           const numOfSeries = series.length;
 
           let numOfAims = 0;
@@ -3468,9 +3476,6 @@ async function epaddb(fastify, options, done) {
               numOfTemplateAimsMap[aims[i].template] = 1;
             }
           }
-
-          // TODO
-          const numOfDSOs = 0;
 
           // are these correct?
           const numOfFiles = await models.epad_file.count();
@@ -3518,8 +3523,10 @@ async function epaddb(fastify, options, done) {
 
           // send to statistics collector
           if (!config.disableStats) {
-            fastify.log.info(`Sending generic stats to ${request.defaults.baseURL}${epadUrl}`);
-            // await request.put(encodeURI(epadUrl));
+            fastify.log.info(
+              `Sending generic stats to ${request.defaults.baseURL}${encodeURI(epadUrl)}`
+            );
+            await request.put(encodeURI(epadUrl));
             fastify.log.info(`Statistics sent with success`);
           }
 
@@ -3565,12 +3572,14 @@ async function epaddb(fastify, options, done) {
             // send to statistics collector
             if (!config.disableStats) {
               fastify.log.info(
-                `Sending template ${templateName} stats to ${
-                  request.defaults.baseURL
-                }${templatesEpadUrl}`
+                `Sending template ${templateName} stats to ${request.defaults.baseURL}${encodeURI(
+                  templatesEpadUrl
+                )}`
               );
               // eslint-disable-next-line no-await-in-loop
-              // await request.put(encodeURI(templatesEpadUrl), templateText);
+              await request.put(encodeURI(templatesEpadUrl), templateText, {
+                headers: { 'Content-Type': 'text/plain' },
+              });
               fastify.log.info(`Template statistics sent with success`);
             }
           }
@@ -3689,9 +3698,12 @@ async function epaddb(fastify, options, done) {
       await fastify.initMariaDB();
       if (config.env !== 'test') {
         // schedule calculating statistics at 1 am at night
-        schedule.scheduleJob('0 1 * * *', fireDate => {
-          fastify.log.info(`Calculating and sending statistics at ${fireDate}`);
-          fastify.calcStats();
+        schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
+          const random = Math.random() * 1800 + 1;
+          setTimeout(() => {
+            fastify.log.info(`Calculating and sending statistics at ${new Date()}`);
+            fastify.calcStats();
+          }, random * 1000);
         });
       }
       done();
