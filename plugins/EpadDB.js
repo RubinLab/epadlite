@@ -3411,6 +3411,15 @@ async function epaddb(fastify, options, done) {
     })
   );
 
+  fastify.decorate('triggerStats', (request, reply) => {
+    fastify
+      .calcStats()
+      .then(result => {
+        reply.send(result);
+      })
+      .catch(err => reply.send(err));
+  });
+
   fastify.decorate(
     'calcStats',
     () =>
@@ -3421,7 +3430,7 @@ async function epaddb(fastify, options, done) {
           const numOfProjects = await models.project.count();
 
           let numOfPatients = 0;
-          if (config.mode === 'thick') {
+          if (config.env !== 'test' && config.mode === 'thick') {
             numOfPatients = await models.project_subject.count({
               col: 'subject_uid',
               distinct: true,
@@ -3432,7 +3441,7 @@ async function epaddb(fastify, options, done) {
           }
 
           let numOfStudies = 0;
-          if (config.mode === 'thick') {
+          if (config.env !== 'test' && config.mode === 'thick') {
             numOfStudies = await models.project_subject_study.count({
               col: 'study_uid',
               distinct: true,
@@ -3456,7 +3465,7 @@ async function epaddb(fastify, options, done) {
 
           let numOfAims = 0;
           let numOfTemplateAimsMap = {};
-          if (config.mode === 'thick') {
+          if (config.env !== 'test' && config.mode === 'thick') {
             numOfAims = await models.project_aim.count({
               col: 'aim_uid',
               distinct: true,
@@ -3480,7 +3489,7 @@ async function epaddb(fastify, options, done) {
           // are these correct?
           const numOfFiles = await models.epad_file.count();
           let numOfTemplates = 0;
-          if (config.mode === 'thick') {
+          if (config.env !== 'test' && config.mode === 'thick') {
             numOfTemplates = await models.template.count();
           } else {
             const templates = await fastify.getTemplatesInternal('summary');
@@ -3543,7 +3552,7 @@ async function epaddb(fastify, options, done) {
               : 'Image';
             const templateDescription = templates[i].TemplateContainer.Template[0].description;
             let numOfTemplateAims = 0;
-            if (config.mode === 'thick') {
+            if (config.env !== 'test' && config.mode === 'thick') {
               // ???
               numOfTemplateAims = numOfTemplateAimsMap[templateCode].aimcount || 0;
             } else {

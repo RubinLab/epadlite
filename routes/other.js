@@ -260,5 +260,15 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.saveStats,
   });
+
+  // trigger statistics calculations. mainly for testing purposes
+  fastify.route({
+    method: 'GET',
+    url: '/epad/statistics/calc',
+    schema: {
+      tags: ['stats'],
+    },
+    handler: fastify.triggerStats,
+  });
 }
 module.exports = otherRoutes;
