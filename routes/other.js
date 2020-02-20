@@ -270,7 +270,7 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.triggerStats,
   });
-    
+
   fastify.route({
     method: 'POST',
     url: '/scanfolder',
