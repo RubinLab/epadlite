@@ -3,6 +3,7 @@ const fs = require('fs-extra');
 const unzip = require('unzip-stream');
 const toArrayBuffer = require('to-array-buffer');
 const { default: PQueue } = require('p-queue');
+const path = require('path');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -248,6 +249,11 @@ async function other(fastify) {
                   fastify.log.info(
                     `Finished processing ${filename} at ${new Date().getTime()} started at ${zipTimestamp}`
                   );
+                  fs.remove(zipDir, error => {
+                    if (error)
+                      fastify.log.info(`Zip temp directory deletion error ${error.message}`);
+                    else fastify.log.info(`${zipDir} deleted`);
+                  });
                   resolve(result);
                 })
                 .catch(err => reject(err));
@@ -263,21 +269,27 @@ async function other(fastify) {
 
   fastify.decorate('scanFolder', (request, reply) => {
     const scanTimestamp = new Date().getTime();
-    fastify.log.info(`Started processing ${request.body.scanFolder}`);
-    reply.send(`Started processing ${request.body.scanFolder}`);
-    fastify
-      .processFolder(request.body.scanFolder, {}, {}, { username: 'admin' })
-      .then(result => {
-        fastify.log.info(
-          `Finished processing ${
-            request.body.scanFolder
-          } at ${new Date().getTime()} started at ${scanTimestamp}`
-        );
-        console.log(result);
-      })
-      .catch(err =>
-        console.log(`Error processing ${request.body.scanFolder} Error: ${err.message}`)
+    const dataFolder = path.join(__dirname, '../data');
+    if (!fs.existsSync(dataFolder))
+      reply.send(
+        new InternalError('Scanning data folder', new Error(`${dataFolder} does not exist`))
       );
+    else {
+      fastify.log.info(`Started scanning folder ${dataFolder}`);
+      reply.send(`Started scanning ${dataFolder}`);
+      fastify
+        .processFolder(dataFolder, {}, {}, request.epadAuth)
+        .then(result => {
+          fastify.log.info(
+            `Finished processing ${dataFolder} at ${new Date().getTime()} with ${result} started at ${scanTimestamp}`
+          );
+          new EpadNotification(request, 'Folder scan completed', dataFolder).notify(fastify);
+        })
+        .catch(err => {
+          console.log(`Error processing ${dataFolder} Error: ${err.message}`);
+          new EpadNotification(request, 'Folder scan failed', err).notify(fastify);
+        });
+    }
   });
 
   fastify.decorate(
@@ -815,12 +827,7 @@ async function other(fastify) {
 
   fastify.decorate('auth', async (req, res) => {
     // ignore swagger routes
-    if (
-      config.auth &&
-      config.auth !== 'none' &&
-      !req.req.url.startsWith('/documentation') &&
-      !req.req.url.startsWith('/projects/lite/scanfolder')
-    ) {
+    if (config.auth && config.auth !== 'none' && !req.req.url.startsWith('/documentation')) {
       // if auth has been given in config, verify authentication
       fastify.log.info('Request needs to be authenticated, checking the authorization header');
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;

@@ -44,14 +44,6 @@ async function otherRoutes(fastify) {
     url: '/scanfolder',
     schema: {
       tags: ['files'],
-      body: {
-        type: 'object',
-        properties: {
-          dirpath: {
-            type: 'string',
-          },
-        },
-      },
     },
     handler: fastify.scanFolder,
   });
