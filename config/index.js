@@ -17,4 +17,6 @@ config.thickDb = config.thickDb || {
   pass: 'pacs',
 };
 config.maxConcurrent = config.maxConcurrent || 5;
+config.disableStats = config.disableStats || false;
+config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
 module.exports = config;

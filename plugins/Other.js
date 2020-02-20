@@ -827,7 +827,13 @@ async function other(fastify) {
 
   fastify.decorate('auth', async (req, res) => {
     // ignore swagger routes
-    if (config.auth && config.auth !== 'none' && !req.req.url.startsWith('/documentation')) {
+    if (
+      config.auth &&
+      config.auth !== 'none' &&
+      !req.req.url.startsWith('/documentation') &&
+      !req.req.url.startsWith('/epads/stats') &&
+      !req.req.url.startsWith('/epad/statistics') // disabling auth for put is dangerous
+    ) {
       // if auth has been given in config, verify authentication
       fastify.log.info('Request needs to be authenticated, checking the authorization header');
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
@@ -1067,6 +1073,10 @@ async function other(fastify) {
   });
 
   fastify.decorate('responseWrapper', (request, reply, payload, done) => {
+    // we have a successful request, lets get the hostname
+    // getting the first one, is it better to get the last all the time?
+    if (!fastify.hostname) fastify.decorate('hostname', request.req.hostname);
+
     if (request.req.method === 'PUT') {
       try {
         new EpadNotification(request, fastify.getInfoFromRequest(request), 'Put successful').notify(
