@@ -270,5 +270,14 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.triggerStats,
   });
+    
+  fastify.route({
+    method: 'POST',
+    url: '/scanfolder',
+    schema: {
+      tags: ['files'],
+    },
+    handler: fastify.scanFolder,
+  });
 }
 module.exports = otherRoutes;
