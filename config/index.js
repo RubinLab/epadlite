@@ -1,16 +1,31 @@
+const fs = require('fs-extra');
+const path = require('path');
+
 const env = process.env.NODE_ENV || 'development';
 const config = require(`./${env}`); // eslint-disable-line
 config.authConfig = {};
-if (config.auth && config.auth != 'none') config.authConfig = require(`./${config.auth}.json`); // eslint-disable-line
+if (
+  config.auth &&
+  config.auth !== 'none' &&
+  fs.existsSync(path.join(__dirname, `${config.auth}.json`))
+)
+  config.authConfig = require(`./${config.auth}.json`); // eslint-disable-line
+
 // check values of environment variables
-config.authConfig.realm = process.env.AUTH_REALM || config.authConfig.realm;
-config.authConfig.authServerUrl = process.env.AUTH_URL || config.authConfig.authServerUrl;
-config.authConfig.clientId = process.env.AUTH_CLIENT_ID || config.authConfig.clientId;
+config.authConfig.realm = process.env.AUTH_REALM || config.authConfig.realm || 'ePad';
+// giving a default of hostname doesn't make sense here it wont work but at least it wouldn't be empty
+config.authConfig.authServerUrl =
+  process.env.AUTH_URL || config.authConfig.authServerUrl || 'http://hostname';
+config.authConfig.clientId =
+  process.env.AUTH_CLIENT_ID || config.authConfig.clientId || 'epad-auth';
 
 config.dicomWebConfig = {};
-if (config.dicomweb) config.dicomWebConfig = require(`./${config.dicomweb}.json`); // eslint-disable-line
+if (config.dicomweb && fs.existsSync(path.join(__dirname, `${config.dicomweb}.json`)))
+  config.dicomWebConfig = require(`./${config.dicomweb}.json`); // eslint-disable-line
 // check values of environment variables
-config.dicomWebConfig.baseUrl = process.env.DICOMWEB_BASEURL || config.dicomWebConfig.baseUrl;
+// giving a default of hostname doesn't make sense here it wont work but at least it wouldn't be empty
+config.dicomWebConfig.baseUrl =
+  process.env.DICOMWEB_BASEURL || config.dicomWebConfig.baseUrl || 'http://hostname';
 
 config.mode = config.mode || 'lite'; // default lite
 config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';
