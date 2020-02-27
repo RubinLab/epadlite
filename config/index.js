@@ -27,7 +27,7 @@ if (config.dicomweb && fs.existsSync(path.join(__dirname, `${config.dicomweb}.js
 config.dicomWebConfig.baseUrl =
   process.env.DICOMWEB_BASEURL || config.dicomWebConfig.baseUrl || 'http://hostname';
 
-config.mode = config.mode || 'lite'; // default lite
+config.mode = process.env.MODE || config.mode || 'lite'; // default lite
 config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';
 config.reportExt = process.env.REPORT_EXT || config.reportExt || 'txt|pdf';
 config.validExt = `${config.imageExt}|${config.reportExt}`;
