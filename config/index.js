@@ -12,13 +12,19 @@ if (
   config.authConfig = require(`./${config.auth}.json`); // eslint-disable-line
 
 // check values of environment variables
-config.authConfig.realm = process.env.AUTH_REALM || config.authConfig.realm || 'ePad';
-// giving a default of hostname doesn't make sense here it wont work but at least it wouldn't be empty
-config.authConfig.authServerUrl =
-  process.env.AUTH_URL || config.authConfig.authServerUrl || 'http://hostname';
-config.authConfig.clientId =
-  process.env.AUTH_CLIENT_ID || config.authConfig.clientId || 'epad-auth';
-
+if (config.auth !== 'external') {
+  config.authConfig.realm = process.env.AUTH_REALM || config.authConfig.realm || 'ePad';
+  // giving a default of hostname doesn't make sense here it wont work but at least it wouldn't be empty
+  config.authConfig.authServerUrl =
+    process.env.AUTH_URL || config.authConfig.authServerUrl || 'http://hostname';
+  config.authConfig.clientId =
+    process.env.AUTH_CLIENT_ID || config.authConfig.clientId || 'epad-auth';
+} else {
+  config.authConfig.userinfoUrl =
+    process.env.AUTH_USERINFO_URL ||
+    config.authConfig.userinfoUrl ||
+    'http://hostname/keycloak/auth/realms/ePad/protocol/openid-connect/userinfo';
+}
 config.dicomWebConfig = {};
 if (config.dicomweb && fs.existsSync(path.join(__dirname, `${config.dicomweb}.json`)))
   config.dicomWebConfig = require(`./${config.dicomweb}.json`); // eslint-disable-line

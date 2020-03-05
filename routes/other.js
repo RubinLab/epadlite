@@ -279,5 +279,14 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.scanFolder,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/userinfo',
+    schema: {
+      tags: ['user'],
+    },
+    handler: fastify.getUserInfo,
+  });
 }
 module.exports = otherRoutes;
