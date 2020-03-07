@@ -44,7 +44,7 @@ config.thickDb = config.thickDb || {
   port: process.env.SQL_DB_PORT || '3306',
   user: process.env.SQL_USER || 'pacs',
   pass: process.env.SQL_PASS || 'pacs',
-  logger: process.env.SQL_LOGGER || false,
+  logger: process.env.SQL_LOGGER || 'false',
 };
 config.maxConcurrent = config.maxConcurrent || 5;
 config.disableStats = config.disableStats || false;

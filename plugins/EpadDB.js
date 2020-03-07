@@ -37,7 +37,7 @@ async function epaddb(fastify, options, done) {
         define: {
           timestamps: false,
         },
-        logging: config.thickDb.logger,
+        logging: config.thickDb.logger === 'true' || config.thickDb.logger === true,
       };
 
       // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
