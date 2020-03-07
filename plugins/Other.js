@@ -799,7 +799,7 @@ async function other(fastify) {
             const userinfo = await fastify.getUserInfoInternal(token);
             username = userinfo.preferred_username;
           }
-          if (username !== '') return await fastify.fillUserInfo();
+          if (username !== '') return await fastify.fillUserInfo(username);
           res.send(new UnauthenticatedError(`Username couldn't be retrieeved`));
         } catch (err) {
           res.send(
