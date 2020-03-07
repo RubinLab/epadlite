@@ -284,7 +284,9 @@ async function other(fastify) {
         .processFolder(dataFolder, {}, {}, request.epadAuth)
         .then(result => {
           fastify.log.info(
-            `Finished processing ${dataFolder} at ${new Date().getTime()} with ${result} started at ${scanTimestamp}`
+            `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
+              result.success
+            } started at ${scanTimestamp}`
           );
           new EpadNotification(request, 'Folder scan completed', dataFolder).notify(fastify);
         })
