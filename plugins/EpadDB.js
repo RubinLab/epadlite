@@ -3486,7 +3486,8 @@ async function epaddb(fastify, options, done) {
             }
           }
 
-          // are these correct?
+          // TODO are these correct? check with thick
+          // TODO update the file one it is not correct!!
           const numOfFiles = await models.epad_file.count();
           let numOfTemplates = 0;
           if (config.env !== 'test' && config.mode === 'thick') {
@@ -3701,6 +3702,121 @@ async function epaddb(fastify, options, done) {
       reply.send(new InternalError('Saving template statistics', err));
     }
   });
+
+  fastify.decorate(
+    'fixSchema',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // go over each table that has schema changes
+          // 1. epad_file
+          // not used. discard the changes for now
+
+          // 2. nondicom_series
+          // change study_id to study_uid
+
+          // 3. project_aim
+          // new table
+          // migration from annotations required
+          // annotations need to be saved in couchdb
+
+          // 4. project_file
+          // change file_id (fk epad_file) to file_uid
+          // needs to save files to couchdb first
+
+          // 5. project_subject
+          // add subject_name for non-dicom ??
+
+          // 6. project_subject_study
+          // add study_desc for non-dicom ??
+
+          // 7. project_template
+          // change template_id (fk template) to template_uid
+          // needs to get template_uid from template table first
+
+          // 8. user
+          // change username allowNull from true to false
+          // needs to verify there is no such case in db first
+
+          // 9. worklist
+          // remove user_id
+          // IMP data migration required before deleting the user_id
+
+          // 10. worklist_user - new table
+          // needs data migration to move user from worklist table
+
+          // 11. worklist_requirement - new table
+          // no data migration
+
+          // 12. worklist_study
+          // new fields study_desc, subject_name
+          // needs data migration to fill in new fields
+          // also needs data migration from worklist_subject?? check it in old epad
+
+          // 13. worklist_study_completeness - new table
+          // no data migration
+
+          resolve('Database tables altered successfully');
+        } catch (err) {
+          reject(new InternalError('Migrating database schema', err));
+        }
+      })
+  );
+
+  fastify.decorate(
+    'migrateDataLite2Thick',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // create new project called lite
+          // check if it exist??
+
+          // fill in each project relation table
+          // 1. project_aim
+          // get aims from couch and add entities
+
+          // 2. project_file
+          // get files from couch and add entities
+
+          // can be done in one call
+          // 3. project_subject
+          // get studies from dicomwebserver and add entities
+          // 4. project_subject_study
+          // get studies from dicomwebserver and add entities
+
+          // 5. project_template
+          // get aims from couch and add entities
+
+          // 6. project_user
+          // everyone member?
+          // get users from the user table and add relation
+
+          // 7. project_subject_user
+          // ?? not used in lite but what is the intention in old epad
+
+          // no action required for these tables - not used in lite
+          // 8. project_plugin
+          // 9. project_pluginparameter
+          // 10. project_subject_study_series_user
+
+          // and tables that have project_id in it
+          // 11. worklist_study
+          // add lite project_id
+
+          // no action required for these tables - not used in lite
+          // 12. worklist_subject : not used in lite but was used in old epad. data migration handle it though
+          // 13. disabled_template
+          // 14. epad_file
+          // 15. events
+          // 16. remote_pac_query
+          // 17. user_flaggedimage
+
+          resolve('Data moved to thick model');
+        } catch (err) {
+          reject(new InternalError('Lite2thick data migration', err));
+        }
+      })
+  );
 
   fastify.after(async () => {
     try {
