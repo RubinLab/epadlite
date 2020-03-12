@@ -3704,57 +3704,265 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate(
+    'saveFileToCouch',
+    (fileEntry, epadAuth) =>
+      new Promise((resolve, reject) => {
+        let buffer = [];
+        const readableStream = fs.createReadStream(fileEntry.filepath);
+        readableStream.on('data', chunk => {
+          buffer.push(chunk);
+        });
+        readableStream.on('error', readErr => {
+          fastify.log.error(`Error in reading file ${fileEntry.filepath}: ${readErr}`);
+          reject(new InternalError(`Reading file ${fileEntry.filepath}`, readErr));
+        });
+        readableStream.on('close', () => {
+          readableStream.destroy();
+        });
+        readableStream.on('end', async () => {
+          buffer = Buffer.concat(buffer);
+          const timestamp = new Date().getTime();
+          const fileInfo = {
+            subject_uid:
+              fileEntry.subject && fileEntry.subject.subjectuid ? fileEntry.subject.subjectuid : '',
+            study_uid: fileEntry.study && fileEntry.study.studyuid ? fileEntry.study.studyuid : '',
+            series_uid: fileEntry.series_uid ? fileEntry.series_uid : '',
+            name: `${fileEntry.name}_${timestamp}`,
+            filepath: 'couchdb',
+            filetype: fileEntry.filetype ? fileEntry.filetype : '',
+            length: Buffer.byteLength(buffer),
+          };
+          const params = { project: fileEntry.project_id };
+          if (fileEntry.subject) params.subject = fileEntry.subject.subjectuid;
+          if (fileEntry.study) params.study = fileEntry.study.studyuid;
+
+          await fastify.putOtherFileToProjectInternal(fileInfo.name, params, epadAuth);
+          resolve({ success: true });
+        });
+      })
+  );
+
+  // TODO
+  // how to associate with transaction?? rolback??
+  fastify.decorate(
+    'moveFiles',
+    () =>
+      new Promise((resolve, reject) => {
+        try {
+          // check if it is already done??
+          // // fill in the values
+          // const files = await models.project_file.findAll({ transaction: t });
+          // // projects will be an array of Project instances with the specified name
+          // files.forEach(async fileTuple => {
+          //   // get the file from disk
+          //   // save to couchdb saveOtherFileToProjectInternal
+          //   // get filename
+          //   const filename = '';
+          //   await models.project_file.update(
+          //     { file_uid: filename },
+          //     {
+          //       where: {
+          //         id: fileTuple.id,
+          //       },
+          //     }
+          //   );
+          // });
+          resolve();
+        } catch (err) {
+          reject(new InternalError('Migrating files', err));
+        }
+      })
+  );
+
+  // TODO
+  // how to associate with transaction?? rolback??
+  fastify.decorate(
+    'moveTemplates',
+    () =>
+      new Promise((resolve, reject) => {
+        try {
+          resolve();
+        } catch (err) {
+          reject(new InternalError('Migrating templates', err));
+        }
+      })
+  );
+
+  // TODO
+  // how to associate with transaction?? rolback??
+  fastify.decorate(
+    'moveAims',
+    () =>
+      new Promise((resolve, reject) => {
+        try {
+          resolve();
+        } catch (err) {
+          reject(new InternalError('Migrating aims', err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'fixSchema',
     () =>
       new Promise(async (resolve, reject) => {
         try {
-          // go over each table that has schema changes
-          // 1. epad_file
-          // not used. discard the changes for now
+          // do it all or none
+          await fastify.orm.transaction(async t => {
+            // go over each table that has schema changes
+            // // 1. epad_file
+            // // not used. discard the changes for now
 
-          // 2. nondicom_series
-          // change study_id to study_uid
+            // // 2. nondicom_series
+            // // change study_id to study_uid
 
-          // 3. project_aim
-          // new table
-          // migration from annotations required
-          // annotations need to be saved in couchdb
+            // 3. project_aim
+            // // new table
+            // migration from annotations required
+            // annotations need to be saved in couchdb
+            // TODO
+            await fastify.orm.query(
+              `ALTER TABLE project_aim 
+                ADD COLUMN IF NOT EXISTS frame_id int(11) DEFAULT NULL AFTER image_uid,
+                ADD COLUMN IF NOT EXISTS dso_series_uid varchar(256) DEFAULT NULL AFTER frame_id,
+                DROP CONSTRAINT IF EXISTS project_aimuid_ind,
+                ADD CONSTRAINT project_aimuid_ind UNIQUE (project_id, aim_uid);`,
+              { transaction: t }
+            );
+            // replaces existing value if exists. should we have ignore instead?
+            // TODO we are ignoring shared projects right now but we should handle that!
+            await fastify.orm.query(
+              `REPLACE project_aim(project_id, aim_uid, template, subject_uid, study_uid, series_uid, image_uid, frame_id, dso_series_uid, user, creator, createdtime)
+                SELECT project.id, aim.AnnotationUID, aim.TEMPLATECODE, aim.PatientID, aim.StudyUID, aim.SeriesUID, aim.ImageUID, aim.FrameID, aim.DSOSeriesUID, aim.UserLoginName, aim.UserLoginName, aim.UPDATETIME 
+                FROM annotations AS aim, project WHERE aim.PROJECTUID=project.projectid;`,
+              { transaction: t }
+            );
 
-          // 4. project_file
-          // change file_id (fk epad_file) to file_uid
-          // needs to save files to couchdb first
+            // 4. project_file
+            // change file_id (fk epad_file) to file_uid
+            // needs to save files to couchdb first
+            // add the column
+            await fastify.orm.query(
+              `ALTER TABLE project_file 
+                ADD COLUMN IF NOT EXISTS file_uid varchar(256) NOT NULL AFTER project_id;`,
+              { transaction: t }
+            );
+            // just put values so that we can define unique
+            console.log(models.project_file.rawAttributes);
+            if (models.project_file.rawAttributes.file_id)
+              await models.project_file.update(
+                { file_uid: fastify.orm.literal('file_id') },
+                {
+                  where: {},
+                  transaction: t,
+                }
+              );
+            // remove the column and indexes
+            // we need to add indexes for the new column after the data has been migrated
+            await fastify.orm.query(
+              `ALTER TABLE project_file 
+                DROP CONSTRAINT IF EXISTS project_fileuid_ind,
+                ADD CONSTRAINT project_fileuid_ind UNIQUE (project_id, file_uid),
+                DROP KEY IF EXISTS project_file_ind,
+                DROP FOREIGN KEY IF EXISTS FK_project_file_file,
+                DROP KEY IF EXISTS FK_project_file_file,
+                DROP COLUMN IF EXISTS file_id;`,
+              { transaction: t }
+            );
 
-          // 5. project_subject
-          // add subject_name for non-dicom ??
+            // // 5. project_subject
+            // // add subject_name for non-dicom
+            // // removing subject_name
 
-          // 6. project_subject_study
-          // add study_desc for non-dicom ??
+            // // 6. project_subject_study
+            // // add study_desc for non-dicom
+            // // removing study_desc
 
-          // 7. project_template
-          // change template_id (fk template) to template_uid
-          // needs to get template_uid from template table first
+            // 7. project_template
+            // change template_id (fk template) to template_uid
+            // needs to get template_uid from template table first
+            // add the column
+            await fastify.orm.query(
+              `ALTER TABLE project_template 
+                ADD COLUMN IF NOT EXISTS template_uid varchar(128) NOT NULL AFTER project_id;`,
+              { transaction: t }
+            );
+            // just put values so that we can define unique
+            if (models.project_template.rawAttributes.template_id)
+              await models.project_template.update(
+                { template_uid: fastify.orm.literal('template_id') },
+                {
+                  where: {},
+                  transaction: t,
+                }
+              );
+            // remove the column and indexes
+            await fastify.orm.query(
+              `ALTER TABLE project_template 
+                DROP CONSTRAINT IF EXISTS uk_project_template_uid_ind, 
+                ADD CONSTRAINT uk_project_template_uid_ind UNIQUE (project_id, template_uid),
+                DROP KEY IF EXISTS uk_project_template_ind,
+                DROP FOREIGN KEY IF EXISTS FK_project_template_tid,
+                DROP KEY IF EXISTS FK_project_template_tid,
+                DROP COLUMN IF EXISTS template_id;`,
+              { transaction: t }
+            );
 
-          // 8. user
-          // change username allowNull from true to false
-          // needs to verify there is no such case in db first
+            // 8. user
+            // change username allowNull from true to false
+            // just try putting email if username is null. shouldn't happen anyway.
+            // if both will empty next step will fail and tracsaction will rollback
+            await models.user.update(
+              { username: fastify.orm.literal('email') },
+              {
+                where: {
+                  username: null,
+                },
+                transaction: t,
+              }
+            );
+            await fastify.orm.query(
+              `ALTER TABLE user 
+                MODIFY COLUMN username varchar(128) NOT NULL;`,
+              { transaction: t }
+            );
 
-          // 9. worklist
-          // remove user_id
-          // IMP data migration required before deleting the user_id
+            // 9. worklist_user - new table
+            // needs data migration to move assignee user from worklist table
+            // verify user_id still exist we didnt migrate already
+            if (models.worklist.rawAttributes.user_id)
+              await fastify.orm.query(
+                `INSERT INTO worklist_user(worklist_id, user_id, role, creator)
+                  SELECT worklist.id, worklist.user_id, 'assignee', 'admin' from worklist;`,
+                { transaction: t }
+              );
 
-          // 10. worklist_user - new table
-          // needs data migration to move user from worklist table
+            // 10. worklist
+            // remove user_id
+            // IMPORTANT data migration required before deleting the user_id
+            await fastify.orm.query(
+              `ALTER TABLE worklist 
+                DROP FOREIGN KEY IF EXISTS FK_worklist_user,
+                DROP KEY IF EXISTS FK_worklist_user,
+                DROP COLUMN IF EXISTS user_id;`,
+              { transaction: t }
+            );
 
-          // 11. worklist_requirement - new table
-          // no data migration
+            // // 11. worklist_requirement - new table
+            // // no data migration
 
-          // 12. worklist_study
-          // new fields study_desc, subject_name
-          // needs data migration to fill in new fields
-          // also needs data migration from worklist_subject?? check it in old epad
+            // 12. worklist_study
+            // // new fields study_desc, subject_name
+            // // needs data migration to fill in new fields
+            // also needs data migration from worklist_subject?? check it in old epad
 
-          // 13. worklist_study_completeness - new table
-          // no data migration
+            // // 13. worklist_study_completeness - new table
+            // // no data migration
+          });
+          // the db schema is updated successfully lets copy the files
+          await fastify.moveAims();
+          await fastify.moveFiles();
+          await fastify.moveTemplates();
 
           resolve('Database tables altered successfully');
         } catch (err) {
@@ -3821,6 +4029,7 @@ async function epaddb(fastify, options, done) {
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
+      await fastify.fixSchema();
       if (config.env !== 'test') {
         // schedule calculating statistics at 1 am at night
         schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
