@@ -3848,7 +3848,6 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
             // just put values so that we can define unique
-            console.log(models.project_file.rawAttributes);
             if (models.project_file.rawAttributes.file_id)
               await models.project_file.update(
                 { file_uid: fastify.orm.literal('file_id') },
