@@ -76,6 +76,47 @@ class DockerService {
       });
   }
 
+  listContainers() {
+    return (
+      this.docker
+        .listContainers({ all: true })
+        // Inspect
+        .then(containers => {
+          containers.forEach(container => {
+            console.log('---------containers--------------', container);
+            // console.log('id :', container.Id);
+            // console.log('names :', container.Names);
+            // console.log('image :', container.Image);
+            // console.log('State :', container.State);
+            // console.log('State ', container.Status);
+            // console.log('Mounts :', container.Mounts);
+          });
+        })
+        .catch(error => console.log(error))
+    );
+  }
+
+  listImages() {
+    let imageList = [];
+    return this.docker
+      .listContainers({ all: true })
+      .then(images => {
+        images.forEach(image => {
+          console.log('images', image);
+          const imageObject = {
+            id: image.Id,
+            names: image.Names,
+            imagename: image.Image,
+            imageid: image.ImageID,
+            command: image.Command,
+            state: image.State,
+          };
+          imageList.push(imageObject);
+        });
+        return imageList;
+      })
+      .catch(error => console.log(error));
+  }
   /*
   createContainer(containerImage, containerName) {
     this.docker.container

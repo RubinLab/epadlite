@@ -526,6 +526,41 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('getTemplatesDataFromDb', (request, reply) => {
+    const dock = new dockerService();
+    // dock.createContainer('myimage:1.0', 'test').then(data => {
+    //   console.log('returned outer', data);
+    //   reply.code(200).send('ok');
+
+    // });
+    // dock
+    //   .listImages()
+    //   .then(data => {
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+
+    //     //console.log('returned list images', data);
+    //     console.log('------------list images--ends-----------------');
+    //     //reply.code(200).send('ok');
+    //   })
+    //   .catch(err => {
+    //     reply.code(500).send(new InternalError('couldnt inspect container', err));
+    //   });
+    // dock.listContainers().then(data => {
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   //console.log('returned list containers', data);
+    //   console.log('------------list containers- ends------------------');
+
+    //   //reply.code(200).send('ok');
+    // });
     models.template
       .findAll()
       .then(templates => {
@@ -805,20 +840,21 @@ async function epaddb(fastify, options, done) {
         documentation: pluginform.documentation,
       })
       .then(() => {
-        const dock = new dockerService();
-        // dock.createContainer('myimage:1.0', 'test').then(data => {
-        //   console.log('returned outer', data);
-        //   reply.code(200).send('ok');
-        // });
-        dock
-          .startContainer('test', 'test')
-          .then(data => {
-            console.log('returned outer', data.State.Status);
-            reply.code(200).send('ok');
-          })
-          .catch(err => {
-            reply.code(500).send(new InternalError('couldnt inspect container', err));
-          });
+        reply.code(200).send('Plugin saved seccessfully');
+        // const dock = new dockerService();
+        // // dock.createContainer('myimage:1.0', 'test').then(data => {
+        // //   console.log('returned outer', data);
+        // //   reply.code(200).send('ok');
+        // // });
+        // dock
+        //   .startContainer('test', 'test')
+        //   .then(data => {
+        //     console.log('returned outer', data.State.Status);
+        //     reply.code(200).send('ok');
+        //   })
+        //   .catch(err => {
+        //     reply.code(500).send(new InternalError('couldnt inspect container', err));
+        //   });
       })
       .catch(err => {
         reply
