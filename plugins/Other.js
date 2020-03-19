@@ -104,27 +104,28 @@ async function other(fastify) {
                 fastify.log.info(`${dir} deleted`);
               });
 
+              let errMessagesText = null;
+              if (errors.length > 0) {
+                const errMessages = errors.reduce((all, item) => {
+                  all.push(item.message);
+                  return all;
+                }, []);
+                errMessagesText = errMessages.toString();
+              }
+
               if (success) {
-                if (errors.length > 0) {
-                  const errMessages = errors.reduce((all, item) => {
-                    all.push(item.message);
-                    return all;
-                  }, []);
-                  if (errMessages.length > 0) {
-                    if (config.env === 'test')
-                      reply.send(
-                        new InternalError(
-                          'Upload Completed with errors',
-                          new Error(errMessages.toString())
-                        )
-                      );
-                    else
-                      new EpadNotification(
-                        request,
-                        'Upload Completed with errors',
-                        new Error(errMessages.toString())
-                      ).notify(fastify);
-                  }
+                if (errMessagesText) {
+                  if (config.env === 'test')
+                    reply.send(
+                      new InternalError('Upload Completed with errors', new Error(errMessagesText))
+                    );
+                  else
+                    new EpadNotification(
+                      request,
+                      'Upload Completed with errors',
+                      new Error(errMessagesText)
+                    ).notify(fastify);
+
                   // test should wait for the upload to actually finish to send the response.
                   // sending the reply early is to handle very large files and to avoid browser repeating the request
                 } else if (config.env === 'test') reply.code(200).send();
@@ -132,19 +133,20 @@ async function other(fastify) {
                   fastify.log.info(`Upload Completed ${filenames}`);
                   new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
                 }
-              } else if (config.env === 'test')
+              } else if (config.env === 'test') {
                 reply.send(
                   new InternalError(
                     'Upload Failed as none of the files were uploaded successfully',
-                    new Error(filenames.toString())
+                    new Error(`${filenames.toString()}. ${errMessagesText}`)
                   )
                 );
-              else
+              } else {
                 new EpadNotification(
                   request,
                   'Upload Failed as none of the files were uploaded successfully',
-                  new Error(filenames.toString())
+                  new Error(`${filenames.toString()}. ${errMessagesText}`)
                 ).notify(fastify);
+              }
             } catch (filesErr) {
               fs.remove(dir, error => {
                 if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
