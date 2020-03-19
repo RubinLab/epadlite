@@ -1,11 +1,11 @@
 module.exports = {
   env: 'development',
-  dbServer: 'http://localhost',
-  db: 'epadlite',
-  dbPort: process.env.PORT || 5984,
-  auth: 'auth',
+  dbServer: process.env.NOSQL_DB_HOST || 'http://localhost',
+  db: process.env.NOSQL_DB_NAME || 'epadlite',
+  dbPort: process.env.NOSQL_DB_PORT || 5984,
+  auth: process.env.AUTH || 'auth',
   dicomweb: 'dicomweb_none',
-  logger: true,
-  https: false,
-  mode: 'thick',
+  logger: process.env.LOGGER || true,
+  https: process.env.HTTPS || false,
+  mode: process.env.MODE || 'lite',
 };

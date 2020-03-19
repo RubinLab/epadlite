@@ -21,6 +21,7 @@ after(() => {
   server.close();
 });
 beforeEach(() => {
+  const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
   nock(config.dicomWebConfig.baseUrl)
     .get('/studies')
     .reply(200, studiesResponse);
@@ -39,6 +40,44 @@ beforeEach(() => {
     .delete(
       '/studies/1.2.752.24.7.19011385.453825/series/1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000'
     )
+    .reply(200);
+
+  nock(config.statsEpad)
+    .put('/epad/statistics/')
+    .query(query => {
+      return (
+        query.numOfUsers === '1' &&
+        query.numOfProjects === '2' &&
+        query.numOfPatients === '1' &&
+        query.numOfStudies === '1' &&
+        query.numOfSeries === '1' &&
+        query.numOfAims === '0' &&
+        query.numOfDSOs === '0' &&
+        query.numOfWorkLists === '0' &&
+        query.numOfFiles === '0' &&
+        query.numOfPlugins === '0' &&
+        query.numOfTemplates === '1' &&
+        query.host.endsWith('0.0.0.0:5987')
+      );
+    })
+    .reply(200);
+
+  nock(config.statsEpad)
+    .put('/epad/statistics/templates/', body => {
+      return JSON.stringify(body) === JSON.stringify(jsonBuffer);
+    })
+    .query(query => {
+      return (
+        query.templateCode === 'ROI' &&
+        query.templateName === 'ROIOnly' &&
+        query.authors === 'amsnyder' &&
+        query.version === '2.0' &&
+        query.templateLevelType === 'Image' &&
+        query.templateDescription === 'Template used for collecting only ROIs' &&
+        query.numOfAims === '0' &&
+        query.host.endsWith('0.0.0.0:5987')
+      );
+    })
     .reply(200);
 });
 
@@ -255,6 +294,49 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should trigger statistics calculation and sending ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/epad/statistics/calc')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should get statistics ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/epads/stats/')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql({
+            numOfUsers: 1,
+            numOfProjects: 2,
+            numOfPatients: 1,
+            numOfStudies: 1,
+            numOfSeries: 1,
+            numofAims: 0,
+            numOfDSOs: 0,
+            numOfPacs: 0,
+            numOfAutoQueries: 0,
+            numOfWorkLists: 0,
+            numOfFiles: 0,
+            numOfTemplates: 1,
+            numOfPlugins: 0,
+          });
           done();
         })
         .catch(e => {
