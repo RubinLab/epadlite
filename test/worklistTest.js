@@ -92,7 +92,7 @@ describe('Worklist Tests', () => {
         name: 'test',
         worklistId: 'testCreate',
         description: 'testdesc',
-        dueDate: '2019-12-01',
+        duedate: '2019-12-01',
         assignees: ['testAssignee@gmail.com'],
       })
       .then(res => {
@@ -113,7 +113,7 @@ describe('Worklist Tests', () => {
         expect(res.body[0].name).to.be.eql('test');
         expect(res.body[0].workListID).to.be.eql('testCreate');
         expect(res.body[0].description).to.be.eql('testdesc');
-        expect(res.body[0].dueDate).to.be.eql('2019-12-01');
+        expect(res.body[0].duedate).to.be.eql('2019-12-01');
         expect(res.body[0].assignees).to.be.eql(['testAssignee@gmail.com']);
         done();
       })
@@ -163,7 +163,7 @@ describe('Worklist Tests', () => {
         expect(res.body[0].name).to.be.eql('test');
         expect(res.body[0].workListID).to.be.eql('testCreate');
         expect(res.body[0].description).to.be.eql('testdesc');
-        expect(res.body[0].dueDate).to.be.eql('2019-12-01');
+        expect(res.body[0].duedate).to.be.eql('2019-12-01');
         expect(res.body[0].assignees).to.be.eql(['testAssignee@gmail.com']);
         done();
       })
@@ -178,7 +178,7 @@ describe('Worklist Tests', () => {
       .send({
         name: 'testUpdated2',
         description: 'testdescUpdated',
-        dueDate: '2019-12-31',
+        duedate: '2019-12-31',
       })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -197,7 +197,7 @@ describe('Worklist Tests', () => {
         expect(res.body.length).to.be.eql(1);
         expect(res.body[0].name).to.be.eql('testUpdated2');
         expect(res.body[0].description).to.be.eql('testdescUpdated');
-        expect(res.body[0].dueDate).to.be.eql('2019-12-31');
+        expect(res.body[0].duedate).to.be.eql('2019-12-31');
         done();
       })
       .catch(e => {
@@ -228,7 +228,7 @@ describe('Worklist Tests', () => {
         expect(res.body.length).to.be.eql(1);
         expect(res.body[0].name).to.be.eql('testUpdated2');
         expect(res.body[0].workListID).to.be.eql('testCreate');
-        expect(res.body[0].dueDate).to.be.eql('2019-12-31');
+        expect(res.body[0].duedate).to.be.eql('2019-12-31');
         done();
       })
       .catch(e => {
@@ -306,7 +306,7 @@ describe('Worklist Tests', () => {
           name: 'testProgressW',
           worklistId: 'testProgressW',
           description: 'testdesc',
-          dueDate: '2019-12-01',
+          duedate: '2019-12-01',
           assignees: ['testProgressUser1@gmail.com', 'testProgressUser2@gmail.com'],
         });
       await chai
@@ -352,12 +352,14 @@ describe('Worklist Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/worklists/testProgressW/requirements')
-        .send({
-          level: 'study',
-          template: 'any',
-          numOfAims: 2,
-          required: true,
-        })
+        .send([
+          {
+            level: 'study',
+            template: 'any',
+            numOfAims: 2,
+            required: true,
+          },
+        ])
         .query({ username: 'testProgressUser1@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -371,14 +373,32 @@ describe('Worklist Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/worklists/testProgressW/requirements')
-        .send({
-          level: 'series',
-          template: 'ROI',
-          numOfAims: 1,
-          required: true,
-        })
+        .send([
+          {
+            level: 'series',
+            template: 'ROI',
+            numOfAims: 1,
+            required: true,
+          },
+        ])
         .query({ username: 'testProgressUser1@gmail.com' })
         .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should have 2 requiremets ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then(res => {
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].workListID).to.be.eql('testProgressW');
+          expect(res.body[0].requirements.length).to.be.eql(2);
           expect(res.statusCode).to.equal(200);
           done();
         })
@@ -561,6 +581,95 @@ describe('Worklist Tests', () => {
           expect(res.body[3].worklist_requirement_id).to.be.eql(2);
           expect(res.body[3].worklist_requirement_desc).to.be.eql('1:ROI:series');
           expect(res.body[3].completeness).to.be.eql(100);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should add requirement to the worklist ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/worklists/testProgressW/requirements')
+        .send([
+          {
+            level: 'image',
+            template: 'any',
+            numOfAims: 10,
+            required: true,
+          },
+        ])
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should have 3 requiremets ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then(res => {
+          expect(res.body[0].requirements.length).to.be.eql(3);
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should delete the last requirement that does not have completeness', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/worklists/testProgressW/requirements/3')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should have 2 requiremets ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then(res => {
+          expect(res.body[0].requirements.length).to.be.eql(2);
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should delete the first requirement that has completeness', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/worklists/testProgressW/requirements/1')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should have 1 requiremet ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then(res => {
+          expect(res.body[0].requirements.length).to.be.eql(1);
+          expect(res.statusCode).to.equal(200);
           done();
         })
         .catch(e => {

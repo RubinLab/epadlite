@@ -640,6 +640,21 @@ async function dicomwebserver(fastify) {
       })
   );
 
+  fastify.decorate('getWado', (request, reply) => {
+    this.request
+      .get(
+        `/?requestType=WADO&studyUID=${request.query.studyUID}&seriesUID=${
+          request.query.seriesUID
+        }&objectUID=${request.query.objectUID}`,
+        { ...header, responseType: 'stream' }
+      )
+      .then(result => {
+        reply.headers(result.headers);
+        reply.code(200).send(result.data);
+      })
+      .catch(err => reply.send(new InternalError('WADO', err)));
+  });
+
   fastify.decorate('getPatient', (request, reply) => {
     fastify
       .getPatientsInternal(request.params, [request.params.subject], request.epadAuth)

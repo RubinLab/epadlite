@@ -288,5 +288,11 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.getUserInfo,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/wado/',
+    handler: fastify.getWado,
+  });
 }
 module.exports = otherRoutes;
