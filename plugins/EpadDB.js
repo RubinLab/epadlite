@@ -145,11 +145,6 @@ async function epaddb(fastify, options, done) {
             otherKey: 'study_id',
           });
 
-          models.project.hasMany(models.project_aim, {
-            as: 'aims',
-            foreignKey: 'project_id',
-          });
-
           await fastify.orm.sync();
           if (config.env === 'test') {
             try {
@@ -1369,7 +1364,6 @@ async function epaddb(fastify, options, done) {
             model: models.project_subject,
             include: [models.subject, models.study],
           },
-          'aims',
         ],
       });
       if (project === null) {
@@ -1382,6 +1376,15 @@ async function epaddb(fastify, options, done) {
       } else {
         const results = [];
         for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
+          // TODO can we somehow get this inside the project query? by defining an association
+          // eslint-disable-next-line no-await-in-loop
+          const numberOfAnnotations = await models.project_aim.count({
+            where: {
+              project_id: project.id,
+              subject_uid:
+                project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid,
+            },
+          });
           results.push({
             subjectName: project.dataValues.project_subjects[i].dataValues.subject.dataValues.name,
             subjectID: fastify.replaceNull(
@@ -1396,7 +1399,7 @@ async function epaddb(fastify, options, done) {
               project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
             ),
             numberOfStudies: project.dataValues.project_subjects[i].dataValues.studies.length,
-            numberOfAnnotations: project.dataValues.aims.length,
+            numberOfAnnotations,
             examTypes: [], // TODO!!!!
           });
         }
