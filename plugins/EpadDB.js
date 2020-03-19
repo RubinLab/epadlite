@@ -108,6 +108,48 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'user_id',
           });
 
+          // models.project.belongsToMany(models.subject, {
+          //   through: 'project_subject',
+          //   as: 'subjects',
+          //   foreignKey: 'project_id',
+          // });
+
+          // models.subject.belongsToMany(models.project, {
+          //   through: 'project_subject',
+          //   as: 'projects',
+          //   foreignKey: 'subject_id',
+          // });
+
+          // models.project_subject.hasMany(models.project_subject_study, {
+          //   as: 'studies',
+          //   foreignKey: 'proj_subj_id',
+          // });
+
+          // models.study.belongsToMany(models.project_subject, {
+          //   through: 'project_subject_study',
+          //   as: 'studies',
+          //   foreignKey: 'study_id',
+          // });
+
+          models.project.hasMany(models.project_subject, {
+            foreignKey: 'project_id',
+          });
+
+          models.project_subject.belongsTo(models.subject, {
+            foreignKey: 'subject_id',
+          });
+
+          models.project_subject.belongsToMany(models.study, {
+            through: 'project_subject_study',
+            foreignKey: 'proj_subj_id',
+            otherKey: 'study_id',
+          });
+
+          models.project.hasMany(models.project_aim, {
+            as: 'aims',
+            foreignKey: 'project_id',
+          });
+
           await fastify.orm.sync();
           if (config.env === 'test') {
             try {
@@ -303,6 +345,7 @@ async function epaddb(fastify, options, done) {
     (dbProjectId, projectId, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
+          // TODO change it to use subject table
           const projectSubjects = await models.project_subject.findAll({
             where: { project_id: dbProjectId },
           });
@@ -1252,23 +1295,34 @@ async function epaddb(fastify, options, done) {
             )
           );
         else {
+          let subject = await models.subject.findOne({
+            where: {
+              subjectuid: request.params.subject ? request.params.subject : request.body.subjectUid,
+            },
+          });
+          if (!subject) {
+            subject = await models.subject.create({
+              subjectuid: request.params.subject ? request.params.subject : request.body.subjectUid,
+              name: request.body && request.body.name ? request.body.name : null,
+              gender: request.body && request.body.gender ? request.body.gender : null,
+              dob: request.body && request.body.dob ? request.body.dob : null,
+              creator: request.epadAuth.username,
+              updatetime: Date.now(),
+              createdtime: Date.now(),
+            });
+          }
+
           let projectSubject = await models.project_subject.findOne({
             where: {
               project_id: project.id,
-              subject_uid: request.params.subject
-                ? request.params.subject
-                : request.body.subjectUid,
+              subject_id: subject.id,
             },
           });
 
           if (!projectSubject) {
             projectSubject = await models.project_subject.create({
               project_id: project.id,
-              subject_uid: request.params.subject
-                ? request.params.subject
-                : request.body.subjectUid,
-              subject_name:
-                request.body && request.body.subjectName ? request.body.subjectName : null,
+              subject_id: subject.id,
               creator: request.epadAuth.username,
               updatetime: Date.now(),
               createdtime: Date.now(),
@@ -1285,16 +1339,31 @@ async function epaddb(fastify, options, done) {
             );
             for (let i = 0; i < studies.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
+              const study = await fastify.upsert(
+                models.study,
+                {
+                  studyuid: studies[i].studyUID,
+                  studydate: studies[i].insertDate,
+                  subject_id: subject.id,
+                  updatetime: Date.now(),
+                },
+                {
+                  studyuid: studies[i].studyUID,
+                  subject_id: subject.id,
+                },
+                request.epadAuth.username
+              );
+              // eslint-disable-next-line no-await-in-loop
               await fastify.upsert(
                 models.project_subject_study,
                 {
                   proj_subj_id: projectSubject.id,
-                  study_uid: studies[i].studyUID,
+                  study_id: study.id,
                   updatetime: Date.now(),
                 },
                 {
                   proj_subj_id: projectSubject.id,
-                  study_uid: studies[i].studyUID,
+                  study_id: study.id,
                 },
                 request.epadAuth.username
               );
@@ -1317,6 +1386,13 @@ async function epaddb(fastify, options, done) {
     try {
       const project = await models.project.findOne({
         where: { projectid: request.params.project },
+        include: [
+          {
+            model: models.project_subject,
+            include: [models.subject, models.study],
+          },
+          'aims',
+        ],
       });
       if (project === null) {
         reply.send(
@@ -1326,58 +1402,27 @@ async function epaddb(fastify, options, done) {
           )
         );
       } else {
-        const subjectUids = [];
-        const nondicoms = [];
-        const projectSubjects = await models.project_subject.findAll({
-          where: { project_id: project.id },
-        });
-        if (projectSubjects) {
-          // projects will be an array of Project instances with the specified name
-          for (let i = 0; i < projectSubjects.length; i += 1) {
-            subjectUids.push(projectSubjects[i].subject_uid);
-            if (projectSubjects[i].subject_name) {
-              nondicoms.push(projectSubjects[i]);
-            }
-          }
+        const results = [];
+        for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
+          results.push({
+            subjectName: project.dataValues.project_subjects[i].dataValues.subject.dataValues.name,
+            subjectID: fastify.replaceNull(
+              project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+            ),
+            projectID: project.dataValues.projectid,
+            insertUser: '', // no user in studies call
+            xnatID: '', // no xnatID should remove
+            insertDate: '', // no date in studies call
+            uri: '', // no uri should remove
+            displaySubjectID: fastify.replaceNull(
+              project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+            ),
+            numberOfStudies: project.dataValues.project_subjects[i].dataValues.studies.length,
+            numberOfAnnotations: project.dataValues.aims.length,
+            examTypes: [], // TODO!!!!
+          });
         }
-        const result = await fastify.getPatientsInternal(
-          request.params,
-          subjectUids,
-          request.epadAuth
-        );
-        if (subjectUids.length !== result.length) {
-          if (subjectUids.length === result.length + nondicoms.length) {
-            for (let i = 0; i < nondicoms.length; i += 1) {
-              // eslint-disable-next-line no-await-in-loop
-              const numberOfStudies = await models.project_subject_study.count({
-                where: { proj_subj_id: nondicoms[i].id },
-              });
-              // eslint-disable-next-line no-await-in-loop
-              const numberOfAnnotations = await models.project_aim.count({
-                where: { project_id: project.id, subject_uid: nondicoms[i].subject_uid },
-              });
-              result.push({
-                subjectName: nondicoms[i].subject_name,
-                subjectID: nondicoms[i].subject_uid,
-                projectID: request.params.project,
-                insertUser: '', // no user in studies call
-                xnatID: '', // no xnatID should remove
-                insertDate: '', // no date in studies call
-                uri: '', // no uri should remove
-                displaySubjectID: nondicoms[i].subject_uid,
-                numberOfStudies,
-                numberOfAnnotations,
-                examTypes: '',
-              });
-            }
-          } else
-            fastify.log.warn(
-              `There are ${subjectUids.length} subjects associated with this project. But only ${
-                result.length
-              } of them have dicom files`
-            );
-        }
-        reply.code(200).send(result);
+        reply.code(200).send(results);
       }
     } catch (err) {
       reply.send(new InternalError(`Getting patients from project ${request.params.project}`, err));
@@ -1399,6 +1444,9 @@ async function epaddb(fastify, options, done) {
           const project = await models.project.findOne({
             where: { projectid: params.project },
           });
+          const subject = await models.subject.findOne({
+            where: { subjectuid: params.subject },
+          });
           if (project === null)
             reject(
               new BadRequestError(
@@ -1410,7 +1458,7 @@ async function epaddb(fastify, options, done) {
             reject(new UnauthorizedError('User is not admin, cannot delete from system'));
           else {
             const projectSubject = await models.project_subject.findOne({
-              where: { project_id: project.id, subject_uid: params.subject },
+              where: { project_id: project.id, subject_id: subject.id },
             });
             if (projectSubject === null)
               reject(
@@ -1423,15 +1471,15 @@ async function epaddb(fastify, options, done) {
               await models.project_subject_study.destroy({
                 where: { proj_subj_id: projectSubject.id },
               });
-              const numDeleted = await models.project_subject.destroy({
-                where: { project_id: project.id, subject_uid: params.subject },
+              await models.project_subject.destroy({
+                where: { project_id: project.id, subject_id: subject.id },
               });
               // if delete from all or it doesn't exist in any other project, delete from system
               try {
+                const projectSubjects = await models.project_subject.findAll({
+                  where: { subject_id: subject.id },
+                });
                 if (query.all && query.all === 'true') {
-                  const projectSubjects = await models.project_subject.findAll({
-                    where: { subject_uid: params.subject },
-                  });
                   const projSubjIds = [];
                   if (projectSubjects) {
                     for (let i = 0; i < projectSubjects.length; i += 1) {
@@ -1446,19 +1494,18 @@ async function epaddb(fastify, options, done) {
                     });
                   }
                   await fastify.deleteSubjectInternal(params, epadAuth);
-                  resolve(`Subject deleted from system and removed from ${numDeleted} projects`);
-                } else {
-                  const projectSubjects = await models.project_subject.findAll({
-                    where: { subject_uid: params.subject },
+                  resolve(
+                    `Subject deleted from system and removed from ${
+                      projectSubjects.length
+                    } projects`
+                  );
+                } else if (projectSubjects.length === 0) {
+                  await models.project_subject_study.destroy({
+                    where: { proj_subj_id: projectSubject.id },
                   });
-                  if (projectSubjects.length === 0) {
-                    await models.project_subject_study.destroy({
-                      where: { proj_subj_id: projectSubject.id },
-                    });
-                    await fastify.deleteSubjectInternal(params, epadAuth);
-                    resolve(`Subject deleted from system as it didn't exist in any other project`);
-                  } else resolve(`Subject not deleted from system as it exists in other project`);
-                }
+                  await fastify.deleteSubjectInternal(params, epadAuth);
+                  resolve(`Subject deleted from system as it didn't exist in any other project`);
+                } else resolve(`Subject not deleted from system as it exists in other project`);
               } catch (deleteErr) {
                 reject(
                   new InternalError(
