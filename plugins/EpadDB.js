@@ -345,15 +345,15 @@ async function epaddb(fastify, options, done) {
     (dbProjectId, projectId, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          // TODO change it to use subject table
           const projectSubjects = await models.project_subject.findAll({
             where: { project_id: dbProjectId },
+            include: [{ model: models.subject }],
           });
           if (projectSubjects) {
             for (let i = 0; i < projectSubjects.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
               await fastify.deleteSubjectFromProjectInternal(
-                { project: projectId, subject: projectSubjects[i].subject_uid },
+                { project: projectId, subject: projectSubjects[i].dataValues.subject.subjectuid },
                 {},
                 epadAuth
               );
