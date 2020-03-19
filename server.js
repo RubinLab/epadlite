@@ -18,9 +18,6 @@ const fastify = require('fastify')({
       : '',
 });
 
-// if (config.env !== 'test' && config.mode === 'thick') {
-//   fastify.log.error('Thick mode is currently not supported!');
-// } else {
 fastify.addContentTypeParser('*', (req, done) => {
   let data = [];
   req.on('data', chunk => {
@@ -136,6 +133,5 @@ fastify.ready(err => {
 
   fastify.swagger();
 });
-// }
 
 module.exports = fastify;
