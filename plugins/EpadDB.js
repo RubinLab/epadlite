@@ -2985,8 +2985,19 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           if (params.subject) {
+            const subject = await models.subject.findOne({
+              where: { subjectuid: params.subject },
+            });
+            if (!subject) {
+              reject(
+                new ResourceNotFoundError(
+                  `Project ${params.project} subject association. No subject`,
+                  params.subject
+                )
+              );
+            }
             const projectSubject = await models.project_subject.findOne({
-              where: { project_id: projectId, subject_uid: params.subject },
+              where: { project_id: projectId, subject_id: subject.id },
             });
             if (!projectSubject) {
               reject(
@@ -2995,9 +3006,21 @@ async function epaddb(fastify, options, done) {
                   params.subject
                 )
               );
-            } else if (params.study) {
+            }
+            if (params.study) {
+              const study = await models.study.findOne({
+                where: { studyuid: params.study },
+              });
+              if (!study) {
+                reject(
+                  new ResourceNotFoundError(
+                    `Project ${params.project} study association. No study`,
+                    params.study
+                  )
+                );
+              }
               const projectSubjectStudy = await models.project_subject_study.findOne({
-                where: { proj_subj_id: projectSubject.id, study_uid: params.study },
+                where: { proj_subj_id: projectSubject.id, study_id: study.id },
               });
               if (!projectSubjectStudy) {
                 reject(
