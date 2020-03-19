@@ -28,7 +28,7 @@ async function routes(fastify) {
           description: {
             type: 'string',
           },
-          dueDate: {
+          duedate: {
             type: 'string',
           },
           requirements: {

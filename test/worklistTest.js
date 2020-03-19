@@ -92,7 +92,7 @@ describe('Worklist Tests', () => {
         name: 'test',
         worklistId: 'testCreate',
         description: 'testdesc',
-        dueDate: '2019-12-01',
+        duedate: '2019-12-01',
         assignees: ['testAssignee@gmail.com'],
       })
       .then(res => {
@@ -113,7 +113,7 @@ describe('Worklist Tests', () => {
         expect(res.body[0].name).to.be.eql('test');
         expect(res.body[0].workListID).to.be.eql('testCreate');
         expect(res.body[0].description).to.be.eql('testdesc');
-        expect(res.body[0].dueDate).to.be.eql('2019-12-01');
+        expect(res.body[0].duedate).to.be.eql('2019-12-01');
         expect(res.body[0].assignees).to.be.eql(['testAssignee@gmail.com']);
         done();
       })
@@ -163,7 +163,7 @@ describe('Worklist Tests', () => {
         expect(res.body[0].name).to.be.eql('test');
         expect(res.body[0].workListID).to.be.eql('testCreate');
         expect(res.body[0].description).to.be.eql('testdesc');
-        expect(res.body[0].dueDate).to.be.eql('2019-12-01');
+        expect(res.body[0].duedate).to.be.eql('2019-12-01');
         expect(res.body[0].assignees).to.be.eql(['testAssignee@gmail.com']);
         done();
       })
@@ -178,7 +178,7 @@ describe('Worklist Tests', () => {
       .send({
         name: 'testUpdated2',
         description: 'testdescUpdated',
-        dueDate: '2019-12-31',
+        duedate: '2019-12-31',
       })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -197,7 +197,7 @@ describe('Worklist Tests', () => {
         expect(res.body.length).to.be.eql(1);
         expect(res.body[0].name).to.be.eql('testUpdated2');
         expect(res.body[0].description).to.be.eql('testdescUpdated');
-        expect(res.body[0].dueDate).to.be.eql('2019-12-31');
+        expect(res.body[0].duedate).to.be.eql('2019-12-31');
         done();
       })
       .catch(e => {
@@ -228,7 +228,7 @@ describe('Worklist Tests', () => {
         expect(res.body.length).to.be.eql(1);
         expect(res.body[0].name).to.be.eql('testUpdated2');
         expect(res.body[0].workListID).to.be.eql('testCreate');
-        expect(res.body[0].dueDate).to.be.eql('2019-12-31');
+        expect(res.body[0].duedate).to.be.eql('2019-12-31');
         done();
       })
       .catch(e => {
@@ -306,7 +306,7 @@ describe('Worklist Tests', () => {
           name: 'testProgressW',
           worklistId: 'testProgressW',
           description: 'testdesc',
-          dueDate: '2019-12-01',
+          duedate: '2019-12-01',
           assignees: ['testProgressUser1@gmail.com', 'testProgressUser2@gmail.com'],
         });
       await chai

@@ -450,7 +450,7 @@ async function epaddb(fastify, options, done) {
                 description: request.body.description,
                 updatetime: Date.now(),
                 createdtime: Date.now(),
-                duedate: request.body.dueDate ? new Date(`${request.body.dueDate}T00:00:00`) : null,
+                duedate: request.body.duedate ? new Date(`${request.body.duedate}T00:00:00`) : null,
                 creator,
               })
               .then(worklist => {
@@ -460,7 +460,7 @@ async function epaddb(fastify, options, done) {
                     models.worklist_user.create({
                       worklist_id: worklist.id,
                       user_id: el,
-                      role: 'Assignee',
+                      role: 'assignee',
                       createdtime: Date.now(),
                       creator,
                     })
@@ -647,9 +647,8 @@ async function epaddb(fastify, options, done) {
       fastify.updateWorklistAssigneeInternal(request, reply);
     } else {
       const obj = { ...request.body };
-      if (request.body.dueDate) {
-        obj.duedate = request.body.dueDate;
-        delete obj.dueDate;
+      if (obj.duedate === '') {
+        obj.duedate = null;
       }
       models.worklist
         .update(
@@ -679,7 +678,7 @@ async function epaddb(fastify, options, done) {
       for (let i = 0; i < worklists.length; i += 1) {
         const obj = {
           completionDate: worklists[i].completedate,
-          dueDate: worklists[i].duedate,
+          duedate: worklists[i].duedate,
           name: worklists[i].name,
           startDate: worklists[i].startdate,
           username: worklists[i].user_id,
@@ -748,7 +747,7 @@ async function epaddb(fastify, options, done) {
                   const obj = {
                     workListID: el.worklistid,
                     name: el.name,
-                    dueDate: el.duedate,
+                    duedate: el.duedate,
                     projectIDs: [],
                   };
                   result.push(obj);
@@ -1701,6 +1700,7 @@ async function epaddb(fastify, options, done) {
           request.epadAuth.username
         );
         // update the worklist completeness if in any
+
         await fastify.updateWorklistCompleteness(
           project.id,
           subjectUid,
@@ -1855,6 +1855,7 @@ async function epaddb(fastify, options, done) {
               );
             }
           }
+          console.log('Completeness calculated!');
           resolve();
         } catch (err) {
           reject(
