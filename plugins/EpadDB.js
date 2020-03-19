@@ -453,7 +453,7 @@ async function epaddb(fastify, options, done) {
                 description: request.body.description,
                 updatetime: Date.now(),
                 createdtime: Date.now(),
-                duedate: request.body.dueDate ? new Date(`${request.body.dueDate}T00:00:00`) : null,
+                duedate: request.body.duedate ? new Date(`${request.body.duedate}T00:00:00`) : null,
                 creator,
               })
               .then(worklist => {
@@ -463,15 +463,15 @@ async function epaddb(fastify, options, done) {
                     models.worklist_user.create({
                       worklist_id: worklist.id,
                       user_id: el,
-                      role: 'Assignee',
+                      role: 'assignee',
                       createdtime: Date.now(),
                       creator,
                     })
                   );
                 });
 
-                if (request.body.requirement) {
-                  request.body.requirement.forEach(req => {
+                if (request.body.requirements) {
+                  request.body.requirements.forEach(req => {
                     relationArr.push(
                       models.worklist_requirement.create({
                         worklist_id: worklist.id,
@@ -650,9 +650,8 @@ async function epaddb(fastify, options, done) {
       fastify.updateWorklistAssigneeInternal(request, reply);
     } else {
       const obj = { ...request.body };
-      if (request.body.dueDate) {
-        obj.duedate = request.body.dueDate;
-        delete obj.dueDate;
+      if (obj.duedate === '') {
+        obj.duedate = null;
       }
       models.worklist
         .update(
@@ -682,7 +681,7 @@ async function epaddb(fastify, options, done) {
       for (let i = 0; i < worklists.length; i += 1) {
         const obj = {
           completionDate: worklists[i].completedate,
-          dueDate: worklists[i].duedate,
+          duedate: worklists[i].duedate,
           name: worklists[i].name,
           startDate: worklists[i].startdate,
           username: worklists[i].user_id,
@@ -697,8 +696,8 @@ async function epaddb(fastify, options, done) {
         };
 
         for (let k = 0; k < worklists[i].requirements.length; k += 1) {
-          const { level, numOfAims, template } = worklists[i].requirements[k];
-          obj.requirements.push({ level, numOfAims, template });
+          const { level, numOfAims, template, id } = worklists[i].requirements[k];
+          obj.requirements.push({ level, numOfAims, template, id });
         }
 
         for (let k = 0; k < worklists[i].users.length; k += 1) {
@@ -751,7 +750,7 @@ async function epaddb(fastify, options, done) {
                   const obj = {
                     workListID: el.worklistid,
                     name: el.name,
-                    dueDate: el.duedate,
+                    duedate: el.duedate,
                     projectIDs: [],
                   };
                   result.push(obj);
@@ -1704,6 +1703,7 @@ async function epaddb(fastify, options, done) {
           request.epadAuth.username
         );
         // update the worklist completeness if in any
+
         await fastify.updateWorklistCompleteness(
           project.id,
           subjectUid,
@@ -1718,15 +1718,15 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('addWorklistRequirement', async (worklistId, epadAuth, body) => {
-    return models.worklist_requirement.create({
-      ...body,
-      worklist_id: worklistId,
-      updatetime: Date.now(),
-      createdtime: Date.now(),
-      creator: epadAuth.username,
-    });
-  });
+  // fastify.decorate('addWorklistRequirement', async (worklistId, epadAuth, body) => {
+  //   return models.worklist_requirement.create({
+  //     ...body,
+  //     worklist_id: worklistId,
+  //     updatetime: Date.now(),
+  //     createdtime: Date.now(),
+  //     creator: epadAuth.username,
+  //   });
+  // });
 
   fastify.decorate('updateWorklistRequirement', async (worklistId, reqId, epadAuth, body) => {
     return fastify.upsert(
@@ -1744,8 +1744,47 @@ async function epaddb(fastify, options, done) {
     );
   });
 
-  fastify.decorate('setWorklistRequirement', async (request, reply) => {
+  fastify.decorate('deleteWorklistRequirement', async (request, reply) => {
     try {
+      const worklist = await models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
+        attributes: ['id'],
+        raw: true,
+      });
+      if (!worklist) {
+        reply.send(
+          new BadRequestError(
+            `Worklist requirement ${request.params.requirement} add/update`,
+            new ResourceNotFoundError('Worklist', request.params.worklist)
+          )
+        );
+      } else {
+        const worklistReqCompleteness = await models.worklist_study_completeness.findOne({
+          where: { worklist_requirement_id: request.params.requirement },
+          attributes: ['id'],
+          raw: true,
+        });
+        if (worklistReqCompleteness) {
+          await models.worklist_study_completeness.destroy({
+            where: { worklist_requirement_id: request.params.requirement },
+          });
+        }
+        const deletedItem = await models.worklist_requirement.destroy({
+          where: { worklist_id: worklist.id, id: request.params.requirement },
+        });
+        reply.code(200).send(`${deletedItem} requirement(s) deleted from worklist`);
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(`Worklist requirement delete ${request.params.requirement}`, err)
+      );
+    }
+  });
+
+  fastify.decorate('setWorklistRequirement', async (request, reply) => {
+    // iterate throught the body and add each of them to the requirement table
+    try {
+      const promises = [];
       const worklist = await models.worklist.findOne({
         where: { worklistid: request.params.worklist },
         attributes: ['id'],
@@ -1759,20 +1798,22 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        if (request.params.requirement !== undefined)
-          await fastify.updateWorklistRequirement(
-            worklist.id,
-            request.params.requirement,
-            request.epadAuth,
-            request.body
-          );
-        else await fastify.addWorklistRequirement(worklist.id, request.epadAuth, request.body);
-        reply.code(200).send(`Worklist requirement ${request.params.requirement} added/updated`);
+        request.body.forEach(req => {
+          const promise = models.worklist_requirement.create({
+            ...req,
+            worklist_id: worklist.id,
+            updatetime: Date.now(),
+            createdtime: Date.now(),
+            creator: request.epadAuth.username,
+          });
+          promises.push(promise);
+        });
+
+        // fastify.addWorklistRequirement(worklist.id, request.epadAuth, request.body);
+        reply.code(200).send(`Worklist requirement ${request.params.requirements} added`);
       }
     } catch (err) {
-      reply.send(
-        new InternalError(`Worklist requirement ${request.params.requirement} add/update`, err)
-      );
+      reply.send(new InternalError(`Worklist requirement ${request.params.requirements} add`, err));
     }
   });
 
@@ -1817,6 +1858,7 @@ async function epaddb(fastify, options, done) {
               );
             }
           }
+          console.log('Completeness calculated!');
           resolve();
         } catch (err) {
           reject(
