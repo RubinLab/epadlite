@@ -1305,6 +1305,9 @@ async function epaddb(fastify, options, done) {
               updatetime: Date.now(),
               createdtime: Date.now(),
             });
+          } else if (request.body) {
+            reply.send(new ResourceAlreadyExistsError('Subject', request.body.subjectUid));
+            return;
           }
 
           let projectSubject = await models.project_subject.findOne({

@@ -3800,6 +3800,20 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should fail adding nondicom patient 4 to project testsubjectnondicom again with 409', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testsubjectnondicom/subjects')
+        .query({ username: 'admin' })
+        .send({ subjectUid: '4', subjectName: 'testnondicom' })
+        .then(res => {
+          expect(res.statusCode).to.equal(409);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('should get 2 subjects ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
