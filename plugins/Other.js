@@ -923,10 +923,8 @@ async function other(fastify) {
           new UnauthenticatedError('Authentication info does not exist or conform with the server')
         );
       }
-    } else if (config.env === 'test' || config.auth === 'none') {
+    } else if ((config.env === 'test' || config.auth === 'none') && req.query.username) {
       // just see if the url has username. for testing purposes
-      // if the username is empty just default to admin. just for removing keycloak for temporary testing
-      if (!req.query.username) req.query.username = 'admin';
       try {
         req.epadAuth = await fastify.fillUserInfo(req.query.username);
       } catch (err) {
