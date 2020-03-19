@@ -800,6 +800,27 @@ describe('Project Tests', () => {
         });
     });
 
+    it('project testsubject3 should have 1 subject with correct values ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubject3/subjects')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].subjectName).to.be.eql('Phantom');
+          expect(res.body[0].subjectID).to.be.eql('3');
+          expect(res.body[0].projectID).to.be.eql('testsubject3');
+          expect(res.body[0].displaySubjectID).to.be.eql('3');
+          expect(res.body[0].numberOfStudies).to.be.eql(1);
+          expect(res.body[0].examTypes).to.be.eql([]);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
     it('project testsubject3 should have 1 subject with aim count 0 ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)

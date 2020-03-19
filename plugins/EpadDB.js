@@ -1295,12 +1295,35 @@ async function epaddb(fastify, options, done) {
               subjectuid: request.params.subject ? request.params.subject : request.body.subjectUid,
             },
           });
+          let studies = [];
+          // if it is a dicom subject sent via put get subject info from dicomweb
+          if (!request.body && request.params.subject) {
+            studies = await fastify.getPatientStudiesInternal(
+              request.params,
+              undefined,
+              request.epadAuth
+            );
+          }
           if (!subject) {
-            subject = await models.subject.create({
+            const subjectInfo = {
               subjectuid: request.params.subject ? request.params.subject : request.body.subjectUid,
               name: request.body && request.body.name ? request.body.name : null,
               gender: request.body && request.body.gender ? request.body.gender : null,
               dob: request.body && request.body.dob ? request.body.dob : null,
+            };
+
+            if (!request.body) {
+              // retrieve from dicom, just get the item from first.
+              // TODO is there a better way? what if they have different values
+              subjectInfo.name = studies[0].patientName;
+              subjectInfo.gender = studies[0].sex;
+              subjectInfo.dob = studies[0].birthdate;
+            }
+            subject = await models.subject.create({
+              subjectuid: subjectInfo.subjectuid,
+              name: subjectInfo.name,
+              gender: subjectInfo.gender,
+              dob: subjectInfo.dob,
               creator: request.epadAuth.username,
               updatetime: Date.now(),
               createdtime: Date.now(),
@@ -1330,11 +1353,6 @@ async function epaddb(fastify, options, done) {
           }
           // if it is a dicom subject sent via put add studies to project
           if (!request.body && request.params.subject) {
-            const studies = await fastify.getPatientStudiesInternal(
-              request.params,
-              undefined,
-              request.epadAuth
-            );
             for (let i = 0; i < studies.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
               await fastify.addPatientStudyToProjectDBInternal(
