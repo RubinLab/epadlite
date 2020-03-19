@@ -567,7 +567,7 @@ async function couchdb(fastify, options) {
     }
     fastify
       .saveAimInternal(request.body)
-      .then(async () => {
+      .then(() => {
         reply.code(200).send('Saving successful');
       })
       .catch(err => {
