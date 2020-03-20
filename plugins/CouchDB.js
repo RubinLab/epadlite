@@ -1101,8 +1101,8 @@ async function couchdb(fastify, options) {
                     .catch(err => reject(err));
                 } else {
                   // the default is json! The old APIs were XML, no XML in epadlite
-                  body.rows.forEach(template => {
-                    res.push(template.key[1]);
+                  body.rows.forEach(file => {
+                    res.push(file.key[1]);
                   });
                   resolve(res);
                 }
