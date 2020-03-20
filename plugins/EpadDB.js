@@ -3065,13 +3065,16 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'checkProjectAssociation',
-    (projectId, params) =>
+    (projectId, params, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
           if (params.subject) {
-            const subject = await models.subject.findOne({
-              where: { subjectuid: params.subject },
-            });
+            const subject = await models.subject.findOne(
+              {
+                where: { subjectuid: params.subject },
+              },
+              transaction ? { transaction } : {}
+            );
             if (!subject) {
               reject(
                 new ResourceNotFoundError(
@@ -3080,9 +3083,12 @@ async function epaddb(fastify, options, done) {
                 )
               );
             }
-            const projectSubject = await models.project_subject.findOne({
-              where: { project_id: projectId, subject_id: subject.id },
-            });
+            const projectSubject = await models.project_subject.findOne(
+              {
+                where: { project_id: projectId, subject_id: subject.id },
+              },
+              transaction ? { transaction } : {}
+            );
             if (!projectSubject) {
               reject(
                 new ResourceNotFoundError(
@@ -3092,9 +3098,12 @@ async function epaddb(fastify, options, done) {
               );
             }
             if (params.study) {
-              const study = await models.study.findOne({
-                where: { studyuid: params.study },
-              });
+              const study = await models.study.findOne(
+                {
+                  where: { studyuid: params.study },
+                },
+                transaction ? { transaction } : {}
+              );
               if (!study) {
                 reject(
                   new ResourceNotFoundError(
@@ -3103,9 +3112,12 @@ async function epaddb(fastify, options, done) {
                   )
                 );
               }
-              const projectSubjectStudy = await models.project_subject_study.findOne({
-                where: { proj_subj_id: projectSubject.id, study_id: study.id },
-              });
+              const projectSubjectStudy = await models.project_subject_study.findOne(
+                {
+                  where: { proj_subj_id: projectSubject.id, study_id: study.id },
+                },
+                transaction ? { transaction } : {}
+              );
               if (!projectSubjectStudy) {
                 reject(
                   new ResourceNotFoundError(
@@ -3125,23 +3137,29 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'putOtherFileToProjectInternal',
-    (filename, params, epadAuth) =>
+    (filename, params, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
-          const project = await models.project.findOne({ where: { projectid: params.project } });
+          const project = await models.project.findOne(
+            { where: { projectid: params.project } },
+            transaction ? { transaction } : {}
+          );
           // if the subjects and/or study is given, make sure that subject and/or study is assosiacted with the project
           if (project === null) reject(new ResourceNotFoundError('Project', params.project));
           else {
             fastify
-              .checkProjectAssociation(project.id, params)
+              .checkProjectAssociation(project.id, params, transaction)
               .then(async () => {
-                await models.project_file.create({
-                  project_id: project.id,
-                  file_uid: filename,
-                  creator: epadAuth.username,
-                  updatetime: Date.now(),
-                  createdtime: Date.now(),
-                });
+                await models.project_file.create(
+                  {
+                    project_id: project.id,
+                    file_uid: filename,
+                    creator: epadAuth.username,
+                    updatetime: Date.now(),
+                    createdtime: Date.now(),
+                  },
+                  transaction ? { transaction } : {}
+                );
                 resolve();
               })
               .catch(errAssoc => {
@@ -4276,6 +4294,15 @@ async function epaddb(fastify, options, done) {
 
           // 2. project_file
           // get files from couch and add entities
+          const files = await fastify.getFilesInternal({ format: 'json' });
+          for (let i = 0; i < files.length; i += 1) {
+            const params = { project: project.project_id };
+            if (files[i].subject_uid) params.subject = files[i].subject_uid;
+            if (files[i].study_uid) params.subject = files[i].study_uid;
+
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.putOtherFileToProjectInternal(files[i].name, params, epadAuth, t);
+          }
 
           // can be done in one call
           // 3. project_subject
