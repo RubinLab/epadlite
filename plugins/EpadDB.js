@@ -4355,7 +4355,11 @@ async function epaddb(fastify, options, done) {
           // 6. project_user
           // everyone member?
           // get users from the user table and add relation
-
+          await fastify.orm.query(
+            `INSERT INTO project_user(project_id, user_id, role, creator)
+              SELECT ${project.id}, user.id, 'Member', ${epadAuth.username} from user;`,
+            { transaction: t }
+          );
           // 7. project_subject_user
           // ?? not used in lite but what is the intention in old epad
 
