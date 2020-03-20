@@ -1138,26 +1138,54 @@ async function epaddb(fastify, options, done) {
             templateUid = request.body.TemplateContainer.uid;
           }
         }
-        await fastify.upsert(
-          models.project_template,
-          {
-            project_id: project.id,
-            template_uid: templateUid,
-            enabled: request.query.enable === 'true',
-            updatetime: Date.now(),
-          },
-          {
-            project_id: project.id,
-            template_uid: templateUid,
-          },
-          request.epadAuth.username
+
+        await fastify.addProjectTemplateRelInternal(
+          templateUid,
+          project,
+          request.query,
+          request.epadAuth
         );
+
         reply.code(200).send('Saving successful');
       }
     } catch (err) {
       reply.send(new InternalError(`Saving template in project ${request.params.project}`, err));
     }
   });
+
+  fastify.decorate(
+    'addProjectTemplateRelInternal',
+    (templateUid, project, query, epadAuth, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await fastify.upsert(
+            models.project_template,
+            {
+              project_id: project.id,
+              template_uid: templateUid,
+              enabled: query.enable === 'true',
+              updatetime: Date.now(),
+            },
+            {
+              project_id: project.id,
+              template_uid: templateUid,
+            },
+            epadAuth.username,
+            transaction
+          );
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Adding project template relation for template ${templateUid} with project ${
+                project.projectid
+              }`,
+              err
+            )
+          );
+        }
+      })
+  );
 
   fastify.decorate('getProjectTemplates', async (request, reply) => {
     try {
@@ -4312,6 +4340,17 @@ async function epaddb(fastify, options, done) {
 
           // 5. project_template
           // get aims from couch and add entities
+          const templates = await fastify.getTemplatesInternal({ format: 'summary' });
+          for (let i = 0; i < templates.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.addProjectTemplateRelInternal(
+              templates[i].containerUID,
+              project,
+              { enable: true },
+              epadAuth,
+              t
+            );
+          }
 
           // 6. project_user
           // everyone member?
