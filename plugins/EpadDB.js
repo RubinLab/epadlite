@@ -89,12 +89,18 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'worklist_study_id',
           });
 
+          models.worklist_study.belongsTo(models.subject, {
+            foreignKey: 'subject_id',
+          });
+          models.worklist_study.belongsTo(models.study, {
+            foreignKey: 'study_id',
+          });
+
           models.project.belongsToMany(models.user, {
             through: 'project_user',
             as: 'users',
             foreignKey: 'project_id',
           });
-          // models.worklist.belongsTo(models.user, { foreignKey: 'user_id' });
 
           models.worklist.belongsToMany(models.user, {
             through: 'worklist_user',
@@ -107,29 +113,6 @@ async function epaddb(fastify, options, done) {
             as: 'worklists',
             foreignKey: 'user_id',
           });
-
-          // models.project.belongsToMany(models.subject, {
-          //   through: 'project_subject',
-          //   as: 'subjects',
-          //   foreignKey: 'project_id',
-          // });
-
-          // models.subject.belongsToMany(models.project, {
-          //   through: 'project_subject',
-          //   as: 'projects',
-          //   foreignKey: 'subject_id',
-          // });
-
-          // models.project_subject.hasMany(models.project_subject_study, {
-          //   as: 'studies',
-          //   foreignKey: 'proj_subj_id',
-          // });
-
-          // models.study.belongsToMany(models.project_subject, {
-          //   through: 'project_subject_study',
-          //   as: 'studies',
-          //   foreignKey: 'study_id',
-          // });
 
           models.project.hasMany(models.project_subject, {
             foreignKey: 'project_id',
@@ -853,40 +836,47 @@ async function epaddb(fastify, options, done) {
           attributes: ['id'],
         })
       );
+      promises.push(
+        models.subject.findOne({
+          where: { subjectuid: request.params.subject },
+          attributes: ['id'],
+        })
+      );
+      promises.push(
+        models.study.findOne({
+          where: { studyuid: request.params.study },
+          attributes: ['id'],
+        })
+      );
 
       Promise.all(promises).then(async result => {
-        ids.push(result[0].dataValues.id);
-        ids.push(result[1].dataValues.id);
+        for (let i = 0; i < result.length; i += 1) ids.push(result[i].dataValues.id);
 
         // go to project_subject get the id of where project and subject matches
-        let projectSubjectID;
+        let projectSubject;
         try {
-          projectSubjectID = await models.project_subject.findOne({
-            where: { project_id: ids[1], subject_uid: request.params.subject },
-            attributes: ['id'],
+          projectSubject = await models.project_subject.findOne({
+            where: { project_id: ids[1], subject_id: ids[2] },
+            include: [models.study],
           });
         } catch (err) {
           reply.send(new InternalError('Creating worklist subject association in db', err));
         }
-        projectSubjectID = projectSubjectID.dataValues.id;
-        let studyUIDs;
-        const studyUIDList = [];
+        const studyUIDs = [];
+        const studyIDs = [];
         try {
-          studyUIDs = await models.project_subject_study.findAll({
-            where: { proj_subj_id: projectSubjectID },
-            attributes: ['study_uid'],
-            raw: true,
-          });
+          for (let i = 0; i < projectSubject.dataValues.studies.length; i += 1) {
+            studyUIDs.push(projectSubject.dataValues.studies[i].dataValues.studyuid);
+            studyIDs.push(projectSubject.dataValues.studies[i].dataValues.id);
+          }
         } catch (err) {
           reply.send(new InternalError('Creating worklist subject association in db', err));
         }
-        // estract uids
-        studyUIDs.forEach(el => studyUIDList.push(el.study_uid));
 
         // get studyDescriptions
         const studyDetails = await fastify.getPatientStudiesInternal(
           request.params,
-          studyUIDList,
+          studyUIDs,
           request.epadAuth
         );
         const studyDescMap = {};
@@ -897,116 +887,111 @@ async function epaddb(fastify, options, done) {
 
         // iterate over the study uid's and send them to the table
         const relationPromiseArr = [];
-        studyUIDList.forEach(el => {
+        for (let i = 0; i < studyIDs.length; i += 1) {
           relationPromiseArr.push(
             fastify.upsert(
               models.worklist_study,
               {
                 worklist_id: ids[0],
-                study_uid: el,
-                subject_uid: request.params.subject,
+                study_id: studyIDs[i],
+                subject_id: ids[2],
                 project_id: ids[1],
                 updatetime: Date.now(),
-                subject_name: request.body.subjectName,
-                study_desc: studyDescMap[el].studyDescription,
-                numOfSeries: studyDescMap[el].numberOfSeries,
-                numOfImages: studyDescMap[el].numberOfImages,
+                numOfSeries: studyDescMap[studyUIDs[i]].numberOfSeries,
+                numOfImages: studyDescMap[studyUIDs[i]].numberOfImages,
               },
               {
                 worklist_id: ids[0],
-                study_uid: el,
-                subject_uid: request.params.subject,
+                study_id: studyIDs[i],
+                subject_id: ids[2],
                 project_id: ids[1],
               },
               request.epadAuth.username
             )
           );
+        }
 
-          Promise.all(relationPromiseArr)
-            .then(() => reply.code(200).send(`Saving successful`))
-            .catch(err => {
-              reply.send(new InternalError('Creating worklist subject association in db', err));
-            });
-        });
+        Promise.all(relationPromiseArr)
+          .then(() => reply.code(200).send(`Saving successful`))
+          .catch(err => {
+            reply.send(new InternalError('Creating worklist subject association in db', err));
+          });
       });
     }
   });
 
   fastify.decorate('assignStudyToWorklist', (request, reply) => {
-    if (
-      !request.body ||
-      request.body.studyDesc === undefined ||
-      request.body.subjectName === undefined
-    )
-      reply.send(
-        new BadRequestError(
-          'Assign study to worklist',
-          new Error('Missing study description or subject name in request')
-        )
-      );
-    else {
-      const ids = [];
-      const promises = [];
+    const ids = [];
+    const promises = [];
 
-      promises.push(
-        models.worklist.findOne({
-          where: { worklistid: request.params.worklist },
-          attributes: ['id'],
-        })
-      );
-      promises.push(
-        models.project.findOne({
-          where: { projectid: request.params.project },
-          attributes: ['id'],
-        })
-      );
+    promises.push(
+      models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.subject.findOne({
+        where: { subjectuid: request.params.subject },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.study.findOne({
+        where: { studyuid: request.params.study },
+        attributes: ['id'],
+      })
+    );
 
-      Promise.all(promises)
-        .then(async result => {
-          ids.push(result[0].dataValues.id);
-          ids.push(result[1].dataValues.id);
-          const seriesArr = await fastify.getStudySeriesInternal(
-            request.params,
-            { filterDSO: 'true' },
-            request.epadAuth
-          );
-          const sumOfImageCounts = _.reduce(
-            seriesArr,
-            (memo, series) => {
-              return memo + series.numberOfImages;
+    Promise.all(promises)
+      .then(async result => {
+        for (let i = 0; i < result.length; i += 1) ids.push(result[i].dataValues.id);
+
+        const seriesArr = await fastify.getStudySeriesInternal(
+          request.params,
+          { filterDSO: 'true' },
+          request.epadAuth
+        );
+        const sumOfImageCounts = _.reduce(
+          seriesArr,
+          (memo, series) => {
+            return memo + series.numberOfImages;
+          },
+          0
+        );
+
+        fastify
+          .upsert(
+            models.worklist_study,
+            {
+              worklist_id: ids[0],
+              study_id: ids[3],
+              subject_id: ids[2],
+              project_id: ids[1],
+              updatetime: Date.now(),
+              numOfSeries: seriesArr.length,
+              numOfImages: sumOfImageCounts,
             },
-            0
-          );
-
-          fastify
-            .upsert(
-              models.worklist_study,
-              {
-                worklist_id: ids[0],
-                study_uid: request.params.study,
-                subject_uid: request.params.subject,
-                study_desc: request.body.studyDesc,
-                subject_name: request.body.subjectName,
-                project_id: ids[1],
-                updatetime: Date.now(),
-                numOfSeries: seriesArr.length,
-                numOfImages: sumOfImageCounts,
-              },
-              {
-                worklist_id: ids[0],
-                study_uid: request.params.study,
-                subject_uid: request.params.subject,
-                project_id: ids[1],
-              },
-              request.epadAuth.username
-            )
-            .then(id => reply.code(200).send(`Saving successful - ${id}`))
-            .catch(err => {
-              reply.send(new InternalError('Creating worklist study association in db', err));
-            });
-        })
-        .catch(err => reply.send(new InternalError('Creating worklist study association', err)));
-    }
+            {
+              worklist_id: ids[0],
+              study_id: ids[3],
+              subject_id: ids[2],
+              project_id: ids[1],
+            },
+            request.epadAuth.username
+          )
+          .then(id => reply.code(200).send(`Saving successful - ${id}`))
+          .catch(err => {
+            reply.send(new InternalError('Creating worklist study association in db', err));
+          });
+      })
+      .catch(err => reply.send(new InternalError('Creating worklist study association', err)));
   });
 
   fastify.decorate('deleteStudyToWorklistRelation', async (request, reply) => {
@@ -1026,13 +1011,21 @@ async function epaddb(fastify, options, done) {
         raw: true,
       });
 
-      request.body.forEach(el => {
+      request.body.forEach(async el => {
+        const subjectId = await models.subject.findOne({
+          where: { subjectuid: el.subjectID },
+          attributes: ['id'],
+        });
+        const studyId = await models.study.findOne({
+          where: { studyuid: el.studyUID },
+          attributes: ['id'],
+        });
         promises.push(
           models.worklist_study.destroy({
             worklist_id: worklistId,
             project_id: el.projectID,
-            subject_uid: el.subjectID,
-            study_uid: el.studyUID,
+            subject_id: subjectId,
+            study_id: studyId,
           })
         );
       });
@@ -1077,6 +1070,7 @@ async function epaddb(fastify, options, done) {
       worklistDuedate = worklist.dataValues.duedate;
       list = await models.worklist_study.findAll({
         where: { worklist_id: worklistIdKey },
+        include: [models.subject, models.study],
       });
       const result = {};
       for (let i = 0; i < list.length; i += 1) {
@@ -1090,13 +1084,13 @@ async function epaddb(fastify, options, done) {
           projectID: projectId.dataValues.projectid,
           sortOrder: list[i].dataValues.sortorder,
           startDate: list[i].dataValues.startdate,
-          subjectID: list[i].dataValues.subject_uid,
-          studyUID: list[i].dataValues.study_uid,
+          subjectID: list[i].dataValues.subject.dataValues.subjectuid,
+          studyUID: list[i].dataValues.study.dataValues.studyuid,
           workListID: request.params.worklist,
           workListName,
           worklistDuedate,
-          subjectName: list[i].dataValues.subject_name,
-          studyDescription: list[i].dataValues.study_desc,
+          subjectName: list[i].dataValues.subject.dataValues.name,
+          studyDescription: list[i].dataValues.study.dataValues.description,
         };
         result[list[i].dataValues.subject_uid] = obj;
       }
@@ -1361,24 +1355,17 @@ async function epaddb(fastify, options, done) {
             return;
           }
 
-          let projectSubject = await models.project_subject.findOne({
-            where: {
+          const projectSubject = await fastify.upsert(
+            models.project_subject,
+            {
               project_id: project.id,
               subject_id: subject.id,
-            },
-          });
-
-          if (!projectSubject) {
-            projectSubject = await models.project_subject.create({
-              project_id: project.id,
-              subject_id: subject.id,
-              creator: request.epadAuth.username,
               updatetime: Date.now(),
-              createdtime: Date.now(),
-            });
-          } else if (request.body) {
-            reply.send(new ResourceAlreadyExistsError('Subject', request.body.subjectUid));
-          }
+            },
+            { project_id: project.id, subject_id: subject.id },
+            request.epadAuth.username
+          );
+
           // if it is a dicom subject sent via put add studies to project
           if (!request.body && request.params.subject) {
             for (let i = 0; i < studies.length; i += 1) {
@@ -1953,45 +1940,60 @@ async function epaddb(fastify, options, done) {
           // const worklistsStudiesAll = await models.worklist_study.findAll({
           //   raw: true,
           // });
-          const worklistsStudies = await models.worklist_study.findAll(
+          const subject = await models.subject.findOne(
             {
-              where: { project_id: projectId, subject_uid: subjectUid, study_uid: studyUid },
-              raw: true,
+              where: { subjectuid: subjectUid },
             },
             transaction ? { transaction } : {}
           );
-          // for each worklist study
-          for (let i = 0; i < worklistsStudies.length; i += 1) {
-            //  get requirements
-            // eslint-disable-next-line no-await-in-loop
-            const requirements = await models.worklist_requirement.findAll(
+          const study = await models.study.findOne(
+            {
+              where: { studyuid: studyUid },
+            },
+            transaction ? { transaction } : {}
+          );
+
+          // only calculate if we have the subject, study and worklist_study relation
+          if (subject && study) {
+            const worklistsStudies = await models.worklist_study.findAll(
               {
-                where: { worklist_id: worklistsStudies[i].worklist_id },
+                where: { project_id: projectId, subject_id: subject.id, study_id: study.id },
                 raw: true,
               },
               transaction ? { transaction } : {}
             );
-            for (let j = 0; j < requirements.length; j += 1) {
-              //  compute worklist completeness
+            // for each worklist study
+            for (let i = 0; i < worklistsStudies.length; i += 1) {
+              //  get requirements
               // eslint-disable-next-line no-await-in-loop
-              await fastify.computeWorklistCompleteness(
-                worklistsStudies[i].id,
-                requirements[j],
+              const requirements = await models.worklist_requirement.findAll(
                 {
-                  numOfSeries: worklistsStudies[i].numOfSeries,
-                  numOfImages: worklistsStudies[i].numOfImages,
+                  where: { worklist_id: worklistsStudies[i].worklist_id },
+                  raw: true,
                 },
-                projectId,
-                subjectUid,
-                studyUid,
-                user,
-                epadAuth,
-                transaction
+                transaction ? { transaction } : {}
               );
+              for (let j = 0; j < requirements.length; j += 1) {
+                //  compute worklist completeness
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.computeWorklistCompleteness(
+                  worklistsStudies[i].id,
+                  requirements[j],
+                  {
+                    numOfSeries: worklistsStudies[i].numOfSeries,
+                    numOfImages: worklistsStudies[i].numOfImages,
+                  },
+                  projectId,
+                  subjectUid,
+                  studyUid,
+                  user,
+                  epadAuth,
+                  transaction
+                );
+              }
             }
           }
-          console.log('Completeness calculated!');
-          resolve();
+          resolve('Completeness calculated!');
         } catch (err) {
           reject(
             new InternalError(
@@ -2162,15 +2164,8 @@ async function epaddb(fastify, options, done) {
         const progressList = [];
         const worklistStudies = await models.worklist_study.findAll({
           where: { worklist_id: worklist.id },
-          include: ['progress'],
-          attributes: [
-            'worklist_id',
-            'project_id',
-            'subject_uid',
-            'study_uid',
-            'subject_name',
-            'study_desc',
-          ],
+          include: ['progress', 'subject', 'study'],
+          attributes: ['worklist_id', 'project_id', 'subject_id', 'study_id'],
         });
         for (let i = 0; i < worklistStudies.length; i += 1) {
           for (let j = 0; j < worklistStudies[i].dataValues.progress.length; j += 1) {
@@ -2183,10 +2178,10 @@ async function epaddb(fastify, options, done) {
             progressList.push({
               worklist_id: worklistStudies[i].dataValues.worklist_id,
               project_id: worklistStudies[i].dataValues.project_id,
-              subject_uid: worklistStudies[i].dataValues.subject_uid,
-              subject_name: worklistStudies[i].dataValues.subject_name,
-              study_uid: worklistStudies[i].dataValues.study_uid,
-              study_desc: worklistStudies[i].dataValues.study_desc,
+              subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
+              subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
+              study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
+              study_desc: worklistStudies[i].dataValues.study.dataValues.description,
               assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
               assignee_name: `${firstname} ${lastname}`,
               worklist_requirement_id:
@@ -2308,7 +2303,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'addPatientStudyToProjectDBInternal',
-    (studyInfo, subject, projectSubject, epadAuth) =>
+    (studyInfo, subject, projectSubject, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
           // update with latest value
@@ -2325,7 +2320,8 @@ async function epaddb(fastify, options, done) {
               studyuid: studyInfo.studyUID,
               subject_id: subject.id,
             },
-            epadAuth.username
+            epadAuth.username,
+            transaction
           );
 
           // eslint-disable-next-line no-await-in-loop
@@ -2340,7 +2336,8 @@ async function epaddb(fastify, options, done) {
               proj_subj_id: projectSubject.id,
               study_id: study.id,
             },
-            epadAuth.username
+            epadAuth.username,
+            transaction
           );
           resolve();
         } catch (err) {
@@ -2423,8 +2420,7 @@ async function epaddb(fastify, options, done) {
                 studyInfo,
                 subject,
                 projectSubject,
-                epadAuth,
-                !body
+                epadAuth
               );
               resolve();
             }
@@ -4269,6 +4265,7 @@ async function epaddb(fastify, options, done) {
             // // new fields study_desc, subject_name
             // // needs data migration to fill in new fields
             // also needs data migration from worklist_subject?? check it in old epad
+            // removing new fields
 
             // // 13. worklist_study_completeness - new table
             // // no data migration
@@ -4337,6 +4334,56 @@ async function epaddb(fastify, options, done) {
           // get studies from dicomwebserver and add entities
           // 4. project_subject_study
           // get studies from dicomwebserver and add entities
+          const studies = await fastify.getPatientStudiesInternal({}, undefined, undefined, true);
+          for (let i = 0; i < studies.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            let subject = await models.subject.findOne(
+              {
+                where: {
+                  subjectuid: studies[i].patientID,
+                },
+              },
+              { transaction: t }
+            );
+
+            if (!subject) {
+              // eslint-disable-next-line no-await-in-loop
+              subject = await models.subject.create(
+                {
+                  subjectuid: studies[i].patientID,
+                  name: studies[i].patientName,
+                  gender: studies[i].sex,
+                  dob: studies[i].birthdate,
+                  creator: epadAuth.username,
+                  updatetime: Date.now(),
+                  createdtime: Date.now(),
+                },
+                { transaction: t }
+              );
+            }
+
+            // eslint-disable-next-line no-await-in-loop
+            const projectSubject = await fastify.upsert(
+              models.project_subject,
+              {
+                project_id: project.id,
+                subject_id: subject.id,
+                updatetime: Date.now(),
+              },
+              { project_id: project.id, subject_id: subject.id },
+              epadAuth.username,
+              t
+            );
+
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.addPatientStudyToProjectDBInternal(
+              studies[i],
+              subject,
+              projectSubject,
+              epadAuth,
+              t
+            );
+          }
 
           // 5. project_template
           // get aims from couch and add entities
@@ -4353,7 +4400,7 @@ async function epaddb(fastify, options, done) {
           }
 
           // 6. project_user
-          // everyone member?
+          // TODO everyone member?
           // get users from the user table and add relation
           await fastify.orm.query(
             `INSERT INTO project_user(project_id, user_id, role, creator)
@@ -4361,7 +4408,7 @@ async function epaddb(fastify, options, done) {
             { transaction: t }
           );
           // 7. project_subject_user
-          // ?? not used in lite but what is the intention in old epad
+          // TODO ?? not used in lite but what is the intention in old epad
 
           // no action required for these tables - not used in lite
           // 8. project_plugin
@@ -4370,7 +4417,11 @@ async function epaddb(fastify, options, done) {
 
           // and tables that have project_id in it
           // 11. worklist_study
-          // add lite project_id
+          // add lite project_id only to empty ones
+          await fastify.orm.query(
+            `UPDATE worklist_study SET project_id = ${project.id} where project_id is NULL`,
+            { transaction: t }
+          );
 
           // no action required for these tables - not used in lite
           // 12. worklist_subject : not used in lite but was used in old epad. data migration handle it though
