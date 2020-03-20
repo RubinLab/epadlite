@@ -1695,77 +1695,125 @@ async function epaddb(fastify, options, done) {
           // get aim to populate project_aim data
           [aim] = await fastify.getAimsInternal('json', request.params, [aimUid], request.epadAuth);
         }
-        const user =
-          aim && aim.ImageAnnotationCollection.user
-            ? aim.ImageAnnotationCollection.user.loginName.value
-            : '';
-        const template =
-          aim && aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code
-            ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code
-            : '';
-        const subjectUid =
-          aim && aim.ImageAnnotationCollection.person
-            ? aim.ImageAnnotationCollection.person.id.value
-            : '';
-        const studyUid =
-          aim &&
-          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-            .imageReferenceEntityCollection.ImageReferenceEntity[0]
-            ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root
-            : '';
-        const seriesUid =
-          aim &&
-          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
-            ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
-                .instanceUid.root
-            : '';
-        const imageUid =
-          aim &&
-          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
-            .imageCollection.Image[0]
-            ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
-                .imageCollection.Image[0].sopInstanceUid.root
-            : '';
-
-        await fastify.upsert(
-          models.project_aim,
-          {
-            project_id: project.id,
-            aim_uid: aimUid,
-            user,
-            template,
-            subject_uid: subjectUid,
-            study_uid: studyUid,
-            series_uid: seriesUid,
-            image_uid: imageUid,
-            updatetime: Date.now(),
-          },
-          {
-            project_id: project.id,
-            aim_uid: aimUid,
-          },
-          request.epadAuth.username
-        );
-        // update the worklist completeness if in any
-
-        await fastify.updateWorklistCompleteness(
-          project.id,
-          subjectUid,
-          studyUid,
-          user,
-          request.epadAuth
-        );
+        await fastify.addProjectAimRelInternal(aim, project, request.epadAuth);
         reply.code(200).send('Saving successful');
       }
     } catch (err) {
       reply.send(new InternalError(`Saving aim to project ${request.params.project}`, err));
     }
   });
+
+  fastify.decorate(
+    'addProjectAimRelInternal',
+    (aim, project, epadAuth, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const aimUid = aim.ImageAnnotationCollection.uniqueIdentifier.root;
+          const user =
+            aim && aim.ImageAnnotationCollection.user
+              ? aim.ImageAnnotationCollection.user.loginName.value
+              : '';
+          const template =
+            aim &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code
+              ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code
+              : '';
+          const subjectUid =
+            aim && aim.ImageAnnotationCollection.person
+              ? aim.ImageAnnotationCollection.person.id.value
+              : '';
+          const studyUid =
+            aim &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .imageReferenceEntityCollection.ImageReferenceEntity[0]
+              ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid
+                  .root
+              : '';
+          const seriesUid =
+            aim &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+              ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+                  .instanceUid.root
+              : '';
+          const imageUid =
+            aim &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+              .imageCollection.Image[0]
+              ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries
+                  .imageCollection.Image[0].sopInstanceUid.root
+              : '';
+
+          const frameId =
+            aim &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .markupEntityCollection &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
+              .MarkupEntity[0].referencedFrameNumber
+              ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .markupEntityCollection.MarkupEntity[0].referencedFrameNumber.value
+              : '';
+
+          const dsoSeriesUid =
+            aim &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .segmentationEntityCollection &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid
+              ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root
+              : '';
+
+          await fastify.upsert(
+            models.project_aim,
+            {
+              project_id: project.id,
+              aim_uid: aimUid,
+              user,
+              template,
+              subject_uid: subjectUid,
+              study_uid: studyUid,
+              series_uid: seriesUid,
+              image_uid: imageUid,
+              frame_id: frameId,
+              dso_series_uid: dsoSeriesUid,
+              updatetime: Date.now(),
+            },
+            {
+              project_id: project.id,
+              aim_uid: aimUid,
+            },
+            epadAuth.username,
+            transaction
+          );
+
+          // update the worklist completeness if in any
+          await fastify.updateWorklistCompleteness(
+            project.id,
+            subjectUid,
+            studyUid,
+            user,
+            epadAuth,
+            transaction
+          );
+
+          resolve('Aim project relation is created');
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Aim project relation creation aimuid ${
+                aim.ImageAnnotationCollection.uniqueIdentifier.root
+              }, project ${project.projectid}`,
+              err
+            )
+          );
+        }
+      })
+  );
 
   // fastify.decorate('addWorklistRequirement', async (worklistId, epadAuth, body) => {
   //   return models.worklist_requirement.create({
@@ -1868,7 +1916,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'updateWorklistCompleteness',
-    (projectId, subjectUid, studyUid, user, epadAuth) =>
+    (projectId, subjectUid, studyUid, user, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
           // TODO check if the user is an assignee
@@ -1877,18 +1925,24 @@ async function epaddb(fastify, options, done) {
           // const worklistsStudiesAll = await models.worklist_study.findAll({
           //   raw: true,
           // });
-          const worklistsStudies = await models.worklist_study.findAll({
-            where: { project_id: projectId, subject_uid: subjectUid, study_uid: studyUid },
-            raw: true,
-          });
+          const worklistsStudies = await models.worklist_study.findAll(
+            {
+              where: { project_id: projectId, subject_uid: subjectUid, study_uid: studyUid },
+              raw: true,
+            },
+            transaction ? { transaction } : {}
+          );
           // for each worklist study
           for (let i = 0; i < worklistsStudies.length; i += 1) {
             //  get requirements
             // eslint-disable-next-line no-await-in-loop
-            const requirements = await models.worklist_requirement.findAll({
-              where: { worklist_id: worklistsStudies[i].worklist_id },
-              raw: true,
-            });
+            const requirements = await models.worklist_requirement.findAll(
+              {
+                where: { worklist_id: worklistsStudies[i].worklist_id },
+                raw: true,
+              },
+              transaction ? { transaction } : {}
+            );
             for (let j = 0; j < requirements.length; j += 1) {
               //  compute worklist completeness
               // eslint-disable-next-line no-await-in-loop
@@ -1903,7 +1957,8 @@ async function epaddb(fastify, options, done) {
                 subjectUid,
                 studyUid,
                 user,
-                epadAuth
+                epadAuth,
+                transaction
               );
             }
           }
@@ -1930,16 +1985,20 @@ async function epaddb(fastify, options, done) {
       subjectUid,
       studyUid,
       user,
-      epadAuth
+      epadAuth,
+      transaction
     ) => {
       // sample worklistReq
       // eslint-disable-next-line no-param-reassign
       // worklistReq = [{ id: 1, level: 'study', numOfAims: 1, template: 'ROI', required: true }];
       // get all aims
-      const aims = await models.project_aim.findAll({
-        where: { project_id: projectId, subject_uid: subjectUid, study_uid: studyUid, user },
-        raw: true,
-      });
+      const aims = await models.project_aim.findAll(
+        {
+          where: { project_id: projectId, subject_uid: subjectUid, study_uid: studyUid, user },
+          raw: true,
+        },
+        transaction ? { transaction } : {}
+      );
       // do a one pass off aims and get stats
       const aimStats = {};
       for (let i = 0; i < aims.length; i += 1) {
@@ -2043,7 +2102,8 @@ async function epaddb(fastify, options, done) {
           assignee: user,
           worklist_requirement_id: worklistReq.id,
         },
-        epadAuth.username
+        epadAuth.username,
+        transaction
       );
     }
   );
@@ -3606,12 +3666,16 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
-  fastify.decorate('upsert', (model, values, condition, user) =>
+  fastify.decorate('upsert', (model, values, condition, user, transaction) =>
     model.findOne({ where: condition }).then(obj => {
       // update
-      if (obj) return obj.update({ ...values, updated_by: user });
+      if (obj)
+        return obj.update({ ...values, updated_by: user }, transaction ? { transaction } : {});
       // insert
-      return model.create({ ...values, creator: user, createdtime: Date.now() });
+      return model.create(
+        { ...values, creator: user, createdtime: Date.now() },
+        transaction ? { transaction } : {}
+      );
     })
   );
 
@@ -4133,6 +4197,7 @@ async function epaddb(fastify, options, done) {
             // 9. worklist_user - new table
             // needs data migration to move assignee user from worklist table
             // verify user_id still exist we didnt migrate already
+            // TODO: we are assuming admin is a user. what if the system doesn't have admin
             if (models.worklist.rawAttributes.user_id)
               await fastify.orm.query(
                 `INSERT INTO worklist_user(worklist_id, user_id, role, creator)
@@ -4176,15 +4241,38 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'migrateDataLite2Thick',
-    () =>
+    epadAuth =>
       new Promise(async (resolve, reject) => {
+        // do it all or none with transaction
+        const t = await fastify.orm.transaction();
         try {
           // create new project called lite
-          // check if it exist??
+          // check if it exist
+          const project = await models.project.findOne({ where: { projectid: 'lite' } });
+          if (project === null)
+            models.project.create(
+              {
+                name: 'lite',
+                projectid: 'lite',
+                description: 'lite',
+                // no default template
+                // defaulttemplate: defaultTemplate,
+                type: 'public',
+                updatetime: Date.now(),
+                createdtime: Date.now(),
+                creator: epadAuth.username,
+              },
+              { transaction: t }
+            );
 
           // fill in each project relation table
           // 1. project_aim
           // get aims from couch and add entities
+          const aims = await fastify.getAimsInternal('json', {}, undefined, epadAuth);
+          for (let i = 0; i < aims.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.addProjectAimRelInternal(aims[i], project, epadAuth, t);
+          }
 
           // 2. project_file
           // get files from couch and add entities
@@ -4221,9 +4309,10 @@ async function epaddb(fastify, options, done) {
           // 15. events
           // 16. remote_pac_query
           // 17. user_flaggedimage
-
+          await t.commit();
           resolve('Data moved to thick model');
         } catch (err) {
+          await t.rollback();
           reject(new InternalError('Lite2thick data migration', err));
         }
       })
