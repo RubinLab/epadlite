@@ -4262,10 +4262,9 @@ async function epaddb(fastify, options, done) {
             // // no data migration
 
             // 12. worklist_study
-            // // new fields study_desc, subject_name
-            // // needs data migration to fill in new fields
-            // also needs data migration from worklist_subject?? check it in old epad
-            // removing new fields
+            // new field subject_id
+            // TODO needs data migration to fill in new fields
+            // TODO! also needs data migration from worklist_subject?? check it in old epad
 
             // // 13. worklist_study_completeness - new table
             // // no data migration
