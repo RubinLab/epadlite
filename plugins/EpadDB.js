@@ -881,8 +881,8 @@ async function epaddb(fastify, options, done) {
         );
         const studyDescMap = {};
         studyDetails.forEach(el => {
-          const { studyDescription, numberOfImages, numberOfSeries } = el;
-          studyDescMap[el.studyUID] = { studyDescription, numberOfImages, numberOfSeries };
+          const { numberOfImages, numberOfSeries } = el;
+          studyDescMap[el.studyUID] = { numberOfImages, numberOfSeries };
         });
 
         // iterate over the study uid's and send them to the table
