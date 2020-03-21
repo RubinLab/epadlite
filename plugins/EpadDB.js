@@ -177,77 +177,95 @@ async function epaddb(fastify, options, done) {
   // PROJECTS
   fastify.decorate('createProject', (request, reply) => {
     const { projectName, projectId, projectDescription, defaultTemplate, type } = request.body;
-    const validationErr = fastify.validateRequestBodyFields(projectName, projectId);
-    if (validationErr) {
-      reply.send(new BadRequestError('Creating project', new Error(validationErr)));
-    }
+    if (projectId === 'lite') {
+      reply.send(
+        new BadRequestError(
+          'Creating lite project',
+          new Error('lite project id is reserved for system. Use another project id')
+        )
+      );
+    } else {
+      const validationErr = fastify.validateRequestBodyFields(projectName, projectId);
+      if (validationErr) {
+        reply.send(new BadRequestError('Creating project', new Error(validationErr)));
+      }
 
-    models.project
-      .create({
-        name: projectName,
-        projectid: projectId,
-        description: projectDescription,
-        defaulttemplate: defaultTemplate,
-        type,
-        updatetime: Date.now(),
-        createdtime: Date.now(),
-        creator: request.epadAuth.username,
-      })
-      .then(async project => {
-        // create relation as owner
-        try {
-          const userId = await fastify.findUserIdInternal(request.epadAuth.username);
-          const entry = {
-            project_id: project.id,
-            user_id: userId,
-            role: 'Owner',
-            createdtime: Date.now(),
-            updatetime: Date.now(),
-            creator: request.epadAuth.username,
-          };
-          await models.project_user.create(entry);
-          fastify.log.info(`Project with id ${project.id} is created successfully`);
-          reply.code(200).send(`Project with id ${project.id} is created successfully`);
-        } catch (errPU) {
-          reply.send(
-            new InternalError(
-              'Getting user info for project owner and creating project owner relationship',
-              errPU
-            )
-          );
-        }
-      })
-      .catch(err => {
-        reply.send(new InternalError('Creating project', err));
-      });
+      models.project
+        .create({
+          name: projectName,
+          projectid: projectId,
+          description: projectDescription,
+          defaulttemplate: defaultTemplate,
+          type,
+          updatetime: Date.now(),
+          createdtime: Date.now(),
+          creator: request.epadAuth.username,
+        })
+        .then(async project => {
+          // create relation as owner
+          try {
+            const userId = await fastify.findUserIdInternal(request.epadAuth.username);
+            const entry = {
+              project_id: project.id,
+              user_id: userId,
+              role: 'Owner',
+              createdtime: Date.now(),
+              updatetime: Date.now(),
+              creator: request.epadAuth.username,
+            };
+            await models.project_user.create(entry);
+            fastify.log.info(`Project with id ${project.id} is created successfully`);
+            reply.code(200).send(`Project with id ${project.id} is created successfully`);
+          } catch (errPU) {
+            reply.send(
+              new InternalError(
+                'Getting user info for project owner and creating project owner relationship',
+                errPU
+              )
+            );
+          }
+        })
+        .catch(err => {
+          reply.send(new InternalError('Creating project', err));
+        });
+    }
   });
 
   fastify.decorate('updateProject', (request, reply) => {
-    const query = {};
-    const keys = Object.keys(request.query);
-    const values = Object.values(request.query);
-    for (let i = 0; i < keys.length; i += 1) {
-      if (keys[i] === 'projectName') {
-        query.name = values[i];
-      } else {
-        query[keys[i]] = values[i];
+    if (request.params.project === 'lite') {
+      reply.send(
+        new BadRequestError(
+          'Updating lite project',
+          new Error('lite project id is reserved for system. You cannot update')
+        )
+      );
+    } else {
+      const query = {};
+      const keys = Object.keys(request.query);
+      const values = Object.values(request.query);
+      for (let i = 0; i < keys.length; i += 1) {
+        if (keys[i] === 'projectName') {
+          query.name = values[i];
+        } else {
+          query[keys[i]] = values[i];
+        }
       }
+      query.updated_by = request.epadAuth.username;
+      query.updatetime = Date.now();
+      models.project
+        .update(query, {
+          where: {
+            projectid: request.params.project,
+          },
+        })
+        .then(() => {
+          fastify.log.info(`Project ${request.params.project} is updated`);
+          reply.code(200).send(`Project ${request.params.project} is updated successfully`);
+        })
+        .catch(err => {
+          reply.send(new InternalError('Updating project', err));
+        });
     }
-    query.updated_by = request.epadAuth.username;
-    query.updatetime = Date.now();
-    models.project
-      .update(query, {
-        where: {
-          projectid: request.params.project,
-        },
-      })
-      .then(() => {
-        fastify.log.info(`Project ${request.params.project} is updated`);
-        reply.code(200).send(`Project ${request.params.project} is updated successfully`);
-      })
-      .catch(err => {
-        reply.send(new InternalError('Updating project', err));
-      });
   });
 
   fastify.decorate(

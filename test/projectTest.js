@@ -117,6 +117,40 @@ describe('Project Tests', () => {
         done(e);
       });
   });
+  it('should fail creating lite project ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/projects')
+      .query({ username: 'admin' })
+      .send({
+        projectId: 'lite',
+        projectName: 'lite',
+        projectDescription: 'liteDesc',
+        defaultTemplate: 'ROI',
+        type: 'private',
+      })
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(400);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('should fail updating lite project ', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put('/projects/lite?projectName=test1')
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(400);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
   it('projects should have 1 project with loginnames admin', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
