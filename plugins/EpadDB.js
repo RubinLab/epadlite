@@ -4338,7 +4338,7 @@ async function epaddb(fastify, options, done) {
                 description: 'lite',
                 // no default template
                 // defaulttemplate: defaultTemplate,
-                type: 'public',
+                type: 'private',
                 updatetime: Date.now(),
                 createdtime: Date.now(),
                 creator: epadAuth.username,
