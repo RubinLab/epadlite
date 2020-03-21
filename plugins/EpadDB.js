@@ -4220,7 +4220,7 @@ async function epaddb(fastify, options, done) {
             // 8. user
             // change username allowNull from true to false
             // just try putting email if username is null. shouldn't happen anyway.
-            // if both will empty next step will fail and tracsaction will rollback
+            // if both are empty next step will fail and tracsaction will rollback
             await models.user.update(
               { username: fastify.orm.literal('email') },
               {
@@ -4263,8 +4263,29 @@ async function epaddb(fastify, options, done) {
 
             // 12. worklist_study
             // new field subject_id
-            // TODO needs data migration to fill in new fields
-            // TODO! also needs data migration from worklist_subject?? check it in old epad
+            // no data migration to fill in new fields, in old epad data was in worklist_subject only
+            await fastify.orm.query(
+              `ALTER TABLE worklist_study 
+                ADD COLUMN IF NOT EXISTS subject_id int(10) unsigned DEFAULT NULL AFTER study_id,
+                DROP CONSTRAINT IF EXISTS worklist_study_ind,
+                ADD CONSTRAINT worklist_study_ind UNIQUE (worklist_id,study_id,subject_id, project_id);`,
+              { transaction: t }
+            );
+            // for some reason doesn't work in the same alter table statement
+            await fastify.orm.query(
+              `ALTER TABLE worklist_study 
+                ADD FOREIGN KEY IF NOT EXISTS FK_workliststudy_subject (subject_id) REFERENCES subject (id);`,
+              { transaction: t }
+            );
+            // old epad only saves data in worklist_subject, move data from there
+            // TODO sort order moved as is. i.e: all studies of the subject has the same sortorder
+            await fastify.orm.query(
+              `INSERT INTO worklist_study (worklist_id, project_id, sortorder, status, startdate, completedate, creator, createdtime, updatetime, updated_by, study_id) 
+                SELECT ws.worklist_id, ws.project_id, ws.sortorder, ws.status, ws.startdate, ws.completedate, ws.creator, ws.createdtime, ws.updatetime, ws.updated_by, pss.study_id 
+                FROM worklist_subject ws, project_subject ps, project_subject_study pss 
+                WHERE ws.project_id = ps.project_id AND ws.subject_id = ps.subject_id AND ps.id = pss.proj_subj_id;`,
+              { transaction: t }
+            );
 
             // // 13. worklist_study_completeness - new table
             // // no data migration
