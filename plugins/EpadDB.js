@@ -4277,7 +4277,7 @@ async function epaddb(fastify, options, done) {
             // // no data migration
 
             // 12. worklist_study
-            // new field subject_id
+            // new fields subject_id, numOfSeries and numOfImages
             // no data migration to fill in new fields, in old epad data was in worklist_subject only
             await fastify.orm.query(
               `ALTER TABLE worklist_study 
@@ -4296,6 +4296,7 @@ async function epaddb(fastify, options, done) {
             );
             // old epad only saves data in worklist_subject, move data from there
             // TODO sort order moved as is. i.e: all studies of the subject has the same sortorder
+            // TODO fill in numOfSeries and numOfImages
             await fastify.orm.query(
               `INSERT INTO worklist_study (worklist_id, project_id, sortorder, status, startdate, completedate, creator, createdtime, updatetime, updated_by, study_id) 
                 SELECT ws.worklist_id, ws.project_id, ws.sortorder, ws.status, ws.startdate, ws.completedate, ws.creator, ws.createdtime, ws.updatetime, ws.updated_by, pss.study_id 
