@@ -1390,7 +1390,6 @@ async function epaddb(fastify, options, done) {
               // eslint-disable-next-line no-await-in-loop
               await fastify.addPatientStudyToProjectDBInternal(
                 studies[i],
-                subject,
                 projectSubject,
                 request.epadAuth
               );
@@ -1786,6 +1785,8 @@ async function epaddb(fastify, options, done) {
             aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
               .markupEntityCollection &&
             aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
+              .MarkupEntity[0] &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
               .MarkupEntity[0].referencedFrameNumber
               ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                   .markupEntityCollection.MarkupEntity[0].referencedFrameNumber.value
@@ -1795,6 +1796,8 @@ async function epaddb(fastify, options, done) {
             aim &&
             aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
               .segmentationEntityCollection &&
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .segmentationEntityCollection.SegmentationEntity[0] &&
             aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
               .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid
               ? aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
@@ -1812,7 +1815,7 @@ async function epaddb(fastify, options, done) {
               study_uid: studyUid,
               series_uid: seriesUid,
               image_uid: imageUid,
-              frame_id: frameId,
+              frame_id: Number(frameId),
               dso_series_uid: dsoSeriesUid,
               updatetime: Date.now(),
             },
@@ -2321,7 +2324,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'addPatientStudyToProjectDBInternal',
-    (studyInfo, subject, projectSubject, epadAuth, transaction) =>
+    (studyInfo, projectSubject, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
           // update with latest value
@@ -2329,19 +2332,18 @@ async function epaddb(fastify, options, done) {
             models.study,
             {
               studyuid: studyInfo.studyUID,
-              studydate: studyInfo.insertDate,
+              // eslint-disable-next-line no-restricted-globals
+              studydate: !isNaN(Date.parse(studyInfo.insertDate)) ? studyInfo.insertDate : null,
               description: studyInfo.studyDescription,
-              subject_id: subject.id,
+              subject_id: projectSubject.subject_id,
               updatetime: Date.now(),
             },
             {
-              studyuid: studyInfo.studyUID,
-              subject_id: subject.id,
+              subject_id: projectSubject.subject_id,
             },
             epadAuth.username,
             transaction
           );
-
           // eslint-disable-next-line no-await-in-loop
           await fastify.upsert(
             models.project_subject_study,
@@ -2434,12 +2436,7 @@ async function epaddb(fastify, options, done) {
                   reject(new ResourceAlreadyExistsError('Study', studyInfo.studyUID));
               }
 
-              await fastify.addPatientStudyToProjectDBInternal(
-                studyInfo,
-                subject,
-                projectSubject,
-                epadAuth
-              );
+              await fastify.addPatientStudyToProjectDBInternal(studyInfo, projectSubject, epadAuth);
               resolve();
             }
           }
@@ -4285,6 +4282,8 @@ async function epaddb(fastify, options, done) {
             await fastify.orm.query(
               `ALTER TABLE worklist_study 
                 ADD COLUMN IF NOT EXISTS subject_id int(10) unsigned DEFAULT NULL AFTER study_id,
+                ADD COLUMN IF NOT EXISTS numOfSeries int(10) unsigned DEFAULT NULL AFTER sortorder,
+                ADD COLUMN IF NOT EXISTS numOfImages int(10) unsigned DEFAULT NULL AFTER numOfSeries,
                 DROP CONSTRAINT IF EXISTS worklist_study_ind,
                 ADD CONSTRAINT worklist_study_ind UNIQUE (worklist_id,study_id,subject_id, project_id);`,
               { transaction: t }
@@ -4321,17 +4320,59 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'migrateSubject',
+    (study, project, epadAuth, t) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const subject = await models.subject.create(
+            {
+              subjectuid: study.patientID.trim(),
+              name: study.patientName.replace('\u0000', ''),
+              gender: study.sex,
+              // eslint-disable-next-line no-restricted-globals
+              dob: !isNaN(Date.parse(study.birthdate)) ? study.birthdate : null,
+              creator: epadAuth.username,
+              updatetime: Date.now(),
+              createdtime: Date.now(),
+            },
+            { transaction: t }
+          );
+
+          const projectSubject = await fastify.upsert(
+            models.project_subject,
+            {
+              project_id: project.id,
+              subject_id: subject.id,
+              updatetime: Date.now(),
+            },
+            { project_id: project.id, subject_id: subject.id },
+            epadAuth.username,
+            t
+          );
+          resolve({
+            subjectUID: study.patientID.trim(),
+            projectSubject,
+          });
+        } catch (errSubject) {
+          console.log(errSubject.message, 'aaaaaa');
+          reject(errSubject);
+        }
+      })
+  );
+
+  fastify.decorate(
     'migrateDataLite2Thick',
     epadAuth =>
       new Promise(async (resolve, reject) => {
-        // do it all or none with transaction
-        const t = await fastify.orm.transaction();
-        try {
-          // create new project called lite
-          // check if it exist
-          const project = await models.project.findOne({ where: { projectid: 'lite' } });
-          if (project === null)
-            models.project.create(
+        let project = await models.project.findOne({ where: { projectid: 'lite' } });
+        // if there is no lite project and we are in lite mode, we need to migrate
+        if (project === null && config.mode === 'lite') {
+          fastify.log.warn('We need to migrate the db for lite project');
+          // do it all or none with transaction
+          const t = await fastify.orm.transaction();
+          try {
+            // create new project called lite
+            project = await models.project.create(
               {
                 name: 'lite',
                 projectid: 'lite',
@@ -4345,134 +4386,120 @@ async function epaddb(fastify, options, done) {
               },
               { transaction: t }
             );
+            fastify.log.warn('Lite project is created');
 
-          // fill in each project relation table
-          // 1. project_aim
-          // get aims from couch and add entities
-          const aims = await fastify.getAimsInternal('json', {}, undefined, epadAuth);
-          for (let i = 0; i < aims.length; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            await fastify.addProjectAimRelInternal(aims[i], project, epadAuth, t);
-          }
-
-          // 2. project_file
-          // get files from couch and add entities
-          const files = await fastify.getFilesInternal({ format: 'json' });
-          for (let i = 0; i < files.length; i += 1) {
-            const params = { project: project.project_id };
-            if (files[i].subject_uid) params.subject = files[i].subject_uid;
-            if (files[i].study_uid) params.subject = files[i].study_uid;
-
-            // eslint-disable-next-line no-await-in-loop
-            await fastify.putOtherFileToProjectInternal(files[i].name, params, epadAuth, t);
-          }
-
-          // can be done in one call
-          // 3. project_subject
-          // get studies from dicomwebserver and add entities
-          // 4. project_subject_study
-          // get studies from dicomwebserver and add entities
-          const studies = await fastify.getPatientStudiesInternal({}, undefined, undefined, true);
-          for (let i = 0; i < studies.length; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            let subject = await models.subject.findOne(
-              {
-                where: {
-                  subjectuid: studies[i].patientID,
-                },
-              },
-              { transaction: t }
-            );
-
-            if (!subject) {
+            // fill in each project relation table
+            // 1. project_aim
+            // get aims from couch and add entities
+            const aims = await fastify.getAimsInternal('json', {}, undefined, epadAuth);
+            for (let i = 0; i < aims.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
-              subject = await models.subject.create(
-                {
-                  subjectuid: studies[i].patientID,
-                  name: studies[i].patientName,
-                  gender: studies[i].sex,
-                  dob: studies[i].birthdate,
-                  creator: epadAuth.username,
-                  updatetime: Date.now(),
-                  createdtime: Date.now(),
-                },
-                { transaction: t }
+              await fastify.addProjectAimRelInternal(aims[i], project, epadAuth, t);
+            }
+            fastify.log.warn('Aim db records are created');
+
+            // 2. project_file
+            // get files from couch and add entities
+            const files = await fastify.getFilesInternal({ format: 'json' });
+            for (let i = 0; i < files.length; i += 1) {
+              const params = { project: project.project_id };
+              if (files[i].subject_uid) params.subject = files[i].subject_uid;
+              if (files[i].study_uid) params.subject = files[i].study_uid;
+
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.putOtherFileToProjectInternal(files[i].name, params, epadAuth, t);
+            }
+            fastify.log.warn('File db records are created');
+
+            // can be done in one call
+            // 3. project_subject
+            // get studies from dicomwebserver and add entities
+            // 4. project_subject_study
+            // get studies from dicomwebserver and add entities
+            const studies = await fastify.getPatientStudiesInternal({}, undefined, undefined, true);
+            // map to contain a studies attribute to contain a list of studies
+            const subjects = {};
+            const subjectPromisses = [];
+            for (let i = 0; i < studies.length; i += 1) {
+              if (!subjects[studies[i].patientID.trim()]) {
+                subjects[studies[i].patientID.trim()] = { studies: [studies[i]] };
+                subjectPromisses.push(fastify.migrateSubject(studies[i], project, epadAuth, t));
+              } else {
+                // if subject already exists push study to the subject in the map
+                subjects[studies[i].patientID.trim()].studies.push(studies[i]);
+              }
+            }
+            const values = await Promise.all(subjectPromisses);
+            for (let i = 0; i < values.length; i += 1) {
+              for (let j = 0; j < subjects[values[i].subjectUID].studies.length; j += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.addPatientStudyToProjectDBInternal(
+                  subjects[values[i].subjectUID].studies[j],
+                  values[i].projectSubject,
+                  epadAuth,
+                  t
+                );
+              }
+            }
+            fastify.log.warn('DICOM db records are created');
+
+            // 5. project_template
+            // get aims from couch and add entities
+            const templates = await fastify.getTemplatesInternal({ format: 'summary' });
+            for (let i = 0; i < templates.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.addProjectTemplateRelInternal(
+                templates[i].containerUID,
+                project,
+                { enable: true },
+                epadAuth,
+                t
               );
             }
+            fastify.log.warn('Template db records are created');
 
-            // eslint-disable-next-line no-await-in-loop
-            const projectSubject = await fastify.upsert(
-              models.project_subject,
-              {
-                project_id: project.id,
-                subject_id: subject.id,
-                updatetime: Date.now(),
-              },
-              { project_id: project.id, subject_id: subject.id },
-              epadAuth.username,
-              t
-            );
-
-            // eslint-disable-next-line no-await-in-loop
-            await fastify.addPatientStudyToProjectDBInternal(
-              studies[i],
-              subject,
-              projectSubject,
-              epadAuth,
-              t
-            );
-          }
-
-          // 5. project_template
-          // get aims from couch and add entities
-          const templates = await fastify.getTemplatesInternal({ format: 'summary' });
-          for (let i = 0; i < templates.length; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            await fastify.addProjectTemplateRelInternal(
-              templates[i].containerUID,
-              project,
-              { enable: true },
-              epadAuth,
-              t
-            );
-          }
-
-          // 6. project_user
-          // TODO everyone member?
-          // get users from the user table and add relation
-          await fastify.orm.query(
-            `INSERT INTO project_user(project_id, user_id, role, creator)
+            // 6. project_user
+            // TODO everyone member?
+            // get users from the user table and add relation
+            await fastify.orm.query(
+              `INSERT INTO project_user(project_id, user_id, role, creator)
               SELECT ${project.id}, user.id, 'Member', ${epadAuth.username} from user;`,
-            { transaction: t }
-          );
-          // 7. project_subject_user
-          // TODO ?? not used in lite but what is the intention in old epad
+              { transaction: t }
+            );
+            fastify.log.warn('User accosiations are created');
+            // 7. project_subject_user
+            // TODO ?? not used in lite but what is the intention in old epad
 
-          // no action required for these tables - not used in lite
-          // 8. project_plugin
-          // 9. project_pluginparameter
-          // 10. project_subject_study_series_user
+            // no action required for these tables - not used in lite
+            // 8. project_plugin
+            // 9. project_pluginparameter
+            // 10. project_subject_study_series_user
 
-          // and tables that have project_id in it
-          // 11. worklist_study
-          // add lite project_id only to empty ones
-          await fastify.orm.query(
-            `UPDATE worklist_study SET project_id = ${project.id} where project_id is NULL`,
-            { transaction: t }
-          );
+            // and tables that have project_id in it
+            // 11. worklist_study
+            // add lite project_id only to empty ones
+            await fastify.orm.query(
+              `UPDATE worklist_study SET project_id = ${project.id} where project_id is NULL`,
+              { transaction: t }
+            );
+            fastify.log.warn('Worklist study project ids are filled');
 
-          // no action required for these tables - not used in lite
-          // 12. worklist_subject : not used in lite but was used in old epad. data migration handle it though
-          // 13. disabled_template
-          // 14. epad_file
-          // 15. events
-          // 16. remote_pac_query
-          // 17. user_flaggedimage
-          await t.commit();
-          resolve('Data moved to thick model');
-        } catch (err) {
-          await t.rollback();
-          reject(new InternalError('Lite2thick data migration', err));
+            // no action required for these tables - not used in lite
+            // 12. worklist_subject : not used in lite but was used in old epad. data migration handle it though
+            // 13. disabled_template
+            // 14. epad_file
+            // 15. events
+            // 16. remote_pac_query
+            // 17. user_flaggedimage
+
+            await t.commit();
+            resolve('Data moved to thick model');
+          } catch (err) {
+            await t.rollback();
+            reject(new InternalError('Lite2thick data migration', err));
+          }
+        } else {
+          resolve('No data move needed');
         }
       })
   );
@@ -4481,6 +4508,7 @@ async function epaddb(fastify, options, done) {
     try {
       await fastify.initMariaDB();
       await fastify.fixSchema();
+      await fastify.migrateDataLite2Thick({ username: 'admin' });
       if (config.env !== 'test') {
         // schedule calculating statistics at 1 am at night
         schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
