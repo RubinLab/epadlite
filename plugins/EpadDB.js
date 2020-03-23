@@ -2427,7 +2427,7 @@ async function epaddb(fastify, options, done) {
               studyInfo.studyUID = studyUid;
               if (body && body.studyDesc) studyInfo.studyDescription = body.studyDesc;
               if (body && body.insertDate) studyInfo.insertDate = body.insertDate;
-              // ASSUMPTION: nondicoms should send create false
+              // if there is body, it is nondicom. you cannot create a nondicom if it is already in system
               if (body) {
                 const studyExists = await models.study.findOne({
                   where: { studyuid: studyInfo.studyUID },
