@@ -4348,12 +4348,12 @@ async function epaddb(fastify, options, done) {
 
             // 14. study
             // new field exam_types
-            // TODO fill in the exam_types 
+            // TODO fill in the exam_types
             await fastify.orm.query(
               `ALTER TABLE study 
-                ADD COLUMN IF NOT EXISTS exam_types varchar(128) DEFAULT NULL AFTER subject_id;`              { transaction: t }
+                ADD COLUMN IF NOT EXISTS exam_types varchar(128) DEFAULT NULL AFTER subject_id;`,
+              { transaction: t }
             );
-
           });
           // the db schema is updated successfully lets copy the files
           await fastify.moveAims();
