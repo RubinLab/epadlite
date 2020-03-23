@@ -4162,6 +4162,7 @@ async function epaddb(fastify, options, done) {
                 FROM annotations AS aim, project WHERE aim.PROJECTUID=project.projectid;`,
               { transaction: t }
             );
+            fastify.log.warn('Migrated project_aim');
 
             // 4. project_file
             // change file_id (fk epad_file) to file_uid
@@ -4172,8 +4173,10 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS file_uid varchar(256) NOT NULL AFTER project_id;`,
               { transaction: t }
             );
-            // just put values so that we can define unique
-            if (models.project_file.rawAttributes.file_id)
+            // just put values so that we can define unique (I needed to run a query outside the transaction as the model prevents me to see the column)
+            try {
+              await fastify.orm.query(`SELECT file_id from project_file;`);
+
               await models.project_file.update(
                 { file_uid: fastify.orm.literal('file_id') },
                 {
@@ -4181,6 +4184,9 @@ async function epaddb(fastify, options, done) {
                   transaction: t,
                 }
               );
+            } catch (err) {
+              fastify.log.warn(`file_id column is already deleted. that's ok. nothing to do`);
+            }
             // remove the column and indexes
             // we need to add indexes for the new column after the data has been migrated
             await fastify.orm.query(
@@ -4193,6 +4199,7 @@ async function epaddb(fastify, options, done) {
                 DROP COLUMN IF EXISTS file_id;`,
               { transaction: t }
             );
+            fastify.log.warn('Migrated project_file');
 
             // // 5. project_subject
             // // add subject_name for non-dicom
@@ -4211,8 +4218,9 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS template_uid varchar(128) NOT NULL AFTER project_id;`,
               { transaction: t }
             );
-            // just put values so that we can define unique
-            if (models.project_template.rawAttributes.template_id)
+            // just put values so that we can define unique (I needed to run a query outside the transaction as the model prevents me to see the column)
+            try {
+              await fastify.orm.query(`SELECT template_id from project_template;`);
               await models.project_template.update(
                 { template_uid: fastify.orm.literal('template_id') },
                 {
@@ -4220,17 +4228,21 @@ async function epaddb(fastify, options, done) {
                   transaction: t,
                 }
               );
+            } catch (err) {
+              fastify.log.warn(`template_id column is already deleted. that's ok. nothing to do`);
+            }
             // remove the column and indexes
             await fastify.orm.query(
               `ALTER TABLE project_template 
-                DROP CONSTRAINT IF EXISTS uk_project_template_uid_ind, 
-                ADD CONSTRAINT uk_project_template_uid_ind UNIQUE (project_id, template_uid),
                 DROP KEY IF EXISTS uk_project_template_ind,
                 DROP FOREIGN KEY IF EXISTS FK_project_template_tid,
                 DROP KEY IF EXISTS FK_project_template_tid,
-                DROP COLUMN IF EXISTS template_id;`,
+                DROP COLUMN IF EXISTS template_id,
+                DROP CONSTRAINT IF EXISTS uk_project_template_uid_ind, 
+                ADD CONSTRAINT uk_project_template_uid_ind UNIQUE (project_id, template_uid);`,
               { transaction: t }
             );
+            fastify.log.warn('Migrated project_template');
 
             // 8. user
             // change username allowNull from true to false
@@ -4250,17 +4262,24 @@ async function epaddb(fastify, options, done) {
                 MODIFY COLUMN username varchar(128) NOT NULL;`,
               { transaction: t }
             );
+            fastify.log.warn('Migrated user');
 
             // 9. worklist_user - new table
             // needs data migration to move assignee user from worklist table
             // verify user_id still exist we didnt migrate already
             // TODO: we are assuming admin is a user. what if the system doesn't have admin
-            if (models.worklist.rawAttributes.user_id)
+            // just put values so that we can define unique (I needed to run a query outside the transaction as the model prevents me to see the column)
+            try {
+              await fastify.orm.query(`SELECT user_id from worklist;`);
               await fastify.orm.query(
                 `INSERT INTO worklist_user(worklist_id, user_id, role, creator)
                   SELECT worklist.id, worklist.user_id, 'assignee', 'admin' from worklist;`,
                 { transaction: t }
               );
+            } catch (err) {
+              fastify.log.warn(`user_id column is already deleted. that's ok. nothing to do`);
+            }
+            fastify.log.warn('Migrated worklist_user');
 
             // 10. worklist
             // remove user_id
@@ -4272,6 +4291,7 @@ async function epaddb(fastify, options, done) {
                 DROP COLUMN IF EXISTS user_id;`,
               { transaction: t }
             );
+            fastify.log.warn('Migrated worklist');
 
             // // 11. worklist_requirement - new table
             // // no data migration
@@ -4304,6 +4324,7 @@ async function epaddb(fastify, options, done) {
                 WHERE ws.project_id = ps.project_id AND ws.subject_id = ps.subject_id AND ps.id = pss.proj_subj_id;`,
               { transaction: t }
             );
+            fastify.log.warn('Migrated worklist_study');
 
             // // 13. worklist_study_completeness - new table
             // // no data migration
@@ -4452,7 +4473,7 @@ async function epaddb(fastify, options, done) {
               await fastify.addProjectTemplateRelInternal(
                 templates[i].containerUID,
                 project,
-                { enable: true },
+                { enable: 'true' },
                 epadAuth,
                 t
               );
