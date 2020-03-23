@@ -2332,10 +2332,10 @@ async function epaddb(fastify, options, done) {
             models.study,
             {
               studyuid: studyInfo.studyUID,
-              // eslint-disable-next-line no-restricted-globals
-              studydate: !isNaN(Date.parse(studyInfo.insertDate)) ? studyInfo.insertDate : null,
+              studydate: studyInfo.insertDate ? studyInfo.insertDate : null,
               description: studyInfo.studyDescription,
               subject_id: projectSubject.subject_id,
+              exam_types: studyInfo.examTypes ? JSON.stringify(studyInfo.examTypes) : null,
               updatetime: Date.now(),
             },
             {
@@ -2423,7 +2423,7 @@ async function epaddb(fastify, options, done) {
                   updatetime: Date.now(),
                   createdtime: Date.now(),
                 });
-              const studyInfo = {};
+              let studyInfo = {};
               studyInfo.studyUID = studyUid;
               if (body && body.studyDesc) studyInfo.studyDescription = body.studyDesc;
               if (body && body.insertDate) studyInfo.insertDate = body.insertDate;
@@ -2434,6 +2434,14 @@ async function epaddb(fastify, options, done) {
                 });
                 if (studyExists)
                   reject(new ResourceAlreadyExistsError('Study', studyInfo.studyUID));
+              } else {
+                // get the data from dicomwebserver if the body is empty, hence dicom
+                const studies = await fastify.getPatientStudiesInternal(
+                  { subject: params.subject, study: params.study },
+                  undefined,
+                  epadAuth
+                );
+                if (studies.length === 1) [studyInfo] = studies;
               }
 
               await fastify.addPatientStudyToProjectDBInternal(studyInfo, projectSubject, epadAuth);
@@ -4337,6 +4345,15 @@ async function epaddb(fastify, options, done) {
 
             // // 13. worklist_study_completeness - new table
             // // no data migration
+
+            // 14. study
+            // new field exam_types
+            // TODO fill in the exam_types 
+            await fastify.orm.query(
+              `ALTER TABLE study 
+                ADD COLUMN IF NOT EXISTS exam_types varchar(128) DEFAULT NULL AFTER subject_id;`              { transaction: t }
+            );
+
           });
           // the db schema is updated successfully lets copy the files
           await fastify.moveAims();
