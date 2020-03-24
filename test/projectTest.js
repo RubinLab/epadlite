@@ -847,7 +847,7 @@ describe('Project Tests', () => {
           expect(res.body[0].projectID).to.be.eql('testsubject3');
           expect(res.body[0].displaySubjectID).to.be.eql('3');
           expect(res.body[0].numberOfStudies).to.be.eql(1);
-          expect(res.body[0].examTypes).to.be.eql([]);
+          expect(res.body[0].examTypes).to.be.eql(['MR']);
           done();
         })
         .catch(e => {
