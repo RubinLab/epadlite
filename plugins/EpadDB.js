@@ -128,6 +128,10 @@ async function epaddb(fastify, options, done) {
             otherKey: 'study_id',
           });
 
+          models.project.hasMany(models.project_aim, {
+            foreignKey: 'project_id',
+          });
+
           await fastify.orm.sync();
           if (config.env === 'test') {
             try {
@@ -1431,6 +1435,7 @@ async function epaddb(fastify, options, done) {
             model: models.project_subject,
             include: [models.subject, models.study],
           },
+          { model: models.project_aim, attributes: ['aim_uid'] },
         ],
       });
       if (project === null) {
@@ -1441,7 +1446,38 @@ async function epaddb(fastify, options, done) {
           )
         );
       } else {
-        const results = [];
+        const aimUIDs = [];
+        for (let i = 0; i < project.dataValues.project_aims.length; i += 1) {
+          aimUIDs.push(project.dataValues.project_aims[i].dataValues.aim_uid);
+        }
+        const aimsCountMap = {};
+        const aims = await fastify.getAimsInternal(
+          'summary',
+          {
+            subject: '',
+            study: '',
+            series: '',
+          },
+          aimUIDs,
+          request.epadAuth
+        );
+        _.chain(aims)
+          .groupBy(value => {
+            return value.subjectID;
+          })
+          .map(value => {
+            const numberOfAims = _.reduce(
+              value,
+              memo => {
+                return memo + 1;
+              },
+              0
+            );
+            aimsCountMap[value[0].subjectID] = numberOfAims;
+            return value;
+          })
+          .value();
+        let results = [];
         for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
           let examTypes = [];
           for (
@@ -1454,15 +1490,7 @@ async function epaddb(fastify, options, done) {
             );
             examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
           }
-          // TODO can we somehow get this inside the project query? by defining an association
-          // eslint-disable-next-line no-await-in-loop
-          const numberOfAnnotations = await models.project_aim.count({
-            where: {
-              project_id: project.id,
-              subject_uid:
-                project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid,
-            },
-          });
+
           results.push({
             subjectName: project.dataValues.project_subjects[i].dataValues.subject.dataValues.name,
             subjectID: fastify.replaceNull(
@@ -1477,10 +1505,17 @@ async function epaddb(fastify, options, done) {
               project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
             ),
             numberOfStudies: project.dataValues.project_subjects[i].dataValues.studies.length,
-            numberOfAnnotations,
+            numberOfAnnotations: aimsCountMap[
+              project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+            ]
+              ? aimsCountMap[
+                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+                ]
+              : 0,
             examTypes,
           });
         }
+        results = _.sortBy(results, 'subjectName');
         reply.code(200).send(results);
       }
     } catch (err) {
@@ -4457,7 +4492,7 @@ async function epaddb(fastify, options, done) {
                 description: 'lite',
                 // no default template
                 // defaulttemplate: defaultTemplate,
-                type: 'private',
+                type: 'Private',
                 updatetime: Date.now(),
                 createdtime: Date.now(),
                 creator: epadAuth.username,
@@ -4541,7 +4576,7 @@ async function epaddb(fastify, options, done) {
             // get users from the user table and add relation
             await fastify.orm.query(
               `INSERT INTO project_user(project_id, user_id, role, creator)
-              SELECT ${project.id}, user.id, 'Member', ${epadAuth.username} from user;`,
+              SELECT ${project.id}, user.id, 'Member', '${epadAuth.username}' from user;`,
               { transaction: t }
             );
             fastify.log.warn('User accosiations are created');
