@@ -4402,8 +4402,7 @@ async function epaddb(fastify, options, done) {
               subjectuid: study.patientID.trim(),
               name: study.patientName.replace('\u0000', ''),
               gender: study.sex,
-              // eslint-disable-next-line no-restricted-globals
-              dob: !isNaN(Date.parse(study.birthdate)) ? study.birthdate : null,
+              dob: study.birthdate ? study.birthdate : null,
               creator: epadAuth.username,
               updatetime: Date.now(),
               createdtime: Date.now(),
