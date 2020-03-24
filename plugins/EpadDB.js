@@ -1648,7 +1648,7 @@ async function epaddb(fastify, options, done) {
           aimUids.push(projectAims[i].aim_uid);
         }
 
-        const result = await fastify.getAimsInternal(
+        let result = await fastify.getAimsInternal(
           request.query.format,
           request.params,
           aimUids,
@@ -1657,6 +1657,8 @@ async function epaddb(fastify, options, done) {
         // .then(result => {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+        } else if (request.query.format === 'summary') {
+          result = result.map(obj => ({ ...obj, projectID: request.params.project }));
         }
         reply.code(200).send(result);
         // })
@@ -2506,7 +2508,10 @@ async function epaddb(fastify, options, done) {
             reject(
               new BadRequestError(
                 'Get studies from project',
-                new ResourceNotFoundError('Project subject association with whereJSON', whereJSON)
+                new ResourceNotFoundError(
+                  'Project subject association with whereJSON',
+                  JSON.stringify(whereJSON)
+                )
               )
             );
           } else {
@@ -2564,7 +2569,9 @@ async function epaddb(fastify, options, done) {
             resolve(result);
           }
         } catch (err) {
-          reject(new InternalError(`Getting studies with where: ${whereJSON}`, err));
+          reject(
+            new InternalError(`Getting studies with where: ${JSON.stringify(whereJSON)}`, err)
+          );
         }
       })
   );
