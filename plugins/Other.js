@@ -92,8 +92,7 @@ async function other(fastify) {
               }
               // see if it was a dicom
               if (datasets.length > 0) {
-                if (config.mode === 'thick')
-                  await fastify.addProjectReferences(request.params, request.epadAuth, studies);
+                await fastify.addProjectReferences(request.params, request.epadAuth, studies);
                 const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                 await fastify.saveDicomsInternal(data, boundary);
                 datasets = [];
@@ -355,8 +354,7 @@ async function other(fastify) {
                 }
               }
               if (datasets.length > 0) {
-                if (config.mode === 'thick')
-                  await fastify.addProjectReferences(params, epadAuth, studies);
+                await fastify.addProjectReferences(params, epadAuth, studies);
                 fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
                 const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                 fastify.log.info(
@@ -475,15 +473,11 @@ async function other(fastify) {
             filetype: query.filetype ? query.filetype : '',
             length,
           };
-          // add link to db if thick
-          if (config.mode === 'thick') {
-            await fastify.putOtherFileToProjectInternal(fileInfo.name, params, epadAuth);
-            // add to couchdb only if successful
-            await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
-          } else {
-            // add to couchdb
-            await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
-          }
+          // add link to db
+          await fastify.putOtherFileToProjectInternal(fileInfo.name, params, epadAuth);
+          // add to couchdb only if successful
+          await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
+
           resolve();
         } catch (err) {
           reject(err);
@@ -664,7 +658,14 @@ async function other(fastify) {
         'Access-Control-Allow-Origin': '*',
       });
       fastify.addConnectedUser(request, reply);
+      const id = setInterval(() => {
+        // eslint-disable-next-line no-param-reassign
+        fastify.messageId += 1;
+        reply.res.write(`id: ${fastify.messageId}\n`);
+        reply.res.write(`data: heartbeat\n\n`);
+      }, 1000);
       request.req.on('close', () => {
+        clearInterval(id);
         fastify.deleteDisconnectedUser(request);
       }); // <- Remove this user when he disconnects
     } catch (err) {
@@ -851,17 +852,15 @@ async function other(fastify) {
     username =>
       new Promise(async (resolve, reject) => {
         const epadAuth = { username };
-        if (config.mode === 'thick') {
-          try {
-            const user = await fastify.getUserInternal({
-              user: username,
-            });
-            epadAuth.permissions = user.permissions;
-            epadAuth.projectToRole = user.projectToRole;
-            epadAuth.admin = user.admin;
-          } catch (errUser) {
-            reject(errUser);
-          }
+        try {
+          const user = await fastify.getUserInternal({
+            user: username,
+          });
+          epadAuth.permissions = user.permissions;
+          epadAuth.projectToRole = user.projectToRole;
+          epadAuth.admin = user.admin;
+        } catch (errUser) {
+          reject(errUser);
         }
         resolve(epadAuth);
       })
@@ -934,9 +933,7 @@ async function other(fastify) {
       }
     }
     try {
-      if (config.mode === 'thick' && !req.req.url.startsWith('/documentation'))
-        await fastify.epadThickRightsCheck(req, res);
-      // TODO lite?
+      if (!req.req.url.startsWith('/documentation')) await fastify.epadThickRightsCheck(req, res);
     } catch (err) {
       res.send(err);
     }
