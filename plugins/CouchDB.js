@@ -478,8 +478,8 @@ async function couchdb(fastify, options) {
               );
             }
           }
-          // if we have project and we are in the thick mode we should filter for project and user rights
-          if (config.mode === 'thick' && params.project) {
+          // if we have project we should filter for project and user rights
+          if (params.project) {
             // TODO if we want to return sth other than 404 for aim access we should check if this filtering empties filteredAims
             // if the user is a collaborator in the project he should only see his annotations
             if (epadAuth.projectToRole.includes(`${params.project}:Collaborator`)) {
@@ -1259,7 +1259,7 @@ async function couchdb(fastify, options) {
   fastify.decorate('deleteTemplateFromSystem', async (request, reply) => {
     try {
       let numDeleted = 0;
-      if (config.mode === 'thick') numDeleted = await fastify.deleteTemplateFromDB(request.params);
+      numDeleted = await fastify.deleteTemplateFromDB(request.params);
       await fastify.deleteTemplateInternal(request.params);
       reply.code(200).send(`Template deleted from system and removed from ${numDeleted} projects`);
     } catch (err) {
