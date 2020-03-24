@@ -299,7 +299,7 @@ async function other(fastify) {
         })
         .catch(err => {
           console.log(`Error processing ${dataFolder} Error: ${err.message}`);
-          new EpadNotification(request, 'Folder scan failed', err).notify(fastify);
+          new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
         });
     }
   });
@@ -514,7 +514,9 @@ async function other(fastify) {
       .deleteSubjectInternal(request.params, request.epadAuth)
       .then(result => {
         if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted subject', request.params.subject).notify(fastify);
+          new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
+            fastify
+          );
         else reply.code(200).send(result);
       })
       .catch(err => {
@@ -577,7 +579,9 @@ async function other(fastify) {
       .deleteStudyInternal(request.params, request.epadAuth)
       .then(result => {
         if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted study', request.params.study).notify(fastify);
+          new EpadNotification(request, 'Deleted study', request.params.study, true).notify(
+            fastify
+          );
         else reply.code(200).send(result);
       })
       .catch(err => {
@@ -636,7 +640,9 @@ async function other(fastify) {
         .then(() => {
           fastify.log.info(`Series ${request.params.series} deletion is initiated successfully`);
           if (config.env !== 'test')
-            new EpadNotification(request, 'Deleted series', request.params.series).notify(fastify);
+            new EpadNotification(request, 'Deleted series', request.params.series, true).notify(
+              fastify
+            );
           else
             reply
               .code(200)
