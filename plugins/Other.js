@@ -122,7 +122,8 @@ async function other(fastify) {
                     new EpadNotification(
                       request,
                       'Upload Completed with errors',
-                      new Error(errMessagesText)
+                      new Error(errMessagesText),
+                      true
                     ).notify(fastify);
 
                   // test should wait for the upload to actually finish to send the response.
@@ -130,7 +131,9 @@ async function other(fastify) {
                 } else if (config.env === 'test') reply.code(200).send();
                 else {
                   fastify.log.info(`Upload Completed ${filenames}`);
-                  new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
+                  new EpadNotification(request, 'Upload Completed', filenames, true).notify(
+                    fastify
+                  );
                 }
               } else if (config.env === 'test') {
                 reply.send(
@@ -143,7 +146,8 @@ async function other(fastify) {
                 new EpadNotification(
                   request,
                   'Upload Failed as none of the files were uploaded successfully',
-                  new Error(`${filenames.toString()}. ${errMessagesText}`)
+                  new Error(`${filenames.toString()}. ${errMessagesText}`),
+                  true
                 ).notify(fastify);
               }
             } catch (filesErr) {
@@ -156,7 +160,8 @@ async function other(fastify) {
                 new EpadNotification(
                   request,
                   'Upload files',
-                  new InternalError('Upload Error', filesErr)
+                  new InternalError('Upload Error', filesErr),
+                  true
                 ).notify(fastify);
             }
           })
@@ -170,7 +175,8 @@ async function other(fastify) {
               new EpadNotification(
                 request,
                 'Upload files',
-                new InternalError('Upload Error', fileSaveErr)
+                new InternalError('Upload Error', fileSaveErr),
+                true
               ).notify(fastify);
           });
       }
@@ -289,7 +295,7 @@ async function other(fastify) {
               result.success
             } started at ${scanTimestamp}`
           );
-          new EpadNotification(request, 'Folder scan completed', dataFolder).notify(fastify);
+          new EpadNotification(request, 'Folder scan completed', dataFolder, true).notify(fastify);
         })
         .catch(err => {
           console.log(`Error processing ${dataFolder} Error: ${err.message}`);
