@@ -1408,6 +1408,20 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('arrayUnique', array => {
+    const a = array.concat();
+    for (let i = 0; i < a.length; i += 1) {
+      for (let j = i + 1; j < a.length; j += 1) {
+        if (a[i] === a[j]) {
+          a.splice(j, 1);
+          j -= 1;
+        }
+      }
+    }
+
+    return a;
+  });
+
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -1429,6 +1443,17 @@ async function epaddb(fastify, options, done) {
       } else {
         const results = [];
         for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
+          let examTypes = [];
+          for (
+            let j = 0;
+            j < project.dataValues.project_subjects[i].dataValues.studies.length;
+            j += 1
+          ) {
+            const studyExamTypes = JSON.parse(
+              project.dataValues.project_subjects[i].dataValues.studies[j].dataValues.exam_types
+            );
+            examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
+          }
           // TODO can we somehow get this inside the project query? by defining an association
           // eslint-disable-next-line no-await-in-loop
           const numberOfAnnotations = await models.project_aim.count({
@@ -1453,7 +1478,7 @@ async function epaddb(fastify, options, done) {
             ),
             numberOfStudies: project.dataValues.project_subjects[i].dataValues.studies.length,
             numberOfAnnotations,
-            examTypes: [], // TODO!!!!
+            examTypes,
           });
         }
         reply.code(200).send(results);
@@ -4402,7 +4427,6 @@ async function epaddb(fastify, options, done) {
             projectSubject,
           });
         } catch (errSubject) {
-          console.log(errSubject.message, 'aaaaaa');
           reject(errSubject);
         }
       })
