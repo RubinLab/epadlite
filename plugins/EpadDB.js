@@ -2818,7 +2818,7 @@ async function epaddb(fastify, options, done) {
               seriesDate: series[i].seriesdate,
               seriesDescription: series[i].description,
               examType: '',
-              bodyPart: '', // TODO
+              bodyPart: '',
               accessionNumber: '',
               numberOfImages: 0, // TODO
               numberOfSeriesRelatedInstances: 0, // TODO
@@ -3887,15 +3887,11 @@ async function epaddb(fastify, options, done) {
           }
 
           // TODO are these correct? check with thick
-          // TODO update the file one it is not correct!!
-          const numOfFiles = await models.epad_file.count();
-          let numOfTemplates = 0;
-          if (config.env !== 'test' && config.mode === 'thick') {
-            numOfTemplates = await models.template.count();
-          } else {
-            const templates = await fastify.getTemplatesInternal('summary');
-            numOfTemplates = templates.length;
-          }
+          const numOfFiles = await models.project_file.count();
+          // TODO make sure the migration moves the files to couch
+          const templates = await fastify.getTemplatesInternal('summary');
+          const numOfTemplates = templates.length;
+
           const numOfPlugins = await models.plugin.count();
 
           // no plans to implement these yet
@@ -3942,7 +3938,6 @@ async function epaddb(fastify, options, done) {
 
           // get template stats
           fastify.log.info('Getting template stats');
-          const templates = await fastify.getTemplatesInternal('summary');
           for (let i = 0; i < templates.length; i += 1) {
             const templateCode = templates[i].TemplateContainer.Template[0].codeValue;
             const templateName = templates[i].TemplateContainer.Template[0].name;
