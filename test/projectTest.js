@@ -4008,6 +4008,20 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should return one nondicom series 14356765342 DESC for project testsubjectnondicom ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubjectnondicom/series')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('should delete nondicom series 14356765342 from project testsubjectnondicom patient 4 ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)

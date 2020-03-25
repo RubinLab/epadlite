@@ -3720,7 +3720,7 @@ async function epaddb(fastify, options, done) {
         const nondicoms = [];
         const projectSubjects = await models.project_subject.findAll({
           where: { project_id: project.id },
-          include: [models.study],
+          include: [models.subject, models.study],
         });
         if (projectSubjects === null) {
           reply.send(
@@ -3743,14 +3743,27 @@ async function epaddb(fastify, options, done) {
           }
           let result = [];
           for (let j = 0; j < studyUids.length; j += 1) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const studySeries = await fastify.getStudySeriesInternal(
+                { study: studyUids[j] },
+                request.query,
+                request.epadAuth,
+                true
+              );
+              result = result.concat(studySeries);
+            } catch (err) {
+              fastify.log.warn(`Can be a nondicom. Ingoring error: ${err.message}`);
+            }
+          }
+          for (let j = 0; j < nondicoms.length; j += 1) {
             // eslint-disable-next-line no-await-in-loop
-            const studySeries = await fastify.getStudySeriesInternal(
-              { study: studyUids[j] },
-              request.query,
-              request.epadAuth,
-              true
-            );
-            result = result.concat(studySeries);
+            const nondicomStudySeries = await fastify.getNondicomStudySeriesFromProjectInternal({
+              subject: nondicoms[j].subject.dataValues.subjectuid,
+              study: nondicoms[j].study.dataValues.studyuid,
+            });
+
+            result = result.concat(nondicomStudySeries);
           }
           // TODO handle nondicom series
 
