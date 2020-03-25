@@ -623,7 +623,10 @@ async function other(fastify) {
       // delete study in dicomweb and annotations
       const promisses = [];
       promisses.push(() => {
-        return fastify.deleteSeriesDicomsInternal(request.params);
+        return fastify.deleteSeriesDicomsInternal(request.params).catch(err => {
+          console.log(err.message);
+          return fastify.deleteNonDicomSeriesInternal(request.params.series);
+        });
       });
       promisses.push(() => {
         return fastify.deleteAimsInternal(request.params, request.epadAuth);

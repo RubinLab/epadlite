@@ -3952,6 +3952,34 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('project study add of nondicom study 5647545377 ABC2 to project testsubjectnondicom patient 4 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testsubjectnondicom/subjects/4/studies')
+        .query({ username: 'admin' })
+        .send({ studyUid: '5647545377', studyDesc: 'ABC2' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should get 2 studies for patient 4 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubjectnondicom/subjects/4/studies')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('should succeed to adding nondicom series 14356765342 DESC to study 4315541363646543 to project testsubjectnondicom patient 4 ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -3973,6 +4001,93 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should delete nondicom series 14356765342 from project testsubjectnondicom patient 4 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(
+          '/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/series/14356765342'
+        )
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should succeed to adding nondicom series 6457327373 DESC2 to study 4315541363646543 to project testsubjectnondicom patient 4 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/series')
+        .query({ username: 'admin' })
+        .send({ seriesUid: '6457327373', description: 'DESC2' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should delete nondicom study 4315541363646543 from project testsubjectnondicom patient 4 including the series', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return 1 nondicom studies for patient 4 and it should be 5647545377 from project testsubjectnondicom ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubjectnondicom/subjects/4/studies')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].studyUID).to.be.eql('5647545377');
+          expect(res.body[0].studyDescription).to.be.eql('ABC2');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should delete nondicom patient 4 from project testsubjectnondicom including study ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testsubjectnondicom/subjects/4')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return no patients from project testsubjectnondicom ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testsubjectnondicom/subjects')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].subjectID).to.be.eql('3');
           done();
         })
         .catch(e => {

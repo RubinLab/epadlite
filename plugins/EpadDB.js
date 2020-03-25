@@ -2401,7 +2401,7 @@ async function epaddb(fastify, options, done) {
               updatetime: Date.now(),
             },
             {
-              subject_id: projectSubject.subject_id,
+              studyuid: studyInfo.studyUID,
             },
             epadAuth.username,
             transaction
@@ -2719,6 +2719,7 @@ async function epaddb(fastify, options, done) {
               });
               const projSubjIds = [];
               const projectSubjectStudyIds = [];
+              let deletedNonDicomSeries = 0;
               if (projectSubjectStudies) {
                 for (let i = 0; i < projectSubjectStudies.length; i += 1) {
                   // eslint-disable-next-line no-await-in-loop
@@ -2735,11 +2736,26 @@ async function epaddb(fastify, options, done) {
                 await models.project_subject.destroy({
                   where: { id: projSubjIds },
                 });
+                // delete non dicom series if any
+                deletedNonDicomSeries = await models.nondicom_series.destroy({
+                  where: { study_id: study.id },
+                });
                 await models.study.destroy({
                   where: { id: study.id },
                 });
               }
-              await fastify.deleteStudyInternal(request.params, request.epadAuth);
+              try {
+                await fastify.deleteStudyInternal(request.params, request.epadAuth);
+              } catch (err) {
+                // ignore the error if the study has nondicom series
+                if (deletedNonDicomSeries === 0) {
+                  fastify.log.warn(
+                    `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${
+                      err.message
+                    }`
+                  );
+                }
+              }
               reply
                 .code(200)
                 .send(`Study deleted from system and removed from ${numDeleted} projects`);
@@ -2749,10 +2765,25 @@ async function epaddb(fastify, options, done) {
                 where: { study_id: study.id },
               });
               if (count === 0) {
+                // delete non dicom series if any
+                const deletedNonDicomSeries = await models.nondicom_series.destroy({
+                  where: { study_id: study.id },
+                });
                 await models.study.destroy({
                   where: { id: study.id },
                 });
-                await fastify.deleteStudyInternal(request.params, request.epadAuth);
+                try {
+                  await fastify.deleteStudyInternal(request.params, request.epadAuth);
+                } catch (err) {
+                  // ignore the error if the study has nondicom series
+                  if (deletedNonDicomSeries === 0) {
+                    fastify.log.warn(
+                      `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${
+                        err.message
+                      }`
+                    );
+                  }
+                }
                 reply
                   .code(200)
                   .send(`Study deleted from system as it didn't exist in any other project`);
@@ -2799,20 +2830,49 @@ async function epaddb(fastify, options, done) {
       );
   });
   fastify.decorate(
+    'deleteNonDicomSeriesInternal',
+    seriesUid =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await models.nondicom_series.destroy({
+            where: { seriesuid: seriesUid },
+          });
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Deleting nondicom series ${seriesUid}`, err));
+        }
+      })
+  );
+  fastify.decorate(
     'getNondicomStudySeriesFromProjectInternal',
     params =>
       new Promise(async (resolve, reject) => {
         try {
           const result = [];
+          const promisses = [];
+          promisses.push(
+            models.subject.findOne({
+              where: { subjectuid: params.subject },
+              raw: true,
+            })
+          );
+          promisses.push(
+            models.study.findOne({
+              where: { studyuid: params.study },
+              raw: true,
+            })
+          );
+          const [subject, study] = await Promise.all(promisses);
           const series = await models.nondicom_series.findAll({
-            where: { study_uid: params.study },
+            where: { study_id: study.id },
             raw: true,
           });
+
           for (let i = 0; i < series.length; i += 1) {
             result.push({
               projectID: params.project,
               patientID: params.subject,
-              patientName: '', // TODO
+              patientName: subject.name,
               studyUID: params.study,
               seriesUID: series[i].seriesuid,
               seriesDate: series[i].seriesdate,
@@ -3704,7 +3764,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('addNondicomSeries', async (request, reply) => {
     // eslint-disable-next-line prefer-destructuring
-    let seriesUid = request.params.seriesUid;
+    let seriesUid = request.params.series;
     if (!seriesUid) {
       // eslint-disable-next-line prefer-destructuring
       seriesUid = request.body.seriesUid;
@@ -3717,15 +3777,25 @@ async function epaddb(fastify, options, done) {
         )
       );
     }
-    const series = await models.nondicom_series.findOne({
-      where: { seriesuid: seriesUid },
-    });
+    const promisses = [];
+    promisses.push(
+      models.study.findOne({
+        where: { studyuid: request.params.study },
+        raw: true,
+      })
+    );
+    promisses.push(
+      models.nondicom_series.findOne({
+        where: { seriesuid: seriesUid },
+      })
+    );
+    const [study, series] = await Promise.all(promisses);
     if (series) {
       reply.send(new ResourceAlreadyExistsError('Nondicom series', seriesUid));
     } else {
       await models.nondicom_series.create({
         seriesuid: seriesUid,
-        study_uid: request.params.study,
+        study_id: study.id,
         description: request.body.description,
         seriesdate: Date.now(),
         updatetime: Date.now(),
@@ -4210,6 +4280,7 @@ async function epaddb(fastify, options, done) {
 
             // // 2. nondicom_series
             // // change study_id to study_uid
+            // rolling back the change
 
             // 3. project_aim
             // // new table
