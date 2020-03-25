@@ -4590,7 +4590,7 @@ async function epaddb(fastify, options, done) {
             for (let i = 0; i < files.length; i += 1) {
               const params = { project: project.project_id };
               if (files[i].subject_uid) params.subject = files[i].subject_uid;
-              if (files[i].study_uid) params.subject = files[i].study_uid;
+              if (files[i].study_uid) params.study = files[i].study_uid;
 
               // eslint-disable-next-line no-await-in-loop
               await fastify.putOtherFileToProjectInternal(files[i].name, params, epadAuth, t);
