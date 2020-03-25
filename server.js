@@ -113,17 +113,10 @@ fastify.register(require('./routes/dicomweb'), { prefix: config.prefix }); // es
 fastify.register(require('./routes/user'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/other'), { prefix: config.prefix }); // eslint-disable-line global-require
 
-if (config.mode === 'lite') {
-  fastify.register(require('./routes/other'), { prefix: `${config.prefix}/projects/lite` }); // eslint-disable-line global-require
-  fastify.register(require('./routes/template'), { prefix: `${config.prefix}/projects/lite` }); // eslint-disable-line global-require
-  fastify.register(require('./routes/aim'), { prefix: `${config.prefix}/projects/lite` }); // eslint-disable-line global-require
-  fastify.register(require('./routes/dicomweb'), { prefix: `${config.prefix}/projects/lite` }); // eslint-disable-line global-require
-} else if (config.mode === 'thick') {
-  fastify.register(require('./routes/project'), { prefix: config.prefix }); // eslint-disable-line global-require
-  fastify.register(require('./routes/projectTemplate'), { prefix: config.prefix }); // eslint-disable-line global-require
-  fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // eslint-disable-line global-require
-  fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
-}
+fastify.register(require('./routes/project'), { prefix: config.prefix }); // eslint-disable-line global-require
+fastify.register(require('./routes/projectTemplate'), { prefix: config.prefix }); // eslint-disable-line global-require
+fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // eslint-disable-line global-require
+fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
 
 // Run the server!
 fastify.listen(port, host);

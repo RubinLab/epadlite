@@ -1,5 +1,5 @@
 class EpadNotification {
-  constructor(request, info, reason) {
+  constructor(request, info, reason, refresh) {
     this.notification = {
       projectID: EpadNotification.getProject(request.req.url),
       username: request.epadAuth.username ? request.epadAuth.username : 'nouser',
@@ -7,6 +7,7 @@ class EpadNotification {
       params: `${reason instanceof Error ? reason.message : reason}`,
       createdtime: new Date(),
       error: reason instanceof Error,
+      refresh,
     };
   }
 

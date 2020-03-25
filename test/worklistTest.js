@@ -241,7 +241,6 @@ describe('Worklist Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/worklists/testCreate/projects/testStRelation/subjects/3/studies/0023.2015.09.28.3')
       .query({ username: 'testCreator@gmail.com' })
-      .send({ studyDesc: 'test study desc', subjectName: 'test subject name' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         done();
@@ -406,21 +405,6 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
-    it('should fail adding study to the worklist with no study desc', done => {
-      chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .post(
-          '/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3'
-        )
-        .query({ username: 'testProgressUser1@gmail.com' })
-        .then(res => {
-          expect(res.statusCode).to.equal(400);
-          done();
-        })
-        .catch(e => {
-          done(e);
-        });
-    });
     it('should add study to the worklist', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -428,7 +412,6 @@ describe('Worklist Tests', () => {
           '/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3'
         )
         .query({ username: 'testProgressUser1@gmail.com' })
-        .send({ studyDesc: 'fake study desc', subjectName: 'fake subject name' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -468,7 +451,7 @@ describe('Worklist Tests', () => {
           expect(res.body[0].assignee).to.be.eql('testProgressUser1@gmail.com');
           expect(res.body[0].assignee_name).to.be.eql('user1Name user1Surname');
           expect(res.body[0].subject_uid).to.be.eql('3');
-          expect(res.body[0].subject_name).to.be.eql('fake subject name');
+          expect(res.body[0].subject_name).to.be.eql('Phantom');
           expect(res.body[0].study_uid).to.be.eql('0023.2015.09.28.3');
           expect(res.body[0].worklist_requirement_id).to.be.eql(1);
           expect(res.body[0].worklist_requirement_desc).to.be.eql('2:any:study');
@@ -476,7 +459,7 @@ describe('Worklist Tests', () => {
           expect(res.body[1].assignee).to.be.eql('testProgressUser1@gmail.com');
           expect(res.body[1].assignee_name).to.be.eql('user1Name user1Surname');
           expect(res.body[1].subject_uid).to.be.eql('3');
-          expect(res.body[1].subject_name).to.be.eql('fake subject name');
+          expect(res.body[1].subject_name).to.be.eql('Phantom');
           expect(res.body[1].study_uid).to.be.eql('0023.2015.09.28.3');
           expect(res.body[1].worklist_requirement_id).to.be.eql(2);
           expect(res.body[1].worklist_requirement_desc).to.be.eql('1:ROI:series');
@@ -552,7 +535,7 @@ describe('Worklist Tests', () => {
           expect(res.body[0].assignee).to.be.eql('testProgressUser1@gmail.com');
           expect(res.body[0].assignee_name).to.be.eql('user1Name user1Surname');
           expect(res.body[0].subject_uid).to.be.eql('3');
-          expect(res.body[0].subject_name).to.be.eql('fake subject name');
+          expect(res.body[0].subject_name).to.be.eql('Phantom');
           expect(res.body[0].study_uid).to.be.eql('0023.2015.09.28.3');
           expect(res.body[0].worklist_requirement_id).to.be.eql(1);
           expect(res.body[0].worklist_requirement_desc).to.be.eql('2:any:study');
@@ -560,7 +543,7 @@ describe('Worklist Tests', () => {
           expect(res.body[1].assignee).to.be.eql('testProgressUser1@gmail.com');
           expect(res.body[1].assignee_name).to.be.eql('user1Name user1Surname');
           expect(res.body[1].subject_uid).to.be.eql('3');
-          expect(res.body[1].subject_name).to.be.eql('fake subject name');
+          expect(res.body[1].subject_name).to.be.eql('Phantom');
           expect(res.body[1].study_uid).to.be.eql('0023.2015.09.28.3');
           expect(res.body[1].worklist_requirement_id).to.be.eql(2);
           expect(res.body[1].worklist_requirement_desc).to.be.eql('1:ROI:series');
@@ -568,7 +551,7 @@ describe('Worklist Tests', () => {
           expect(res.body[2].assignee).to.be.eql('testProgressUser2@gmail.com');
           expect(res.body[2].assignee_name).to.be.eql('user2Name user2Surname');
           expect(res.body[2].subject_uid).to.be.eql('3');
-          expect(res.body[2].subject_name).to.be.eql('fake subject name');
+          expect(res.body[2].subject_name).to.be.eql('Phantom');
           expect(res.body[2].study_uid).to.be.eql('0023.2015.09.28.3');
           expect(res.body[2].worklist_requirement_id).to.be.eql(1);
           expect(res.body[2].worklist_requirement_desc).to.be.eql('2:any:study');
@@ -576,7 +559,7 @@ describe('Worklist Tests', () => {
           expect(res.body[3].assignee).to.be.eql('testProgressUser2@gmail.com');
           expect(res.body[3].assignee_name).to.be.eql('user2Name user2Surname');
           expect(res.body[3].subject_uid).to.be.eql('3');
-          expect(res.body[3].subject_name).to.be.eql('fake subject name');
+          expect(res.body[3].subject_name).to.be.eql('Phantom');
           expect(res.body[3].study_uid).to.be.eql('0023.2015.09.28.3');
           expect(res.body[3].worklist_requirement_id).to.be.eql(2);
           expect(res.body[3].worklist_requirement_desc).to.be.eql('1:ROI:series');

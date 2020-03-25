@@ -92,8 +92,7 @@ async function other(fastify) {
               }
               // see if it was a dicom
               if (datasets.length > 0) {
-                if (config.mode === 'thick')
-                  await fastify.addProjectReferences(request.params, request.epadAuth, studies);
+                await fastify.addProjectReferences(request.params, request.epadAuth, studies);
                 const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                 await fastify.saveDicomsInternal(data, boundary);
                 datasets = [];
@@ -104,47 +103,53 @@ async function other(fastify) {
                 fastify.log.info(`${dir} deleted`);
               });
 
+              let errMessagesText = null;
+              if (errors.length > 0) {
+                const errMessages = errors.reduce((all, item) => {
+                  all.push(item.message);
+                  return all;
+                }, []);
+                errMessagesText = errMessages.toString();
+              }
+
               if (success) {
-                if (errors.length > 0) {
-                  const errMessages = errors.reduce((all, item) => {
-                    all.push(item.message);
-                    return all;
-                  }, []);
-                  if (errMessages.length > 0) {
-                    if (config.env === 'test')
-                      reply.send(
-                        new InternalError(
-                          'Upload Completed with errors',
-                          new Error(errMessages.toString())
-                        )
-                      );
-                    else
-                      new EpadNotification(
-                        request,
-                        'Upload Completed with errors',
-                        new Error(errMessages.toString())
-                      ).notify(fastify);
-                  }
+                if (errMessagesText) {
+                  if (config.env === 'test')
+                    reply.send(
+                      new InternalError('Upload Completed with errors', new Error(errMessagesText))
+                    );
+                  else
+                    new EpadNotification(
+                      request,
+                      'Upload Completed with errors',
+                      new Error(errMessagesText),
+                      true
+                    ).notify(fastify);
+
                   // test should wait for the upload to actually finish to send the response.
                   // sending the reply early is to handle very large files and to avoid browser repeating the request
                 } else if (config.env === 'test') reply.code(200).send();
                 else {
                   fastify.log.info(`Upload Completed ${filenames}`);
-                  new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
+                  new EpadNotification(request, 'Upload Completed', filenames, true).notify(
+                    fastify
+                  );
                 }
-              } else if (config.env === 'test')
+              } else if (config.env === 'test') {
                 reply.send(
                   new InternalError(
                     'Upload Failed as none of the files were uploaded successfully',
-                    new Error(filenames.toString())
+                    new Error(`${filenames.toString()}. ${errMessagesText}`)
                   )
                 );
-              else
+              } else {
                 new EpadNotification(
                   request,
                   'Upload Failed as none of the files were uploaded successfully',
-                  new Error(filenames.toString())
+                  new Error(`${filenames.toString()}. ${errMessagesText}`),
+                  true
                 ).notify(fastify);
+              }
             } catch (filesErr) {
               fs.remove(dir, error => {
                 if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
@@ -155,7 +160,8 @@ async function other(fastify) {
                 new EpadNotification(
                   request,
                   'Upload files',
-                  new InternalError('Upload Error', filesErr)
+                  new InternalError('Upload Error', filesErr),
+                  true
                 ).notify(fastify);
             }
           })
@@ -169,7 +175,8 @@ async function other(fastify) {
               new EpadNotification(
                 request,
                 'Upload files',
-                new InternalError('Upload Error', fileSaveErr)
+                new InternalError('Upload Error', fileSaveErr),
+                true
               ).notify(fastify);
           });
       }
@@ -288,11 +295,11 @@ async function other(fastify) {
               result.success
             } started at ${scanTimestamp}`
           );
-          new EpadNotification(request, 'Folder scan completed', dataFolder).notify(fastify);
+          new EpadNotification(request, 'Folder scan completed', dataFolder, true).notify(fastify);
         })
         .catch(err => {
           console.log(`Error processing ${dataFolder} Error: ${err.message}`);
-          new EpadNotification(request, 'Folder scan failed', err).notify(fastify);
+          new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
         });
     }
   });
@@ -353,8 +360,7 @@ async function other(fastify) {
                 }
               }
               if (datasets.length > 0) {
-                if (config.mode === 'thick')
-                  await fastify.addProjectReferences(params, epadAuth, studies);
+                await fastify.addProjectReferences(params, epadAuth, studies);
                 fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
                 const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
                 fastify.log.info(
@@ -473,15 +479,11 @@ async function other(fastify) {
             filetype: query.filetype ? query.filetype : '',
             length,
           };
-          // add link to db if thick
-          if (config.mode === 'thick') {
-            await fastify.putOtherFileToProjectInternal(fileInfo.name, params, epadAuth);
-            // add to couchdb only if successful
-            await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
-          } else {
-            // add to couchdb
-            await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
-          }
+          // add link to db
+          await fastify.putOtherFileToProjectInternal(fileInfo.name, params, epadAuth);
+          // add to couchdb only if successful
+          await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
+
           resolve();
         } catch (err) {
           reject(err);
@@ -512,7 +514,9 @@ async function other(fastify) {
       .deleteSubjectInternal(request.params, request.epadAuth)
       .then(result => {
         if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted subject', request.params.subject).notify(fastify);
+          new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
+            fastify
+          );
         else reply.code(200).send(result);
       })
       .catch(err => {
@@ -575,7 +579,9 @@ async function other(fastify) {
       .deleteStudyInternal(request.params, request.epadAuth)
       .then(result => {
         if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted study', request.params.study).notify(fastify);
+          new EpadNotification(request, 'Deleted study', request.params.study, true).notify(
+            fastify
+          );
         else reply.code(200).send(result);
       })
       .catch(err => {
@@ -617,7 +623,14 @@ async function other(fastify) {
       // delete study in dicomweb and annotations
       const promisses = [];
       promisses.push(() => {
-        return fastify.deleteSeriesDicomsInternal(request.params);
+        return fastify.deleteSeriesDicomsInternal(request.params).catch(err => {
+          fastify.log.warn(
+            `Could not delete series from dicomweb with error: ${
+              err.message
+            }. Trying nondicom series delete`
+          );
+          return fastify.deleteNonDicomSeriesInternal(request.params.series);
+        });
       });
       promisses.push(() => {
         return fastify.deleteAimsInternal(request.params, request.epadAuth);
@@ -634,7 +647,9 @@ async function other(fastify) {
         .then(() => {
           fastify.log.info(`Series ${request.params.series} deletion is initiated successfully`);
           if (config.env !== 'test')
-            new EpadNotification(request, 'Deleted series', request.params.series).notify(fastify);
+            new EpadNotification(request, 'Deleted series', request.params.series, true).notify(
+              fastify
+            );
           else
             reply
               .code(200)
@@ -662,7 +677,14 @@ async function other(fastify) {
         'Access-Control-Allow-Origin': '*',
       });
       fastify.addConnectedUser(request, reply);
+      const id = setInterval(() => {
+        // eslint-disable-next-line no-param-reassign
+        fastify.messageId += 1;
+        reply.res.write(`id: ${fastify.messageId}\n`);
+        reply.res.write(`data: heartbeat\n\n`);
+      }, 1000);
       request.req.on('close', () => {
+        clearInterval(id);
         fastify.deleteDisconnectedUser(request);
       }); // <- Remove this user when he disconnects
     } catch (err) {
@@ -849,17 +871,15 @@ async function other(fastify) {
     username =>
       new Promise(async (resolve, reject) => {
         const epadAuth = { username };
-        if (config.mode === 'thick') {
-          try {
-            const user = await fastify.getUserInternal({
-              user: username,
-            });
-            epadAuth.permissions = user.permissions;
-            epadAuth.projectToRole = user.projectToRole;
-            epadAuth.admin = user.admin;
-          } catch (errUser) {
-            reject(errUser);
-          }
+        try {
+          const user = await fastify.getUserInternal({
+            user: username,
+          });
+          epadAuth.permissions = user.permissions;
+          epadAuth.projectToRole = user.projectToRole;
+          epadAuth.admin = user.admin;
+        } catch (errUser) {
+          reject(errUser);
         }
         resolve(epadAuth);
       })
@@ -932,9 +952,7 @@ async function other(fastify) {
       }
     }
     try {
-      if (config.mode === 'thick' && !req.req.url.startsWith('/documentation'))
-        await fastify.epadThickRightsCheck(req, res);
-      // TODO lite?
+      if (!req.req.url.startsWith('/documentation')) await fastify.epadThickRightsCheck(req, res);
     } catch (err) {
       res.send(err);
     }

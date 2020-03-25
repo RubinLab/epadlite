@@ -8,7 +8,7 @@ module.exports.views = {
       'key.template=doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code;key.date=empty;if(doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].dateTime) ' +
       'key.date=doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].dateTime.value;key.patientName=empty;if(subject.name) ' +
       'key.patientName=subject.name.value;key.studyDate=empty;if(imgref.imageStudy) ' +
-      'key.studyDate=imgref.imageStudy.startDate.value;key.comment=empty;if(doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].comment )' +
+      'key.studyDate=imgref.imageStudy.startDate.value;key.comment=empty;if(doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].comment && doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].comment.value )' +
       "key.comment=doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].comment.value.split('~')[0];key.templateType=empty;if(doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode )" +
       "key.templateType=doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]['iso:displayName'].value;key.color=empty;key.dsoFrameNo=empty;key.isDicomSR=empty;key.originalSubjectID=subjectID;emit([subjectID,studyUID,seriesUID,instanceUID,key],1)}} ",
     reduce: '_count()',
