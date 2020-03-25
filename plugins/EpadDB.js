@@ -4645,7 +4645,6 @@ async function epaddb(fastify, options, done) {
             fastify.log.warn('Template db records are created');
 
             // 6. project_user
-            // TODO everyone member?
             // get users from the user table and add relation
             await fastify.orm.query(
               `INSERT INTO project_user(project_id, user_id, role, creator)
