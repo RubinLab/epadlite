@@ -3832,7 +3832,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testsubjectnondicom/subjects')
         .query({ username: 'admin' })
-        .send({ subjectUid: '3', subjectName: 'testnondicom' })
+        .send({ subjectUid: '3', name: 'testnondicom' })
         .then(res => {
           expect(res.statusCode).to.equal(409);
           done();
@@ -3846,7 +3846,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testsubjectnondicom/subjects')
         .query({ username: 'admin' })
-        .send({ subjectUid: '4', subjectName: 'testnondicom' })
+        .send({ subjectUid: '4', name: 'testnondicom' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -3860,7 +3860,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testsubjectnondicom/subjects')
         .query({ username: 'admin' })
-        .send({ subjectUid: '4', subjectName: 'testnondicom' })
+        .send({ subjectUid: '4', name: 'testnondicom' })
         .then(res => {
           expect(res.statusCode).to.equal(409);
           done();
@@ -3888,7 +3888,7 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testsubjectnondicom/subjects')
         .query({ username: 'admin' })
-        .send({ subjectUid: '4', subjectName: 'testnondicom' })
+        .send({ subjectUid: '4', name: 'testnondicom' })
         .then(res => {
           expect(res.statusCode).to.equal(409);
           done();

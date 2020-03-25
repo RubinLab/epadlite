@@ -1358,8 +1358,8 @@ async function epaddb(fastify, options, done) {
               subjectInfo.dob = studies[0].birthdate;
             }
             subject = await models.subject.create({
-              subjectuid: subjectInfo.subjectuid,
-              name: subjectInfo.name,
+              subjectuid: subjectInfo.subjectuid.replace('\u0000', '').trim(),
+              name: subjectInfo.name.replace('\u0000', '').trim(),
               gender: subjectInfo.gender,
               dob: subjectInfo.dob,
               creator: request.epadAuth.username,
@@ -4514,8 +4514,8 @@ async function epaddb(fastify, options, done) {
         try {
           const subject = await models.subject.create(
             {
-              subjectuid: study.patientID.trim(),
-              name: study.patientName.replace('\u0000', ''),
+              subjectuid: study.patientID.replace('\u0000', '').trim(),
+              name: study.patientName.replace('\u0000', '').trim(),
               gender: study.sex,
               dob: study.birthdate ? study.birthdate : null,
               creator: epadAuth.username,
