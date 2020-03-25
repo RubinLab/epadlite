@@ -864,12 +864,6 @@ async function epaddb(fastify, options, done) {
           attributes: ['id'],
         })
       );
-      promises.push(
-        models.study.findOne({
-          where: { studyuid: request.params.study },
-          attributes: ['id'],
-        })
-      );
 
       Promise.all(promises).then(async result => {
         for (let i = 0; i < result.length; i += 1) ids.push(result[i].dataValues.id);
