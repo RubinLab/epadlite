@@ -624,7 +624,11 @@ async function other(fastify) {
       const promisses = [];
       promisses.push(() => {
         return fastify.deleteSeriesDicomsInternal(request.params).catch(err => {
-          console.log(err.message);
+          fastify.log.warn(
+            `Could not delete series from dicomweb with error: ${
+              err.message
+            }. Trying nondicom series delete`
+          );
           return fastify.deleteNonDicomSeriesInternal(request.params.series);
         });
       });
