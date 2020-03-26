@@ -204,12 +204,14 @@ async function other(fastify) {
         try {
           // eslint-disable-next-line no-restricted-syntax
           for (const study of studies) {
+            const studyJSON = JSON.parse(study);
             const combinedParams = {
               project: params.project, // should only get project id from params
-              ...JSON.parse(study),
+              subject: studyJSON.subject,
+              study: studyJSON.study,
             };
             // eslint-disable-next-line no-await-in-loop
-            await fastify.addPatientStudyToProjectInternal(combinedParams, epadAuth);
+            await fastify.addPatientStudyToProjectInternal(combinedParams, epadAuth, studyJSON);
           }
           resolve();
         } catch (err) {
@@ -228,6 +230,26 @@ async function other(fastify) {
       study:
         dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
           ? dicomTags.dict['0020000D'].Value[0]
+          : '',
+      subjectName:
+        dicomTags.dict['00100010'] && dicomTags.dict['00100010'].Value
+          ? dicomTags.dict['00100010'].Value[0]
+          : '',
+      studyDesc:
+        dicomTags.dict['00081030'] && dicomTags.dict['00081030'].Value
+          ? dicomTags.dict['00081030'].Value[0]
+          : '',
+      insertDate:
+        dicomTags.dict['00080020'] && dicomTags.dict['00080020'].Value
+          ? dicomTags.dict['00080020'].Value[0]
+          : '',
+      birthdate:
+        dicomTags.dict['00100030'] && dicomTags.dict['00100030'].Value
+          ? dicomTags.dict['00100030'].Value[0]
+          : '',
+      sex:
+        dicomTags.dict['00100040'] && dicomTags.dict['00100040'].Value
+          ? dicomTags.dict['00100040'].Value[0]
           : '',
       // seriesUID:
       //   dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
@@ -406,7 +428,7 @@ async function other(fastify) {
                 datasets.push(arrayBuffer);
                 resolve({ success: true, errors: [] });
               } catch (err) {
-                reject(new InternalError(`Reading dicom file ${filename}`));
+                reject(new InternalError(`Reading dicom file ${filename}`, err));
               }
             } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
               const jsonBuffer = JSON.parse(buffer.toString());
