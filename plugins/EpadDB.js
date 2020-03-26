@@ -1602,6 +1602,10 @@ async function epaddb(fastify, options, done) {
                       where: { id: projSubjIds },
                     });
                   }
+                  // delete the subject
+                  await models.subject.destroy({
+                    where: { id: subject.id },
+                  });
                   await fastify.deleteSubjectInternal(params, epadAuth);
                   resolve(
                     `Subject deleted from system and removed from ${
@@ -1611,6 +1615,10 @@ async function epaddb(fastify, options, done) {
                 } else if (projectSubjects.length === 0) {
                   await models.project_subject_study.destroy({
                     where: { proj_subj_id: projectSubject.id },
+                  });
+                  // delete the subject
+                  await models.subject.destroy({
+                    where: { id: subject.id },
                   });
                   await fastify.deleteSubjectInternal(params, epadAuth);
                   resolve(`Subject deleted from system as it didn't exist in any other project`);
@@ -2483,7 +2491,7 @@ async function epaddb(fastify, options, done) {
               },
             });
             // upload sends subject and study data in body
-            if (!subject && body.subjectName !== undefined) {
+            if (!subject && body && body.subjectName === undefined) {
               reject(
                 new BadRequestError(
                   'Adding study to project',
@@ -2491,53 +2499,81 @@ async function epaddb(fastify, options, done) {
                 )
               );
             } else {
-              // create the subject if no subject info sent via body (for upload)
-              if (!subject) {
-                subject = await models.subject.create({
-                  subjectuid: params.subject.replace('\u0000', '').trim(),
-                  name: body.subjectName ? body.subjectName.replace('\u0000', '').trim() : '',
-                  gender: body.sex,
-                  dob: body.birthdate ? body.birthdate : null,
-                  creator: epadAuth.username,
-                  updatetime: Date.now(),
-                  createdtime: Date.now(),
-                });
-              }
-              let projectSubject = await models.project_subject.findOne({
-                where: { project_id: project.id, subject_id: subject.id },
-              });
-              if (!projectSubject)
-                projectSubject = await models.project_subject.create({
-                  project_id: project.id,
-                  subject_id: subject.id,
-                  creator: epadAuth.username,
-                  updatetime: Date.now(),
-                  createdtime: Date.now(),
-                });
-              let studyInfo = {};
-              studyInfo.studyUID = studyUid;
-              if (body && body.studyDesc) studyInfo.studyDescription = body.studyDesc;
-              if (body && body.insertDate) studyInfo.insertDate = body.insertDate;
-              // if there is body, it is nondicom. you cannot create a nondicom if it is already in system
-              // it doesn't have subject info (not upload)
-              if (body && body.subjectName === undefined) {
-                const studyExists = await models.study.findOne({
-                  where: { studyuid: studyInfo.studyUID },
-                });
-                if (studyExists)
-                  reject(new ResourceAlreadyExistsError('Study', studyInfo.studyUID));
-              } else {
+              let studies = [];
+              if (!body) {
                 // get the data from dicomwebserver if the body is empty, hence dicom
-                const studies = await fastify.getPatientStudiesInternal(
+                studies = await fastify.getPatientStudiesInternal(
                   { subject: params.subject, study: params.study },
                   undefined,
                   epadAuth
                 );
-                if (studies.length === 1) [studyInfo] = studies;
               }
+              // create the subject if no subject info sent via body (for upload)
+              if (!subject) {
+                if (body) {
+                  subject = await models.subject.create({
+                    subjectuid: params.subject.replace('\u0000', '').trim(),
+                    name: body.subjectName ? body.subjectName.replace('\u0000', '').trim() : '',
+                    gender: body.sex,
+                    dob: body.birthdate ? body.birthdate : null,
+                    creator: epadAuth.username,
+                    updatetime: Date.now(),
+                    createdtime: Date.now(),
+                  });
+                } else if (studies.length === 1) {
+                  // this shouldn't ever happen except tests because of nock
+                  subject = await models.subject.create({
+                    subjectuid: params.subject.replace('\u0000', '').trim(),
+                    name: studies[0].patientName
+                      ? studies[0].patientName.replace('\u0000', '').trim()
+                      : '',
+                    gender: studies[0].sex,
+                    dob: studies[0].birthdate ? studies[0].birthdate : null,
+                    creator: epadAuth.username,
+                    updatetime: Date.now(),
+                    createdtime: Date.now(),
+                  });
+                }
+              }
+              if (subject) {
+                let projectSubject = await models.project_subject.findOne({
+                  where: { project_id: project.id, subject_id: subject.id },
+                });
+                if (!projectSubject)
+                  projectSubject = await models.project_subject.create({
+                    project_id: project.id,
+                    subject_id: subject.id,
+                    creator: epadAuth.username,
+                    updatetime: Date.now(),
+                    createdtime: Date.now(),
+                  });
+                let studyInfo = {};
+                studyInfo.studyUID = studyUid;
+                if (body && body.studyDesc) studyInfo.studyDescription = body.studyDesc;
+                if (body && body.insertDate) studyInfo.insertDate = body.insertDate;
+                // if there is body, it is nondicom. you cannot create a nondicom if it is already in system
+                // it doesn't have subject info (not upload)
+                if (body && body.subjectName === undefined) {
+                  const studyExists = await models.study.findOne({
+                    where: { studyuid: studyInfo.studyUID },
+                  });
+                  if (studyExists)
+                    reject(new ResourceAlreadyExistsError('Study', studyInfo.studyUID));
+                } else if (studies.length === 1) [studyInfo] = studies;
 
-              await fastify.addPatientStudyToProjectDBInternal(studyInfo, projectSubject, epadAuth);
-              resolve();
+                await fastify.addPatientStudyToProjectDBInternal(
+                  studyInfo,
+                  projectSubject,
+                  epadAuth
+                );
+                resolve();
+              } else
+                reject(
+                  new BadRequestError(
+                    'Adding study to project',
+                    new ResourceNotFoundError('Subject', params.subject)
+                  )
+                );
             }
           }
         } catch (err) {
@@ -4563,8 +4599,14 @@ async function epaddb(fastify, options, done) {
             // new field exam_types
             // TODO fill in the exam_types
             await fastify.orm.query(
+              `ALTER TABLE study
+                DROP FOREIGN KEY IF EXISTS FK_study_subject;`,
+              { transaction: t }
+            );
+            await fastify.orm.query(
               `ALTER TABLE study 
-                ADD COLUMN IF NOT EXISTS exam_types varchar(128) DEFAULT NULL AFTER subject_id;`,
+                ADD COLUMN IF NOT EXISTS exam_types varchar(128) DEFAULT NULL AFTER subject_id,
+                ADD FOREIGN KEY IF NOT EXISTS FK_study_subject (subject_id) REFERENCES subject (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
               { transaction: t }
             );
           });

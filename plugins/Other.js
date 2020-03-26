@@ -371,29 +371,35 @@ async function other(fastify) {
                   );
             }
             Promise.all(promisses).then(async values => {
-              for (let i = 0; values.length; i += 1) {
-                if (
-                  values[i] === undefined ||
-                  (values[i].errors && values[i].errors.length === 0)
-                ) {
-                  // one success is enough
-                  result.success = result.success || true;
-                  break;
+              try {
+                for (let i = 0; values.length; i += 1) {
+                  if (
+                    values[i] === undefined ||
+                    (values[i].errors && values[i].errors.length === 0)
+                  ) {
+                    // one success is enough
+                    result.success = result.success || true;
+                    break;
+                  }
                 }
-              }
-              if (datasets.length > 0) {
-                await fastify.addProjectReferences(params, epadAuth, studies);
-                fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
-                const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
-                fastify.log.info(
-                  `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
-                );
-                fastify
-                  .saveDicomsInternal(data, boundary)
-                  .then(() => resolve(result))
-                  .catch(error => reject(error));
-              } else {
-                resolve(result);
+                if (datasets.length > 0) {
+                  await fastify.addProjectReferences(params, epadAuth, studies);
+                  fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
+                  const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
+                  fastify.log.info(
+                    `Sending ${Buffer.byteLength(
+                      data
+                    )} bytes of data to dicom web server for saving`
+                  );
+                  fastify
+                    .saveDicomsInternal(data, boundary)
+                    .then(() => resolve(result))
+                    .catch(error => reject(error));
+                } else {
+                  resolve(result);
+                }
+              } catch (saveDicomErr) {
+                reject(saveDicomErr);
               }
             });
           }
@@ -1103,15 +1109,6 @@ async function other(fastify) {
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
       const reqInfo = fastify.getInfoFromRequest(request);
-      fastify.log.info(
-        'User rights check',
-        'url',
-        request.req.url,
-        'reqInfo',
-        reqInfo,
-        'epadAuth',
-        request.epadAuth
-      );
       // check if user type is admin, if not admin
       if (!(request.epadAuth && request.epadAuth.admin && request.epadAuth.admin === true)) {
         if (fastify.isProjectRoute(request)) {
