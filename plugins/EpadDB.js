@@ -88,6 +88,9 @@ async function epaddb(fastify, options, done) {
             as: 'progress',
             foreignKey: 'worklist_study_id',
           });
+          models.worklist_requirement.hasMany(models.worklist_study_completeness, {
+            foreignKey: 'worklist_requirement_id',
+          });
 
           models.worklist_study.belongsTo(models.subject, {
             foreignKey: 'subject_id',
@@ -1021,29 +1024,47 @@ async function epaddb(fastify, options, done) {
     } else {
       // find worklist id
       const promises = [];
-      const worklistId = await models.worklist.findOne({
+      const worklist = await models.worklist.findOne({
         where: { worklistid: request.params.worklist },
         attributes: ['id'],
         raw: true,
       });
 
       request.body.forEach(async el => {
-        const subjectId = await models.subject.findOne({
-          where: { subjectuid: el.subjectID },
-          attributes: ['id'],
-        });
-        const studyId = await models.study.findOne({
-          where: { studyuid: el.studyUID },
-          attributes: ['id'],
-        });
-        promises.push(
-          models.worklist_study.destroy({
-            worklist_id: worklistId,
-            project_id: el.projectID,
-            subject_id: subjectId,
-            study_id: studyId,
-          })
-        );
+        try {
+          const project = await models.project.findOne({
+            where: { projectid: el.projectID },
+            attributes: ['id'],
+            raw: true,
+          });
+          const subject = await models.subject.findOne({
+            where: { subjectuid: el.subjectID },
+            attributes: ['id'],
+            raw: true,
+          });
+          const study = await models.study.findOne({
+            where: { studyuid: el.studyUID },
+            attributes: ['id'],
+            raw: true,
+          });
+          promises.push(
+            models.worklist_study.destroy({
+              where: {
+                worklist_id: worklist.id,
+                project_id: project.id,
+                subject_id: subject.id,
+                study_id: study.id,
+              },
+            })
+          );
+        } catch (err) {
+          reply.send(
+            new InternalError(
+              `Deleting study ${el.studyUID} from worklist ${request.params.worklist}`,
+              err
+            )
+          );
+        }
       });
       Promise.all(promises)
         .then(() => reply.code(200).send(`Deleted successfully`))
@@ -1051,14 +1072,14 @@ async function epaddb(fastify, options, done) {
           if (err instanceof ResourceNotFoundError)
             reply.send(
               new BadRequestError(
-                `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
+                `Deleting studies ${request.body} from worklist ${request.params.worklist}`,
                 err
               )
             );
           else
             reply.send(
               new InternalError(
-                `Deleting study ${request.params.study} from worklist ${request.params.worklist}`,
+                `Deleting studies ${request.body} from worklist ${request.params.worklist}`,
                 err
               )
             );
@@ -2159,7 +2180,13 @@ async function epaddb(fastify, options, done) {
       } else {
         // compare and calculate completeness
         let matchCounts = {};
-        switch (worklistReq.level) {
+        switch (worklistReq.level.toLowerCase()) {
+          case 'patient':
+            matchCounts = {
+              completed: aimStats[worklistReq.template].subjectUids[subjectUid],
+              required: worklistReq.numOfAims,
+            };
+            break;
           case 'subject':
             matchCounts = {
               completed: aimStats[worklistReq.template].subjectUids[subjectUid],
@@ -2202,7 +2229,8 @@ async function epaddb(fastify, options, done) {
           updatetime: Date.now(),
           assignee: user,
           worklist_requirement_id: worklistReq.id,
-          completeness: completenessPercent,
+          // completeness cannot be higher than 100
+          completeness: completenessPercent > 100 ? 100 : completenessPercent,
         },
         {
           worklist_study_id: worklistStudyId,
@@ -4460,6 +4488,18 @@ async function epaddb(fastify, options, done) {
 
             // // 11. worklist_requirement - new table
             // // no data migration
+            // add foreign key constraints
+            await fastify.orm.query(
+              `ALTER TABLE worklist_requirement
+                DROP FOREIGN KEY IF EXISTS worklist_requirement_ibfk_1;`,
+              { transaction: t }
+            );
+
+            await fastify.orm.query(
+              `ALTER TABLE worklist_requirement
+                ADD FOREIGN KEY IF NOT EXISTS worklist_requirement_ibfk_1 (worklist_id) REFERENCES worklist (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
+              { transaction: t }
+            );
 
             // 12. worklist_study
             // new fields subject_id, numOfSeries and numOfImages
@@ -4469,6 +4509,14 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS subject_id int(10) unsigned DEFAULT NULL AFTER study_id,
                 ADD COLUMN IF NOT EXISTS numOfSeries int(10) unsigned DEFAULT NULL AFTER sortorder,
                 ADD COLUMN IF NOT EXISTS numOfImages int(10) unsigned DEFAULT NULL AFTER numOfSeries,
+                DROP FOREIGN KEY IF EXISTS FK_workliststudy_study,
+                DROP KEY IF EXISTS FK_workliststudy_study,
+                DROP FOREIGN KEY IF EXISTS FK_workliststudy_subject,
+                DROP KEY IF EXISTS FK_workliststudy_subject,
+                DROP FOREIGN KEY IF EXISTS FK_workliststudy_project,
+                DROP KEY IF EXISTS FK_workliststudy_project,
+                DROP FOREIGN KEY IF EXISTS FK_workliststudy_worklist,
+                DROP KEY IF EXISTS FK_workliststudy_worklist,
                 DROP CONSTRAINT IF EXISTS worklist_study_ind,
                 ADD CONSTRAINT worklist_study_ind UNIQUE (worklist_id,study_id,subject_id, project_id);`,
               { transaction: t }
@@ -4476,7 +4524,10 @@ async function epaddb(fastify, options, done) {
             // for some reason doesn't work in the same alter table statement
             await fastify.orm.query(
               `ALTER TABLE worklist_study 
-                ADD FOREIGN KEY IF NOT EXISTS FK_workliststudy_subject (subject_id) REFERENCES subject (id);`,
+                ADD FOREIGN KEY IF NOT EXISTS FK_workliststudy_subject (subject_id) REFERENCES subject (id) ON DELETE CASCADE ON UPDATE CASCADE,
+                ADD FOREIGN KEY IF NOT EXISTS FK_workliststudy_study (study_id) REFERENCES study (id) ON DELETE CASCADE ON UPDATE CASCADE,
+                ADD FOREIGN KEY IF NOT EXISTS FK_workliststudy_project (project_id) REFERENCES project (id) ON DELETE CASCADE ON UPDATE CASCADE,
+                ADD FOREIGN KEY IF NOT EXISTS FK_workliststudy_worklist (worklist_id) REFERENCES worklist (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
               { transaction: t }
             );
             // old epad only saves data in worklist_subject, move data from there
@@ -4493,6 +4544,20 @@ async function epaddb(fastify, options, done) {
 
             // // 13. worklist_study_completeness - new table
             // // no data migration
+            // add foreign key constraints
+            await fastify.orm.query(
+              `ALTER TABLE worklist_study_completeness
+                DROP FOREIGN KEY IF EXISTS worklist_study_completeness_ibfk_1, 
+                DROP FOREIGN KEY IF EXISTS worklist_study_completeness_ibfk_2;`,
+              { transaction: t }
+            );
+
+            await fastify.orm.query(
+              `ALTER TABLE worklist_study_completeness
+                ADD FOREIGN KEY IF NOT EXISTS worklist_study_completeness_ibfk_1 (worklist_study_id) REFERENCES worklist_study (id) ON DELETE CASCADE ON UPDATE CASCADE,
+                ADD FOREIGN KEY IF NOT EXISTS worklist_study_completeness_ibfk_2 (worklist_requirement_id) REFERENCES worklist_requirement (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
+              { transaction: t }
+            );
 
             // 14. study
             // new field exam_types
