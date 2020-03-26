@@ -2449,18 +2449,13 @@ async function epaddb(fastify, options, done) {
               )
             );
           else {
-            const subject = await models.subject.findOne({
+            let subject = await models.subject.findOne({
               where: {
                 subjectuid: params.subject,
               },
             });
-            if (!subject) {
-              // it only fails if there is no entity in subject, not the project association
-              // TODO should we add instead? how do we find the information?
-              // if dicom is uploaded, it would add through addProjectReferences
-              // if it is just put the data is already in db (should be) so it is just a new association
-              // subject entity should already be there, actually study entity should also be there
-              // only nondicom should send that endpoint and patient is required before study
+            // upload sends subject and study data in body
+            if (!subject && body.subjectName !== undefined) {
               reject(
                 new BadRequestError(
                   'Adding study to project',
@@ -2468,6 +2463,18 @@ async function epaddb(fastify, options, done) {
                 )
               );
             } else {
+              // create the subject if no subject info sent via body (for upload)
+              if (!subject) {
+                subject = await models.subject.create({
+                  subjectuid: params.subject.replace('\u0000', '').trim(),
+                  name: body.subjectName ? body.subjectName.replace('\u0000', '').trim() : '',
+                  gender: body.sex,
+                  dob: body.birthdate ? body.birthdate : null,
+                  creator: epadAuth.username,
+                  updatetime: Date.now(),
+                  createdtime: Date.now(),
+                });
+              }
               let projectSubject = await models.project_subject.findOne({
                 where: { project_id: project.id, subject_id: subject.id },
               });
@@ -2484,7 +2491,8 @@ async function epaddb(fastify, options, done) {
               if (body && body.studyDesc) studyInfo.studyDescription = body.studyDesc;
               if (body && body.insertDate) studyInfo.insertDate = body.insertDate;
               // if there is body, it is nondicom. you cannot create a nondicom if it is already in system
-              if (body) {
+              // it doesn't have subject info (not upload)
+              if (body && body.subjectName === undefined) {
                 const studyExists = await models.study.findOne({
                   where: { studyuid: studyInfo.studyUID },
                 });
