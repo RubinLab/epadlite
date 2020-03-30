@@ -2973,77 +2973,98 @@ async function epaddb(fastify, options, done) {
       .catch(err => reply.send(err));
   });
 
-  fastify.decorate('createUser', (request, reply) => {
-    // TODO user exists check! ozge
-    // TODO permissions added as string, retrieve as array. errorprone if there is space like 'CreateProject, CreateWorklist' ozge
+  fastify.decorate('createUser', async (request, reply) => {
     if (!request.body) {
       reply.send(new BadRequestError('User Creation', new Error('No body sent')));
     } else {
-      // check permissions if there is a space
-      // remove spaces
-      const permissions = request.body.permissions ? request.body.permissions.split(',') : [''];
-      const trimmedPermission = [];
-      permissions.forEach(el => trimmedPermission.push(el.trim()));
-      if (request.body.permissions) {
-        delete request.body.permissions;
-      }
-      request.body.permissions = trimmedPermission.join(',');
-      models.user
-        .create({
-          ...request.body,
-          // permissions: trimmedPermission,
-          createdtime: Date.now(),
-          updatetime: Date.now(),
-          creator: request.epadAuth.username,
-        })
-        .then(async user => {
-          const { id } = user.dataValues;
-          if (request.body.projects && request.body.projects.length > 0) {
-            const queries = [];
-            try {
-              for (let i = 0; i < request.body.projects.length; i += 1) {
-                // eslint-disable-next-line no-await-in-loop
-                const project = await models.project.findOne({
-                  where: { projectid: request.body.projects[i].project },
-                  attributes: ['id'],
-                });
-                if (project === null) {
-                  reply.send(
-                    new BadRequestError(
-                      'Create user with project associations',
-                      new ResourceNotFoundError('Project', request.params.project)
-                    )
-                  );
-                } else {
-                  const projectId = project.dataValues.id;
-                  const entry = {
-                    project_id: projectId,
-                    user_id: id,
-                    role: request.body.projects[i].role,
-                    createdtime: Date.now(),
-                    updatetime: Date.now(),
-                  };
-                  queries.push(models.project_user.create(entry));
-                }
-              }
-
-              Promise.all(queries)
-                .then(() => {
-                  reply.code(200).send(`User succesfully created`);
-                })
-                .catch(err => {
-                  reply.send(new InternalError('Create user project associations', err));
-                });
-            } catch (err) {
-              reply.send(new InternalError('Create user project associations', err));
-            }
-          } else {
-            reply.code(200).send(`User succesfully created`);
-          }
-        })
-        .catch(err => {
-          reply.send(new InternalError('Create user in db', err));
+      let existingUsername;
+      let existingEmail;
+      try {
+        existingUsername = await models.user.findOne({
+          where: { username: request.body.username },
+          attributes: ['id'],
         });
+        existingUsername = existingUsername ? existingUsername.dataValues.id : null;
+        existingEmail = await models.user.findOne({
+          where: { email: request.body.username },
+          attributes: ['id'],
+        });
+        existingEmail = existingEmail ? existingEmail.dataValues.id : null;
+      } catch (error) {
+        reply.send(new InternalError('Create user in db', error));
+      }
+      if (existingUsername || existingEmail) {
+        if (existingUsername)
+          reply.send(new ResourceAlreadyExistsError(`Username `, request.body.username));
+        if (existingEmail)
+          reply.send(new ResourceAlreadyExistsError('Email address ', request.body.username));
+      } else {
+        const permissions = request.body.permissions ? request.body.permissions.split(',') : [''];
+        const trimmedPermission = [];
+        permissions.forEach(el => trimmedPermission.push(el.trim()));
+        if (request.body.permissions) {
+          delete request.body.permissions;
+        }
+        request.body.permissions = trimmedPermission.join(',');
+        models.user
+          .create({
+            ...request.body,
+            createdtime: Date.now(),
+            updatetime: Date.now(),
+            creator: request.epadAuth.username,
+          })
+          .then(async user => {
+            const { id } = user.dataValues;
+            if (request.body.projects && request.body.projects.length > 0) {
+              const queries = [];
+              try {
+                for (let i = 0; i < request.body.projects.length; i += 1) {
+                  const isNone = request.body.projects[i].role.toLowerCase() === 'none';
+                  if (!isNone) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const project = await models.project.findOne({
+                      where: { projectid: request.body.projects[i].project },
+                      attributes: ['id'],
+                    });
+                    if (project === null) {
+                      reply.send(
+                        new BadRequestError(
+                          'Create user with project associations',
+                          new ResourceNotFoundError('Project', request.params.project)
+                        )
+                      );
+                    } else {
+                      const projectId = project.dataValues.id;
+                      const entry = {
+                        project_id: projectId,
+                        user_id: id,
+                        role: request.body.projects[i].role,
+                        createdtime: Date.now(),
+                        updatetime: Date.now(),
+                      };
+                      queries.push(models.project_user.create(entry));
+                    }
+                  }
+                }
+
+                Promise.all(queries)
+                  .then(() => {
+                    reply.code(200).send(`User succesfully created`);
+                  })
+                  .catch(err => {
+                    reply.send(new InternalError('Create user project associations', err));
+                  });
+              } catch (err) {
+                reply.send(new InternalError('Create user project associations', err));
+              }
+            } else {
+              reply.code(200).send(`User succesfully created`);
+            }
+          })
+          .catch(err => {
+            reply.send(new InternalError('Create user in db', err));
+          });
+      }
     }
   });
 
