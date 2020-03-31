@@ -623,28 +623,26 @@ async function other(fastify) {
       });
   });
 
-  fastify.decorate(
-    'deleteStudyInternal',
-    (params, epadAuth) =>
-      new Promise((resolve, reject) => {
-        // delete study in dicomweb and annotations
-        const promisses = [];
-        promisses.push(() => {
-          return fastify.deleteStudyDicomsInternal(params);
+  fastify.decorate('deleteStudyInternal', (params, epadAuth) => {
+    return new Promise((resolve, reject) => {
+      // delete study in dicomweb and annotations
+      const promisses = [];
+      promisses.push(() => {
+        return fastify.deleteStudyDicomsInternal(params);
+      });
+      promisses.push(() => {
+        return fastify.deleteAimsInternal(params, epadAuth);
+      });
+      pq.addAll(promisses)
+        .then(() => {
+          fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
+          resolve();
+        })
+        .catch(error => {
+          reject(error);
         });
-        promisses.push(() => {
-          return fastify.deleteAimsInternal(params, epadAuth);
-        });
-        pq.addAll(promisses)
-          .then(() => {
-            fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
-            resolve();
-          })
-          .catch(error => {
-            reject(error);
-          });
-      })
-  );
+    });
+  });
 
   fastify.decorate('deleteSeries', (request, reply) => {
     try {
