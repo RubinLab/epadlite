@@ -152,6 +152,11 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'template_id',
           });
 
+          models.plugin.hasMany(models.plugin_parameters, {
+            as: 'defaultparameters',
+            foreignKey: 'plugin_id',
+          });
+          models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'id' });
           //Post.find({ where: { ...}, include: [User]})
 
           //cavit
@@ -584,24 +589,32 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getPluginsWithProject', (request, reply) => {
     models.plugin
       .findAll({
-        include: ['pluginproject', 'plugintemplate'],
+        include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
         required: false,
       })
       .then(plugins => {
         const result = [];
-
+        //console.log('back end plugin list to check parameters : ', plugins);
+        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
         plugins.forEach(data => {
           const pluginObj = {
-            id: data.dataValues.id,
-            plugin_id: data.dataValues.plugin_id,
-            name: data.dataValues.name,
             description: data.dataValues.description,
+            developer: data.dataValues.developer,
+            documentation: data.dataValues.documentation,
             enabled: data.dataValues.enabled,
-            status: data.dataValues.status,
+            id: data.dataValues.id,
+            image_repo: data.dataValues.image_repo,
+            image_tag: data.dataValues.image_tag,
+            image_name: data.dataValues.image_name,
+            image_id: data.dataValues.image_id,
             modality: data.dataValues.modality,
+            name: data.dataValues.name,
+            plugin_id: data.dataValues.plugin_id,
             processmultipleaims: data.dataValues.processmultipleaims,
             projects: [],
+            status: data.dataValues.status,
             templates: [],
+            parameters: [],
           };
 
           data.dataValues.pluginproject.forEach(project => {
@@ -621,6 +634,19 @@ async function epaddb(fastify, options, done) {
             };
 
             pluginObj.templates.push(templateObj);
+          });
+
+          data.dataValues.defaultparameters.forEach(parameter => {
+            const parameterObj = {
+              id: parameter.id,
+              plugin_id: parameter.plugin_id,
+              name: parameter.name,
+              default_value: parameter.default_value,
+              type: parameter.type,
+              description: parameter.description,
+            };
+
+            pluginObj.parameters.push(parameterObj);
           });
 
           result.push(pluginObj);
@@ -828,9 +854,13 @@ async function epaddb(fastify, options, done) {
     const pluginform = request.body.pluginform;
     models.plugin
       .create({
-        plugin_id: pluginform.id,
+        plugin_id: pluginform.plugin_id,
         name: pluginform.name,
         description: pluginform.description,
+        image_repo: pluginform.image_repo,
+        image_tag: pluginform.image_tag,
+        image_name: pluginform.image_name,
+        image_id: pluginform.image_id,
         enabled: pluginform.enabled,
         modality: pluginform.modality,
         creator: null,
@@ -841,20 +871,13 @@ async function epaddb(fastify, options, done) {
       })
       .then(() => {
         reply.code(200).send('Plugin saved seccessfully');
-        // const dock = new dockerService();
-        // // dock.createContainer('myimage:1.0', 'test').then(data => {
-        // //   console.log('returned outer', data);
-        // //   reply.code(200).send('ok');
-        // // });
-        // dock
-        //   .startContainer('test', 'test')
-        //   .then(data => {
-        //     console.log('returned outer', data.State.Status);
-        //     reply.code(200).send('ok');
-        //   })
-        //   .catch(err => {
-        //     reply.code(500).send(new InternalError('couldnt inspect container', err));
-        //   });
+        //const dock = new dockerService();
+        // dock.createContainer('myimage:1.0', 'test').then(data => {
+        //   console.log('returned outer', data);
+        //   reply.code(200).send('ok');
+        // });
+        //dock.pullImage('ubuntu:latest', 'test2');
+        //dock.createVolume('cavcav');
       })
       .catch(err => {
         reply
@@ -868,6 +891,35 @@ async function epaddb(fastify, options, done) {
       });
   });
 
+  fastify.decorate('editPlugin', (request, reply) => {
+    //console.log('back end edit plugin called', request.body);
+    const pluginform = request.body.pluginform;
+
+    //delete pluginform.dbid;
+    console.log('edit sending plugin form data ', pluginform);
+    models.plugin
+      .update(
+        {
+          ...pluginform,
+          updatetime: Date.now(),
+        },
+        {
+          where: {
+            id: pluginform.dbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(pluginform);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError('Something went wrong while updating plugin in plugin table', err)
+          );
+      });
+  });
   //***************************************************************
   //
   //
@@ -998,6 +1050,7 @@ async function epaddb(fastify, options, done) {
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
   //cavit
+
   fastify.decorate('validateRequestBodyFields', (name, id) => {
     if (!name || !id) {
       return EpadError.messages.requiredField;

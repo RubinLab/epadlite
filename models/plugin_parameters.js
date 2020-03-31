@@ -22,6 +22,18 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
+      format: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      prefix: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      inputBinding: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
       default_value: {
         type: DataTypes.STRING(128),
         allowNull: true,

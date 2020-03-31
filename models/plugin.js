@@ -20,11 +20,11 @@ module.exports = function(sequelize, DataTypes) {
         allowNull: true,
       },
       image_repo: {
-        type: DataTypes.STRING(256),
+        type: DataTypes.STRING(128),
         allowNull: true,
       },
       image_tag: {
-        type: DataTypes.STRING(64),
+        type: DataTypes.STRING(32),
         allowNull: true,
       },
       image_name: {
@@ -33,6 +33,22 @@ module.exports = function(sequelize, DataTypes) {
       },
       image_id: {
         type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      basecommand: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      memory: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+      },
+      maxruntime: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+      },
+      type: {
+        type: DataTypes.STRING(64),
         allowNull: true,
       },
       description: {

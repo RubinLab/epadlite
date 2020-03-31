@@ -75,6 +75,31 @@ async function routes(fastify) {
   });
 
   fastify.route({
+    method: 'POST',
+    url: '/plugins/parameters/default/addnew',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.saveDefaultParameter,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/edit',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.editPlugin,
+  });
+  fastify.route({
     method: 'GET',
     url: '/plugins/docker/images',
     schema: {

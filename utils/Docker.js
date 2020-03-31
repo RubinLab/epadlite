@@ -49,10 +49,20 @@ class DockerService {
     );
     */
   }
+  createVolume(name) {
+    this.docker
+      .createVolume({ Name: 'testvolume' })
+      .then(() => {
+        console.log('volume created');
+      })
+      .catch(() => {
+        console.log('error happened while creating volume');
+      });
+  }
 
   createContainer(imageId, containerNameToGive) {
     let auxContainer;
-    return this.docker
+    this.docker
       .createContainer({
         Image: imageId,
         name: containerNameToGive,
@@ -64,8 +74,11 @@ class DockerService {
         OpenStdin: false,
         StdinOnce: false,
         HostConfig: {
-          Binds: ['/Users/cavit/epadlitev1/distribution/ePad/exampleContaienr/sharewcont:/stuff'],
+          Binds: ['testvolume:/home'],
         },
+        // HostConfig: {
+        //   Binds: ['/Users/cavit/epadlitev1/distribution/ePad/exampleContaienr/sharewcont:/stuff'],
+        // },
       })
       .then(function(container) {
         auxContainer = container;
@@ -116,6 +129,32 @@ class DockerService {
         return imageList;
       })
       .catch(error => console.log(error));
+  }
+  pullImage(img) {
+    return this.docker
+      .pull(img)
+      .then(() => {
+        console.log('image pulled');
+      })
+      .catch(() => {
+        console.log('error happened while pulling image');
+      });
+  }
+  pullImage(img, cnt) {
+    let self = this;
+    this.docker.pull(img, (err, stream) => {
+      this.docker.modem.followProgress(stream, onFinished, onProgress);
+
+      function onFinished(err, output) {
+        if (!err) {
+          console.log('\nDone pulling.');
+          self.createContainer(img, cnt);
+        } else {
+          console.log(err);
+        }
+      }
+      function onProgress(event) {}
+    });
   }
   /*
   createContainer(containerImage, containerName) {
