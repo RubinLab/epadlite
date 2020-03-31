@@ -647,22 +647,43 @@ async function couchdb(fastify, options) {
   });
 
   // does not do project filtering! should only be used for deleting from system
-  fastify.decorate(
-    'deleteAimsInternal',
-    (params, epadAuth) =>
-      new Promise((resolve, reject) => {
-        fastify
-          .getAimsInternal('summary', params, undefined, epadAuth)
-          .then(result => {
-            const aimPromisses = [];
-            result.forEach(aim => aimPromisses.push(fastify.deleteAimInternal(aim.aimID)));
-            Promise.all(aimPromisses)
-              .then(() => resolve())
-              .catch(deleteErr => reject(deleteErr));
-          })
-          .catch(err => reject(err));
-      })
-  );
+  fastify.decorate('deleteAimsInternal', (params, epadAuth) => {
+    return new Promise((resolve, reject) => {
+      const aimUsers = {};
+      fastify
+        .getAimsInternal('summary', params, undefined, epadAuth)
+        .then(result => {
+          const aimPromisses = [];
+          result.forEach(aim => {
+            aimUsers[aim.userName] = 'aim';
+            aimPromisses.push(fastify.deleteAimInternal(aim.aimID));
+          });
+          Promise.all(aimPromisses)
+            .then(async () => {
+              const updateWorklistPromises = [];
+              const { project, subject, study } = params;
+              const aimUsersArr = Object.keys(aimUsers);
+              aimUsersArr.forEach(userName => {
+                updateWorklistPromises.push(
+                  fastify.updateWorklistCompleteness(
+                    project,
+                    subject,
+                    study,
+                    userName,
+                    epadAuth
+                    // transaction
+                  )
+                );
+              });
+              Promise.all(updateWorklistPromises)
+                .then(() => resolve())
+                .catch(deleteErr => reject(deleteErr));
+            })
+            .catch(deleteErr => reject(deleteErr));
+        })
+        .catch(err => reject(err));
+    });
+  });
 
   // template accessors
   fastify.decorate('getTemplates', (request, reply) => {

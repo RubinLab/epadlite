@@ -62,7 +62,6 @@ class UnauthorizedError extends EpadError {
   }
 }
 
-
 module.exports = {
   ResourceNotFoundError,
   InternalError,

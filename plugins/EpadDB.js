@@ -1109,7 +1109,7 @@ async function epaddb(fastify, options, done) {
         where: { worklist_id: worklistIdKey },
         include: [models.subject, models.study],
       });
-      const result = {};
+      const result = [];
       for (let i = 0; i < list.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop
         const projectId = await models.project.findOne({
@@ -1129,7 +1129,7 @@ async function epaddb(fastify, options, done) {
           subjectName: list[i].dataValues.subject.dataValues.name,
           studyDescription: list[i].dataValues.study.dataValues.description,
         };
-        result[list[i].dataValues.subject_uid] = obj;
+        result.push(obj);
       }
       reply.code(200).send(Object.values(result));
     } catch (err) {
@@ -2046,6 +2046,9 @@ async function epaddb(fastify, options, done) {
           // const worklistsStudiesAll = await models.worklist_study.findAll({
           //   raw: true,
           // });
+          console.log('--------- upd-wl-comp----------');
+          console.log(projectId, '--', subjectUid, '--', studyUid, '--', user);
+
           const subject = await models.subject.findOne(
             {
               where: { subjectuid: subjectUid },
