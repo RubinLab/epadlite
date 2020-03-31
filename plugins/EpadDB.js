@@ -931,7 +931,59 @@ async function epaddb(fastify, options, done) {
         }
 
         Promise.all(relationPromiseArr)
-          .then(() => reply.code(200).send(`Saving successful`))
+          .then(async id => {
+            try {
+              const userNamePromises = [];
+              // get user id's from worklist_user for the worklist
+              const userIds = await models.worklist_user.findAll({
+                where: { worklist_id: ids[0] },
+                attributes: ['user_id'],
+              });
+              // findUsernames by userid's
+              userIds.forEach(el => {
+                userNamePromises.push(fastify.findUserNameInternal(el.dataValues.user_id));
+              });
+              Promise.all(userNamePromises)
+                .then(usernameResult => {
+                  const updateCompPromises = [];
+                  // iterate over usernames array and updateCompleteness
+                  for (let i = 0; i < studyUIDs.length; i += 1) {
+                    for (let k = 0; k < usernameResult.length; k += 1) {
+                      updateCompPromises.push(
+                        fastify.updateWorklistCompleteness(
+                          ids[1],
+                          request.params.subject,
+                          studyUIDs[i],
+                          usernameResult[k],
+                          request.epadAuth
+                        )
+                      );
+                    }
+                  }
+                  Promise.all(updateCompPromises)
+                    .then(() => {
+                      reply.code(200).send(`Saving successful - ${id}`);
+                    })
+                    .catch(err =>
+                      reply.send(
+                        new InternalError(
+                          'Updating completeness in worklist study association',
+                          err
+                        )
+                      )
+                    );
+                })
+                .catch(err =>
+                  reply.send(
+                    new InternalError('Updating completeness in worklist study association', err)
+                  )
+                );
+            } catch (err) {
+              reply.send(
+                new InternalError('Updating completeness in worklist study association', err)
+              );
+            }
+          })
           .catch(err => {
             reply.send(new InternalError('Creating worklist subject association in db', err));
           });
