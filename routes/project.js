@@ -117,7 +117,7 @@ async function routes(fastify) {
       params: {
         type: 'object',
         properties: {
-          uid: {
+          project: {
             type: 'string',
           },
         },

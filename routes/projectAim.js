@@ -175,6 +175,14 @@ async function routes(fastify) {
     },
     schema: {
       tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
       body: {
         type: 'array',
         items: {
