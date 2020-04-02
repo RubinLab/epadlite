@@ -2375,8 +2375,6 @@ async function epaddb(fastify, options, done) {
           // const worklistsStudiesAll = await models.worklist_study.findAll({
           //   raw: true,
           // });
-          console.log('--------- upd-wl-comp----------');
-          console.log(projectId, '--', subjectUid, '--', studyUid, '--', user);
 
           const subject = await models.subject.findOne(
             {
@@ -2675,9 +2673,23 @@ async function epaddb(fastify, options, done) {
       )
         reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
+        const args = await models.project_aim.findOne({
+          where: { project_id: project.id, aim_uid: request.params.aimuid },
+          attributes: ['project_id', 'subject_uid', 'study_uid', 'user'],
+          raw: true,
+        });
+
         const numDeleted = await models.project_aim.destroy({
           where: { project_id: project.id, aim_uid: request.params.aimuid },
         });
+
+        await fastify.updateWorklistCompleteness(
+          args.project_id,
+          args.subject_uid,
+          args.study_uid,
+          args.user,
+          request.epadAuth
+        );
 
         // if delete from all or it doesn't exist in any other project, delete from system
         try {
