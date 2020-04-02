@@ -2133,7 +2133,7 @@ async function epaddb(fastify, options, done) {
       if (!worklist)
         reply.send(
           new BadRequestError(
-            `Worklist requirement ${request.params.requirement} add/update`,
+            `Worklist requirement add/update`,
             new ResourceNotFoundError('Worklist', request.params.worklist)
           )
         );
@@ -2149,11 +2149,110 @@ async function epaddb(fastify, options, done) {
           promises.push(promise);
         });
 
+        Promise.all(promises)
+          .then(async () => {
+            try {
+              const userNamePromises = [];
+              const worklistId = worklist.id;
+              const userIds = await models.worklist_user.findAll({
+                where: { worklist_id: worklistId },
+                attributes: ['user_id'],
+                raw: true,
+              });
+              const ids = await models.worklist_study.findAll({
+                where: { worklist_id: worklistId },
+                attributes: ['study_id', 'subject_id', 'project_id'],
+                raw: true,
+              });
+              const uidPromises = [];
+              for (let i = 0; i < ids.length; i += 1) {
+                uidPromises.push(
+                  models.study.findOne({
+                    where: { id: ids[i].study_id },
+                    attributes: ['studyuid'],
+                    raw: true,
+                  })
+                );
+                uidPromises.push(
+                  models.subject.findOne({
+                    where: { id: ids[i].subject_id },
+                    attributes: ['subjectuid'],
+                    raw: true,
+                  })
+                );
+              }
+              Promise.all(uidPromises)
+                .then(res => {
+                  for (let i = 0; i < res.length; i += 2) {
+                    const index = Math.round(i / 2);
+                    ids[index].studyuid = res[i].studyuid;
+                    ids[index].subjectuid = res[i + 1].subjectuid;
+                  }
+                  userIds.forEach(el => {
+                    userNamePromises.push(fastify.findUserNameInternal(el.user_id));
+                  });
+
+                  Promise.all(userNamePromises)
+                    .then(usernames => {
+                      const updateCompPromises = [];
+                      for (let i = 0; i < usernames.length; i += 1) {
+                        for (let k = 0; k < ids.length; k += 1) {
+                          updateCompPromises.push(
+                            fastify.updateWorklistCompleteness(
+                              ids[k].project_id,
+                              ids[k].subjectuid,
+                              ids[k].studyuid,
+                              usernames[i],
+                              request.epadAuth
+                            )
+                          );
+                        }
+                      }
+                      Promise.all(updateCompPromises)
+                        .then(() => {
+                          reply.code(200).send(`Worklist requirement added`);
+                        })
+                        .catch(err => {
+                          reply.send(
+                            new InternalError(
+                              `Worklist requirement update completeness ${request.params.worklist}`,
+                              err
+                            )
+                          );
+                        });
+                    })
+                    .catch(err => {
+                      reply.send(
+                        new InternalError(
+                          `Worklist requirement update completeness ${request.params.worklist}`,
+                          err
+                        )
+                      );
+                    });
+                })
+                .catch(err =>
+                  reply.send(
+                    new InternalError(
+                      `Worklist requirement update completeness ${request.params.worklist}`,
+                      err
+                    )
+                  )
+                );
+            } catch (err) {
+              reply.send(
+                new InternalError(`Worklist requirement ${request.params.worklist} add`, err)
+              );
+            }
+          })
+          .catch(err =>
+            reply.send(
+              new InternalError(`Worklist requirement ${request.params.worklist} add`, err)
+            )
+          );
         // fastify.addWorklistRequirement(worklist.id, request.epadAuth, request.body);
-        reply.code(200).send(`Worklist requirement ${request.params.requirements} added`);
       }
     } catch (err) {
-      reply.send(new InternalError(`Worklist requirement ${request.params.requirements} add`, err));
+      reply.send(new InternalError(`Worklist requirement ${request.params.worklist} add`, err));
     }
   });
 
