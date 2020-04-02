@@ -617,7 +617,7 @@ async function epaddb(fastify, options, done) {
     });
 
     Promise.all(idPromiseArray)
-      .then(result => {
+      .then(async result => {
         result.forEach(el => {
           newAssigneeIdArr.push(el.dataValues.id);
         });
@@ -653,8 +653,90 @@ async function epaddb(fastify, options, done) {
         });
 
         Promise.all(tablePromiseArray)
-          .then(() => {
-            reply.code(200).send(`Worklist ${request.params.worklist} updated successfully`);
+          .then(async () => {
+            try {
+              const uidPromises = [];
+              const ids = await models.worklist_study.findAll({
+                where: { worklist_id: worklistID },
+                attributes: ['study_id', 'subject_id', 'project_id'],
+                raw: true,
+              });
+              for (let i = 0; i < ids.length; i += 1) {
+                uidPromises.push(
+                  models.study.findOne({
+                    where: { id: ids[i].study_id },
+                    attributes: ['studyuid'],
+                    raw: true,
+                  })
+                );
+                uidPromises.push(
+                  models.subject.findOne({
+                    where: { id: ids[i].subject_id },
+                    attributes: ['subjectuid'],
+                    raw: true,
+                  })
+                );
+              }
+              Promise.all(uidPromises)
+                .then(res => {
+                  for (let i = 0; i < res.length; i += 2) {
+                    const index = Math.round(i / 2);
+                    ids[index].studyuid = res[i].studyuid;
+                    ids[index].subjectuid = res[i + 1].subjectuid;
+                  }
+
+                  const { assigneeList } = request.body;
+                  const updateCompPromises = [];
+                  for (let i = 0; i < assigneeList.length; i += 1) {
+                    for (let k = 0; k < ids.length; k += 1) {
+                      updateCompPromises.push(
+                        fastify.updateWorklistCompleteness(
+                          ids[k].project_id,
+                          ids[k].subjectuid,
+                          ids[k].studyuid,
+                          assigneeList[i],
+                          request.epadAuth
+                        )
+                      );
+                    }
+                  }
+
+                  for (let i = 0; i < existingAssigneeArr.length; i += 1) {
+                    updateCompPromises.push(
+                      fastify.updateCompletenessOnDeleteAssignee(existingAssigneeArr[i], worklistID)
+                    );
+                  }
+
+                  Promise.all(updateCompPromises)
+                    .then(() => {
+                      reply
+                        .code(200)
+                        .send(`Worklist ${request.params.worklist} updated successfully - 4`);
+                    })
+                    .catch(err => {
+                      reply.send(
+                        new InternalError(
+                          `Worklist assignee update calculate completeness ${
+                            request.params.worklist
+                          }`,
+                          err
+                        )
+                      );
+                    });
+                })
+                .catch(err => {
+                  reply.send(
+                    new InternalError(
+                      `Worklist assignee update calculate completeness ${request.params.worklist}`,
+                      err
+                    )
+                  );
+                });
+            } catch (err) {
+              reply.send(
+                new InternalError(`Worklist ${request.params.worklist} assignee update`, err)
+              );
+            }
           })
           .catch(error => {
             if (error instanceof ResourceNotFoundError)
@@ -689,6 +771,32 @@ async function epaddb(fastify, options, done) {
             )
           );
       });
+  });
+
+  fastify.decorate('updateCompletenessOnDeleteAssignee', async (userID, worklistID) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const completenessDeleteArr = [];
+        const username = await fastify.findUserNameInternal(userID);
+        const worklistStudy = await models.worklist_study.findAll({
+          where: { worklist_id: worklistID },
+          attributes: ['id'],
+          raw: true,
+        });
+        worklistStudy.forEach(el => {
+          completenessDeleteArr.push(
+            models.worklist_study_completeness.destroy({
+              where: { worklist_study_id: el.id, assignee: username },
+            })
+          );
+        });
+        Promise.all(completenessDeleteArr)
+          .then(() => resolve())
+          .catch(err => reject(err));
+      } catch (err) {
+        reject();
+      }
+    });
   });
 
   fastify.decorate('updateWorklist', (request, reply) => {
