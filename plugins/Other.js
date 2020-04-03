@@ -735,6 +735,7 @@ async function other(fastify) {
       const id = setInterval(() => {
         // eslint-disable-next-line no-param-reassign
         fastify.messageId += 1;
+        reply.res.write(`event: message\n`);
         reply.res.write(`id: ${fastify.messageId}\n`);
         reply.res.write(`data: heartbeat\n\n`);
       }, 1000);
@@ -944,6 +945,7 @@ async function other(fastify) {
   fastify.decorate('connectedUsers', {});
   fastify.decorate('sse', (messageJson, username = 'nouser') => {
     if (fastify.connectedUsers[username]) {
+      fastify.connectedUsers[username].write(`event: message\n`);
       fastify.connectedUsers[username].write(`id: ${fastify.messageId}\n`);
       // eslint-disable-next-line no-param-reassign
       fastify.messageId += 1;
