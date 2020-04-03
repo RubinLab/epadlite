@@ -448,22 +448,60 @@ describe('Worklist Tests', () => {
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(4);
-          // expect(res.body[0].assignee).to.be.eql('testProgressUser1@gmail.com');
-          // expect(res.body[0].assignee_name).to.be.eql('user1Name user1Surname');
-          // expect(res.body[0].subject_uid).to.be.eql('3');
-          // expect(res.body[0].subject_name).to.be.eql('Phantom');
-          // expect(res.body[0].study_uid).to.be.eql('0023.2015.09.28.3');
-          // expect(res.body[0].worklist_requirement_id).to.be.eql(1);
-          // expect(res.body[0].worklist_requirement_desc).to.be.eql('2:any:study');
-          // expect(res.body[0].completeness).to.be.eql(50);
-          // expect(res.body[2].assignee).to.be.eql('testProgressUser1@gmail.com');
-          // expect(res.body[2].assignee_name).to.be.eql('user1Name user1Surname');
-          // expect(res.body[2].subject_uid).to.be.eql('3');
-          // expect(res.body[2].subject_name).to.be.eql('Phantom');
-          // expect(res.body[2].study_uid).to.be.eql('0023.2015.09.28.3');
-          // expect(res.body[2].worklist_requirement_id).to.be.eql(2);
-          // expect(res.body[2].worklist_requirement_desc).to.be.eql('1:ROI:series');
-          // expect(res.body[2].completeness).to.be.eql(100);
+          expect(res.body).to.deep.include({
+            worklist_id: 5,
+            project_id: 38,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser2@gmail.com',
+            assignee_name: 'user2Name user2Surname',
+            worklist_requirement_id: 1,
+            worklist_requirement_desc: '2:any:study',
+            completeness: 0,
+          });
+
+          expect(res.body).to.deep.include({
+            worklist_id: 5,
+            project_id: 38,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser1@gmail.com',
+            assignee_name: 'user1Name user1Surname',
+            worklist_requirement_id: 1,
+            worklist_requirement_desc: '2:any:study',
+            completeness: 50,
+          });
+
+          expect(res.body).to.deep.include({
+            worklist_id: 5,
+            project_id: 38,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser2@gmail.com',
+            assignee_name: 'user2Name user2Surname',
+            worklist_requirement_id: 2,
+            worklist_requirement_desc: '1:ROI:series',
+            completeness: 0,
+          });
+          expect(res.body).to.deep.include({
+            worklist_id: 5,
+            project_id: 38,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser1@gmail.com',
+            assignee_name: 'user1Name user1Surname',
+            worklist_requirement_id: 2,
+            worklist_requirement_desc: '1:ROI:series',
+            completeness: 100,
+          });
           done();
         })
         .catch(e => {
@@ -532,38 +570,58 @@ describe('Worklist Tests', () => {
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(4);
-          // expect(res.body[0].assignee).to.be.eql('testProgressUser1@gmail.com');
-          // expect(res.body[0].assignee_name).to.be.eql('user1Name user1Surname');
-          // expect(res.body[0].subject_uid).to.be.eql('3');
-          // expect(res.body[0].subject_name).to.be.eql('Phantom');
-          // expect(res.body[0].study_uid).to.be.eql('0023.2015.09.28.3');
-          // expect(res.body[0].worklist_requirement_id).to.be.eql(1);
-          // expect(res.body[0].worklist_requirement_desc).to.be.eql('2:any:study');
-          // expect(res.body[0].completeness).to.be.eql(50);
-          // expect(res.body[1].assignee).to.be.eql('testProgressUser1@gmail.com');
-          // expect(res.body[1].assignee_name).to.be.eql('user1Name user1Surname');
-          // expect(res.body[1].subject_uid).to.be.eql('3');
-          // expect(res.body[1].subject_name).to.be.eql('Phantom');
-          // expect(res.body[1].study_uid).to.be.eql('0023.2015.09.28.3');
-          // expect(res.body[1].worklist_requirement_id).to.be.eql(2);
-          // expect(res.body[1].worklist_requirement_desc).to.be.eql('1:ROI:series');
-          // expect(res.body[1].completeness).to.be.eql(100);
-          // expect(res.body[2].assignee).to.be.eql('testProgressUser2@gmail.com');
-          // expect(res.body[2].assignee_name).to.be.eql('user2Name user2Surname');
-          // expect(res.body[2].subject_uid).to.be.eql('3');
-          // expect(res.body[2].subject_name).to.be.eql('Phantom');
-          // expect(res.body[2].study_uid).to.be.eql('0023.2015.09.28.3');
-          // expect(res.body[2].worklist_requirement_id).to.be.eql(1);
-          // expect(res.body[2].worklist_requirement_desc).to.be.eql('2:any:study');
-          // expect(res.body[2].completeness).to.be.eql(100);
-          // expect(res.body[3].assignee).to.be.eql('testProgressUser2@gmail.com');
-          // expect(res.body[3].assignee_name).to.be.eql('user2Name user2Surname');
-          // expect(res.body[3].subject_uid).to.be.eql('3');
-          // expect(res.body[3].subject_name).to.be.eql('Phantom');
-          // expect(res.body[3].study_uid).to.be.eql('0023.2015.09.28.3');
-          // expect(res.body[3].worklist_requirement_id).to.be.eql(2);
-          // expect(res.body[3].worklist_requirement_desc).to.be.eql('1:ROI:series');
-          // expect(res.body[3].completeness).to.be.eql(100);
+          expect(res.body).to.deep.include({
+            worklist_id: 5,
+            project_id: 38,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser2@gmail.com',
+            assignee_name: 'user2Name user2Surname',
+            worklist_requirement_id: 1,
+            worklist_requirement_desc: '2:any:study',
+            completeness: 100,
+          });
+          expect(res.body).to.deep.include({
+            worklist_id: 5,
+            project_id: 38,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser1@gmail.com',
+            assignee_name: 'user1Name user1Surname',
+            worklist_requirement_id: 1,
+            worklist_requirement_desc: '2:any:study',
+            completeness: 50,
+          });
+          expect(res.body).to.deep.include({
+            worklist_id: 5,
+            project_id: 38,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser2@gmail.com',
+            assignee_name: 'user2Name user2Surname',
+            worklist_requirement_id: 2,
+            worklist_requirement_desc: '1:ROI:series',
+            completeness: 100,
+          });
+          expect(res.body).to.deep.include({
+            worklist_id: 5,
+            project_id: 38,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser1@gmail.com',
+            assignee_name: 'user1Name user1Surname',
+            worklist_requirement_id: 2,
+            worklist_requirement_desc: '1:ROI:series',
+            completeness: 100,
+          });
           done();
         })
         .catch(e => {
