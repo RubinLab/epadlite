@@ -24,6 +24,9 @@ async function routes(fastify) {
           },
           assignee: {
             type: 'array',
+            items: {
+              type: 'string',
+            },
           },
           description: {
             type: 'string',
@@ -184,6 +187,9 @@ async function routes(fastify) {
           },
           assigneeList: {
             type: 'array',
+            items: {
+              type: 'string',
+            },
           },
         },
       },

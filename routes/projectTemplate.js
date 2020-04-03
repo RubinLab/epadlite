@@ -23,7 +23,7 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'template'],
       querystring: {
-        format: { enable: 'string' },
+        enable: { type: 'string' },
       },
       params: {
         type: 'object',

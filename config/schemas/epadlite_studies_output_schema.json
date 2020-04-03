@@ -1,6 +1,5 @@
 {
   "$id": "epadlite_studies_schema",
-
   "type": "array",
   "items": {
     "type": "object",
@@ -43,14 +42,9 @@
       },
       "examTypes": {
         "type": "array",
-        "items": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "string"
-          }
-        ]
+        "items": {
+          "type": "string"
+        }
       },
       "numberOfImages": {
         "type": "integer"
