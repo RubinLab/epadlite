@@ -2704,13 +2704,15 @@ async function epaddb(fastify, options, done) {
           where: { project_id: project.id, aim_uid: request.params.aimuid },
         });
 
-        await fastify.updateWorklistCompleteness(
-          args.project_id,
-          args.subject_uid,
-          args.study_uid,
-          args.user,
-          request.epadAuth
-        );
+        if (args) {
+          await fastify.updateWorklistCompleteness(
+            args.project_id,
+            args.subject_uid,
+            args.study_uid,
+            args.user,
+            request.epadAuth
+          );
+        }
 
         // if delete from all or it doesn't exist in any other project, delete from system
         try {
