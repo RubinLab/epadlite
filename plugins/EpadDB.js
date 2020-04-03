@@ -954,7 +954,8 @@ async function epaddb(fastify, options, done) {
     } else {
       const ids = [];
       const promises = [];
-
+      const studyDescMap = {};
+      const relationPromiseArr = [];
       // find project's integer id
       // find worklist's integer id
       promises.push(
@@ -999,45 +1000,45 @@ async function epaddb(fastify, options, done) {
         } catch (err) {
           reply.send(new InternalError('Creating worklist subject association in db', err));
         }
-
-        // get studyDescriptions
-        const studyDetails = await fastify.getPatientStudiesInternal(
-          request.params,
-          studyUIDs,
-          request.epadAuth
-        );
-        const studyDescMap = {};
-        studyDetails.forEach(el => {
-          const { numberOfImages, numberOfSeries } = el;
-          studyDescMap[el.studyUID] = { numberOfImages, numberOfSeries };
-        });
-
-        // iterate over the study uid's and send them to the table
-        const relationPromiseArr = [];
-        for (let i = 0; i < studyIDs.length; i += 1) {
-          relationPromiseArr.push(
-            fastify.upsert(
-              models.worklist_study,
-              {
-                worklist_id: ids[0],
-                study_id: studyIDs[i],
-                subject_id: ids[2],
-                project_id: ids[1],
-                updatetime: Date.now(),
-                numOfSeries: studyDescMap[studyUIDs[i]].numberOfSeries,
-                numOfImages: studyDescMap[studyUIDs[i]].numberOfImages,
-              },
-              {
-                worklist_id: ids[0],
-                study_id: studyIDs[i],
-                subject_id: ids[2],
-                project_id: ids[1],
-              },
-              request.epadAuth.username
-            )
+        try {
+          // get studyDescriptions
+          const studyDetails = await fastify.getPatientStudiesInternal(
+            request.params,
+            studyUIDs,
+            request.epadAuth
           );
-        }
+          studyDetails.forEach(el => {
+            const { numberOfImages, numberOfSeries } = el;
+            studyDescMap[el.studyUID] = { numberOfImages, numberOfSeries };
+          });
 
+          // iterate over the study uid's and send them to the table
+          for (let i = 0; i < studyIDs.length; i += 1) {
+            relationPromiseArr.push(
+              fastify.upsert(
+                models.worklist_study,
+                {
+                  worklist_id: ids[0],
+                  study_id: studyIDs[i],
+                  subject_id: ids[2],
+                  project_id: ids[1],
+                  updatetime: Date.now(),
+                  numOfSeries: studyDescMap[studyUIDs[i]].numberOfSeries,
+                  numOfImages: studyDescMap[studyUIDs[i]].numberOfImages,
+                },
+                {
+                  worklist_id: ids[0],
+                  study_id: studyIDs[i],
+                  subject_id: ids[2],
+                  project_id: ids[1],
+                },
+                request.epadAuth.username
+              )
+            );
+          }
+        } catch (err) {
+          reply.send(new InternalError('Creating worklist subject association in db', err));
+        }
         Promise.all(relationPromiseArr)
           .then(async id => {
             try {
@@ -2442,6 +2443,23 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'findProjectIdInternal',
+    project =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const projectId = await models.project.findOne({
+            where: { projectid: project },
+            attributes: ['id'],
+            raw: true,
+          });
+          resolve(projectId.id);
+        } catch (err) {
+          reject(new InternalError(`Finding project id ${project}`, err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'computeWorklistCompleteness',
     async (
       worklistStudyId,
@@ -2458,6 +2476,7 @@ async function epaddb(fastify, options, done) {
       // eslint-disable-next-line no-param-reassign
       // worklistReq = [{ id: 1, level: 'study', numOfAims: 1, template: 'ROI', required: true }];
       // get all aims
+
       const aims = await models.project_aim.findAll(
         {
           where: { project_id: projectId, subject_uid: subjectUid, study_uid: studyUid, user },
@@ -2510,6 +2529,7 @@ async function epaddb(fastify, options, done) {
           aimStats.any.imageUids[aims[i].image_uid] = 1;
         else aimStats.any.imageUids[aims[i].image_uid] += 1;
       }
+
       // filter by template first
       let completenessPercent = 0;
       // not even started yet
@@ -2558,6 +2578,7 @@ async function epaddb(fastify, options, done) {
         }
         completenessPercent = (matchCounts.completed * 100) / matchCounts.required;
       }
+
       // update worklist study completeness req
       // eslint-disable-next-line no-await-in-loop
       await fastify.upsert(

@@ -663,21 +663,26 @@ async function couchdb(fastify, options) {
               const updateWorklistPromises = [];
               const { project, subject, study } = params;
               const aimUsersArr = Object.keys(aimUsers);
-              aimUsersArr.forEach(userName => {
-                updateWorklistPromises.push(
-                  fastify.updateWorklistCompleteness(
-                    project,
-                    subject,
-                    study,
-                    userName,
-                    epadAuth
-                    // transaction
-                  )
-                );
-              });
-              Promise.all(updateWorklistPromises)
-                .then(() => resolve())
-                .catch(deleteErr => reject(deleteErr));
+              fastify
+                .findProjectIdInternal(project)
+                .then(res => {
+                  aimUsersArr.forEach(userName => {
+                    updateWorklistPromises.push(
+                      fastify.updateWorklistCompleteness(
+                        res,
+                        subject,
+                        study,
+                        userName,
+                        epadAuth
+                        // transaction
+                      )
+                    );
+                  });
+                  Promise.all(updateWorklistPromises)
+                    .then(() => resolve())
+                    .catch(deleteErr => reject(deleteErr));
+                })
+                .then(projectFindErr => reject(projectFindErr));
             })
             .catch(deleteErr => reject(deleteErr));
         })
