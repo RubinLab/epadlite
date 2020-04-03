@@ -730,7 +730,11 @@ async function other(fastify) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Access-Control-Allow-Origin': '*',
+        'X-Accel-Buffering': 'no',
       });
+      const padding = new Array(2049);
+      reply.res.write(`:${padding.join(' ')}\n`); // 2kB padding for IE
+      reply.res.write('retry: 2000\n');
       fastify.addConnectedUser(request, reply);
       const id = setInterval(() => {
         // eslint-disable-next-line no-param-reassign
