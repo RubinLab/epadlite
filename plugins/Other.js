@@ -835,19 +835,24 @@ async function other(fastify) {
         // verify token online
         try {
           let username = '';
+          let email = '';
           if (config.auth !== 'external') {
             const verifyToken = await keycloak.jwt.verify(token);
             if (verifyToken.isExpired()) {
               res.send(new UnauthenticatedError('Token is expired'));
             } else {
               username = verifyToken.content.preferred_username;
+              // eslint-disable-next-line prefer-destructuring
+              email = verifyToken.content.email;
             }
           } else {
             // try getting userinfo from external auth server with userinfo endpoint
             const userinfo = await fastify.getUserInfoInternal(token);
             username = userinfo.preferred_username;
+            // eslint-disable-next-line prefer-destructuring
+            email = userinfo.email;
           }
-          if (username !== '') return await fastify.fillUserInfo(username);
+          if (username !== '' || email !== '') return await fastify.fillUserInfo(username, email);
           res.send(new UnauthenticatedError(`Username couldn't be retrieeved`));
         } catch (err) {
           res.send(
@@ -894,13 +899,19 @@ async function other(fastify) {
 
   fastify.decorate(
     'fillUserInfo',
-    username =>
+    (username, email) =>
       new Promise(async (resolve, reject) => {
         const epadAuth = { username };
         try {
-          const user = await fastify.getUserInternal({
+          let user = await fastify.getUserInternal({
             user: username,
           });
+          // fallback get by email
+          if (!user && email) {
+            user = await fastify.getUserInternal({
+              user: email,
+            });
+          }
           epadAuth.permissions = user.permissions;
           epadAuth.projectToRole = user.projectToRole;
           epadAuth.admin = user.admin;
