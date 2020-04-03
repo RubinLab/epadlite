@@ -727,7 +727,6 @@ async function other(fastify) {
   fastify.decorate('getNotifications', (request, reply) => {
     try {
       reply.res.writeHead(200, {
-        Connection: 'keep-alive',
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Access-Control-Allow-Origin': '*',
