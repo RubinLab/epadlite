@@ -925,7 +925,7 @@ async function other(fastify) {
                 updatetime: Date.now(),
               };
               console.log('rowsupdated', rowsUpdated);
-              await fastify.updateUser(rowsUpdated, { user: userInfo.email });
+              await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
               user = await fastify.getUserInternal({
                 user: username,
               });
