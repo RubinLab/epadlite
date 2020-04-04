@@ -3605,9 +3605,9 @@ async function epaddb(fastify, options, done) {
     (rowsUpdated, params) =>
       new Promise(async (resolve, reject) => {
         models.user
-          .update(rowsUpdated, { where: { username: params.user } })
-          .then(() => {
-            resolve();
+          .update(rowsUpdated, { where: { username: params.user }, returning: true, plain: true })
+          .then(res => {
+            resolve(res);
           })
           .catch(err => {
             reject(new InternalError(`Updating user ${params.user}`, err));
