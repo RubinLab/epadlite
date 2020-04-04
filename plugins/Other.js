@@ -908,13 +908,11 @@ async function other(fastify) {
               user: username,
             });
           } catch (err) {
-            console.log('email fallback');
             // fallback get by email
             if (!user && userInfo) {
               user = await fastify.getUserInternal({
                 user: userInfo.email,
               });
-              console.log('user with email', user);
               // update user db record here
               const rowsUpdated = {
                 username,
@@ -924,12 +922,10 @@ async function other(fastify) {
                 updated_by: 'admin',
                 updatetime: Date.now(),
               };
-              console.log('rowsupdated', rowsUpdated);
               await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
               user = await fastify.getUserInternal({
                 user: username,
               });
-              console.log('updated user', user);
             } else reject(err);
           }
           if (user) {
