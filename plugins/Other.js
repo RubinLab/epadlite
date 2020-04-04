@@ -917,7 +917,7 @@ async function other(fastify) {
               console.log('user with email', user);
               // update user db record here
               const rowsUpdated = {
-                username: userInfo.preferred_username || userInfo.email,
+                username,
                 firstname: userInfo.given_name,
                 lastname: userInfo.family_name,
                 email: userInfo.email,
