@@ -835,24 +835,23 @@ async function other(fastify) {
         // verify token online
         try {
           let username = '';
-          let email = '';
+          let userInfo = {};
           if (config.auth !== 'external') {
             const verifyToken = await keycloak.jwt.verify(token);
             if (verifyToken.isExpired()) {
               res.send(new UnauthenticatedError('Token is expired'));
             } else {
               username = verifyToken.content.preferred_username;
-              // eslint-disable-next-line prefer-destructuring
-              email = verifyToken.content.email;
+              userInfo = verifyToken.content;
             }
           } else {
             // try getting userinfo from external auth server with userinfo endpoint
             const userinfo = await fastify.getUserInfoInternal(token);
             username = userinfo.preferred_username;
-            // eslint-disable-next-line prefer-destructuring
-            email = userinfo.email;
+            userInfo = userinfo;
           }
-          if (username !== '' || email !== '') return await fastify.fillUserInfo(username, email);
+          if (username !== '' || userInfo !== '')
+            return await fastify.fillUserInfo(username, userInfo);
           res.send(new UnauthenticatedError(`Username couldn't be retrieeved`));
         } catch (err) {
           res.send(
@@ -899,7 +898,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'fillUserInfo',
-    (username, email) =>
+    (username, userInfo) =>
       new Promise(async (resolve, reject) => {
         const epadAuth = { username };
         try {
@@ -910,10 +909,20 @@ async function other(fastify) {
             });
           } catch (err) {
             // fallback get by email
-            if (!user && email) {
+            if (!user && userInfo) {
               user = await fastify.getUserInternal({
-                user: email,
+                user: userInfo.email,
               });
+              // update user db record here
+              const rowsUpdated = {
+                username: userInfo.preferred_username || userInfo.email,
+                firstname: userInfo.given_name,
+                lastname: userInfo.family_name,
+                email: userInfo.email,
+                updated_by: 'admin',
+                updatetime: Date.now(),
+              };
+              await fastify.updateUser(rowsUpdated, { user: userInfo.email });
             } else reject(err);
           }
           if (user) {

@@ -3590,8 +3590,8 @@ async function epaddb(fastify, options, done) {
       updated_by: request.epadAuth.username,
       updatetime: Date.now(),
     };
-    models.user
-      .update(rowsUpdated, { where: { username: request.params.user } })
+    fastify
+      .updateUserInternal(rowsUpdated, request.params)
       .then(() => {
         reply.code(200).send(`User ${request.params.user} updated sucessfully`);
       })
@@ -3599,6 +3599,21 @@ async function epaddb(fastify, options, done) {
         reply.send(new InternalError(`Updating user ${request.params.user}`, err));
       });
   });
+
+  fastify.decorate(
+    'updateUserInternal',
+    (rowsUpdated, params) =>
+      new Promise(async (resolve, reject) => {
+        models.user
+          .update(rowsUpdated, { where: { username: params.user } })
+          .then(() => {
+            resolve();
+          })
+          .catch(err => {
+            reject(new InternalError(`Updating user ${params.user}`, err));
+          });
+      })
+  );
 
   fastify.decorate(
     'getUserInternal',
