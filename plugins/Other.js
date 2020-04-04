@@ -903,18 +903,24 @@ async function other(fastify) {
       new Promise(async (resolve, reject) => {
         const epadAuth = { username };
         try {
-          let user = await fastify.getUserInternal({
-            user: username,
-          });
-          // fallback get by email
-          if (!user && email) {
+          let user = null;
+          try {
             user = await fastify.getUserInternal({
-              user: email,
+              user: username,
             });
+          } catch (err) {
+            // fallback get by email
+            if (!user && email) {
+              user = await fastify.getUserInternal({
+                user: email,
+              });
+            } else reject(err);
           }
-          epadAuth.permissions = user.permissions;
-          epadAuth.projectToRole = user.projectToRole;
-          epadAuth.admin = user.admin;
+          if (user) {
+            epadAuth.permissions = user.permissions;
+            epadAuth.projectToRole = user.projectToRole;
+            epadAuth.admin = user.admin;
+          }
         } catch (errUser) {
           reject(errUser);
         }
