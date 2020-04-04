@@ -14,6 +14,17 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'GET',
+    url: '/plugins/:plugindbid',
+    schema: {
+      tags: ['plugins'],
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getOnePlugin,
+  });
+  fastify.route({
+    method: 'GET',
     url: '/pluginswithproject',
     schema: {
       tags: ['plugins'],
@@ -22,6 +33,55 @@ async function routes(fastify) {
       //   },
     },
     handler: fastify.getPluginsWithProject,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/parameters/default/:plugindbid',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getDefaultParameter,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/docker/images',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getDockerImages,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/annotation/templates',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getAnnotationTemplates,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/annotation/projects',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getAnnotationProjects,
   });
   fastify.route({
     method: 'PUT',
@@ -86,6 +146,18 @@ async function routes(fastify) {
     },
     handler: fastify.saveDefaultParameter,
   });
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/parameters/default/edit/',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.editDefaultparameter,
+  });
 
   fastify.route({
     method: 'POST',
@@ -99,9 +171,10 @@ async function routes(fastify) {
     },
     handler: fastify.editPlugin,
   });
+
   fastify.route({
-    method: 'GET',
-    url: '/plugins/docker/images',
+    method: 'DELETE',
+    url: '/plugins/parameters/default/:parameterdbid',
     schema: {
       tags: ['plugins'],
 
@@ -109,35 +182,10 @@ async function routes(fastify) {
       //     200: 'templates_schema#',
       //   },
     },
-    handler: fastify.getDockerImages,
+    handler: fastify.deleteOneDefaultParameter,
   });
+
   //trigger
-
-  fastify.route({
-    method: 'GET',
-    url: '/plugins/annotation/templates',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getAnnotationTemplates,
-  });
-
-  fastify.route({
-    method: 'GET',
-    url: '/plugins/annotation/projects',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getAnnotationProjects,
-  });
 
   //trigger section ends
   //docker section below

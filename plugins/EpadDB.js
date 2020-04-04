@@ -156,7 +156,7 @@ async function epaddb(fastify, options, done) {
             as: 'defaultparameters',
             foreignKey: 'plugin_id',
           });
-          models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'id' });
+          models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'plugin_id' });
           //Post.find({ where: { ...}, include: [User]})
 
           //cavit
@@ -641,6 +641,9 @@ async function epaddb(fastify, options, done) {
               id: parameter.id,
               plugin_id: parameter.plugin_id,
               name: parameter.name,
+              format: parameter.format,
+              prefix: parameter.prefix,
+              inputbinding: parameter.inputBinding,
               default_value: parameter.default_value,
               type: parameter.type,
               description: parameter.description,
@@ -656,6 +659,79 @@ async function epaddb(fastify, options, done) {
       })
       .catch(err => {
         reply.code(500).send(new InternalError(`getPluginsWithProject error `, err));
+      });
+  });
+  fastify.decorate('getOnePlugin', (request, reply) => {
+    const plugindbid = request.params.plugindbid;
+    models.plugin
+      .findOne({
+        include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
+        where: { id: plugindbid },
+        required: false,
+      })
+      .then(pluginone => {
+        console.log('back end plugin list to check if one plugin shows : ', pluginone);
+        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
+
+        const pluginObj = {
+          description: pluginone.dataValues.description,
+          developer: pluginone.dataValues.developer,
+          documentation: pluginone.dataValues.documentation,
+          enabled: pluginone.dataValues.enabled,
+          id: pluginone.dataValues.id,
+          image_repo: pluginone.dataValues.image_repo,
+          image_tag: pluginone.dataValues.image_tag,
+          image_name: pluginone.dataValues.image_name,
+          image_id: pluginone.dataValues.image_id,
+          modality: pluginone.dataValues.modality,
+          name: pluginone.dataValues.name,
+          plugin_id: pluginone.dataValues.plugin_id,
+          processmultipleaims: pluginone.dataValues.processmultipleaims,
+          projects: [],
+          status: pluginone.dataValues.status,
+          templates: [],
+          parameters: [],
+        };
+
+        pluginone.dataValues.pluginproject.forEach(project => {
+          const projectObj = {
+            id: project.id,
+            projectid: project.projectid,
+            projectname: project.name,
+          };
+
+          pluginObj.projects.push(projectObj);
+        });
+
+        pluginone.dataValues.plugintemplate.forEach(template => {
+          const templateObj = {
+            id: template.id,
+            templateName: template.templateName,
+          };
+
+          pluginObj.templates.push(templateObj);
+        });
+
+        pluginone.dataValues.defaultparameters.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.id,
+            plugin_id: parameter.plugin_id,
+            name: parameter.name,
+            format: parameter.format,
+            prefix: parameter.prefix,
+            inputbinding: parameter.inputBinding,
+            default_value: parameter.default_value,
+            type: parameter.type,
+            description: parameter.description,
+          };
+
+          pluginObj.parameters.push(parameterObj);
+        });
+
+        reply.code(200).send(pluginone);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getOnePlugin error `, err));
       });
   });
 
@@ -1034,6 +1110,154 @@ async function epaddb(fastify, options, done) {
   //
   //***************************************************************
 
+  fastify.decorate('saveDefaultParameter', (request, reply) => {
+    console.log('back end : saveDefault parameters :', request.body);
+
+    const parameterform = request.body;
+    models.plugin_parameters
+      .create({
+        plugin_id: parameterform.plugindbid,
+        name: parameterform.name,
+        format: parameterform.format,
+        prefix: parameterform.prefix,
+        inputBinding: parameterform.inputBinding,
+        default_value: parameterform.default_value,
+        creator: null,
+        createdtime: Date.now(),
+        type: parameterform.type,
+        description: parameterform.description,
+        updatetime: '1970-01-01 00:00:01',
+        //developer: parameterform.developer,
+        //documentation: parameterform.documentation,
+      })
+      .then(() => {
+        reply.code(200).send('default parameters saved seccessfully');
+        //const dock = new dockerService();
+        // dock.createContainer('myimage:1.0', 'test').then(data => {
+        //   console.log('returned outer', data);
+        //   reply.code(200).send('ok');
+        // });
+        //dock.pullImage('ubuntu:latest', 'test2');
+        //dock.createVolume('cavcav');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while saving default paramters in plugin_parameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('getDefaultParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('get default paramter list with plugindbid:', request.params);
+    const plugindbid = request.params.plugindbid;
+    const parameters = [];
+    models.plugin_parameters
+      .findAll({
+        where: { plugin_id: plugindbid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        console.log('parametes ------>', parameters);
+        reply.code(200).send(parameters);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting parameters list from plugin_paramters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteOneDefaultParameter', (request, reply) => {
+    const parameterIdToDelete = request.params.parameterdbid;
+
+    models.plugin_parameters
+      .destroy({
+        where: {
+          id: parameterIdToDelete,
+        },
+      })
+      .then(() => {
+        reply.code(200).send('parameter deleted seccessfully');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while deleting from plugin_parameters table',
+              err
+            )
+          );
+      });
+
+    //reply.code(200).send('Plugin deleted seccessfully');
+  });
+
+  fastify.decorate('editDefaultparameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('edit default parameter back end received edit form:', request.body);
+
+    const paramsForm = request.body;
+    models.plugin_parameters
+      .update(
+        {
+          name: paramsForm.name,
+          format: null,
+          prefix: null,
+          inputBinding: null,
+          default_value: paramsForm.default_value,
+          updatetime: Date.now(),
+          updated_by: null,
+          type: paramsForm.type,
+          description: paramsForm.description,
+        },
+        {
+          where: {
+            id: paramsForm.paramdbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(paramsForm);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while updating parameters in plugin_parameters table',
+              err
+            )
+          );
+      });
+  });
   //docker section
   fastify.decorate('getDockerImages', (request, reply) => {
     console.log('getting docker images');
