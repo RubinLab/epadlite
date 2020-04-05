@@ -1334,7 +1334,7 @@ async function epaddb(fastify, options, done) {
           .code(500)
           .send(
             new InternalError(
-              'Something went wrong while saving default paramters in plugin_parameters table',
+              'Something went wrong while saving project paramters in plugin_projectparameters table',
               err
             )
           );
@@ -1399,6 +1399,155 @@ async function epaddb(fastify, options, done) {
           .send(
             new InternalError(
               'Something went wrong while updating project parameters in plugin_projectparameters table',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('getTemplateParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('get project paramter list with expects 2 params:', request.params);
+
+    const plugindbid = request.params.plugindbid;
+    const templatedbid = request.params.templatedbid;
+    const parameters = [];
+    models.plugin_templateparameters
+      .findAll({
+        where: { plugin_id: plugindbid, template_id: templatedbid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            template_id: parameter.dataValues.template_id,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        console.log('template parametes ------>', parameters);
+        reply.code(200).send(parameters);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting template parameters list from plugin_templateparamters table',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('saveTemplateParameter', (request, reply) => {
+    console.log('back end : save plugin project  parameters :', request.body);
+
+    const parameterform = request.body;
+    models.plugin_templateparameters
+      .create({
+        plugin_id: parameterform.plugindbid,
+        template_id: parameterform.templatedbid,
+        name: parameterform.name,
+        format: parameterform.format,
+        prefix: parameterform.prefix,
+        inputBinding: parameterform.inputBinding,
+        default_value: parameterform.default_value,
+        creator: null,
+        createdtime: Date.now(),
+        type: parameterform.type,
+        description: parameterform.description,
+        updatetime: '1970-01-01 00:00:01',
+        //developer: parameterform.developer,
+        //documentation: parameterform.documentation,
+      })
+      .then(inserteddata => {
+        reply.code(200).send(inserteddata);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while saving template paramters in plugin_templateparameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteOneTemplateParameter', (request, reply) => {
+    const parameterIdToDelete = request.params.parameterdbid;
+    console.log('delete back end called params:', request.params);
+
+    models.plugin_templateparameters
+      .destroy({
+        where: {
+          id: parameterIdToDelete,
+        },
+      })
+      .then(() => {
+        reply
+          .code(200)
+          .send('template parameter deleted seccessfully from plugin_templateparamaters');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while deleting template parameter from plugin_templateparameters table',
+              err
+            )
+          );
+      });
+
+    //reply.code(200).send('Plugin deleted seccessfully');
+  });
+  fastify.decorate('editTemplateParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('edit tempate parameter back end received edit form:', request.body);
+
+    const paramsForm = request.body;
+    models.plugin_templateparameters
+      .update(
+        {
+          name: paramsForm.name,
+          format: null,
+          prefix: null,
+          inputBinding: null,
+          default_value: paramsForm.default_value,
+          updatetime: Date.now(),
+          updated_by: null,
+          type: paramsForm.type,
+          description: paramsForm.description,
+        },
+        {
+          where: {
+            id: paramsForm.paramdbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(paramsForm);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while updating template parameters in plugin_templateparameters table',
               err
             )
           );
