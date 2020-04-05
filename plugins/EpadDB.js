@@ -1258,6 +1258,152 @@ async function epaddb(fastify, options, done) {
           );
       });
   });
+
+  fastify.decorate('getProjectParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('get project paramter list with expects 2 params:', request.params);
+
+    const plugindbid = request.params.plugindbid;
+    const projectdbid = request.params.projectdbid;
+    const parameters = [];
+    models.plugin_projectparameters
+      .findAll({
+        where: { plugin_id: plugindbid, project_id: projectdbid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            project_id: parameter.dataValues.project_id,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        console.log('project parametes ------>', parameters);
+        reply.code(200).send(parameters);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting project parameters list from plugin_projectparamters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('saveProjectParameter', (request, reply) => {
+    console.log('back end : save plugin project  parameters :', request.body);
+
+    const parameterform = request.body;
+    models.plugin_projectparameters
+      .create({
+        plugin_id: parameterform.plugindbid,
+        project_id: parameterform.projectdbid,
+        name: parameterform.name,
+        format: parameterform.format,
+        prefix: parameterform.prefix,
+        inputBinding: parameterform.inputBinding,
+        default_value: parameterform.default_value,
+        creator: null,
+        createdtime: Date.now(),
+        type: parameterform.type,
+        description: parameterform.description,
+        updatetime: '1970-01-01 00:00:01',
+        //developer: parameterform.developer,
+        //documentation: parameterform.documentation,
+      })
+      .then(inserteddata => {
+        reply.code(200).send(inserteddata);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while saving default paramters in plugin_parameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteOneProjectParameter', (request, reply) => {
+    const parameterIdToDelete = request.params.parameterdbid;
+    console.log('delete back end called params:', request.params);
+
+    models.plugin_projectparameters
+      .destroy({
+        where: {
+          id: parameterIdToDelete,
+        },
+      })
+      .then(() => {
+        reply.code(200).send('parameter deleted seccessfully from plugin_projectparamaters');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while deleting from plugin_projectparameters table',
+              err
+            )
+          );
+      });
+
+    //reply.code(200).send('Plugin deleted seccessfully');
+  });
+  fastify.decorate('editProjectParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('edit project parameter back end received edit form:', request.body);
+
+    const paramsForm = request.body;
+    models.plugin_projectparameters
+      .update(
+        {
+          name: paramsForm.name,
+          format: null,
+          prefix: null,
+          inputBinding: null,
+          default_value: paramsForm.default_value,
+          updatetime: Date.now(),
+          updated_by: null,
+          type: paramsForm.type,
+          description: paramsForm.description,
+        },
+        {
+          where: {
+            id: paramsForm.paramdbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(paramsForm);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while updating project parameters in plugin_projectparameters table',
+              err
+            )
+          );
+      });
+  });
   //docker section
   fastify.decorate('getDockerImages', (request, reply) => {
     console.log('getting docker images');

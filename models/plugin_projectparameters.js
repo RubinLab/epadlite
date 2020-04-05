@@ -2,7 +2,7 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'plugin_templateparameters',
+    'plugin_projectparameters',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -18,11 +18,11 @@ module.exports = function(sequelize, DataTypes) {
           key: 'id',
         },
       },
-      template_id: {
+      project_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'template',
+          model: 'project',
           key: 'id',
         },
       },
@@ -74,7 +74,7 @@ module.exports = function(sequelize, DataTypes) {
       },
     },
     {
-      tableName: 'plugin_templateparameters',
+      tableName: 'plugin_projectparameters',
     }
   );
 };

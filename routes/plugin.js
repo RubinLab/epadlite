@@ -48,6 +48,18 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'GET',
+    url: '/plugins/parameters/project/:plugindbid/:projectdbid',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getProjectParameter,
+  });
+  fastify.route({
+    method: 'GET',
     url: '/plugins/docker/images',
     schema: {
       tags: ['plugins'],
@@ -148,6 +160,18 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
+    url: '/plugins/parameters/project/addnew',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.saveProjectParameter,
+  });
+  fastify.route({
+    method: 'POST',
     url: '/plugins/parameters/default/edit/',
     schema: {
       tags: ['plugins'],
@@ -157,6 +181,18 @@ async function routes(fastify) {
       //   },
     },
     handler: fastify.editDefaultparameter,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/parameters/project/edit/',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.editProjectParameter,
   });
 
   fastify.route({
@@ -183,6 +219,18 @@ async function routes(fastify) {
       //   },
     },
     handler: fastify.deleteOneDefaultParameter,
+  });
+  fastify.route({
+    method: 'DELETE',
+    url: '/plugins/parameters/project/:parameterdbid',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.deleteOneProjectParameter,
   });
 
   //trigger
