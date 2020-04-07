@@ -10,6 +10,7 @@ const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
 const config = require('../config/index');
+const { createOfflineAimSegmentation } = require('../../aimapi/aimapi.min');
 
 let keycloak = null;
 // I need to import this after config as it uses config values
@@ -253,6 +254,18 @@ async function other(fastify) {
 
   fastify.decorate('getDicomInfo', arrayBuffer => {
     const dicomTags = dcmjs.data.DicomMessage.readFile(arrayBuffer);
+    try {
+      const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(dicomTags.dict);
+      // eslint-disable-next-line no-underscore-dangle
+      dataset._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(dicomTags.meta);
+      // console.log('data', dataset.data.string('x00080060'));
+      if (dicomTags.dict['00080060'].Value[0] === 'SEG') {
+        const aim = createOfflineAimSegmentation(dataset, { loginName: 'admin', name: 'Admin' });
+        console.log('resulting aim', JSON.stringify(aim.aim));
+      }
+    } catch (err) {
+      console.log(err);
+    }
     return JSON.stringify({
       subject:
         dicomTags.dict['00100020'] && dicomTags.dict['00100020'].Value
