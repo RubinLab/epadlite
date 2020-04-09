@@ -2443,6 +2443,24 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'checkProjectSegAimExistence',
+    (dsoSeriesUid, project) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const projectId = await fastify.findProjectIdInternal(project);
+          const aimsCount = await models.project_aim.count({
+            where: { project_id: projectId, dso_series_uid: dsoSeriesUid },
+          });
+          resolve(aimsCount > 0);
+        } catch (err) {
+          reject(
+            new InternalError(`Checking DSO Aim existance ${dsoSeriesUid} in ${project}`, err)
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
     'computeWorklistCompleteness',
     async (
       worklistStudyId,
