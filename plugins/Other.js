@@ -9,8 +9,8 @@ window = {};
 const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
+const { createOfflineAimSegmentation } = require('aimapi');
 const config = require('../config/index');
-const { createOfflineAimSegmentation } = require('../../aimapi/build/aimapi.min');
 
 let keycloak = null;
 // I need to import this after config as it uses config values
