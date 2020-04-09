@@ -1413,16 +1413,22 @@ async function epaddb(fastify, options, done) {
     (templateUid, project, query, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
+          let projectId = '';
+          if (typeof project === 'string') {
+            projectId = await fastify.findProjectIdInternal(project);
+          } else {
+            projectId = project.id;
+          }
           await fastify.upsert(
             models.project_template,
             {
-              project_id: project.id,
+              project_id: projectId,
               template_uid: templateUid,
               enabled: query.enable === 'true',
               updatetime: Date.now(),
             },
             {
-              project_id: project.id,
+              project_id: projectId,
               template_uid: templateUid,
             },
             epadAuth.username,
@@ -2120,10 +2126,16 @@ async function epaddb(fastify, options, done) {
                   .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root
               : '';
 
+          let projectId = '';
+          if (typeof project === 'string') {
+            projectId = await fastify.findProjectIdInternal(project);
+          } else {
+            projectId = project.id;
+          }
           await fastify.upsert(
             models.project_aim,
             {
-              project_id: project.id,
+              project_id: projectId,
               aim_uid: aimUid,
               user,
               template,
@@ -2136,7 +2148,7 @@ async function epaddb(fastify, options, done) {
               updatetime: Date.now(),
             },
             {
-              project_id: project.id,
+              project_id: projectId,
               aim_uid: aimUid,
             },
             epadAuth.username,
@@ -2145,7 +2157,7 @@ async function epaddb(fastify, options, done) {
 
           // update the worklist completeness if in any
           await fastify.updateWorklistCompleteness(
-            project.id,
+            projectId,
             subjectUid,
             studyUid,
             user,
