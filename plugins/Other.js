@@ -482,9 +482,19 @@ async function other(fastify) {
                 // is it a template?
                 fastify
                   .saveTemplateInternal(jsonBuffer)
-                  .then(() => {
-                    fastify.log.info(`Saving successful for ${filename}`);
-                    resolve({ success: true, errors: [] });
+                  .then(async () => {
+                    try {
+                      await fastify.addProjectTemplateRelInternal(
+                        jsonBuffer.TemplateContainer.uid,
+                        params.project,
+                        query,
+                        epadAuth
+                      );
+                      fastify.log.info(`Saving successful for ${filename}`);
+                      resolve({ success: true, errors: [] });
+                    } catch (errProject) {
+                      reject(errProject);
+                    }
                   })
                   .catch(err => {
                     reject(err);
@@ -492,9 +502,14 @@ async function other(fastify) {
               } else {
                 fastify
                   .saveAimInternal(jsonBuffer)
-                  .then(() => {
-                    fastify.log.info(`Saving successful for ${filename}`);
-                    resolve({ success: true, errors: [] });
+                  .then(async () => {
+                    try {
+                      await fastify.addProjectAimRelInternal(jsonBuffer, params.project, epadAuth);
+                      fastify.log.info(`Saving successful for ${filename}`);
+                      resolve({ success: true, errors: [] });
+                    } catch (errProject) {
+                      reject(errProject);
+                    }
                   })
                   .catch(err => {
                     reject(err);
@@ -663,28 +678,26 @@ async function other(fastify) {
       });
   });
 
-  fastify.decorate(
-    'deleteStudyInternal',
-    (params, epadAuth) =>
-      new Promise((resolve, reject) => {
-        // delete study in dicomweb and annotations
-        const promisses = [];
-        promisses.push(() => {
-          return fastify.deleteStudyDicomsInternal(params);
+  fastify.decorate('deleteStudyInternal', (params, epadAuth) => {
+    return new Promise((resolve, reject) => {
+      // delete study in dicomweb and annotations
+      const promisses = [];
+      promisses.push(() => {
+        return fastify.deleteStudyDicomsInternal(params);
+      });
+      promisses.push(() => {
+        return fastify.deleteAimsInternal(params, epadAuth);
+      });
+      pq.addAll(promisses)
+        .then(() => {
+          fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
+          resolve();
+        })
+        .catch(error => {
+          reject(error);
         });
-        promisses.push(() => {
-          return fastify.deleteAimsInternal(params, epadAuth);
-        });
-        pq.addAll(promisses)
-          .then(() => {
-            fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
-            resolve();
-          })
-          .catch(error => {
-            reject(error);
-          });
-      })
-  );
+    });
+  });
 
   fastify.decorate('deleteSeries', (request, reply) => {
     try {
@@ -881,19 +894,23 @@ async function other(fastify) {
         // verify token online
         try {
           let username = '';
+          let userInfo = {};
           if (config.auth !== 'external') {
             const verifyToken = await keycloak.jwt.verify(token);
             if (verifyToken.isExpired()) {
               res.send(new UnauthenticatedError('Token is expired'));
             } else {
               username = verifyToken.content.preferred_username;
+              userInfo = verifyToken.content;
             }
           } else {
             // try getting userinfo from external auth server with userinfo endpoint
             const userinfo = await fastify.getUserInfoInternal(token);
             username = userinfo.preferred_username;
+            userInfo = userinfo;
           }
-          if (username !== '') return await fastify.fillUserInfo(username);
+          if (username !== '' || userInfo !== '')
+            return await fastify.fillUserInfo(username, userInfo);
           res.send(new UnauthenticatedError(`Username couldn't be retrieeved`));
         } catch (err) {
           res.send(
@@ -940,16 +957,41 @@ async function other(fastify) {
 
   fastify.decorate(
     'fillUserInfo',
-    username =>
+    (username, userInfo) =>
       new Promise(async (resolve, reject) => {
         const epadAuth = { username };
         try {
-          const user = await fastify.getUserInternal({
-            user: username,
-          });
-          epadAuth.permissions = user.permissions;
-          epadAuth.projectToRole = user.projectToRole;
-          epadAuth.admin = user.admin;
+          let user = null;
+          try {
+            user = await fastify.getUserInternal({
+              user: username,
+            });
+          } catch (err) {
+            // fallback get by email
+            if (!user && userInfo) {
+              user = await fastify.getUserInternal({
+                user: userInfo.email,
+              });
+              // update user db record here
+              const rowsUpdated = {
+                username,
+                firstname: userInfo.given_name,
+                lastname: userInfo.family_name,
+                email: userInfo.email,
+                updated_by: 'admin',
+                updatetime: Date.now(),
+              };
+              await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
+              user = await fastify.getUserInternal({
+                user: username,
+              });
+            } else reject(err);
+          }
+          if (user) {
+            epadAuth.permissions = user.permissions;
+            epadAuth.projectToRole = user.projectToRole;
+            epadAuth.admin = user.admin;
+          }
         } catch (errUser) {
           reject(errUser);
         }

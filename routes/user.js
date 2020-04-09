@@ -19,6 +19,23 @@ async function routes(fastify) {
           email: {
             type: 'string',
           },
+          permissions: {
+            type: 'string',
+          },
+          projects: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                role: {
+                  type: 'string',
+                },
+                project: {
+                  type: 'string',
+                },
+              },
+            },
+          },
         },
       },
     },
