@@ -469,9 +469,19 @@ async function other(fastify) {
                 // is it a template?
                 fastify
                   .saveTemplateInternal(jsonBuffer)
-                  .then(() => {
-                    fastify.log.info(`Saving successful for ${filename}`);
-                    resolve({ success: true, errors: [] });
+                  .then(async () => {
+                    try {
+                      await fastify.addProjectTemplateRelInternal(
+                        jsonBuffer.TemplateContainer.uid,
+                        params.project,
+                        query,
+                        epadAuth
+                      );
+                      fastify.log.info(`Saving successful for ${filename}`);
+                      resolve({ success: true, errors: [] });
+                    } catch (errProject) {
+                      reject(errProject);
+                    }
                   })
                   .catch(err => {
                     reject(err);
