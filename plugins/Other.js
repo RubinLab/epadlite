@@ -479,9 +479,14 @@ async function other(fastify) {
               } else {
                 fastify
                   .saveAimInternal(jsonBuffer)
-                  .then(() => {
-                    fastify.log.info(`Saving successful for ${filename}`);
-                    resolve({ success: true, errors: [] });
+                  .then(async () => {
+                    try {
+                      await fastify.addProjectAimRelInternal(jsonBuffer, params.project, epadAuth);
+                      fastify.log.info(`Saving successful for ${filename}`);
+                      resolve({ success: true, errors: [] });
+                    } catch (errProject) {
+                      reject(errProject);
+                    }
                   })
                   .catch(err => {
                     reject(err);
