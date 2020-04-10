@@ -16,6 +16,8 @@ const {
 
 async function epaddb(fastify, options, done) {
   const models = {};
+  const pluginsQueuePromises = [];
+  const pluginQueue = new Map();
 
   fastify.decorate('initMariaDB', async () => {
     try {
@@ -157,6 +159,11 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'plugin_id',
           });
           models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'plugin_id' });
+          models.project_plugin.belongsTo(models.project, {
+            as: 'projectpluginrowbyrow',
+            foreignKey: 'project_id',
+          });
+
           //Post.find({ where: { ...}, include: [User]})
 
           //cavit
@@ -464,7 +471,7 @@ async function epaddb(fastify, options, done) {
   });
 
   //cavit
-  ///////////////////////////////////////////////////////////////////////
+  //Plugin section
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
@@ -1553,6 +1560,223 @@ async function epaddb(fastify, options, done) {
           );
       });
   });
+  fastify.decorate('addPluginsToQueue', (request, reply) => {
+    //change this function to get selected project, logged user , selected template and selected aims ,
+    //onces these received get data from tables iternally and start queue
+    console.log('request. params : -----------', request.body);
+    const projectids = request.body.projectids;
+    models.project_plugin
+      .findAll({
+        include: ['projectpluginrowbyrow'],
+        where: {
+          project_id: projectids,
+        },
+      })
+      .then(eachRowObj => {
+        const result = [];
+        console.log('back end addPluginsToQueue eachobj : ', eachRowObj);
+        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
+        eachRowObj.forEach(data => {
+          //console.log('back end getPluginsProjectsWithParameters eachobj : ', data.dataValues);
+          // const pluginObj = {
+          //   description: data.dataValues.description,
+          //   developer: data.dataValues.developer,
+          //   documentation: data.dataValues.documentation,
+          //   enabled: data.dataValues.enabled,
+          //   id: data.dataValues.id,
+          //   image_repo: data.dataValues.image_repo,
+          //   image_tag: data.dataValues.image_tag,
+          //   image_name: data.dataValues.image_name,
+          //   image_id: data.dataValues.image_id,
+          //   modality: data.dataValues.modality,
+          //   name: data.dataValues.name,
+          //   plugin_id: data.dataValues.plugin_id,
+          //   processmultipleaims: data.dataValues.processmultipleaims,
+          //   projects: [],
+          //   status: data.dataValues.status,
+          //   templates: [],
+          //   parameters: [],
+          // };
+          // data.dataValues.pluginproject.forEach(project => {
+          //   const projectObj = {
+          //     id: project.id,
+          //     projectid: project.projectid,
+          //     projectname: project.name,
+          //   };
+          //   pluginObj.projects.push(projectObj);
+          // });
+          // data.dataValues.plugintemplate.forEach(template => {
+          //   const templateObj = {
+          //     id: template.id,
+          //     templateName: template.templateName,
+          //   };
+          //   pluginObj.templates.push(templateObj);
+          // });
+          // data.dataValues.defaultparameters.forEach(parameter => {
+          //   const parameterObj = {
+          //     id: parameter.id,
+          //     plugin_id: parameter.plugin_id,
+          //     name: parameter.name,
+          //     format: parameter.format,
+          //     prefix: parameter.prefix,
+          //     inputbinding: parameter.inputBinding,
+          //     default_value: parameter.default_value,
+          //     type: parameter.type,
+          //     description: parameter.description,
+          //   };
+          //   pluginObj.parameters.push(parameterObj);
+          // });
+          //result.push(pluginObj);
+        });
+        //console.log('getPluginsProjectsWithParameters', result);
+
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getPluginsWithProject error `, err));
+      });
+  });
+  fastify.decorate('getPluginsQueue', (request, reply) => {
+    console.log('plugin queue list called');
+    models.plugin_queue
+      .findAll()
+      .then(eachRowObj => {
+        const result = [];
+        console.log('back end getPluginsQueue eachobj : ', eachRowObj);
+        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
+        eachRowObj.forEach(data => {
+          console.log('back end getPluginsQueue eachobj : ', data.dataValues);
+          const pluginObj = {
+            id: data.dataValues.id,
+            plugin_id: data.dataValues.plugin_id,
+            plugin_parametertype: data.dataValues.plugin_parametertype,
+            aim_uid: data.dataValues.aim_uid,
+            container_id: data.dataValues.container_id,
+            container_name: data.dataValues.container_name,
+            max_memory: data.dataValues.max_memory,
+            status: data.dataValues.status,
+            starttime: data.dataValues.starttime,
+            endtime: data.dataValues.endtime,
+            parameters: [],
+          };
+
+          result.push(pluginObj);
+        });
+        //console.log('getPluginsProjectsWithParameters', result);
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getPluginsQueue error `, err));
+      });
+  });
+  fastify.decorate('runPluginsQueue', async (request, reply) => {
+    //will receive a queue object which contains plugin id
+    console.log('running queue one by one ', request.body);
+    try {
+      const pluginInQueue = await models.plugin_queue.findOne({
+        where: { id: request.body.id },
+      });
+      const dock = new dockerService();
+      let containername = 'testcnt' + request.body.id;
+      // contRemove = async (err, data) => {
+      //   console.log('err : ', err);
+      //   console.log('data :', data);
+      //   reply.code(200).send(`PrunPluginsQueue retuened`);
+      // };
+      const res = await dock.createContainer('test:latest', containername);
+      console.log('resultsss : ', res);
+      reply.code(200).send(`PrunPluginsQueue retuened`);
+    } catch (err) {
+      reply.send(new InternalError('running queue error', err));
+    }
+    // try {
+    //   const project = await models.project.findOne({
+    //     where: { projectid: request.params.project },
+    //   });
+    //   if (!project) {
+    //     reply.code(404).send(`Project ${request.params.project} not found`);
+    //   } else {
+    //     // delete projects files (delete orphan files)
+    //     await fastify.deleteRelationAndOrphanedCouchDocInternal(
+    //       project.id,
+    //       'project_file',
+    //       'file_uid'
+    //     );
+    //     // delete projects aims (delete orphan aims)
+    //     await fastify.deleteRelationAndOrphanedCouchDocInternal(
+    //       project.id,
+    //       'project_aim',
+    //       'aim_uid'
+    //     );
+    //     // delete projects templates (delete orphan templates)
+    //     await fastify.deleteRelationAndOrphanedCouchDocInternal(
+    //       project.id,
+    //       'project_template',
+    //       'template_uid'
+    //     );
+    //     // delete projects subjects (delete orphan dicom files)
+    //     await fastify.deleteRelationAndOrphanedSubjectsInternal(
+    //       project.id,
+    //       request.params.project,
+    //       request.epadAuth
+    //     );
+    //     await models.project.destroy({
+    //       where: {
+    //         projectId: request.params.project,
+    //       },
+    //     });
+    //     reply.code(200).send(`Project ${request.params.project} deleted successfully`);
+    //   }
+    // } catch (err) {
+    //   reply.send(new InternalError(`Deleting project ${request.params.project}`, err));
+    // }
+  });
+  //internal functions
+  fastify.decorate('runPluginsQueueInternal', () => {
+    const pluginQueueList = [];
+    models.plugin_queue
+      .findAll()
+      .then(eachRowObj => {
+        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
+        eachRowObj.forEach(data => {
+          console.log('running each plugin runPluginsQueueInternal -> ', data.dataValues.plugin_id);
+          // const pluginObj = {
+          //   id: data.dataValues.id,
+          //   plugin_id: data.dataValues.plugin_id,
+          //   plugin_parametertype: data.dataValues.plugin_parametertype,
+          //   aim_uid: data.dataValues.aim_uid,
+          //   container_id: data.dataValues.container_id,
+          //   container_name: data.dataValues.container_name,
+          //   max_memory: data.dataValues.max_memory,
+          //   status: data.dataValues.status,
+          //   starttime: data.dataValues.starttime,
+          //   endtime: data.dataValues.endtime,
+          //   parameters: [],
+          // };
+          console.log('check if pluginid is in the plugin queue', pluginQueue.get(pluginObj.id));
+          //pluginQueueList.push(pluginObj);
+        });
+        //console.log('getPluginsProjectsWithParameters', result);
+      })
+      .catch(err => {
+        new InternalError(`getPluginsQueue error `, err);
+      });
+
+    // const query = new Promise(async (resolve, reject) => {
+    //   try {
+    //     // find user id
+    //     const user = await models.user.findOne({ where: { username }, attributes: ['id'] });
+    //     if (user === null) reject(new ResourceNotFoundError('User', username));
+    //     const userId = user.dataValues.id;
+    //     // find project id
+    //     resolve(userId);
+    //   } catch (err) {
+    //     reject(new InternalError('Retrieving user info', err));
+    //   }
+    // });
+    // return query;
+  });
+  //internal functions end
   //docker section
   fastify.decorate('getDockerImages', (request, reply) => {
     console.log('getting docker images');
@@ -1561,14 +1785,15 @@ async function epaddb(fastify, options, done) {
     dock.createContainer('5f81ef91ee2e', 'test');
     reply.code(200).send('ok');
   });
+
   //docker section end
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////
-  //cavit
+  //plugin section end
+  //cavit end
 
   fastify.decorate('validateRequestBodyFields', (name, id) => {
     if (!name || !id) {

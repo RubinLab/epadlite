@@ -35,6 +35,29 @@ async function routes(fastify) {
     handler: fastify.getPluginsWithProject,
   });
   fastify.route({
+    method: 'POST',
+    url: '/plugins/queue/add',
+    schema: {
+      tags: ['plugins'],
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.addPluginsToQueue,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/queue/',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getPluginsQueue,
+  });
+  fastify.route({
     method: 'GET',
     url: '/plugins/parameters/default/:plugindbid',
     schema: {
@@ -132,7 +155,18 @@ async function routes(fastify) {
     },
     handler: fastify.updateTemplatesForPlugin,
   });
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/queue/run',
+    schema: {
+      tags: ['plugins'],
 
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.runPluginsQueue,
+  });
   fastify.route({
     method: 'POST',
     url: '/plugins',

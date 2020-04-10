@@ -14,9 +14,14 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'template',
+          model: 'plugin',
           key: 'id',
         },
+      },
+      plugin_parametertype: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: false,
+        defaultValue: 0,
       },
       aim_uid: {
         type: DataTypes.STRING(255),

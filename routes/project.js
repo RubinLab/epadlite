@@ -151,6 +151,19 @@ async function routes(fastify) {
     },
     handler: fastify.getProjectsWithPkAsId,
   });
+
+  // getting all plugins for given project(s)
+  // fastify.route({
+  //   method: 'GET',
+  //   url: '/projects/plugins/:projectids',
+  //   schema: {
+  //     tags: ['project'],
+  //     //   response: {
+  //     //     200: 'templates_schema#',
+  //     //   },
+  //   },
+  //   handler: fastify.getProjectsWithPlugins,
+  // });
   //cavit
 
   fastify.route({

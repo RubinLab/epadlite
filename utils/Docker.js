@@ -4,10 +4,14 @@
 class DockerService {
   constructor() {
     const Docker = require('dockerode');
-
+    this.counter = 0;
     //this.tar = require('tar-fs');
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
   }
+  getdockerObj() {
+    return this.docker;
+  }
+
   startContainer(containerId, containerName) {
     console.log('container started dockerode');
     const container = this.docker.getContainer(containerId);
@@ -59,30 +63,106 @@ class DockerService {
         console.log('error happened while creating volume');
       });
   }
+  // we change the one below
+  // createContainer(imageId, containerNameToGive) {
+  //   let auxContainer;
 
+  //   return this.docker
+  //     .createContainer({
+  //       Image: imageId,
+  //       name: containerNameToGive,
+  //       AttachStdin: false,
+  //       AttachStdout: true,
+  //       AttachStderr: true,
+  //       Tty: true,
+  //       //Cmd: ['/bin/bash', '-c', 'tail -f /var/log/dmesg'],
+  //       OpenStdin: false,
+  //       StdinOnce: false,
+  //       // HostConfig: {
+  //       //   Binds: ['testvolume:/home'],
+  //       // },
+  //       // HostConfig: {
+  //       //   Binds: ['/Users/cavit/epadlitev1/distribution/ePad/exampleContaienr/sharewcont:/stuff'],
+  //       // },
+  //     })
+  //     .then(function(container) {
+  //       auxContainer = container;
+  //       return auxContainer.start();
+  //     })
+  //     .catch(function(err) {
+  //       console.log(err);
+  //     });
+  // }
+  // createContainer(imageId, containerNameToGive, contRemove) {
+  //   return;
+  //   this.docker.createContainer(
+  //     {
+  //       Image: imageId,
+  //       // Cmd: ['/bin/ls', '/tmp/app'],
+  //       // Volumes: {
+  //       //   '/tmp/app': {},
+  //       // },
+  //     },
+  //     function(err, container) {
+  //       console.log('attaching to... ' + container.id);
+
+  //       container.attach({ stream: true, stdout: true, stderr: true, tty: true }, function(
+  //         err,
+  //         stream
+  //       ) {
+  //         stream.pipe(process.stdout);
+
+  //         console.log('starting... ' + container.id);
+
+  //         container.start(
+  //           // {
+  //           //   Binds: [volume + ':/tmp/app'],
+  //           // },
+  //           function(err, data) {}
+  //         );
+
+  //         container.wait(function(err, data) {
+  //           console.log('waiting end ... ' + container.id);
+  //           console.log('data : ', data);
+  //           contRemove(err, data);
+  //           //container.remove(contRemove(err, data));
+  //           // container.kill(function(err, data) {
+  //           //   console.log('removing... ' + container.id);
+
+  //           // });
+  //         });
+  //       });
+  //     }
+  //   );
+  // }
   createContainer(imageId, containerNameToGive) {
     let auxContainer;
-    this.docker
+    return this.docker
       .createContainer({
         Image: imageId,
-        name: containerNameToGive,
         AttachStdin: false,
         AttachStdout: true,
         AttachStderr: true,
         Tty: true,
-        //Cmd: ['/bin/bash', '-c', 'tail -f /var/log/dmesg'],
+        // Cmd: ['/bin/bash', '-c', 'tail -f /var/log/dmesg'],
         OpenStdin: false,
         StdinOnce: false,
-        HostConfig: {
-          Binds: ['testvolume:/home'],
-        },
-        // HostConfig: {
-        //   Binds: ['/Users/cavit/epadlitev1/distribution/ePad/exampleContaienr/sharewcont:/stuff'],
-        // },
       })
       .then(function(container) {
         auxContainer = container;
         return auxContainer.start();
+      })
+      .then(function(data) {
+        console.log('waitin for container to exit');
+        return auxContainer.wait();
+      })
+      .then(function(data) {
+        console.log('waiting is doene removing the container');
+        return auxContainer.remove();
+      })
+      .then(function(data) {
+        console.log('container removed');
+        return 204;
       })
       .catch(function(err) {
         console.log(err);
