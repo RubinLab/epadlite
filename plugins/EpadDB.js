@@ -4751,6 +4751,13 @@ async function epaddb(fastify, options, done) {
         try {
           // do it all or none
           await fastify.orm.transaction(async t => {
+            // first version is just lite
+            // we might need to do checks for later versions
+            await fastify.orm.query(`DELETE FROM dbversion`, { transaction: t });
+            await fastify.orm.query(`INSERT INTO dbversion(version) VALUES('lite')`, {
+              transaction: t,
+            });
+
             // go over each table that has schema changes
             // // 1. epad_file
             // // not used. discard the changes for now
