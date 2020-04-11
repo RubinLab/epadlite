@@ -23,8 +23,17 @@ after(() => {
 beforeEach(() => {
   const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
   nock(config.dicomWebConfig.baseUrl)
-    .get('/studies')
+    .get('/studies?limit=100')
     .reply(200, studiesResponse);
+  nock(config.dicomWebConfig.baseUrl)
+    .get('/studies?PatientID=3')
+    .reply(200, studiesResponse);
+  nock(config.dicomWebConfig.baseUrl)
+    .get('/studies?PatientID=7')
+    .reply(200, [{}]);
+  nock(config.dicomWebConfig.baseUrl)
+    .get('/studies?PatientID=4')
+    .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
     .get('/studies/0023.2015.09.28.3/series')
     .reply(200, seriesResponse);
