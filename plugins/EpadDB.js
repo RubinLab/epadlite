@@ -1928,49 +1928,49 @@ async function epaddb(fastify, options, done) {
   //     .catch(err => reply.code(503).send(err));
   // });
 
+  fastify.decorate(
+    'filterProjectAims',
+    (params, query, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const project = await models.project.findOne({
+            where: { projectid: params.project },
+          });
+          if (project === null)
+            reject(
+              new BadRequestError(
+                'Getting aims from project',
+                new ResourceNotFoundError('Project', params.project)
+              )
+            );
+          else {
+            const aimUids = [];
+            const projectAims = await models.project_aim.findAll({
+              where: { project_id: project.id },
+            });
+            // projects will be an array of Project instances with the specified name
+            for (let i = 0; i < projectAims.length; i += 1) {
+              aimUids.push(projectAims[i].aim_uid);
+            }
+
+            const result = await fastify.getAimsInternal(query.format, params, aimUids, epadAuth);
+            resolve(result);
+          }
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
-      const project = await models.project.findOne({
-        where: { projectid: request.params.project },
-      });
-      if (project === null)
-        reply.send(
-          new BadRequestError(
-            'Getting aims from project',
-            new ResourceNotFoundError('Project', request.params.project)
-          )
-        );
-      else {
-        const aimUids = [];
-        const projectAims = await models.project_aim.findAll({ where: { project_id: project.id } });
-        // projects will be an array of Project instances with the specified name
-        for (let i = 0; i < projectAims.length; i += 1) {
-          aimUids.push(projectAims[i].aim_uid);
-        }
-
-        let result = await fastify.getAimsInternal(
-          request.query.format,
-          request.params,
-          aimUids,
-          request.epadAuth
-        );
-        // .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-        } else if (request.query.format === 'summary') {
-          result = result.map(obj => ({ ...obj, projectID: request.params.project }));
-        }
-        reply.code(200).send(result);
-        // })
-        // .catch(err =>
-        //   reply.send(
-        //     new InternalError(
-        //       `Getting aims from couchdb for project ${request.params.project}`,
-        //       err
-        //     )
-        //   )
-        // );
+      let result = await fastify.filterProjectAims(request.params, request.query, request.epadAuth);
+      if (request.query.format === 'stream') {
+        reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+      } else if (request.query.format === 'summary') {
+        result = result.map(obj => ({ ...obj, projectID: request.params.project }));
       }
+      reply.code(200).send(result);
     } catch (err) {
       reply.send(new InternalError(`Getting aims for project ${request.params.project}`, err));
     }
@@ -3248,8 +3248,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getStudySeriesFromProject', async (request, reply) => {
     // TODO project filtering
     if (request.query.format === 'stream' && request.params.series) {
-      console.log('serei');
-      const buffer = await fastify.getWadoMultipart(request.params);
+      const buffer = await fastify.getWadoMultipart(request.params, request.epadAuth);
       reply.header('Content-Disposition', `attachment; filename=dcms.zip`);
 
       reply.code(200).send(buffer);
@@ -3691,8 +3690,34 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'getSegDicom',
+    segEntity =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const result = await this.request.get(
+            `/?requestType=WADO&studyUID=${segEntity.studyInstanceUid.root}&seriesUID=${
+              segEntity.seriesInstanceUid.root
+            }&objectUID=${segEntity.sopInstanceUid.root}`,
+            { responseType: 'stream' }
+          );
+
+          const bufs = [];
+          result.data.on('data', d => {
+            bufs.push(d);
+          });
+          result.data.on('end', () => {
+            const buf = Buffer.concat(bufs);
+            resolve(toArrayBuffer(buf));
+          });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
     'getWadoMultipart',
-    params =>
+    (params, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
           let query = params.study ? `/${params.study}` : '';
@@ -3704,37 +3729,100 @@ async function epaddb(fastify, options, done) {
           const parts = dcmjs.utilities.message.multipartDecode(res);
           const timestamp = new Date().getTime();
           const dir = `tmp_${timestamp}`;
+          const dataDir = `${dir}/${params.series ? params.series : params.study}`;
 
           // have a boolean just to avoid filesystem check for empty annotations directory
-          let isThereDataToWrite = false;
+          let isThereDcmDataToWrite = false;
+          let isThereAimDataToWrite = false;
 
           if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir);
-            fs.mkdirSync(`${dir}/dcms`);
+            fs.mkdirSync(dataDir);
+            fs.mkdirSync(`${dataDir}/dcms`);
+            fs.mkdirSync(`${dataDir}/annotations`);
+
+            // get dicoms
+            const dcmPromises = [];
             for (let i = 0; i < parts.length; i += 1) {
               const arrayBuffer = parts[i];
               const ds = dcmjs.data.DicomMessage.readFile(arrayBuffer);
               const dicomUid =
                 ds.dict['00080018'] && ds.dict['00080018'].Value ? ds.dict['00080018'].Value[0] : i;
-              fs.writeFileSync(`${dir}/dcms/${dicomUid}.dcm`, Buffer.from(arrayBuffer));
-              isThereDataToWrite = true;
+              dcmPromises.push(() => {
+                return fs.writeFile(`${dataDir}/dcms/${dicomUid}.dcm`, Buffer.from(arrayBuffer));
+              });
+              isThereDcmDataToWrite = true;
             }
+            await fastify.pq.addAll(dcmPromises);
+
+            // get aims
+            const aimPromises = [];
+            const aims = await fastify.filterProjectAims(params, {}, epadAuth);
+            const segRetrievePromises = [];
+            for (let i = 0; i < aims.length; i += 1) {
+              aimPromises.push(() => {
+                return fs.writeFile(
+                  `${dataDir}/annotations/${
+                    aims[i].ImageAnnotationCollection.uniqueIdentifier.root
+                  }.json`,
+                  JSON.stringify(aims[i])
+                );
+              });
+              // only get the segs if we are retrieving series. study already gets it
+              if (
+                params.series &&
+                aims[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .segmentationEntityCollection
+              ) {
+                const segEntity =
+                  aims[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .segmentationEntityCollection.SegmentationEntity[0];
+                segRetrievePromises.push(() => {
+                  return fastify.getSegDicom(segEntity);
+                });
+              }
+              isThereAimDataToWrite = true;
+            }
+            await fastify.pq.addAll(aimPromises);
+
+            if (segRetrievePromises.length > 0) {
+              const segWritePromises = [];
+              const segs = await fastify.pq.addAll(segRetrievePromises);
+              for (let i = 0; i < segs.length; i += 1) {
+                const ds = dcmjs.data.DicomMessage.readFile(segs[i]);
+                const dicomUid =
+                  ds.dict['00080018'] && ds.dict['00080018'].Value
+                    ? ds.dict['00080018'].Value[0]
+                    : i;
+                segWritePromises.push(() => {
+                  return fs.writeFile(`${dataDir}/dcms/${dicomUid}.dcm`, Buffer.from(segs[i]));
+                });
+                isThereDcmDataToWrite = true;
+              }
+              await fastify.pq.addAll(segWritePromises);
+            }
+
+            // TODO get files
+
+            // remove empty dirs
+            if (!isThereDcmDataToWrite) fs.rmdirSync(`${dataDir}/dcms`);
+            if (!isThereAimDataToWrite) fs.rmdirSync(`${dataDir}/annotations`);
           }
-          if (isThereDataToWrite) {
+          if (isThereDcmDataToWrite || isThereAimDataToWrite) {
             // create a file to stream archive data to.
-            const output = fs.createWriteStream(`${dir}/dcms.zip`);
+            const output = fs.createWriteStream(`${dataDir}.zip`);
             const archive = archiver('zip', {
               zlib: { level: 9 }, // Sets the compression level.
             });
             // create the archive
             archive
-              .directory(`${dir}/dcms`, false)
-              .on('error', err => reject(new InternalError('Archiving dcms', err)))
+              .directory(`${dataDir}`, false)
+              .on('error', err => reject(new InternalError('Archiving ', err)))
               .pipe(output);
 
             output.on('close', () => {
               fastify.log.info(`Created zip in ${dir}`);
-              const readStream = fs.createReadStream(`${dir}/dcms.zip`);
+              const readStream = fs.createReadStream(`${dataDir}.zip`);
               // delete tmp folder after the file is sent
               readStream.once('end', () => {
                 readStream.destroy(); // make sure stream closed, not close if download aborted.
@@ -3766,7 +3854,7 @@ async function epaddb(fastify, options, done) {
       // TODO check if it is in the project
 
       if (request.query.format === 'stream') {
-        const buffer = await fastify.getWadoMultipart(request.params);
+        const buffer = await fastify.getWadoMultipart(request.params, request.epadAuth);
         reply.header('Content-Disposition', `attachment; filename=dcms.zip`);
 
         reply.code(200).send(buffer);

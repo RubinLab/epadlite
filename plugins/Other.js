@@ -37,6 +37,7 @@ const {
 async function other(fastify) {
   fastify.log.info(`Starting a promise queue with ${config.maxConcurrent} concurrent promisses`);
   const pq = new PQueue({ concurrency: config.maxConcurrent });
+  fastify.decorate('pq', pq);
   let count = 0;
   pq.on('active', () => {
     count += 1;
