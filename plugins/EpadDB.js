@@ -3249,7 +3249,7 @@ async function epaddb(fastify, options, done) {
     // TODO project filtering
     if (request.query.format === 'stream' && request.params.series) {
       const buffer = await fastify.getWadoMultipart(request.params, request.epadAuth);
-      reply.header('Content-Disposition', `attachment; filename=dcms.zip`);
+      reply.header('Content-Disposition', `attachment; filename=${request.series}.zip`);
 
       reply.code(200).send(buffer);
     } else {
@@ -3855,7 +3855,7 @@ async function epaddb(fastify, options, done) {
 
       if (request.query.format === 'stream') {
         const buffer = await fastify.getWadoMultipart(request.params, request.epadAuth);
-        reply.header('Content-Disposition', `attachment; filename=dcms.zip`);
+        reply.header('Content-Disposition', `attachment; filename=${request.study}.zip`);
 
         reply.code(200).send(buffer);
       } else {
