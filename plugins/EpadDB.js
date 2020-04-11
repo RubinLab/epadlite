@@ -2940,7 +2940,7 @@ async function epaddb(fastify, options, done) {
     (whereJSON, params, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const projectSubject = await models.project_subject.findOne({
+          const projectSubjects = await models.project_subject.findAll({
             where: whereJSON,
             include: [models.subject, models.study],
           });
@@ -2955,7 +2955,7 @@ async function epaddb(fastify, options, done) {
                 new ResourceNotFoundError('Project id', whereJSON.project_id)
               )
             );
-          } else if (projectSubject === null) {
+          } else if (projectSubjects === null) {
             reject(
               new BadRequestError(
                 'Get studies from project',
@@ -2966,14 +2966,16 @@ async function epaddb(fastify, options, done) {
               )
             );
           } else {
-            for (let i = 0; i < projectSubject.dataValues.studies.length; i += 1) {
-              studyUids.push(projectSubject.dataValues.studies[i].dataValues.studyuid);
-              // ASSUMPTION: nondicoms have no studydate
-              if (!projectSubject.dataValues.studies[i].dataValues.studydate)
-                nondicoms.push({
-                  subject: projectSubject.dataValues.subject,
-                  study: projectSubject.dataValues.studies[i],
-                });
+            for (let j = 0; j < projectSubjects.length; j += 1) {
+              for (let i = 0; i < projectSubjects[j].dataValues.studies.length; i += 1) {
+                studyUids.push(projectSubjects[j].dataValues.studies[i].dataValues.studyuid);
+                // ASSUMPTION: nondicoms have no studydate
+                if (!projectSubjects[j].dataValues.studies[i].dataValues.studydate)
+                  nondicoms.push({
+                    subject: projectSubjects[j].dataValues.subject,
+                    study: projectSubjects[j].dataValues.studies[i],
+                  });
+              }
             }
             const result = await fastify.getPatientStudiesInternal(params, studyUids, epadAuth);
             if (studyUids.length !== result.length)
@@ -3017,6 +3019,7 @@ async function epaddb(fastify, options, done) {
                     result.length
                   } of them have dicom files`
                 );
+
             resolve(result);
           }
         } catch (err) {
