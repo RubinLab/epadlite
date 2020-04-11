@@ -6,6 +6,11 @@ const _ = require('lodash');
 const Axios = require('axios');
 const os = require('os');
 const schedule = require('node-schedule-tz');
+const archiver = require('archiver');
+const toArrayBuffer = require('to-array-buffer');
+// eslint-disable-next-line no-global-assign
+window = {};
+const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const {
   InternalError,
@@ -3240,28 +3245,36 @@ async function epaddb(fastify, options, done) {
       );
     }
   });
-  fastify.decorate('getStudySeriesFromProject', (request, reply) => {
+  fastify.decorate('getStudySeriesFromProject', async (request, reply) => {
     // TODO project filtering
-    fastify
-      .getStudySeriesInternal(request.params, request.query, request.epadAuth)
-      .then(result => reply.code(200).send(result))
-      .catch(err =>
-        fastify
-          .getNondicomStudySeriesFromProjectInternal(request.params)
-          .then(nondicomResult => reply.code(200).send(nondicomResult))
-          .catch(nondicomErr => {
-            reply.send(
-              new InternalError(
-                'Retrieving series',
-                new Error(
-                  `Failed from dicomweb with ${err.message} and from nondicom with ${
-                    nondicomErr.message
-                  }`
+    if (request.query.format === 'stream' && request.params.series) {
+      console.log('serei');
+      const buffer = await fastify.getWadoMultipart(request.params);
+      reply.header('Content-Disposition', `attachment; filename=dcms.zip`);
+
+      reply.code(200).send(buffer);
+    } else {
+      fastify
+        .getStudySeriesInternal(request.params, request.query, request.epadAuth)
+        .then(result => reply.code(200).send(result))
+        .catch(err =>
+          fastify
+            .getNondicomStudySeriesFromProjectInternal(request.params)
+            .then(nondicomResult => reply.code(200).send(nondicomResult))
+            .catch(nondicomErr => {
+              reply.send(
+                new InternalError(
+                  'Retrieving series',
+                  new Error(
+                    `Failed from dicomweb with ${err.message} and from nondicom with ${
+                      nondicomErr.message
+                    }`
+                  )
                 )
-              )
-            );
-          })
-      );
+              );
+            })
+        );
+    }
   });
   fastify.decorate(
     'deleteNonDicomSeriesInternal',
@@ -3657,17 +3670,116 @@ async function epaddb(fastify, options, done) {
       });
   });
 
+  fastify.decorate(
+    'getMultipartBuffer',
+    stream =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const bufs = [];
+          stream.on('data', d => {
+            bufs.push(d);
+          });
+          stream.on('end', () => {
+            const buf = Buffer.concat(bufs);
+            fastify.log.info(`Packed ${Buffer.byteLength(buf)} bytes of buffer `);
+            resolve(toArrayBuffer(buf));
+          });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getWadoMultipart',
+    params =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let query = params.study ? `/${params.study}` : '';
+          if (params.series) query += `/series/${params.series}`;
+          const resultStream = await this.request.get(`/studies${query}`, {
+            responseType: 'stream',
+          });
+          const res = await fastify.getMultipartBuffer(resultStream.data);
+          const parts = dcmjs.utilities.message.multipartDecode(res);
+          const timestamp = new Date().getTime();
+          const dir = `tmp_${timestamp}`;
+
+          // have a boolean just to avoid filesystem check for empty annotations directory
+          let isThereDataToWrite = false;
+
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir);
+            fs.mkdirSync(`${dir}/dcms`);
+            for (let i = 0; i < parts.length; i += 1) {
+              const arrayBuffer = parts[i];
+              const ds = dcmjs.data.DicomMessage.readFile(arrayBuffer);
+              const dicomUid =
+                ds.dict['00080018'] && ds.dict['00080018'].Value ? ds.dict['00080018'].Value[0] : i;
+              fs.writeFileSync(`${dir}/dcms/${dicomUid}.dcm`, Buffer.from(arrayBuffer));
+              isThereDataToWrite = true;
+            }
+          }
+          if (isThereDataToWrite) {
+            // create a file to stream archive data to.
+            const output = fs.createWriteStream(`${dir}/dcms.zip`);
+            const archive = archiver('zip', {
+              zlib: { level: 9 }, // Sets the compression level.
+            });
+            // create the archive
+            archive
+              .directory(`${dir}/dcms`, false)
+              .on('error', err => reject(new InternalError('Archiving dcms', err)))
+              .pipe(output);
+
+            output.on('close', () => {
+              fastify.log.info(`Created zip in ${dir}`);
+              const readStream = fs.createReadStream(`${dir}/dcms.zip`);
+              // delete tmp folder after the file is sent
+              readStream.once('end', () => {
+                readStream.destroy(); // make sure stream closed, not close if download aborted.
+                fs.remove(dir, error => {
+                  if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                  else fastify.log.info(`${dir} deleted`);
+                });
+              });
+              resolve(readStream);
+            });
+            archive.finalize();
+          } else {
+            fs.remove(dir, error => {
+              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+              else fastify.log.info(`${dir} deleted`);
+            });
+            reject(
+              new InternalError('Downloading templates', new Error('No template in download'))
+            );
+          }
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate('getPatientStudyFromProject', async (request, reply) => {
     try {
       // TODO check if it is in the project
-      const studyUids = [request.params.study];
-      const result = await fastify.getPatientStudiesInternal(
-        request.params,
-        studyUids,
-        request.epadAuth
-      );
-      if (result.length === 1) reply.code(200).send(result[0]);
-      else reply.send(new ResourceNotFoundError('Study', request.params.study));
+
+      if (request.query.format === 'stream') {
+        const buffer = await fastify.getWadoMultipart(request.params);
+        reply.header('Content-Disposition', `attachment; filename=dcms.zip`);
+
+        reply.code(200).send(buffer);
+      } else {
+        const studyUids = [request.params.study];
+        const result = await fastify.getPatientStudiesInternal(
+          request.params,
+          studyUids,
+          request.epadAuth
+        );
+        if (result.length === 1) reply.code(200).send(result[0]);
+        else reply.send(new ResourceNotFoundError('Study', request.params.study));
+      }
     } catch (err) {
       reply.send(new InternalError(`Get study ${request.params.study}`, err));
     }

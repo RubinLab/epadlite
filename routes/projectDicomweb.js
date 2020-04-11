@@ -69,6 +69,35 @@ async function routes(fastify) {
     handler: fastify.getStudySeriesFromProject,
   });
 
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/subjects/:subject/studies/:study/series/:series',
+    schema: {
+      tags: ['project', 'series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+        },
+      },
+      response: {
+        200: 'epadlite_series_schema#',
+      },
+    },
+    handler: fastify.getStudySeriesFromProject,
+  });
+
   // GET images
   fastify.route({
     method: 'GET',
