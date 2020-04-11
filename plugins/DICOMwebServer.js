@@ -56,7 +56,7 @@ async function dicomwebserver(fastify) {
                 baseURL: config.dicomWebConfig.baseUrl,
               });
               this.request
-                .get('/studies', header)
+                .get('/studies?limit=1', header)
                 .then(() => {
                   resolve();
                 })
@@ -77,7 +77,7 @@ async function dicomwebserver(fastify) {
               },
             };
             this.request
-              .get('/studies', header)
+              .get('/studies?limit=1', header)
               .then(() => {
                 resolve();
               })
@@ -89,7 +89,7 @@ async function dicomwebserver(fastify) {
               baseURL: config.dicomWebConfig.baseUrl,
             });
             this.request
-              .get('/studies')
+              .get('/studies?limit=1')
               .then(() => {
                 resolve();
               })
@@ -178,8 +178,10 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           // make studies call and aims call
+          // add a limit of 100 if not passed
+          const query = params.subject ? `?PatientID=${params.subject}` : '?limit=100';
           const promisses = [];
-          promisses.push(this.request.get('/studies', header));
+          promisses.push(this.request.get(`/studies${query}`, header));
           if (!noStats)
             promisses.push(
               fastify.getAimsInternal(
@@ -283,8 +285,14 @@ async function dicomwebserver(fastify) {
           let filteredStudies = studies;
           let filteredAims = aims;
           if (filter) {
-            filteredStudies = _.filter(filteredStudies, obj => filter.includes(obj[tag].Value[0]));
-            filteredAims = _.filter(filteredAims, obj => filter.includes(obj[aimField]));
+            filteredStudies = _.filter(
+              filteredStudies,
+              obj => obj[tag] && filter.includes(obj[tag].Value[0])
+            );
+            filteredAims = _.filter(
+              filteredAims,
+              obj => obj[tag] && filter.includes(obj[aimField])
+            );
           }
           resolve({ filteredStudies, filteredAims });
         } catch (err) {
@@ -317,8 +325,9 @@ async function dicomwebserver(fastify) {
     (params, filter, epadAuth, noStats) =>
       new Promise((resolve, reject) => {
         try {
+          const query = params.subject ? `?PatientID=${params.subject}` : '?limit=100';
           const promisses = [];
-          promisses.push(this.request.get('/studies', header));
+          promisses.push(this.request.get(`/studies${query}`, header));
           // get aims for a specific patient
           if (!noStats)
             promisses.push(
@@ -368,7 +377,9 @@ async function dicomwebserver(fastify) {
               if (params.subject)
                 filteredStudies = _.filter(
                   filteredStudies,
-                  obj => fastify.replaceNull(obj['00100020'].Value[0]) === params.subject
+                  obj =>
+                    obj['00100020'] &&
+                    fastify.replaceNull(obj['00100020'].Value[0]) === params.subject
                 );
 
               // get the patients's studies and map each study to epadlite study object
@@ -434,7 +445,9 @@ async function dicomwebserver(fastify) {
     (query, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const studies = await this.request.get('/studies', header);
+          // add a limit of 100 if not passed
+          const limit = query.limit ? query.limit : '100';
+          const studies = await this.request.get(`/studies?limit=${limit}`, header);
           const studyUids = _.map(studies.data, value => {
             return value['0020000D'].Value[0];
           });
