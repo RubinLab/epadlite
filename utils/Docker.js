@@ -140,6 +140,7 @@ class DockerService {
     return this.docker
       .createContainer({
         Image: imageId,
+        name: containerNameToGive,
         AttachStdin: false,
         AttachStdout: true,
         AttachStderr: true,
@@ -147,21 +148,24 @@ class DockerService {
         // Cmd: ['/bin/bash', '-c', 'tail -f /var/log/dmesg'],
         OpenStdin: false,
         StdinOnce: false,
+        HostConfig: {
+          Binds: ['testvolume:/home'],
+        },
       })
       .then(function(container) {
         auxContainer = container;
         return auxContainer.start();
       })
       .then(function(data) {
-        console.log('waitin for container to exit');
+        console.log('waitin for plugin container to finish processing');
         return auxContainer.wait();
       })
       .then(function(data) {
-        console.log('waiting is doene removing the container');
+        console.log('plugin container is done processing. Removing the container');
         return auxContainer.remove();
       })
       .then(function(data) {
-        console.log('container removed');
+        console.log('plugin container removed successfully ');
         return 204;
       })
       .catch(function(err) {

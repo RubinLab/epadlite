@@ -13,7 +13,7 @@ const {
   UnauthorizedError,
   EpadError,
 } = require('../utils/EpadErrors');
-
+const EpadNotification = require('../utils/EpadNotification');
 async function epaddb(fastify, options, done) {
   const models = {};
   const pluginsQueuePromises = [];
@@ -163,7 +163,10 @@ async function epaddb(fastify, options, done) {
             as: 'projectpluginrowbyrow',
             foreignKey: 'project_id',
           });
-
+          models.plugin_queue.belongsTo(models.plugin, {
+            as: 'queueplugin',
+            foreignKey: 'plugin_id',
+          });
           //Post.find({ where: { ...}, include: [User]})
 
           //cavit
@@ -1639,10 +1642,13 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getPluginsQueue', (request, reply) => {
     console.log('plugin queue list called');
     models.plugin_queue
-      .findAll()
+      .findAll({
+        include: ['queueplugin'],
+        required: false,
+      })
       .then(eachRowObj => {
         const result = [];
-        console.log('back end getPluginsQueue eachobj : ', eachRowObj);
+        console.log('eachRowObj : ', eachRowObj);
         // console.log('def params : ', plugins[0].dataValues.defaultparameters);
         eachRowObj.forEach(data => {
           console.log('back end getPluginsQueue eachobj : ', data.dataValues);
@@ -1657,11 +1663,15 @@ async function epaddb(fastify, options, done) {
             status: data.dataValues.status,
             starttime: data.dataValues.starttime,
             endtime: data.dataValues.endtime,
+            plugin: {},
             parameters: [],
           };
-
+          if (data.dataValues.queueplugin !== null) {
+            pluginObj.pluguin = { ...data.dataValues.queueplugin.dataValues };
+          }
           result.push(pluginObj);
         });
+
         //console.log('getPluginsProjectsWithParameters', result);
         reply.code(200).send(result);
       })
@@ -1673,19 +1683,22 @@ async function epaddb(fastify, options, done) {
     //will receive a queue object which contains plugin id
     console.log('running queue one by one ', request.body);
     try {
-      const pluginInQueue = await models.plugin_queue.findOne({
-        where: { id: request.body.id },
+      const pluginInQueue = await models.plugin_queue.findAll({
+        include: ['queueplugin'],
+        where: { status: null },
       });
-      const dock = new dockerService();
-      let containername = 'testcnt' + request.body.id;
+      //const dock = new dockerService();
+      //let containername = 'testcnt' + request.body.id;
       // contRemove = async (err, data) => {
       //   console.log('err : ', err);
       //   console.log('data :', data);
       //   reply.code(200).send(`PrunPluginsQueue retuened`);
       // };
-      const res = await dock.createContainer('test:latest', containername);
-      console.log('resultsss : ', res);
-      reply.code(200).send(`PrunPluginsQueue retuened`);
+      //const res = await dock.createContainer('test:latest', containername);
+      //console.log('resultsss : ', res);
+      reply.code(202).send(`PrunPluginsQueue called and retuened 202 inernal queue is started`);
+      fastify.runPluginsQueueInternal(pluginInQueue, request);
+      //new EpadNotification(request, 'Docker finished processing', containername).notify(fastify);
     } catch (err) {
       reply.send(new InternalError('running queue error', err));
     }
@@ -1732,49 +1745,31 @@ async function epaddb(fastify, options, done) {
     // }
   });
   //internal functions
-  fastify.decorate('runPluginsQueueInternal', () => {
-    const pluginQueueList = [];
-    models.plugin_queue
-      .findAll()
-      .then(eachRowObj => {
-        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
-        eachRowObj.forEach(data => {
-          console.log('running each plugin runPluginsQueueInternal -> ', data.dataValues.plugin_id);
-          // const pluginObj = {
-          //   id: data.dataValues.id,
-          //   plugin_id: data.dataValues.plugin_id,
-          //   plugin_parametertype: data.dataValues.plugin_parametertype,
-          //   aim_uid: data.dataValues.aim_uid,
-          //   container_id: data.dataValues.container_id,
-          //   container_name: data.dataValues.container_name,
-          //   max_memory: data.dataValues.max_memory,
-          //   status: data.dataValues.status,
-          //   starttime: data.dataValues.starttime,
-          //   endtime: data.dataValues.endtime,
-          //   parameters: [],
-          // };
-          console.log('check if pluginid is in the plugin queue', pluginQueue.get(pluginObj.id));
-          //pluginQueueList.push(pluginObj);
-        });
-        //console.log('getPluginsProjectsWithParameters', result);
-      })
-      .catch(err => {
-        new InternalError(`getPluginsQueue error `, err);
-      });
-
-    // const query = new Promise(async (resolve, reject) => {
-    //   try {
-    //     // find user id
-    //     const user = await models.user.findOne({ where: { username }, attributes: ['id'] });
-    //     if (user === null) reject(new ResourceNotFoundError('User', username));
-    //     const userId = user.dataValues.id;
-    //     // find project id
-    //     resolve(userId);
-    //   } catch (err) {
-    //     reject(new InternalError('Retrieving user info', err));
-    //   }
-    // });
-    // return query;
+  fastify.decorate('runPluginsQueueInternal', async (result, request) => {
+    const pluginQueueList = [...result];
+    //console.log('this queue to run ', pluginQueueList);
+    for (const eachQueueObj of pluginQueueList) {
+      console.log('---------++++++++++++____________________');
+      console.log('this function intendet to work by itself', eachQueueObj.dataValues);
+      if (eachQueueObj.dataValues.queueplugin !== null) {
+        console.log('plugin data in queue ', eachQueueObj.dataValues.queueplugin.dataValues.name);
+      }
+      console.log('---------++++++++++++____________________');
+      const dock = new dockerService();
+      let containername = 'testcnt' + eachQueueObj.dataValues.id;
+      // contRemove = async (err, data) => {
+      //   console.log('err : ', err);
+      //   console.log('data :', data);
+      //   reply.code(200).send(`PrunPluginsQueue retuened`);
+      // };
+      let res = await dock.createContainer('test:latest', containername);
+      new EpadNotification(
+        request,
+        'Docker finished processing',
+        'container name : ' + containername
+      ).notify(fastify);
+      console.log('resultsss : ', res);
+    }
   });
   //internal functions end
   //docker section
