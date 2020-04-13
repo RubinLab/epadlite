@@ -3,22 +3,26 @@ const fs = require('fs-extra');
 const unzip = require('unzip-stream');
 const toArrayBuffer = require('to-array-buffer');
 const { default: PQueue } = require('p-queue');
+const path = require('path');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
 const atob = require('atob');
-
+const axios = require('axios');
 const config = require('../config/index');
 
+let keycloak = null;
 // I need to import this after config as it uses config values
-// eslint-disable-next-line import/order
-const keycloak = require('keycloak-backend')({
-  realm: config.authConfig.realm, // required for verify
-  'auth-server-url': config.authConfig.authServerUrl, // required for verify
-  client_id: config.authConfig.clientId,
-  client_secret: config.authConfig.clientSecret,
-});
-
+if (config.auth !== 'external') {
+  // eslint-disable-next-line import/order
+  // eslint-disable-next-line global-require
+  keycloak = require('keycloak-backend')({
+    realm: config.authConfig.realm, // required for verify
+    'auth-server-url': config.authConfig.authServerUrl, // required for verify
+    client_id: config.authConfig.clientId,
+    client_secret: config.authConfig.clientSecret,
+  });
+}
 const EpadNotification = require('../utils/EpadNotification');
 
 const {
@@ -33,6 +37,7 @@ const {
 async function other(fastify) {
   fastify.log.info(`Starting a promise queue with ${config.maxConcurrent} concurrent promisses`);
   const pq = new PQueue({ concurrency: config.maxConcurrent });
+  fastify.decorate('pq', pq);
   let count = 0;
   pq.on('active', () => {
     count += 1;
@@ -88,10 +93,12 @@ async function other(fastify) {
               }
               // see if it was a dicom
               if (datasets.length > 0) {
-                if (config.mode === 'thick')
-                  await fastify.addProjectReferences(request.params, request.epadAuth, studies);
-                const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
-                await fastify.saveDicomsInternal(data, boundary);
+                await fastify.sendDicomsInternal(
+                  request.params,
+                  request.epadAuth,
+                  studies,
+                  datasets
+                );
                 datasets = [];
                 studies = new Set();
               }
@@ -100,47 +107,53 @@ async function other(fastify) {
                 fastify.log.info(`${dir} deleted`);
               });
 
+              let errMessagesText = null;
+              if (errors.length > 0) {
+                const errMessages = errors.reduce((all, item) => {
+                  all.push(item.message);
+                  return all;
+                }, []);
+                errMessagesText = errMessages.toString();
+              }
+
               if (success) {
-                if (errors.length > 0) {
-                  const errMessages = errors.reduce((all, item) => {
-                    all.push(item.message);
-                    return all;
-                  }, []);
-                  if (errMessages.length > 0) {
-                    if (config.env === 'test')
-                      reply.send(
-                        new InternalError(
-                          'Upload Completed with errors',
-                          new Error(errMessages.toString())
-                        )
-                      );
-                    else
-                      new EpadNotification(
-                        request,
-                        'Upload Completed with errors',
-                        new Error(errMessages.toString())
-                      ).notify(fastify);
-                  }
+                if (errMessagesText) {
+                  if (config.env === 'test')
+                    reply.send(
+                      new InternalError('Upload Completed with errors', new Error(errMessagesText))
+                    );
+                  else
+                    new EpadNotification(
+                      request,
+                      'Upload Completed with errors',
+                      new Error(errMessagesText),
+                      true
+                    ).notify(fastify);
+
                   // test should wait for the upload to actually finish to send the response.
                   // sending the reply early is to handle very large files and to avoid browser repeating the request
                 } else if (config.env === 'test') reply.code(200).send();
                 else {
                   fastify.log.info(`Upload Completed ${filenames}`);
-                  new EpadNotification(request, 'Upload Completed', filenames).notify(fastify);
+                  new EpadNotification(request, 'Upload Completed', filenames, true).notify(
+                    fastify
+                  );
                 }
-              } else if (config.env === 'test')
+              } else if (config.env === 'test') {
                 reply.send(
                   new InternalError(
                     'Upload Failed as none of the files were uploaded successfully',
-                    new Error(filenames.toString())
+                    new Error(`${filenames.toString()}. ${errMessagesText}`)
                   )
                 );
-              else
+              } else {
                 new EpadNotification(
                   request,
                   'Upload Failed as none of the files were uploaded successfully',
-                  new Error(filenames.toString())
+                  new Error(`${filenames.toString()}. ${errMessagesText}`),
+                  true
                 ).notify(fastify);
+              }
             } catch (filesErr) {
               fs.remove(dir, error => {
                 if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
@@ -151,7 +164,8 @@ async function other(fastify) {
                 new EpadNotification(
                   request,
                   'Upload files',
-                  new InternalError('Upload Error', filesErr)
+                  new InternalError('Upload Error', filesErr),
+                  true
                 ).notify(fastify);
             }
           })
@@ -165,7 +179,8 @@ async function other(fastify) {
               new EpadNotification(
                 request,
                 'Upload files',
-                new InternalError('Upload Error', fileSaveErr)
+                new InternalError('Upload Error', fileSaveErr),
+                true
               ).notify(fastify);
           });
       }
@@ -186,6 +201,34 @@ async function other(fastify) {
     request.multipart(handler, done);
   });
 
+  fastify.decorate('chunkSize', 500);
+
+  fastify.decorate(
+    'sendDicomsInternal',
+    (params, epadAuth, studies, datasets) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await fastify.addProjectReferences(params, epadAuth, studies);
+          fastify.log.info(`Writing ${datasets.length} dicoms`);
+          for (let i = 0; i < datasets.length; i += fastify.chunkSize) {
+            const dataSetPart = datasets.slice(
+              i,
+              i + fastify.chunkSize > datasets.length ? datasets.length : i + fastify.chunkSize
+            );
+            const { data, boundary } = dcmjs.utilities.message.multipartEncode(dataSetPart);
+            fastify.log.info(
+              `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
+            );
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.saveDicomsInternal(data, boundary);
+          }
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate(
     'addProjectReferences',
     (params, epadAuth, studies) =>
@@ -193,12 +236,14 @@ async function other(fastify) {
         try {
           // eslint-disable-next-line no-restricted-syntax
           for (const study of studies) {
+            const studyJSON = JSON.parse(study);
             const combinedParams = {
               project: params.project, // should only get project id from params
-              ...JSON.parse(study),
+              subject: studyJSON.subject,
+              study: studyJSON.study,
             };
             // eslint-disable-next-line no-await-in-loop
-            await fastify.addPatientStudyToProjectInternal(combinedParams, epadAuth);
+            await fastify.addPatientStudyToProjectInternal(combinedParams, epadAuth, studyJSON);
           }
           resolve();
         } catch (err) {
@@ -217,6 +262,26 @@ async function other(fastify) {
       study:
         dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
           ? dicomTags.dict['0020000D'].Value[0]
+          : '',
+      subjectName:
+        dicomTags.dict['00100010'] && dicomTags.dict['00100010'].Value
+          ? dicomTags.dict['00100010'].Value[0]
+          : '',
+      studyDesc:
+        dicomTags.dict['00081030'] && dicomTags.dict['00081030'].Value
+          ? dicomTags.dict['00081030'].Value[0]
+          : '',
+      insertDate:
+        dicomTags.dict['00080020'] && dicomTags.dict['00080020'].Value
+          ? dicomTags.dict['00080020'].Value[0]
+          : '',
+      birthdate:
+        dicomTags.dict['00100030'] && dicomTags.dict['00100030'].Value
+          ? dicomTags.dict['00100030'].Value[0]
+          : '',
+      sex:
+        dicomTags.dict['00100040'] && dicomTags.dict['00100040'].Value
+          ? dicomTags.dict['00100040'].Value[0]
           : '',
       // seriesUID:
       //   dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
@@ -248,6 +313,11 @@ async function other(fastify) {
                   fastify.log.info(
                     `Finished processing ${filename} at ${new Date().getTime()} started at ${zipTimestamp}`
                   );
+                  fs.remove(zipDir, error => {
+                    if (error)
+                      fastify.log.info(`Zip temp directory deletion error ${error.message}`);
+                    else fastify.log.info(`${zipDir} deleted`);
+                  });
                   resolve(result);
                 })
                 .catch(err => reject(err));
@@ -260,6 +330,33 @@ async function other(fastify) {
         }
       })
   );
+
+  fastify.decorate('scanFolder', (request, reply) => {
+    const scanTimestamp = new Date().getTime();
+    const dataFolder = path.join(__dirname, '../data');
+    if (!fs.existsSync(dataFolder))
+      reply.send(
+        new InternalError('Scanning data folder', new Error(`${dataFolder} does not exist`))
+      );
+    else {
+      fastify.log.info(`Started scanning folder ${dataFolder}`);
+      reply.send(`Started scanning ${dataFolder}`);
+      fastify
+        .processFolder(dataFolder, request.params, {}, request.epadAuth)
+        .then(result => {
+          fastify.log.info(
+            `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
+              result.success
+            } started at ${scanTimestamp}`
+          );
+          new EpadNotification(request, 'Folder scan completed', dataFolder, true).notify(fastify);
+        })
+        .catch(err => {
+          fastify.log.warn(`Error processing ${dataFolder} Error: ${err.message}`);
+          new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
+        });
+    }
+  });
 
   fastify.decorate(
     'processFolder',
@@ -274,64 +371,65 @@ async function other(fastify) {
           if (err) {
             reject(new InternalError(`Reading directory ${zipDir}`, err));
           } else {
-            const promisses = [];
-            for (let i = 0; i < files.length; i += 1) {
-              if (files[i] !== '__MACOSX')
-                if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
-                  try {
-                    // eslint-disable-next-line no-await-in-loop
-                    const subdirResult = await fastify.processFolder(
-                      `${zipDir}/${files[i]}`,
-                      params,
-                      query,
-                      epadAuth
+            try {
+              const promisses = [];
+              for (let i = 0; i < files.length; i += 1) {
+                if (files[i] !== '__MACOSX')
+                  if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
+                    try {
+                      // eslint-disable-next-line no-await-in-loop
+                      const subdirResult = await fastify.processFolder(
+                        `${zipDir}/${files[i]}`,
+                        params,
+                        query,
+                        epadAuth
+                      );
+                      if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
+                        result.errors = result.errors.concat(subdirResult.errors);
+                      }
+                      if (subdirResult && subdirResult.success) {
+                        result.success = result.success || subdirResult.success;
+                      }
+                    } catch (folderErr) {
+                      reject(folderErr);
+                    }
+                  else
+                    promisses.push(
+                      fastify
+                        .processFile(zipDir, files[i], datasets, params, query, studies, epadAuth)
+                        // eslint-disable-next-line no-loop-func
+                        .catch(error => {
+                          result.errors.push(error);
+                        })
                     );
-                    if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
-                      result.errors = result.errors.concat(subdirResult.errors);
+              }
+              Promise.all(promisses).then(async values => {
+                try {
+                  for (let i = 0; values.length; i += 1) {
+                    if (
+                      values[i] === undefined ||
+                      (values[i].errors && values[i].errors.length === 0)
+                    ) {
+                      // one success is enough
+                      result.success = result.success || true;
+                      break;
                     }
-                    if (subdirResult && subdirResult.success) {
-                      result.success = result.success || subdirResult.success;
-                    }
-                  } catch (folderErr) {
-                    reject(folderErr);
                   }
-                else
-                  promisses.push(
+                  if (datasets.length > 0) {
                     fastify
-                      .processFile(zipDir, files[i], datasets, params, query, studies, epadAuth)
-                      // eslint-disable-next-line no-loop-func
-                      .catch(error => {
-                        result.errors.push(error);
-                      })
-                  );
-            }
-            Promise.all(promisses).then(async values => {
-              for (let i = 0; values.length; i += 1) {
-                if (
-                  values[i] === undefined ||
-                  (values[i].errors && values[i].errors.length === 0)
-                ) {
-                  // one success is enough
-                  result.success = result.success || true;
-                  break;
+                      .sendDicomsInternal(params, epadAuth, studies, datasets)
+                      .then(() => resolve(result))
+                      .catch(error => reject(error));
+                  } else {
+                    resolve(result);
+                  }
+                } catch (saveDicomErr) {
+                  reject(saveDicomErr);
                 }
-              }
-              if (datasets.length > 0) {
-                if (config.mode === 'thick')
-                  await fastify.addProjectReferences(params, epadAuth, studies);
-                fastify.log.info(`Writing ${datasets.length} dicoms in folder ${zipDir}`);
-                const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
-                fastify.log.info(
-                  `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
-                );
-                fastify
-                  .saveDicomsInternal(data, boundary)
-                  .then(() => resolve(result))
-                  .catch(error => reject(error));
-              } else {
-                resolve(result);
-              }
-            });
+              });
+            } catch (errDir) {
+              reject(errDir);
+            }
           }
         });
       })
@@ -364,7 +462,7 @@ async function other(fastify) {
                 datasets.push(arrayBuffer);
                 resolve({ success: true, errors: [] });
               } catch (err) {
-                reject(new InternalError(`Reading dicom file ${filename}`));
+                reject(new InternalError(`Reading dicom file ${filename}`, err));
               }
             } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
               const jsonBuffer = JSON.parse(buffer.toString());
@@ -372,9 +470,19 @@ async function other(fastify) {
                 // is it a template?
                 fastify
                   .saveTemplateInternal(jsonBuffer)
-                  .then(() => {
-                    fastify.log.info(`Saving successful for ${filename}`);
-                    resolve({ success: true, errors: [] });
+                  .then(async () => {
+                    try {
+                      await fastify.addProjectTemplateRelInternal(
+                        jsonBuffer.TemplateContainer.uid,
+                        params.project,
+                        query,
+                        epadAuth
+                      );
+                      fastify.log.info(`Saving successful for ${filename}`);
+                      resolve({ success: true, errors: [] });
+                    } catch (errProject) {
+                      reject(errProject);
+                    }
                   })
                   .catch(err => {
                     reject(err);
@@ -382,9 +490,14 @@ async function other(fastify) {
               } else {
                 fastify
                   .saveAimInternal(jsonBuffer)
-                  .then(() => {
-                    fastify.log.info(`Saving successful for ${filename}`);
-                    resolve({ success: true, errors: [] });
+                  .then(async () => {
+                    try {
+                      await fastify.addProjectAimRelInternal(jsonBuffer, params.project, epadAuth);
+                      fastify.log.info(`Saving successful for ${filename}`);
+                      resolve({ success: true, errors: [] });
+                    } catch (errProject) {
+                      reject(errProject);
+                    }
                   })
                   .catch(err => {
                     reject(err);
@@ -437,15 +550,11 @@ async function other(fastify) {
             filetype: query.filetype ? query.filetype : '',
             length,
           };
-          // add link to db if thick
-          if (config.mode === 'thick') {
-            await fastify.putOtherFileToProjectInternal(fileInfo.name, params, epadAuth);
-            // add to couchdb only if successful
-            await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
-          } else {
-            // add to couchdb
-            await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
-          }
+          // add link to db
+          await fastify.putOtherFileToProjectInternal(fileInfo.name, params, epadAuth);
+          // add to couchdb only if successful
+          await fastify.saveOtherFileInternal(filename, fileInfo, buffer);
+
           resolve();
         } catch (err) {
           reject(err);
@@ -476,7 +585,9 @@ async function other(fastify) {
       .deleteSubjectInternal(request.params, request.epadAuth)
       .then(result => {
         if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted subject', request.params.subject).notify(fastify);
+          new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
+            fastify
+          );
         else reply.code(200).send(result);
       })
       .catch(err => {
@@ -539,7 +650,9 @@ async function other(fastify) {
       .deleteStudyInternal(request.params, request.epadAuth)
       .then(result => {
         if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted study', request.params.study).notify(fastify);
+          new EpadNotification(request, 'Deleted study', request.params.study, true).notify(
+            fastify
+          );
         else reply.code(200).send(result);
       })
       .catch(err => {
@@ -553,35 +666,40 @@ async function other(fastify) {
       });
   });
 
-  fastify.decorate(
-    'deleteStudyInternal',
-    (params, epadAuth) =>
-      new Promise((resolve, reject) => {
-        // delete study in dicomweb and annotations
-        const promisses = [];
-        promisses.push(() => {
-          return fastify.deleteStudyDicomsInternal(params);
+  fastify.decorate('deleteStudyInternal', (params, epadAuth) => {
+    return new Promise((resolve, reject) => {
+      // delete study in dicomweb and annotations
+      const promisses = [];
+      promisses.push(() => {
+        return fastify.deleteStudyDicomsInternal(params);
+      });
+      promisses.push(() => {
+        return fastify.deleteAimsInternal(params, epadAuth);
+      });
+      pq.addAll(promisses)
+        .then(() => {
+          fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
+          resolve();
+        })
+        .catch(error => {
+          reject(error);
         });
-        promisses.push(() => {
-          return fastify.deleteAimsInternal(params, epadAuth);
-        });
-        pq.addAll(promisses)
-          .then(() => {
-            fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
-            resolve();
-          })
-          .catch(error => {
-            reject(error);
-          });
-      })
-  );
+    });
+  });
 
   fastify.decorate('deleteSeries', (request, reply) => {
     try {
       // delete study in dicomweb and annotations
       const promisses = [];
       promisses.push(() => {
-        return fastify.deleteSeriesDicomsInternal(request.params);
+        return fastify.deleteSeriesDicomsInternal(request.params).catch(err => {
+          fastify.log.warn(
+            `Could not delete series from dicomweb with error: ${
+              err.message
+            }. Trying nondicom series delete`
+          );
+          return fastify.deleteNonDicomSeriesInternal(request.params.series);
+        });
       });
       promisses.push(() => {
         return fastify.deleteAimsInternal(request.params, request.epadAuth);
@@ -598,7 +716,9 @@ async function other(fastify) {
         .then(() => {
           fastify.log.info(`Series ${request.params.series} deletion is initiated successfully`);
           if (config.env !== 'test')
-            new EpadNotification(request, 'Deleted series', request.params.series).notify(fastify);
+            new EpadNotification(request, 'Deleted series', request.params.series, true).notify(
+              fastify
+            );
           else
             reply
               .code(200)
@@ -624,9 +744,20 @@ async function other(fastify) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Access-Control-Allow-Origin': '*',
+        'X-Accel-Buffering': 'no',
       });
+      const padding = new Array(2049);
+      reply.res.write(`:${padding.join(' ')}\n`); // 2kB padding for IE
+      reply.res.write('retry: 2000\n');
       fastify.addConnectedUser(request, reply);
+      const id = setInterval(() => {
+        // eslint-disable-next-line no-param-reassign
+        fastify.messageId += 1;
+        reply.res.write(`id: ${fastify.messageId}\n`);
+        reply.res.write(`data: heartbeat\n\n`);
+      }, 1000);
       request.req.on('close', () => {
+        clearInterval(id);
         fastify.deleteDisconnectedUser(request);
       }); // <- Remove this user when he disconnects
     } catch (err) {
@@ -681,6 +812,65 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('getUserInfo', (request, reply) => {
+    const authHeader = request.headers['x-access-token'] || request.headers.authorization;
+    let token = '';
+    if (authHeader.startsWith('Bearer ')) {
+      // Extract the token
+      token = authHeader.slice(7, authHeader.length);
+    }
+    if (config.auth !== 'external') {
+      reply.send(new InternalError('Not supported', new Error('Auth mode not external')));
+    } else if (token === '') {
+      reply.send(
+        new InternalError(
+          'Not supported',
+          new Error('External mode userinfo only suported with bearer tokens')
+        )
+      );
+    } else {
+      fastify
+        .getUserInfoInternal(token)
+        .then(result => {
+          reply.code(200).send(result);
+        })
+        .catch(err => {
+          reply.send(err);
+        });
+    }
+  });
+
+  fastify.decorate(
+    'getUserInfoInternal',
+    token =>
+      new Promise(async (resolve, reject) => {
+        if (!config.authConfig.userinfoUrl)
+          reject(
+            new InternalError(
+              'Retrieving userinfo from external',
+              new Error('No userinfoUrl in config')
+            )
+          );
+        try {
+          const userinfoResponse = await axios.get(config.authConfig.userinfoUrl, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (userinfoResponse.status === 200) resolve(userinfoResponse.data);
+          else
+            reject(
+              new InternalError(
+                'Retrieving userinfo from external',
+                new Error(`External resource returned ${userinfoResponse.status}`)
+              )
+            );
+        } catch (err) {
+          reject(new InternalError('Retrieving userinfo from external', err));
+        }
+      })
+  );
+
   // authCheck routine checks if there is a bearer token or encoded basic authentication
   // info in the authorization header and does the authentication or verification of token
   // in keycloak
@@ -691,12 +881,25 @@ async function other(fastify) {
       if (token) {
         // verify token online
         try {
-          const verifyToken = await keycloak.jwt.verify(token);
-          if (verifyToken.isExpired()) {
-            res.send(new UnauthenticatedError('Token is expired'));
+          let username = '';
+          let userInfo = {};
+          if (config.auth !== 'external') {
+            const verifyToken = await keycloak.jwt.verify(token);
+            if (verifyToken.isExpired()) {
+              res.send(new UnauthenticatedError('Token is expired'));
+            } else {
+              username = verifyToken.content.preferred_username;
+              userInfo = verifyToken.content;
+            }
           } else {
-            return await fastify.fillUserInfo(verifyToken.content.preferred_username);
+            // try getting userinfo from external auth server with userinfo endpoint
+            const userinfo = await fastify.getUserInfoInternal(token);
+            username = userinfo.preferred_username;
+            userInfo = userinfo;
           }
+          if (username !== '' || userInfo !== '')
+            return await fastify.fillUserInfo(username, userInfo);
+          res.send(new UnauthenticatedError(`Username couldn't be retrieeved`));
         } catch (err) {
           res.send(
             new UnauthenticatedError(`Verifying token and getting userinfo: ${err.message}`)
@@ -704,28 +907,34 @@ async function other(fastify) {
         }
       }
     } else if (authHeader.startsWith('Basic ')) {
-      // Extract the encoded part
-      const authToken = authHeader.slice(6, authHeader.length);
-      if (authToken) {
-        // Decode and extract username and password
-        const auth = atob(authToken);
-        const [username, password] = auth.split(':');
-        // put the username and password in keycloak object
-        keycloak.accessToken.config.username = username;
-        keycloak.accessToken.config.password = password;
-        try {
-          // see if we can authenticate
-          // keycloak supports oidc, this is a workaround to support basic authentication
-          const accessToken = await keycloak.accessToken.get();
-          if (!accessToken) {
-            res.send(new UnauthenticatedError('Authentication unsuccessful'));
-          } else {
-            return await fastify.fillUserInfo(username);
+      if (config.auth === 'external')
+        res.send(
+          new UnauthenticatedError(`Basic authentication not supported in external auth mode`)
+        );
+      else {
+        // Extract the encoded part
+        const authToken = authHeader.slice(6, authHeader.length);
+        if (authToken) {
+          // Decode and extract username and password
+          const auth = atob(authToken);
+          const [username, password] = auth.split(':');
+          // put the username and password in keycloak object
+          keycloak.accessToken.config.username = username;
+          keycloak.accessToken.config.password = password;
+          try {
+            // see if we can authenticate
+            // keycloak supports oidc, this is a workaround to support basic authentication
+            const accessToken = await keycloak.accessToken.get();
+            if (!accessToken) {
+              res.send(new UnauthenticatedError('Authentication unsuccessful'));
+            } else {
+              return await fastify.fillUserInfo(username);
+            }
+          } catch (err) {
+            res.send(
+              new UnauthenticatedError(`Authenticating and getting user info: ${err.message}`)
+            );
           }
-        } catch (err) {
-          res.send(
-            new UnauthenticatedError(`Authenticating and getting user info: ${err.message}`)
-          );
         }
       }
     } else {
@@ -736,20 +945,43 @@ async function other(fastify) {
 
   fastify.decorate(
     'fillUserInfo',
-    username =>
+    (username, userInfo) =>
       new Promise(async (resolve, reject) => {
         const epadAuth = { username };
-        if (config.mode === 'thick') {
+        try {
+          let user = null;
           try {
-            const user = await fastify.getUserInternal({
+            user = await fastify.getUserInternal({
               user: username,
             });
+          } catch (err) {
+            // fallback get by email
+            if (!user && userInfo) {
+              user = await fastify.getUserInternal({
+                user: userInfo.email,
+              });
+              // update user db record here
+              const rowsUpdated = {
+                username,
+                firstname: userInfo.given_name,
+                lastname: userInfo.family_name,
+                email: userInfo.email,
+                updated_by: 'admin',
+                updatetime: Date.now(),
+              };
+              await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
+              user = await fastify.getUserInternal({
+                user: username,
+              });
+            } else reject(err);
+          }
+          if (user) {
             epadAuth.permissions = user.permissions;
             epadAuth.projectToRole = user.projectToRole;
             epadAuth.admin = user.admin;
-          } catch (errUser) {
-            reject(errUser);
           }
+        } catch (errUser) {
+          reject(errUser);
         }
         resolve(epadAuth);
       })
@@ -796,9 +1028,14 @@ async function other(fastify) {
 
   fastify.decorate('auth', async (req, res) => {
     // ignore swagger routes
-    if (config.auth && config.auth !== 'none' && !req.req.url.startsWith('/documentation')) {
+    if (
+      config.auth &&
+      config.auth !== 'none' &&
+      !req.req.url.startsWith('/documentation') &&
+      !req.req.url.startsWith('/epads/stats') &&
+      !req.req.url.startsWith('/epad/statistics') // disabling auth for put is dangerous
+    ) {
       // if auth has been given in config, verify authentication
-      fastify.log.info('Request needs to be authenticated, checking the authorization header');
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
       if (authHeader) {
         req.epadAuth = await fastify.authCheck(authHeader, res);
@@ -818,9 +1055,7 @@ async function other(fastify) {
       }
     }
     try {
-      if (config.mode === 'thick' && !req.req.url.startsWith('/documentation'))
-        await fastify.epadThickRightsCheck(req, res);
-      // TODO lite?
+      if (!req.req.url.startsWith('/documentation')) await fastify.epadThickRightsCheck(req, res);
     } catch (err) {
       res.send(err);
     }
@@ -949,15 +1184,6 @@ async function other(fastify) {
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
       const reqInfo = fastify.getInfoFromRequest(request);
-      fastify.log.info(
-        'User rights check',
-        'url',
-        request.req.url,
-        'reqInfo',
-        reqInfo,
-        'epadAuth',
-        request.epadAuth
-      );
       // check if user type is admin, if not admin
       if (!(request.epadAuth && request.epadAuth.admin && request.epadAuth.admin === true)) {
         if (fastify.isProjectRoute(request)) {
@@ -1038,6 +1264,10 @@ async function other(fastify) {
   });
 
   fastify.decorate('responseWrapper', (request, reply, payload, done) => {
+    // we have a successful request, lets get the hostname
+    // getting the first one, is it better to get the last all the time?
+    if (!fastify.hostname) fastify.decorate('hostname', request.req.hostname);
+
     if (request.req.method === 'PUT') {
       try {
         new EpadNotification(request, fastify.getInfoFromRequest(request), 'Put successful').notify(

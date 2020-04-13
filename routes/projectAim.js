@@ -164,37 +164,38 @@ async function routes(fastify) {
     },
     handler: fastify.getProjectAims,
   });
-  // // POST {s}/aims/download
-  // // we want to have a body of an array of aim uids, so we need to use post
-  // fastify.route({
-  //   method: 'POST',
-  //   url: '/projects/:project/aims/download',
-  //   schema: {
-  //     tags: ['project', 'aim'],
-  //     querystring: {
-  //       summary: { type: 'boolean' },
-  //       aim: { type: 'boolean' },
-  //     },
-  //     params: {
-  //       type: 'object',
-  //       properties: {
-  //         project: {
-  //           type: 'string',
-  //         },
-  //       },
-  //     },
-  //     body: {
-  //       type: 'array',
-  //       items: {
-  //         type: 'string',
-  //       },
-  //     },
-  //     // response: {
-  //     //   200: 'aim_schema#',
-  //     // },
-  //   },
-  //   handler: fastify.getAimsFromUIDs,
-  // });
+  // POST {s}/projects/:project/aims/download
+  // we want to have a body of an array of aim uids, so we need to use post
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/aims/download',
+    querystring: {
+      summary: { type: 'boolean' },
+      aim: { type: 'boolean' },
+    },
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+      // response: {
+      //   200: 'aim_schema#',
+      // },
+    },
+    handler: fastify.getAimsFromUIDs,
+  });
+
   fastify.route({
     method: 'GET',
     url: '/projects/:project/aims/:aimuid',

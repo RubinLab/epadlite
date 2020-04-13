@@ -478,8 +478,8 @@ async function couchdb(fastify, options) {
               );
             }
           }
-          // if we have project and we are in the thick mode we should filter for project and user rights
-          if (config.mode === 'thick' && params.project) {
+          // if we have project we should filter for project and user rights
+          if (params.project) {
             // TODO if we want to return sth other than 404 for aim access we should check if this filtering empties filteredAims
             // if the user is a collaborator in the project he should only see his annotations
             if (epadAuth.projectToRole.includes(`${params.project}:Collaborator`)) {
@@ -647,22 +647,52 @@ async function couchdb(fastify, options) {
   });
 
   // does not do project filtering! should only be used for deleting from system
-  fastify.decorate(
-    'deleteAimsInternal',
-    (params, epadAuth) =>
-      new Promise((resolve, reject) => {
-        fastify
-          .getAimsInternal('summary', params, undefined, epadAuth)
-          .then(result => {
-            const aimPromisses = [];
-            result.forEach(aim => aimPromisses.push(fastify.deleteAimInternal(aim.aimID)));
-            Promise.all(aimPromisses)
-              .then(() => resolve())
-              .catch(deleteErr => reject(deleteErr));
-          })
-          .catch(err => reject(err));
-      })
-  );
+  fastify.decorate('deleteAimsInternal', (params, epadAuth) => {
+    return new Promise((resolve, reject) => {
+      const aimUsers = {};
+      fastify
+        .getAimsInternal('summary', params, undefined, epadAuth)
+        .then(result => {
+          const aimPromisses = [];
+          result.forEach(aim => {
+            aimUsers[aim.userName] = 'aim';
+            aimPromisses.push(fastify.deleteAimInternal(aim.aimID));
+          });
+          Promise.all(aimPromisses)
+            .then(async () => {
+              const updateWorklistPromises = [];
+              const { project, subject, study } = params;
+              const aimUsersArr = Object.keys(aimUsers);
+              if (project) {
+                fastify
+                  .findProjectIdInternal(project)
+                  .then(res => {
+                    aimUsersArr.forEach(userName => {
+                      updateWorklistPromises.push(
+                        fastify.updateWorklistCompleteness(
+                          res,
+                          subject,
+                          study,
+                          userName,
+                          epadAuth
+                          // transaction
+                        )
+                      );
+                    });
+                    Promise.all(updateWorklistPromises)
+                      .then(() => resolve())
+                      .catch(deleteErr => reject(deleteErr));
+                  })
+                  .catch(projectFindErr => reject(projectFindErr));
+              } else {
+                resolve();
+              }
+            })
+            .catch(deleteErr => reject(deleteErr));
+        })
+        .catch(err => reject(err));
+    });
+  });
 
   // template accessors
   fastify.decorate('getTemplates', (request, reply) => {
@@ -1101,8 +1131,8 @@ async function couchdb(fastify, options) {
                     .catch(err => reject(err));
                 } else {
                   // the default is json! The old APIs were XML, no XML in epadlite
-                  body.rows.forEach(template => {
-                    res.push(template.key[1]);
+                  body.rows.forEach(file => {
+                    res.push(file.key[1]);
                   });
                   resolve(res);
                 }
@@ -1259,7 +1289,7 @@ async function couchdb(fastify, options) {
   fastify.decorate('deleteTemplateFromSystem', async (request, reply) => {
     try {
       let numDeleted = 0;
-      if (config.mode === 'thick') numDeleted = await fastify.deleteTemplateFromDB(request.params);
+      numDeleted = await fastify.deleteTemplateFromDB(request.params);
       await fastify.deleteTemplateInternal(request.params);
       reply.code(200).send(`Template deleted from system and removed from ${numDeleted} projects`);
     } catch (err) {

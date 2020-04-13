@@ -18,13 +18,13 @@ module.exports = function(sequelize, DataTypes) {
           key: 'id',
         },
       },
-      study_uid: {
-        type: DataTypes.STRING(128),
+      study_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: false,
-      },
-      study_desc: {
-        type: DataTypes.STRING(1000),
-        allowNull: true,
+        references: {
+          model: 'study',
+          key: 'id',
+        },
       },
       creator: {
         type: DataTypes.STRING(128),
