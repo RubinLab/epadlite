@@ -2,7 +2,7 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'study',
+    'plugin_queue',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -10,53 +10,56 @@ module.exports = function(sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
-      study_uid: {
-        //changed from studyuid to study_uid //cavit
-        type: DataTypes.STRING(128),
-        allowNull: true,
-        unique: true,
-      },
-      studydate: {
-        type: DataTypes.DATEONLY,
-        allowNull: true,
-      },
-      subject_id: {
+      plugin_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'subject',
+          model: 'plugin',
           key: 'id',
         },
       },
-      exam_types: {
-        type: DataTypes.STRING(128),
+      plugin_parametertype: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      aim_uid: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+      },
+      container_id: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+      },
+      container_name: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+      },
+      max_memory: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+      },
+      status: {
+        type: DataTypes.INTEGER(1),
         allowNull: true,
       },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
-      createdtime: {
+      starttime: {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: sequelize.fn('current_timestamp'),
       },
-      updatetime: {
+      endtime: {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: '0000-00-00 00:00:00',
       },
-      updated_by: {
-        type: DataTypes.STRING(64),
-        allowNull: true,
-      },
-      description: {
-        type: DataTypes.STRING(1000),
-        allowNull: true,
-      },
     },
     {
-      tableName: 'study',
+      tableName: 'plugin_queue',
     }
   );
 };

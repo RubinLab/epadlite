@@ -2,7 +2,7 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'study',
+    'plugin_template',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -10,26 +10,24 @@ module.exports = function(sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
-      study_uid: {
-        //changed from studyuid to study_uid //cavit
-        type: DataTypes.STRING(128),
-        allowNull: true,
-        unique: true,
-      },
-      studydate: {
-        type: DataTypes.DATEONLY,
-        allowNull: true,
-      },
-      subject_id: {
+      template_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'subject',
+          model: 'template',
           key: 'id',
         },
       },
-      exam_types: {
-        type: DataTypes.STRING(128),
+      plugin_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+        references: {
+          model: 'plugin',
+          key: 'id',
+        },
+      },
+      enabled: {
+        type: DataTypes.INTEGER(1),
         allowNull: true,
       },
       creator: {
@@ -50,13 +48,9 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(64),
         allowNull: true,
       },
-      description: {
-        type: DataTypes.STRING(1000),
-        allowNull: true,
-      },
     },
     {
-      tableName: 'study',
+      tableName: 'plugin_template',
     }
   );
 };

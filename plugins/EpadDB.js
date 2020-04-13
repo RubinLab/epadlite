@@ -12,6 +12,7 @@ const toArrayBuffer = require('to-array-buffer');
 window = {};
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
+const dockerService = require('../utils/Docker');
 const {
   InternalError,
   ResourceNotFoundError,
@@ -20,9 +21,11 @@ const {
   UnauthorizedError,
   EpadError,
 } = require('../utils/EpadErrors');
-
+const EpadNotification = require('../utils/EpadNotification');
 async function epaddb(fastify, options, done) {
   const models = {};
+  const pluginsQueuePromises = [];
+  const pluginQueue = new Map();
 
   fastify.decorate('initMariaDB', async () => {
     try {
@@ -76,6 +79,7 @@ async function epaddb(fastify, options, done) {
               path.join(__dirname, '/../models', filenames[i])
             );
           }
+
           models.user.belongsToMany(models.project, {
             through: 'project_user',
             as: 'projects',
@@ -121,6 +125,68 @@ async function epaddb(fastify, options, done) {
             as: 'worklists',
             foreignKey: 'user_id',
           });
+          //cavit
+          /*
+          models.project.belongsToMany(models.plugin, {
+            through: 'project_plugin',
+            as: 'pluginprojects',
+            foreignKey: 'project_id',
+          });
+          */
+          /*
+          models.plugin.belongsToMany(models.project, {
+            through: 'project_plugin',
+            foreignKey: 'plugin_id',
+            as: 'plugpr',
+          });
+          */
+          /*
+          models.project.belongsToMany(models.plugin, {
+            through: 'project_plugin',
+            foreignKey: 'project_id',
+            as: 'prplug',
+          });
+          */
+          //models.project_plugin.belongsTo('project', { foreignKey: 'project_id' });
+          //models.project_plugin.belongsTo('plugin', { foreignKey: 'plugin_id' });
+          models.plugin.belongsToMany(models.project, {
+            through: 'project_plugin',
+            as: 'pluginproject',
+            foreignKey: 'plugin_id',
+          });
+          models.project.belongsToMany(models.plugin, {
+            through: 'project_plugin',
+            as: 'projectplugin',
+            foreignKey: 'project_id',
+          });
+
+          models.plugin.belongsToMany(models.template, {
+            through: 'plugin_template',
+            as: 'plugintemplate',
+            foreignKey: 'plugin_id',
+          });
+          models.template.belongsToMany(models.plugin, {
+            through: 'plugin_template',
+            as: 'templateplugin',
+            foreignKey: 'template_id',
+          });
+
+          models.plugin.hasMany(models.plugin_parameters, {
+            as: 'defaultparameters',
+            foreignKey: 'plugin_id',
+          });
+          models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'plugin_id' });
+          models.project_plugin.belongsTo(models.project, {
+            as: 'projectpluginrowbyrow',
+            foreignKey: 'project_id',
+          });
+          models.plugin_queue.belongsTo(models.plugin, {
+            as: 'queueplugin',
+            foreignKey: 'plugin_id',
+          });
+          //Post.find({ where: { ...}, include: [User]})
+
+          //cavit
 
           models.project.hasMany(models.project_subject, {
             foreignKey: 'project_id',
@@ -460,6 +526,1323 @@ async function epaddb(fastify, options, done) {
         );
       });
   });
+
+  //cavit
+  //Plugin section
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
+    models.project
+      .findAll({
+        include: ['users'],
+      })
+      .then(projects => {
+        const result = [];
+        projects.forEach(project => {
+          const obj = {
+            id: project.id,
+            name: project.name,
+            projectid: project.projectid,
+            description: project.description,
+            loginNames: [],
+            type: project.type,
+          };
+
+          project.users.forEach(user => {
+            obj.loginNames.push(user.username);
+          });
+          if (request.epadAuth.admin || obj.loginNames.includes(request.epadAuth.username))
+            result.push(obj);
+        });
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+                request.epadAuth.admin
+              }`,
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('getPlugins', async (request, reply) => {
+    models.plugin
+      .findAll()
+      .then(plugins => {
+        const result = [];
+        reply.code(200).send(plugins);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+                request.epadAuth.admin
+              }`,
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('getTemplatesDataFromDb', (request, reply) => {
+    const dock = new dockerService();
+    // dock.createContainer('myimage:1.0', 'test').then(data => {
+    //   console.log('returned outer', data);
+    //   reply.code(200).send('ok');
+
+    // });
+    // dock
+    //   .listImages()
+    //   .then(data => {
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+    //     console.log('------------list images-------------------');
+
+    //     //console.log('returned list images', data);
+    //     console.log('------------list images--ends-----------------');
+    //     //reply.code(200).send('ok');
+    //   })
+    //   .catch(err => {
+    //     reply.code(500).send(new InternalError('couldnt inspect container', err));
+    //   });
+    // dock.listContainers().then(data => {
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   console.log('------------list containers-------------------');
+    //   //console.log('returned list containers', data);
+    //   console.log('------------list containers- ends------------------');
+
+    //   //reply.code(200).send('ok');
+    // });
+    models.template
+      .findAll()
+      .then(templates => {
+        const result = [];
+        reply.code(200).send(templates);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+                request.epadAuth.admin
+              }`,
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('getPluginsWithProject', (request, reply) => {
+    models.plugin
+      .findAll({
+        include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
+        required: false,
+      })
+      .then(plugins => {
+        const result = [];
+        //console.log('back end plugin list to check parameters : ', plugins);
+        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
+        plugins.forEach(data => {
+          const pluginObj = {
+            description: data.dataValues.description,
+            developer: data.dataValues.developer,
+            documentation: data.dataValues.documentation,
+            enabled: data.dataValues.enabled,
+            id: data.dataValues.id,
+            image_repo: data.dataValues.image_repo,
+            image_tag: data.dataValues.image_tag,
+            image_name: data.dataValues.image_name,
+            image_id: data.dataValues.image_id,
+            modality: data.dataValues.modality,
+            name: data.dataValues.name,
+            plugin_id: data.dataValues.plugin_id,
+            processmultipleaims: data.dataValues.processmultipleaims,
+            projects: [],
+            status: data.dataValues.status,
+            templates: [],
+            parameters: [],
+          };
+
+          data.dataValues.pluginproject.forEach(project => {
+            const projectObj = {
+              id: project.id,
+              projectid: project.projectid,
+              projectname: project.name,
+            };
+
+            pluginObj.projects.push(projectObj);
+          });
+
+          data.dataValues.plugintemplate.forEach(template => {
+            const templateObj = {
+              id: template.id,
+              templateName: template.templateName,
+            };
+
+            pluginObj.templates.push(templateObj);
+          });
+
+          data.dataValues.defaultparameters.forEach(parameter => {
+            const parameterObj = {
+              id: parameter.id,
+              plugin_id: parameter.plugin_id,
+              name: parameter.name,
+              format: parameter.format,
+              prefix: parameter.prefix,
+              inputbinding: parameter.inputBinding,
+              default_value: parameter.default_value,
+              type: parameter.type,
+              description: parameter.description,
+            };
+
+            pluginObj.parameters.push(parameterObj);
+          });
+
+          result.push(pluginObj);
+        });
+
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getPluginsWithProject error `, err));
+      });
+  });
+  fastify.decorate('getOnePlugin', (request, reply) => {
+    const plugindbid = request.params.plugindbid;
+    models.plugin
+      .findOne({
+        include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
+        where: { id: plugindbid },
+        required: false,
+      })
+      .then(pluginone => {
+        console.log('back end plugin list to check if one plugin shows : ', pluginone);
+        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
+
+        const pluginObj = {
+          description: pluginone.dataValues.description,
+          developer: pluginone.dataValues.developer,
+          documentation: pluginone.dataValues.documentation,
+          enabled: pluginone.dataValues.enabled,
+          id: pluginone.dataValues.id,
+          image_repo: pluginone.dataValues.image_repo,
+          image_tag: pluginone.dataValues.image_tag,
+          image_name: pluginone.dataValues.image_name,
+          image_id: pluginone.dataValues.image_id,
+          modality: pluginone.dataValues.modality,
+          name: pluginone.dataValues.name,
+          plugin_id: pluginone.dataValues.plugin_id,
+          processmultipleaims: pluginone.dataValues.processmultipleaims,
+          projects: [],
+          status: pluginone.dataValues.status,
+          templates: [],
+          parameters: [],
+        };
+
+        pluginone.dataValues.pluginproject.forEach(project => {
+          const projectObj = {
+            id: project.id,
+            projectid: project.projectid,
+            projectname: project.name,
+          };
+
+          pluginObj.projects.push(projectObj);
+        });
+
+        pluginone.dataValues.plugintemplate.forEach(template => {
+          const templateObj = {
+            id: template.id,
+            templateName: template.templateName,
+          };
+
+          pluginObj.templates.push(templateObj);
+        });
+
+        pluginone.dataValues.defaultparameters.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.id,
+            plugin_id: parameter.plugin_id,
+            name: parameter.name,
+            format: parameter.format,
+            prefix: parameter.prefix,
+            inputbinding: parameter.inputBinding,
+            default_value: parameter.default_value,
+            type: parameter.type,
+            description: parameter.description,
+          };
+
+          pluginObj.parameters.push(parameterObj);
+        });
+
+        reply.code(200).send(pluginone);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getOnePlugin error `, err));
+      });
+  });
+
+  fastify.decorate('updateProjectsForPlugin', (request, reply) => {
+    const pluginid = request.params.pluginid;
+    const projectsToRemove = request.body.projectsToRemove;
+    const projectsToAdd = request.body.projectsToAdd;
+    const dbPromisesForCreate = [];
+    const formattedProjects = [];
+
+    if (projectsToRemove && projectsToAdd) {
+      models.project_plugin
+        .destroy({
+          where: {
+            plugin_id: pluginid,
+            project_id: projectsToRemove,
+          },
+        })
+        .then(() => {
+          projectsToAdd.forEach(projectid => {
+            dbPromisesForCreate.push(
+              models.project_plugin.create({
+                project_id: projectid,
+                plugin_id: pluginid,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+                enabled: 1,
+                creator: null,
+                updated_by: null,
+              })
+            );
+          });
+
+          Promise.all(dbPromisesForCreate).then(() => {
+            models.plugin
+              .findOne({
+                include: ['pluginproject'],
+                required: false,
+                where: {
+                  id: pluginid,
+                },
+              })
+              .then(allTProjectsForPlugin => {
+                allTProjectsForPlugin.dataValues.pluginproject.forEach(project => {
+                  const projectObj = {
+                    id: project.id,
+                    projectid: project.projectid,
+                    projectname: project.name,
+                  };
+                  formattedProjects.push(projectObj);
+                });
+                reply.code(200).send(formattedProjects);
+              });
+          });
+        });
+    } else {
+      reply
+        .code(500)
+        .send(
+          new InternalError(
+            `Editing projects for plugin failed. Necessary parameters { projectsToAdd,projectsToAdd} are not in the body `
+          )
+        );
+    }
+
+    //
+  });
+
+  fastify.decorate('updateTemplatesForPlugin', (request, reply) => {
+    const pluginid = request.params.pluginid;
+    const templatesToRemove = request.body.templatesToRemove;
+    const templatesToAdd = request.body.templatesToAdd;
+    const dbPromisesForCreate = [];
+    const formattedTemplates = [];
+    if (templatesToRemove && templatesToAdd) {
+      models.plugin_template
+        .destroy({
+          where: {
+            plugin_id: pluginid,
+            template_id: templatesToRemove,
+          },
+        })
+        .then(() => {
+          templatesToAdd.forEach(templateid => {
+            dbPromisesForCreate.push(
+              models.plugin_template.create({
+                template_id: templateid,
+                plugin_id: pluginid,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+                enabled: 1,
+                creator: 'null',
+                updated_by: 'null',
+              })
+            );
+          });
+
+          Promise.all(dbPromisesForCreate).then(() => {
+            models.plugin
+              .findOne({
+                include: ['plugintemplate'],
+                required: false,
+                where: {
+                  id: pluginid,
+                },
+              })
+              .then(allTemplatesForPlugin => {
+                allTemplatesForPlugin.dataValues.plugintemplate.forEach(template => {
+                  const templateObj = {
+                    id: template.id,
+                    templateName: template.templateName,
+                  };
+                  formattedTemplates.push(templateObj);
+                });
+                reply.send(formattedTemplates);
+              });
+          });
+        });
+    } else {
+      reply
+        .code(500)
+        .send(
+          new InternalError(
+            `Editing templates for plugin failed. Necessary parameters { templatesToAdd,templatesToAdd} are not in the body `
+          )
+        );
+    }
+
+    //
+  });
+
+  fastify.decorate('deletePlugin', (request, reply) => {
+    const { selectedRowPluginId, pluginIdsToDelete } = request.body;
+    let pluginid = -1;
+    if (typeof selectedRowPluginId !== 'undefined') {
+      pluginid = selectedRowPluginId;
+    } else {
+      pluginid = pluginIdsToDelete;
+    }
+
+    models.plugin_template
+      .destroy({
+        where: {
+          plugin_id: pluginid,
+        },
+      })
+      .then(() => {
+        return models.project_plugin
+          .destroy({
+            where: {
+              plugin_id: pluginid,
+            },
+          })
+          .then(() => {
+            return models.plugin
+              .destroy({
+                where: {
+                  id: pluginid,
+                },
+              })
+              .then(() => {
+                reply.code(200).send('Plugin deleted seccessfully');
+              })
+              .catch(err => {
+                reply
+                  .code(500)
+                  .send(
+                    new InternalError('Something went wrong when deleting from plugin table', err)
+                  );
+              });
+          })
+          .catch(err => {
+            reply
+              .code(500)
+              .send(
+                new InternalError(
+                  'Something went wrong when deleting from project_plugin table',
+                  err
+                )
+              );
+          });
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError('Something went wrong when deleting from plugin_template table', err)
+          );
+      });
+
+    //reply.code(200).send('Plugin deleted seccessfully');
+  });
+
+  fastify.decorate('savePlugin', (request, reply) => {
+    console.log('back end saved the plugin', request.body);
+    const pluginform = request.body.pluginform;
+    models.plugin
+      .create({
+        plugin_id: pluginform.plugin_id,
+        name: pluginform.name,
+        description: pluginform.description,
+        image_repo: pluginform.image_repo,
+        image_tag: pluginform.image_tag,
+        image_name: pluginform.image_name,
+        image_id: pluginform.image_id,
+        enabled: pluginform.enabled,
+        modality: pluginform.modality,
+        creator: null,
+        createdtime: Date.now(),
+        updatetime: '1970-01-01 00:00:01',
+        developer: pluginform.developer,
+        documentation: pluginform.documentation,
+      })
+      .then(() => {
+        reply.code(200).send('Plugin saved seccessfully');
+        //const dock = new dockerService();
+        // dock.createContainer('myimage:1.0', 'test').then(data => {
+        //   console.log('returned outer', data);
+        //   reply.code(200).send('ok');
+        // });
+        //dock.pullImage('ubuntu:latest', 'test2');
+        //dock.createVolume('cavcav');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while creating a new plugin in plugin table',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('editPlugin', (request, reply) => {
+    //console.log('back end edit plugin called', request.body);
+    const pluginform = request.body.pluginform;
+
+    //delete pluginform.dbid;
+    console.log('edit sending plugin form data ', pluginform);
+    models.plugin
+      .update(
+        {
+          ...pluginform,
+          updatetime: Date.now(),
+        },
+        {
+          where: {
+            id: pluginform.dbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(pluginform);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError('Something went wrong while updating plugin in plugin table', err)
+          );
+      });
+  });
+  //***************************************************************
+  //
+  //
+  //trigger section
+  fastify.decorate('getAnnotationTemplates', (request, reply) => {
+    const templateCodes = [];
+    const templates = [];
+    models.project_aim
+      .findAll({
+        attributes: ['template'],
+        distinct: ['template'],
+      })
+      .then(results => {
+        results.forEach(template => {
+          templateCodes.push(template.dataValues.template);
+        });
+        return models.template
+          .findAll({
+            where: { templateCode: templateCodes },
+          })
+          .then(result => {
+            result.forEach(template => {
+              const templateObj = {
+                id: template.dataValues.id,
+                templateName: template.dataValues.templateName,
+                templateCode: template.dataValues.templateCode,
+                modality: template.dataValues.modality,
+              };
+
+              templates.push(templateObj);
+            });
+            console.log('templates ------>', templates);
+            reply.code(200).send(templates);
+          })
+          .catch(err => {
+            reply
+              .code(500)
+              .send(
+                new InternalError(
+                  'Something went wrong while getting template list from Template table',
+                  err
+                )
+              );
+          });
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting template codes from annotations table',
+              err
+            )
+          );
+      });
+    //reply.code(200).send('ok');
+  });
+  fastify.decorate('getAnnotationProjects', (request, reply) => {
+    const projectUids = [];
+    const projects = [];
+    models.project_aim
+      .findAll({
+        attributes: ['project_id'],
+        distinct: ['project_id'],
+      })
+      .then(results => {
+        results.forEach(project => {
+          projectUids.push(project.dataValues.project_id);
+        });
+        return models.project
+          .findAll({
+            where: { id: projectUids },
+          })
+          .then(result => {
+            result.forEach(project => {
+              const projectObj = {
+                id: project.dataValues.id,
+                name: project.dataValues.name,
+                projectid: project.dataValues.projectid,
+                type: project.dataValues.type,
+                creator: project.dataValues.creator,
+              };
+
+              projects.push(projectObj);
+            });
+            console.log('projects ------>', projects);
+            reply.code(200).send(projects);
+          })
+          .catch(err => {
+            reply
+              .code(500)
+              .send(
+                new InternalError(
+                  'Something went wrong while getting project list from Project table',
+                  err
+                )
+              );
+          });
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting project uids from annotations table',
+              err
+            )
+          );
+      });
+  });
+  //trigger section ends
+  //
+  //***************************************************************
+
+  fastify.decorate('saveDefaultParameter', (request, reply) => {
+    console.log('back end : saveDefault parameters :', request.body);
+
+    const parameterform = request.body;
+    models.plugin_parameters
+      .create({
+        plugin_id: parameterform.plugindbid,
+        name: parameterform.name,
+        format: parameterform.format,
+        prefix: parameterform.prefix,
+        inputBinding: parameterform.inputBinding,
+        default_value: parameterform.default_value,
+        creator: null,
+        createdtime: Date.now(),
+        type: parameterform.type,
+        description: parameterform.description,
+        updatetime: '1970-01-01 00:00:01',
+        //developer: parameterform.developer,
+        //documentation: parameterform.documentation,
+      })
+      .then(() => {
+        reply.code(200).send('default parameters saved seccessfully');
+        //const dock = new dockerService();
+        // dock.createContainer('myimage:1.0', 'test').then(data => {
+        //   console.log('returned outer', data);
+        //   reply.code(200).send('ok');
+        // });
+        //dock.pullImage('ubuntu:latest', 'test2');
+        //dock.createVolume('cavcav');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while saving default paramters in plugin_parameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('getDefaultParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('get default paramter list with plugindbid:', request.params);
+    const plugindbid = request.params.plugindbid;
+    const parameters = [];
+    models.plugin_parameters
+      .findAll({
+        where: { plugin_id: plugindbid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        console.log('parametes ------>', parameters);
+        reply.code(200).send(parameters);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting parameters list from plugin_paramters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteOneDefaultParameter', (request, reply) => {
+    const parameterIdToDelete = request.params.parameterdbid;
+
+    models.plugin_parameters
+      .destroy({
+        where: {
+          id: parameterIdToDelete,
+        },
+      })
+      .then(() => {
+        reply.code(200).send('parameter deleted seccessfully');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while deleting from plugin_parameters table',
+              err
+            )
+          );
+      });
+
+    //reply.code(200).send('Plugin deleted seccessfully');
+  });
+
+  fastify.decorate('editDefaultparameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('edit default parameter back end received edit form:', request.body);
+
+    const paramsForm = request.body;
+    models.plugin_parameters
+      .update(
+        {
+          name: paramsForm.name,
+          format: null,
+          prefix: null,
+          inputBinding: null,
+          default_value: paramsForm.default_value,
+          updatetime: Date.now(),
+          updated_by: null,
+          type: paramsForm.type,
+          description: paramsForm.description,
+        },
+        {
+          where: {
+            id: paramsForm.paramdbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(paramsForm);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while updating parameters in plugin_parameters table',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('getProjectParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('get project paramter list with expects 2 params:', request.params);
+
+    const plugindbid = request.params.plugindbid;
+    const projectdbid = request.params.projectdbid;
+    const parameters = [];
+    models.plugin_projectparameters
+      .findAll({
+        where: { plugin_id: plugindbid, project_id: projectdbid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            project_id: parameter.dataValues.project_id,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        console.log('project parametes ------>', parameters);
+        reply.code(200).send(parameters);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting project parameters list from plugin_projectparamters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('saveProjectParameter', (request, reply) => {
+    console.log('back end : save plugin project  parameters :', request.body);
+
+    const parameterform = request.body;
+    models.plugin_projectparameters
+      .create({
+        plugin_id: parameterform.plugindbid,
+        project_id: parameterform.projectdbid,
+        name: parameterform.name,
+        format: parameterform.format,
+        prefix: parameterform.prefix,
+        inputBinding: parameterform.inputBinding,
+        default_value: parameterform.default_value,
+        creator: null,
+        createdtime: Date.now(),
+        type: parameterform.type,
+        description: parameterform.description,
+        updatetime: '1970-01-01 00:00:01',
+        //developer: parameterform.developer,
+        //documentation: parameterform.documentation,
+      })
+      .then(inserteddata => {
+        reply.code(200).send(inserteddata);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while saving project paramters in plugin_projectparameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteOneProjectParameter', (request, reply) => {
+    const parameterIdToDelete = request.params.parameterdbid;
+    console.log('delete back end called params:', request.params);
+
+    models.plugin_projectparameters
+      .destroy({
+        where: {
+          id: parameterIdToDelete,
+        },
+      })
+      .then(() => {
+        reply.code(200).send('parameter deleted seccessfully from plugin_projectparamaters');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while deleting from plugin_projectparameters table',
+              err
+            )
+          );
+      });
+
+    //reply.code(200).send('Plugin deleted seccessfully');
+  });
+  fastify.decorate('editProjectParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('edit project parameter back end received edit form:', request.body);
+
+    const paramsForm = request.body;
+    models.plugin_projectparameters
+      .update(
+        {
+          name: paramsForm.name,
+          format: null,
+          prefix: null,
+          inputBinding: null,
+          default_value: paramsForm.default_value,
+          updatetime: Date.now(),
+          updated_by: null,
+          type: paramsForm.type,
+          description: paramsForm.description,
+        },
+        {
+          where: {
+            id: paramsForm.paramdbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(paramsForm);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while updating project parameters in plugin_projectparameters table',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('getTemplateParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('get project paramter list with expects 2 params:', request.params);
+
+    const plugindbid = request.params.plugindbid;
+    const templatedbid = request.params.templatedbid;
+    const parameters = [];
+    models.plugin_templateparameters
+      .findAll({
+        where: { plugin_id: plugindbid, template_id: templatedbid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            template_id: parameter.dataValues.template_id,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        console.log('template parametes ------>', parameters);
+        reply.code(200).send(parameters);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting template parameters list from plugin_templateparamters table',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('saveTemplateParameter', (request, reply) => {
+    console.log('back end : save plugin project  parameters :', request.body);
+
+    const parameterform = request.body;
+    models.plugin_templateparameters
+      .create({
+        plugin_id: parameterform.plugindbid,
+        template_id: parameterform.templatedbid,
+        name: parameterform.name,
+        format: parameterform.format,
+        prefix: parameterform.prefix,
+        inputBinding: parameterform.inputBinding,
+        default_value: parameterform.default_value,
+        creator: null,
+        createdtime: Date.now(),
+        type: parameterform.type,
+        description: parameterform.description,
+        updatetime: '1970-01-01 00:00:01',
+        //developer: parameterform.developer,
+        //documentation: parameterform.documentation,
+      })
+      .then(inserteddata => {
+        reply.code(200).send(inserteddata);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while saving template paramters in plugin_templateparameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteOneTemplateParameter', (request, reply) => {
+    const parameterIdToDelete = request.params.parameterdbid;
+    console.log('delete back end called params:', request.params);
+
+    models.plugin_templateparameters
+      .destroy({
+        where: {
+          id: parameterIdToDelete,
+        },
+      })
+      .then(() => {
+        reply
+          .code(200)
+          .send('template parameter deleted seccessfully from plugin_templateparamaters');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while deleting template parameter from plugin_templateparameters table',
+              err
+            )
+          );
+      });
+
+    //reply.code(200).send('Plugin deleted seccessfully');
+  });
+  fastify.decorate('editTemplateParameter', (request, reply) => {
+    //returns all paramters for a given plugin with the dbid not plugin_id
+    console.log('edit tempate parameter back end received edit form:', request.body);
+
+    const paramsForm = request.body;
+    models.plugin_templateparameters
+      .update(
+        {
+          name: paramsForm.name,
+          format: null,
+          prefix: null,
+          inputBinding: null,
+          default_value: paramsForm.default_value,
+          updatetime: Date.now(),
+          updated_by: null,
+          type: paramsForm.type,
+          description: paramsForm.description,
+        },
+        {
+          where: {
+            id: paramsForm.paramdbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(paramsForm);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while updating template parameters in plugin_templateparameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('addPluginsToQueue', (request, reply) => {
+    //change this function to get selected project, logged user , selected template and selected aims ,
+    //onces these received get data from tables iternally and start queue
+    console.log('request. params : -----------', request.body);
+    const projectids = request.body.projectids;
+    models.project_plugin
+      .findAll({
+        include: ['projectpluginrowbyrow'],
+        where: {
+          project_id: projectids,
+        },
+      })
+      .then(eachRowObj => {
+        const result = [];
+        console.log('back end addPluginsToQueue eachobj : ', eachRowObj);
+        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
+        eachRowObj.forEach(data => {
+          //console.log('back end getPluginsProjectsWithParameters eachobj : ', data.dataValues);
+          // const pluginObj = {
+          //   description: data.dataValues.description,
+          //   developer: data.dataValues.developer,
+          //   documentation: data.dataValues.documentation,
+          //   enabled: data.dataValues.enabled,
+          //   id: data.dataValues.id,
+          //   image_repo: data.dataValues.image_repo,
+          //   image_tag: data.dataValues.image_tag,
+          //   image_name: data.dataValues.image_name,
+          //   image_id: data.dataValues.image_id,
+          //   modality: data.dataValues.modality,
+          //   name: data.dataValues.name,
+          //   plugin_id: data.dataValues.plugin_id,
+          //   processmultipleaims: data.dataValues.processmultipleaims,
+          //   projects: [],
+          //   status: data.dataValues.status,
+          //   templates: [],
+          //   parameters: [],
+          // };
+          // data.dataValues.pluginproject.forEach(project => {
+          //   const projectObj = {
+          //     id: project.id,
+          //     projectid: project.projectid,
+          //     projectname: project.name,
+          //   };
+          //   pluginObj.projects.push(projectObj);
+          // });
+          // data.dataValues.plugintemplate.forEach(template => {
+          //   const templateObj = {
+          //     id: template.id,
+          //     templateName: template.templateName,
+          //   };
+          //   pluginObj.templates.push(templateObj);
+          // });
+          // data.dataValues.defaultparameters.forEach(parameter => {
+          //   const parameterObj = {
+          //     id: parameter.id,
+          //     plugin_id: parameter.plugin_id,
+          //     name: parameter.name,
+          //     format: parameter.format,
+          //     prefix: parameter.prefix,
+          //     inputbinding: parameter.inputBinding,
+          //     default_value: parameter.default_value,
+          //     type: parameter.type,
+          //     description: parameter.description,
+          //   };
+          //   pluginObj.parameters.push(parameterObj);
+          // });
+          //result.push(pluginObj);
+        });
+        //console.log('getPluginsProjectsWithParameters', result);
+
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getPluginsWithProject error `, err));
+      });
+  });
+  fastify.decorate('getPluginsQueue', (request, reply) => {
+    console.log('plugin queue list called');
+    models.plugin_queue
+      .findAll({
+        include: ['queueplugin'],
+        required: false,
+      })
+      .then(eachRowObj => {
+        const result = [];
+        console.log('eachRowObj : ', eachRowObj);
+        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
+        eachRowObj.forEach(data => {
+          console.log('back end getPluginsQueue eachobj : ', data.dataValues);
+          const pluginObj = {
+            id: data.dataValues.id,
+            plugin_id: data.dataValues.plugin_id,
+            plugin_parametertype: data.dataValues.plugin_parametertype,
+            aim_uid: data.dataValues.aim_uid,
+            container_id: data.dataValues.container_id,
+            container_name: data.dataValues.container_name,
+            max_memory: data.dataValues.max_memory,
+            status: data.dataValues.status,
+            starttime: data.dataValues.starttime,
+            endtime: data.dataValues.endtime,
+            plugin: {},
+            parameters: [],
+          };
+          if (data.dataValues.queueplugin !== null) {
+            pluginObj.pluguin = { ...data.dataValues.queueplugin.dataValues };
+          }
+          result.push(pluginObj);
+        });
+
+        //console.log('getPluginsProjectsWithParameters', result);
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getPluginsQueue error `, err));
+      });
+  });
+  fastify.decorate('runPluginsQueue', async (request, reply) => {
+    //will receive a queue object which contains plugin id
+    console.log('running queue one by one ', request.body);
+    try {
+      const pluginInQueue = await models.plugin_queue.findAll({
+        include: ['queueplugin'],
+        where: { status: null },
+      });
+      //const dock = new dockerService();
+      //let containername = 'testcnt' + request.body.id;
+      // contRemove = async (err, data) => {
+      //   console.log('err : ', err);
+      //   console.log('data :', data);
+      //   reply.code(200).send(`PrunPluginsQueue retuened`);
+      // };
+      //const res = await dock.createContainer('test:latest', containername);
+      //console.log('resultsss : ', res);
+      reply.code(202).send(`PrunPluginsQueue called and retuened 202 inernal queue is started`);
+      fastify.runPluginsQueueInternal(pluginInQueue, request);
+      //new EpadNotification(request, 'Docker finished processing', containername).notify(fastify);
+    } catch (err) {
+      reply.send(new InternalError('running queue error', err));
+    }
+    // try {
+    //   const project = await models.project.findOne({
+    //     where: { projectid: request.params.project },
+    //   });
+    //   if (!project) {
+    //     reply.code(404).send(`Project ${request.params.project} not found`);
+    //   } else {
+    //     // delete projects files (delete orphan files)
+    //     await fastify.deleteRelationAndOrphanedCouchDocInternal(
+    //       project.id,
+    //       'project_file',
+    //       'file_uid'
+    //     );
+    //     // delete projects aims (delete orphan aims)
+    //     await fastify.deleteRelationAndOrphanedCouchDocInternal(
+    //       project.id,
+    //       'project_aim',
+    //       'aim_uid'
+    //     );
+    //     // delete projects templates (delete orphan templates)
+    //     await fastify.deleteRelationAndOrphanedCouchDocInternal(
+    //       project.id,
+    //       'project_template',
+    //       'template_uid'
+    //     );
+    //     // delete projects subjects (delete orphan dicom files)
+    //     await fastify.deleteRelationAndOrphanedSubjectsInternal(
+    //       project.id,
+    //       request.params.project,
+    //       request.epadAuth
+    //     );
+    //     await models.project.destroy({
+    //       where: {
+    //         projectId: request.params.project,
+    //       },
+    //     });
+    //     reply.code(200).send(`Project ${request.params.project} deleted successfully`);
+    //   }
+    // } catch (err) {
+    //   reply.send(new InternalError(`Deleting project ${request.params.project}`, err));
+    // }
+  });
+  //internal functions
+  fastify.decorate('runPluginsQueueInternal', async (result, request) => {
+    const pluginQueueList = [...result];
+    //console.log('this queue to run ', pluginQueueList);
+    for (const eachQueueObj of pluginQueueList) {
+      console.log('---------++++++++++++____________________');
+      console.log('this function intendet to work by itself', eachQueueObj.dataValues);
+      if (eachQueueObj.dataValues.queueplugin !== null) {
+        console.log('plugin data in queue ', eachQueueObj.dataValues.queueplugin.dataValues.name);
+      }
+      console.log('---------++++++++++++____________________');
+      const dock = new dockerService();
+      let containername = 'testcnt' + eachQueueObj.dataValues.id;
+      // contRemove = async (err, data) => {
+      //   console.log('err : ', err);
+      //   console.log('data :', data);
+      //   reply.code(200).send(`PrunPluginsQueue retuened`);
+      // };
+      let res = await dock.createContainer('test:latest', containername);
+      new EpadNotification(
+        request,
+        'Docker finished processing',
+        'container name : ' + containername
+      ).notify(fastify);
+      console.log('resultsss : ', res);
+    }
+  });
+  //internal functions end
+  //docker section
+  fastify.decorate('getDockerImages', (request, reply) => {
+    console.log('getting docker images');
+    const dock = new dockerService();
+    //dock.pullImage('ubuntu', 'latest');
+    dock.createContainer('5f81ef91ee2e', 'test');
+    reply.code(200).send('ok');
+  });
+
+  //docker section end
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////
+  //plugin section end
+  //cavit end
 
   fastify.decorate('validateRequestBodyFields', (name, id) => {
     if (!name || !id) {
@@ -3534,6 +4917,9 @@ async function epaddb(fastify, options, done) {
       })
       .then(users => {
         const result = [];
+        //cavit
+        console.log('users --------->', users);
+        //cavit
         users.forEach(user => {
           const projects = [];
           const projectToRole = [];
@@ -3561,6 +4947,9 @@ async function epaddb(fastify, options, done) {
             username: user.username,
             role: user.role,
           };
+          //cavit
+          console.log(' after adding project to each user --->>', obj);
+          //cavit
           result.push(obj);
         });
         reply.code(200).send(result);

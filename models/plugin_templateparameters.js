@@ -2,7 +2,7 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'study',
+    'plugin_templateparameters',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -10,25 +10,39 @@ module.exports = function(sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
-      study_uid: {
-        //changed from studyuid to study_uid //cavit
-        type: DataTypes.STRING(128),
-        allowNull: true,
-        unique: true,
-      },
-      studydate: {
-        type: DataTypes.DATEONLY,
-        allowNull: true,
-      },
-      subject_id: {
+      plugin_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'subject',
+          model: 'plugin',
           key: 'id',
         },
       },
-      exam_types: {
+      template_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+        references: {
+          model: 'template',
+          key: 'id',
+        },
+      },
+      name: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      format: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      prefix: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      inputBinding: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      default_value: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
@@ -50,13 +64,17 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(64),
         allowNull: true,
       },
+      type: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+      },
       description: {
-        type: DataTypes.STRING(1000),
+        type: DataTypes.STRING(150),
         allowNull: true,
       },
     },
     {
-      tableName: 'study',
+      tableName: 'plugin_templateparameters',
     }
   );
 };
