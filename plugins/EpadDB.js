@@ -5459,7 +5459,7 @@ async function epaddb(fastify, options, done) {
             // get studies from dicomwebserver and add entities
             // 4. project_subject_study
             // get studies from dicomwebserver and add entities
-            // TODO this gets affected by limit, migrate will only transfer 100 studies
+            // TODO this gets affected by limit, migrate will only transfer limited number of studies
             const studies = await fastify.getPatientStudiesInternal({}, undefined, undefined, true);
             // map to contain a studies attribute to contain a list of studies
             const subjects = {};
