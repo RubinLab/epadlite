@@ -3251,29 +3251,33 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('getStudySeriesFromProject', async (request, reply) => {
     // TODO project filtering
-    if (request.query.format === 'stream' && request.params.series) {
-      fastify.getWadoMultipart(request.params, request.query, request.epadAuth, reply);
-    } else {
-      fastify
-        .getStudySeriesInternal(request.params, request.query, request.epadAuth)
-        .then(result => reply.code(200).send(result))
-        .catch(err =>
-          fastify
-            .getNondicomStudySeriesFromProjectInternal(request.params)
-            .then(nondicomResult => reply.code(200).send(nondicomResult))
-            .catch(nondicomErr => {
-              reply.send(
-                new InternalError(
-                  'Retrieving series',
-                  new Error(
-                    `Failed from dicomweb with ${err.message} and from nondicom with ${
-                      nondicomErr.message
-                    }`
+    try {
+      if (request.query.format === 'stream' && request.params.series) {
+        await fastify.getWadoMultipart(request.params, request.query, request.epadAuth, reply);
+      } else {
+        fastify
+          .getStudySeriesInternal(request.params, request.query, request.epadAuth)
+          .then(result => reply.code(200).send(result))
+          .catch(err =>
+            fastify
+              .getNondicomStudySeriesFromProjectInternal(request.params)
+              .then(nondicomResult => reply.code(200).send(nondicomResult))
+              .catch(nondicomErr => {
+                reply.send(
+                  new InternalError(
+                    'Retrieving series',
+                    new Error(
+                      `Failed from dicomweb with ${err.message} and from nondicom with ${
+                        nondicomErr.message
+                      }`
+                    )
                   )
-                )
-              );
-            })
-        );
+                );
+              })
+          );
+      }
+    } catch (err) {
+      reply.send(new InternalError(`Retrieving series of study ${params.study}`, err));
     }
   });
   fastify.decorate(
@@ -3846,98 +3850,111 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('getWadoMultipart', async (params, query, epadAuth, reply, studyUids) => {
-    try {
-      const timestamp = new Date().getTime();
-      const dir = `tmp_${timestamp}`;
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
-        let dirName = params.series ? params.series : params.study;
-        if (studyUids) dirName = params.subject; // if subject
-        const dataDir = `${dir}/${dirName}`;
-        fs.mkdirSync(dataDir);
-        let isThereDataToWrite = false;
-        if (params.series) {
-          // just download one series
-          const isThereData = await fastify.prepSeriesDownloadDir(
-            dataDir,
-            params,
-            query,
-            epadAuth,
-            true
-          );
-          if (!isThereData) fs.rmdirSync(dataDir);
-          isThereDataToWrite = isThereDataToWrite || isThereData;
-        } else if (params.study) {
-          // download all series under study
-          const isThereData = await fastify.prepStudyDownloadDir(dataDir, params, query, epadAuth);
-          if (!isThereData) fs.rmdirSync(dataDir);
-          isThereDataToWrite = isThereDataToWrite || isThereData;
-        } else if (studyUids) {
-          // download all studies under subject
-          for (let i = 0; i < studyUids.length; i += 1) {
-            const studyDir = `${dataDir}/Study-${studyUids[i]}`;
-            fs.mkdirSync(studyDir);
-            // eslint-disable-next-line no-await-in-loop
-            const isThereData = await fastify.prepStudyDownloadDir(
-              studyDir,
-              { ...params, study: studyUids[i] },
-              query,
-              epadAuth
-            );
-            if (!isThereData) fs.rmdirSync(studyDir);
-            isThereDataToWrite = isThereDataToWrite || isThereData;
+  fastify.decorate(
+    'getWadoMultipart',
+    async (params, query, epadAuth, reply, studyUids) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const timestamp = new Date().getTime();
+          const dir = `tmp_${timestamp}`;
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir);
+            let dirName = params.series ? params.series : params.study;
+            if (studyUids) dirName = params.subject; // if subject
+            const dataDir = `${dir}/${dirName}`;
+            fs.mkdirSync(dataDir);
+            let isThereDataToWrite = false;
+            if (params.series) {
+              // just download one series
+              const isThereData = await fastify.prepSeriesDownloadDir(
+                dataDir,
+                params,
+                query,
+                epadAuth,
+                true
+              );
+              if (!isThereData) fs.rmdirSync(dataDir);
+              isThereDataToWrite = isThereDataToWrite || isThereData;
+            } else if (params.study) {
+              // download all series under study
+              const isThereData = await fastify.prepStudyDownloadDir(
+                dataDir,
+                params,
+                query,
+                epadAuth
+              );
+              if (!isThereData) fs.rmdirSync(dataDir);
+              isThereDataToWrite = isThereDataToWrite || isThereData;
+            } else if (studyUids) {
+              // download all studies under subject
+              for (let i = 0; i < studyUids.length; i += 1) {
+                const studyDir = `${dataDir}/Study-${studyUids[i]}`;
+                fs.mkdirSync(studyDir);
+                // eslint-disable-next-line no-await-in-loop
+                const isThereData = await fastify.prepStudyDownloadDir(
+                  studyDir,
+                  { ...params, study: studyUids[i] },
+                  query,
+                  epadAuth
+                );
+                if (!isThereData) fs.rmdirSync(studyDir);
+                isThereDataToWrite = isThereDataToWrite || isThereData;
+              }
+            }
+            // check files
+            const files = await fastify.getFilesInternal({ format: 'stream' }, params, dataDir);
+            isThereDataToWrite = isThereDataToWrite || files;
+
+            if (isThereDataToWrite) {
+              reply.res.writeHead(200, {
+                'Content-Type': 'application/zip',
+                'Content-Disposition': `attachment; filename=${dirName}.zip`,
+                'Access-Control-Allow-Origin': '*',
+              });
+              const archive = archiver('zip', {
+                zlib: { level: 9 }, // Sets the compression level.
+              });
+
+              reply.res.on('finish', () => {
+                fs.remove(dir, error => {
+                  if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                  else fastify.log.info(`${dir} deleted`);
+                });
+              });
+
+              archive.on('end', () => {
+                // eslint-disable-next-line no-param-reassign
+                reply.sent = true;
+                resolve();
+              });
+
+              // create the archive
+              archive
+                .directory(`${dataDir}`, false)
+                .on('error', err => reject(new InternalError('Archiving ', err)))
+                .pipe(reply.res);
+
+              archive.finalize();
+            } else {
+              fs.remove(dir, error => {
+                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                else fastify.log.info(`${dir} deleted`);
+              });
+              reject(new InternalError('Downloading', new Error('No file in download')));
+            }
           }
+        } catch (err) {
+          reject(err);
         }
-        // check files
-        const files = await fastify.getFilesInternal({ format: 'stream' }, params, dataDir);
-        isThereDataToWrite = isThereDataToWrite || files;
-
-        if (isThereDataToWrite) {
-          reply.res.writeHead(200, {
-            'Content-Type': 'application/zip',
-            'Content-Disposition': `attachment; filename=${dirName}.zip`,
-            'Access-Control-Allow-Origin': '*',
-          });
-          const archive = archiver('zip', {
-            zlib: { level: 9 }, // Sets the compression level.
-          });
-
-          reply.res.on('finish', () => {
-            fs.remove(dir, error => {
-              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-              else fastify.log.info(`${dir} deleted`);
-            });
-            // eslint-disable-next-line no-param-reassign
-            reply.sent = true;
-          });
-
-          // create the archive
-          archive
-            .directory(`${dataDir}`, false)
-            .on('error', err => reply.send(new InternalError('Archiving ', err)))
-            .pipe(reply.res);
-
-          archive.finalize();
-        } else {
-          fs.remove(dir, error => {
-            if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-            else fastify.log.info(`${dir} deleted`);
-          });
-          reply.send(new InternalError('Downloading', new Error('No file in download')));
-        }
-      }
-    } catch (err) {
-      reply.send(err);
-    }
-  });
+      })
+  );
 
   fastify.decorate('getPatientStudyFromProject', async (request, reply) => {
     try {
       // TODO check if it is in the project
 
       if (request.query.format === 'stream') {
-        fastify.getWadoMultipart(request.params, request.query, request.epadAuth, reply);
+        await fastify.getWadoMultipart(request.params, request.query, request.epadAuth, reply);
       } else {
         const studyUids = [request.params.study];
         const result = await fastify.getPatientStudiesInternal(
@@ -3983,7 +4000,13 @@ async function epaddb(fastify, options, done) {
           true
         );
 
-        fastify.getWadoMultipart(request.params, request.query, request.epadAuth, reply, studyUids);
+        await fastify.getWadoMultipart(
+          request.params,
+          request.query,
+          request.epadAuth,
+          reply,
+          studyUids
+        );
       } else {
         const subjectUids = [request.params.subject];
         const result = await fastify.getPatientsInternal(
