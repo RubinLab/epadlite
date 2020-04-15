@@ -17,4 +17,5 @@ module.exports = {
     pass: 'mymariasecret',
     logger: false,
   },
+  limitStudies: 100,
 };

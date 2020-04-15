@@ -178,8 +178,8 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           // make studies call and aims call
-          // add a limit of 100 if not passed
-          const query = params.subject ? `?PatientID=${params.subject}` : '?limit=100';
+          const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
+          const query = params.subject ? `?PatientID=${params.subject}` : limit;
           const promisses = [];
           promisses.push(this.request.get(`/studies${query}`, header));
           if (!noStats)
@@ -325,7 +325,8 @@ async function dicomwebserver(fastify) {
     (params, filter, epadAuth, noStats) =>
       new Promise((resolve, reject) => {
         try {
-          const query = params.subject ? `?PatientID=${params.subject}` : '?limit=100';
+          const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
+          const query = params.subject ? `?PatientID=${params.subject}` : limit;
           const promisses = [];
           promisses.push(this.request.get(`/studies${query}`, header));
           // get aims for a specific patient
@@ -445,9 +446,8 @@ async function dicomwebserver(fastify) {
     (query, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          // add a limit of 100 if not passed
-          const limit = query.limit ? query.limit : '100';
-          const studies = await this.request.get(`/studies?limit=${limit}`, header);
+          const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
+          const studies = await this.request.get(`/studies${limit}`, header);
           const studyUids = _.map(studies.data, value => {
             return value['0020000D'].Value[0];
           });

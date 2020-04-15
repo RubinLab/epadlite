@@ -49,4 +49,5 @@ config.thickDb = config.thickDb || {
 config.maxConcurrent = config.maxConcurrent || 5;
 config.disableStats = config.disableStats || false;
 config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
+config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;
 module.exports = config;
