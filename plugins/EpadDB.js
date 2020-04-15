@@ -3807,7 +3807,7 @@ async function epaddb(fastify, options, done) {
           }
 
           // TODO get files
-          
+
           resolve(isThereDataToWrite);
         } catch (err) {
           reject(err);
@@ -3969,12 +3969,7 @@ async function epaddb(fastify, options, done) {
           )
         );
       else if (subject === null)
-        reply.send(
-          new BadRequestError(
-            'Get studies from project',
-            new ResourceNotFoundError('Subject', request.params.subject)
-          )
-        );
+        reply.send(new ResourceNotFoundError('Subject', request.params.subject));
       else if (request.query.format === 'stream') {
         const studyUids = await fastify.getStudiesInternal(
           {
