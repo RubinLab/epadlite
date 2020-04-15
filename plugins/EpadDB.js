@@ -3277,7 +3277,7 @@ async function epaddb(fastify, options, done) {
           );
       }
     } catch (err) {
-      reply.send(new InternalError(`Retrieving series of study ${params.study}`, err));
+      reply.send(new InternalError(`Retrieving series of study ${request.params.study}`, err));
     }
   });
   fastify.decorate(
