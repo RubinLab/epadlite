@@ -3897,6 +3897,7 @@ async function epaddb(fastify, options, done) {
           reply.res.writeHead(200, {
             'Content-Type': 'application/zip',
             'Content-Disposition': `attachment; filename=${dirName}.zip`,
+            'Access-Control-Allow-Origin': '*',
           });
           const archive = archiver('zip', {
             zlib: { level: 9 }, // Sets the compression level.
