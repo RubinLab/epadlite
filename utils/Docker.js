@@ -1,37 +1,42 @@
-//const { Docker } = require('node-docker-api');
-//const docker = new Docker({ socketPath: '/var/run/docker.sock' });
+//  const { Docker } = require('node-docker-api');
+//  const docker = new Docker({ socketPath: '/var/run/docker.sock' });
+const { Docker } = require('dockerode');
 
 class DockerService {
   constructor() {
-    const Docker = require('dockerode');
+    //  const Docker = require('dockerode');
     this.counter = 0;
-    //this.tar = require('tar-fs');
+    //  this.tar = require('tar-fs');
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
   }
+
   getdockerObj() {
     return this.docker;
   }
 
-  startContainer(containerId, containerName) {
-    console.log('container started dockerode');
+  // eslint-disable-next-line no-unused-vars
+  startContainer(containerId, _containerName) {
+    //  console.log('container started dockerode');
     const container = this.docker.getContainer(containerId);
     return new Promise((resolve, reject) => {
       container.start((err, data) => {
-        console.log('starting container ......');
+        //  console.log('starting container ......');
         if (err) {
           reject(err);
         }
         if (data) {
-          console.log('we call inspect promise');
+          //  console.log('we call inspect promise');
           resolve(
+            // eslint-disable-next-line no-shadow
             new Promise((resolve, reject) => {
+              // eslint-disable-next-line func-names
               setTimeout(function() {
-                container.inspect((err, data) => {
-                  if (data) {
+                container.inspect((cnterr, cntdata) => {
+                  if (cntdata) {
                     resolve(data);
                   }
                   if (err) {
-                    reject(err);
+                    reject(cnterr);
                   }
                 });
               }, 3000);
@@ -53,14 +58,16 @@ class DockerService {
     );
     */
   }
-  createVolume(name) {
+
+  // eslint-disable-next-line no-unused-vars
+  createVolume(_name) {
     this.docker
       .createVolume({ Name: 'testvolume' })
       .then(() => {
-        console.log('volume created');
+        //  console.log('volume created');
       })
       .catch(() => {
-        console.log('error happened while creating volume');
+        //  console.log('error happened while creating volume');
       });
   }
   // we change the one below
@@ -137,40 +144,48 @@ class DockerService {
   // }
   createContainer(imageId, containerNameToGive) {
     let auxContainer;
-    return this.docker
-      .createContainer({
-        Image: imageId,
-        name: containerNameToGive,
-        AttachStdin: false,
-        AttachStdout: true,
-        AttachStderr: true,
-        Tty: true,
-        // Cmd: ['/bin/bash', '-c', 'tail -f /var/log/dmesg'],
-        OpenStdin: false,
-        StdinOnce: false,
-        HostConfig: {
-          Binds: ['testvolume:/home'],
-        },
-      })
-      .then(function(container) {
-        auxContainer = container;
-        return auxContainer.start();
-      })
-      .then(function(data) {
-        console.log('waitin for plugin container to finish processing');
-        return auxContainer.wait();
-      })
-      .then(function(data) {
-        console.log('plugin container is done processing. Removing the container');
-        return auxContainer.remove();
-      })
-      .then(function(data) {
-        console.log('plugin container removed successfully ');
-        return 204;
-      })
-      .catch(function(err) {
-        console.log(err);
-      });
+    return (
+      this.docker
+        .createContainer({
+          Image: imageId,
+          name: containerNameToGive,
+          AttachStdin: false,
+          AttachStdout: true,
+          AttachStderr: true,
+          Tty: true,
+          // Cmd: ['/bin/bash', '-c', 'tail -f /var/log/dmesg'],
+          OpenStdin: false,
+          StdinOnce: false,
+          HostConfig: {
+            Binds: ['testvolume:/home'],
+          },
+        })
+        // eslint-disable-next-line func-names
+        .then(function(container) {
+          auxContainer = container;
+          return auxContainer.start();
+        })
+
+        // eslint-disable-next-line func-names
+        .then(function() {
+          //  console.log('waitin for plugin container to finish processing');
+          return auxContainer.wait();
+        })
+        // eslint-disable-next-line func-names
+        .then(function() {
+          //  console.log('plugin container is done processing. Removing the container');
+          return auxContainer.remove();
+        })
+        // eslint-disable-next-line func-names
+        .then(function() {
+          //  console.log('plugin container removed successfully ');
+          return 204;
+        })
+        // eslint-disable-next-line func-names
+        .catch(function() {
+          //  console.log(err);
+        })
+    );
   }
 
   listContainers() {
@@ -179,8 +194,9 @@ class DockerService {
         .listContainers({ all: true })
         // Inspect
         .then(containers => {
+          // eslint-disable-next-line no-unused-vars
           containers.forEach(container => {
-            console.log('---------containers--------------', container);
+            //  console.log('---------containers--------------', container);
             // console.log('id :', container.Id);
             // console.log('names :', container.Names);
             // console.log('image :', container.Image);
@@ -189,17 +205,19 @@ class DockerService {
             // console.log('Mounts :', container.Mounts);
           });
         })
-        .catch(error => console.log(error))
+        .catch(error => {
+          throw new Error(error);
+        })
     );
   }
 
   listImages() {
-    let imageList = [];
+    const imageList = [];
     return this.docker
       .listContainers({ all: true })
       .then(images => {
         images.forEach(image => {
-          console.log('images', image);
+          //  console.log('images', image);
           const imageObject = {
             id: image.Id,
             names: image.Names,
@@ -214,30 +232,35 @@ class DockerService {
       })
       .catch(error => console.log(error));
   }
+
   pullImage(img) {
     return this.docker
       .pull(img)
       .then(() => {
-        console.log('image pulled');
+        //  console.log('image pulled');
       })
       .catch(() => {
-        console.log('error happened while pulling image');
+        //  console.log('error happened while pulling image');
       });
   }
-  pullImage(img, cnt) {
-    let self = this;
-    this.docker.pull(img, (err, stream) => {
+
+  pullImageWc(img, cnt) {
+    const self = this;
+    this.docker.pull(img, (_err, stream) => {
+      // eslint-disable-next-line no-use-before-define
       this.docker.modem.followProgress(stream, onFinished, onProgress);
 
-      function onFinished(err, output) {
+      // eslint-disable-next-line no-unused-vars
+      function onFinished(err, _output) {
         if (!err) {
-          console.log('\nDone pulling.');
+          //  console.log('\nDone pulling.');
           self.createContainer(img, cnt);
         } else {
-          console.log(err);
+          //  console.log(err);
         }
       }
-      function onProgress(event) {}
+      // eslint-disable-next-line no-unused-vars
+      function onProgress(_event) {}
     });
   }
   /*

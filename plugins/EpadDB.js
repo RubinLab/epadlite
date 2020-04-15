@@ -12,7 +12,7 @@ const toArrayBuffer = require('to-array-buffer');
 window = {};
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
-const dockerService = require('../utils/Docker');
+const DockerService = require('../utils/Docker');
 const {
   InternalError,
   ResourceNotFoundError,
@@ -22,10 +22,9 @@ const {
   EpadError,
 } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
+
 async function epaddb(fastify, options, done) {
   const models = {};
-  const pluginsQueuePromises = [];
-  const pluginQueue = new Map();
 
   fastify.decorate('initMariaDB', async () => {
     try {
@@ -125,7 +124,7 @@ async function epaddb(fastify, options, done) {
             as: 'worklists',
             foreignKey: 'user_id',
           });
-          //cavit
+          //  cavit
           /*
           models.project.belongsToMany(models.plugin, {
             through: 'project_plugin',
@@ -147,8 +146,8 @@ async function epaddb(fastify, options, done) {
             as: 'prplug',
           });
           */
-          //models.project_plugin.belongsTo('project', { foreignKey: 'project_id' });
-          //models.project_plugin.belongsTo('plugin', { foreignKey: 'plugin_id' });
+          //  models.project_plugin.belongsTo('project', { foreignKey: 'project_id' });
+          //  models.project_plugin.belongsTo('plugin', { foreignKey: 'plugin_id' });
           models.plugin.belongsToMany(models.project, {
             through: 'project_plugin',
             as: 'pluginproject',
@@ -184,9 +183,9 @@ async function epaddb(fastify, options, done) {
             as: 'queueplugin',
             foreignKey: 'plugin_id',
           });
-          //Post.find({ where: { ...}, include: [User]})
+          //  Post.find({ where: { ...}, include: [User]})
 
-          //cavit
+          //  cavit
 
           models.project.hasMany(models.project_subject, {
             foreignKey: 'project_id',
@@ -527,13 +526,13 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  //cavit
-  //Plugin section
-  ///////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////
+  //  cavit
+  //  Plugin section
+  //  /////////////////////////////////////////////////////////////////////
+  //  /////////////////////////////////////////////////////////////////////
+  //  /////////////////////////////////////////////////////////////////////
+  //  /////////////////////////////////////////////////////////////////////
+  //  /////////////////////////////////////////////////////////////////////
   fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
     models.project
       .findAll({
@@ -577,7 +576,6 @@ async function epaddb(fastify, options, done) {
     models.plugin
       .findAll()
       .then(plugins => {
-        const result = [];
         reply.code(200).send(plugins);
       })
       .catch(err => {
@@ -595,7 +593,7 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('getTemplatesDataFromDb', (request, reply) => {
-    const dock = new dockerService();
+    //  const dock = new DockerService();
     // dock.createContainer('myimage:1.0', 'test').then(data => {
     //   console.log('returned outer', data);
     //   reply.code(200).send('ok');
@@ -633,7 +631,6 @@ async function epaddb(fastify, options, done) {
     models.template
       .findAll()
       .then(templates => {
-        const result = [];
         reply.code(200).send(templates);
       })
       .catch(err => {
@@ -658,7 +655,7 @@ async function epaddb(fastify, options, done) {
       })
       .then(plugins => {
         const result = [];
-        //console.log('back end plugin list to check parameters : ', plugins);
+        //  console.log('back end plugin list to check parameters : ', plugins);
         // console.log('def params : ', plugins[0].dataValues.defaultparameters);
         plugins.forEach(data => {
           const pluginObj = {
@@ -726,7 +723,7 @@ async function epaddb(fastify, options, done) {
       });
   });
   fastify.decorate('getOnePlugin', (request, reply) => {
-    const plugindbid = request.params.plugindbid;
+    const { plugindbid } = request.params;
     models.plugin
       .findOne({
         include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
@@ -734,7 +731,7 @@ async function epaddb(fastify, options, done) {
         required: false,
       })
       .then(pluginone => {
-        console.log('back end plugin list to check if one plugin shows : ', pluginone);
+        //  console.log('back end plugin list to check if one plugin shows : ', pluginone);
         // console.log('def params : ', plugins[0].dataValues.defaultparameters);
 
         const pluginObj = {
@@ -800,9 +797,8 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('updateProjectsForPlugin', (request, reply) => {
-    const pluginid = request.params.pluginid;
-    const projectsToRemove = request.body.projectsToRemove;
-    const projectsToAdd = request.body.projectsToAdd;
+    const { pluginid } = request.params.pluginid;
+    const { projectsToRemove, projectsToAdd } = request.body;
     const dbPromisesForCreate = [];
     const formattedProjects = [];
 
@@ -865,9 +861,8 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('updateTemplatesForPlugin', (request, reply) => {
-    const pluginid = request.params.pluginid;
-    const templatesToRemove = request.body.templatesToRemove;
-    const templatesToAdd = request.body.templatesToAdd;
+    const { pluginid } = request.params.pluginid;
+    const { templatesToRemove, templatesToAdd } = request.body;
     const dbPromisesForCreate = [];
     const formattedTemplates = [];
     if (templatesToRemove && templatesToAdd) {
@@ -986,12 +981,12 @@ async function epaddb(fastify, options, done) {
           );
       });
 
-    //reply.code(200).send('Plugin deleted seccessfully');
+    //  reply.code(200).send('Plugin deleted seccessfully');
   });
 
   fastify.decorate('savePlugin', (request, reply) => {
-    console.log('back end saved the plugin', request.body);
-    const pluginform = request.body.pluginform;
+    //  console.log('back end saved the plugin', request.body);
+    const { pluginform } = request.body;
     models.plugin
       .create({
         plugin_id: pluginform.plugin_id,
@@ -1011,13 +1006,13 @@ async function epaddb(fastify, options, done) {
       })
       .then(() => {
         reply.code(200).send('Plugin saved seccessfully');
-        //const dock = new dockerService();
+        //  const dock = new dockerService();
         // dock.createContainer('myimage:1.0', 'test').then(data => {
         //   console.log('returned outer', data);
         //   reply.code(200).send('ok');
         // });
-        //dock.pullImage('ubuntu:latest', 'test2');
-        //dock.createVolume('cavcav');
+        //  dock.pullImage('ubuntu:latest', 'test2');
+        //  dock.createVolume('cavcav');
       })
       .catch(err => {
         reply
@@ -1032,11 +1027,11 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('editPlugin', (request, reply) => {
-    //console.log('back end edit plugin called', request.body);
-    const pluginform = request.body.pluginform;
+    //  console.log('back end edit plugin called', request.body);
+    const { pluginform } = request.body;
 
-    //delete pluginform.dbid;
-    console.log('edit sending plugin form data ', pluginform);
+    //  delete pluginform.dbid;
+    //  console.log('edit sending plugin form data ', pluginform);
     models.plugin
       .update(
         {
@@ -1060,10 +1055,10 @@ async function epaddb(fastify, options, done) {
           );
       });
   });
-  //***************************************************************
+  //  ***************************************************************
   //
   //
-  //trigger section
+  //  trigger section
   fastify.decorate('getAnnotationTemplates', (request, reply) => {
     const templateCodes = [];
     const templates = [];
@@ -1091,7 +1086,7 @@ async function epaddb(fastify, options, done) {
 
               templates.push(templateObj);
             });
-            console.log('templates ------>', templates);
+            //  console.log('templates ------>', templates);
             reply.code(200).send(templates);
           })
           .catch(err => {
@@ -1115,7 +1110,7 @@ async function epaddb(fastify, options, done) {
             )
           );
       });
-    //reply.code(200).send('ok');
+    //  reply.code(200).send('ok');
   });
   fastify.decorate('getAnnotationProjects', (request, reply) => {
     const projectUids = [];
@@ -1170,12 +1165,12 @@ async function epaddb(fastify, options, done) {
           );
       });
   });
-  //trigger section ends
+  //  trigger section ends
   //
-  //***************************************************************
+  //  ***************************************************************
 
   fastify.decorate('saveDefaultParameter', (request, reply) => {
-    console.log('back end : saveDefault parameters :', request.body);
+    //  console.log('back end : saveDefault parameters :', request.body);
 
     const parameterform = request.body;
     models.plugin_parameters
@@ -1191,18 +1186,18 @@ async function epaddb(fastify, options, done) {
         type: parameterform.type,
         description: parameterform.description,
         updatetime: '1970-01-01 00:00:01',
-        //developer: parameterform.developer,
-        //documentation: parameterform.documentation,
+        //  developer: parameterform.developer,
+        //  documentation: parameterform.documentation,
       })
       .then(() => {
         reply.code(200).send('default parameters saved seccessfully');
-        //const dock = new dockerService();
+        //  const dock = new dockerService();
         // dock.createContainer('myimage:1.0', 'test').then(data => {
         //   console.log('returned outer', data);
         //   reply.code(200).send('ok');
         // });
-        //dock.pullImage('ubuntu:latest', 'test2');
-        //dock.createVolume('cavcav');
+        //  dock.pullImage('ubuntu:latest', 'test2');
+        //  dock.createVolume('cavcav');
       })
       .catch(err => {
         reply
@@ -1216,9 +1211,9 @@ async function epaddb(fastify, options, done) {
       });
   });
   fastify.decorate('getDefaultParameter', (request, reply) => {
-    //returns all paramters for a given plugin with the dbid not plugin_id
-    console.log('get default paramter list with plugindbid:', request.params);
-    const plugindbid = request.params.plugindbid;
+    //  returns all paramters for a given plugin with the dbid not plugin_id
+    //  console.log('get default paramter list with plugindbid:', request.params);
+    const { plugindbid } = request.params;
     const parameters = [];
     models.plugin_parameters
       .findAll({
@@ -1244,7 +1239,7 @@ async function epaddb(fastify, options, done) {
 
           parameters.push(parameterObj);
         });
-        console.log('parametes ------>', parameters);
+        //  console.log('parametes ------>', parameters);
         reply.code(200).send(parameters);
       })
       .catch(err => {
@@ -1281,12 +1276,12 @@ async function epaddb(fastify, options, done) {
           );
       });
 
-    //reply.code(200).send('Plugin deleted seccessfully');
+    //  reply.code(200).send('Plugin deleted seccessfully');
   });
 
   fastify.decorate('editDefaultparameter', (request, reply) => {
-    //returns all paramters for a given plugin with the dbid not plugin_id
-    console.log('edit default parameter back end received edit form:', request.body);
+    //  returns all paramters for a given plugin with the dbid not plugin_id
+    //  console.log('edit default parameter back end received edit form:', request.body);
 
     const paramsForm = request.body;
     models.plugin_parameters
@@ -1324,11 +1319,10 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('getProjectParameter', (request, reply) => {
-    //returns all paramters for a given plugin with the dbid not plugin_id
-    console.log('get project paramter list with expects 2 params:', request.params);
+    //  returns all paramters for a given plugin with the dbid not plugin_id
+    //  console.log('get project paramter list with expects 2 params:', request.params);
 
-    const plugindbid = request.params.plugindbid;
-    const projectdbid = request.params.projectdbid;
+    const { plugindbid, projectdbid } = request.params;
     const parameters = [];
     models.plugin_projectparameters
       .findAll({
@@ -1355,7 +1349,7 @@ async function epaddb(fastify, options, done) {
 
           parameters.push(parameterObj);
         });
-        console.log('project parametes ------>', parameters);
+        //  console.log('project parametes ------>', parameters);
         reply.code(200).send(parameters);
       })
       .catch(err => {
@@ -1370,7 +1364,7 @@ async function epaddb(fastify, options, done) {
       });
   });
   fastify.decorate('saveProjectParameter', (request, reply) => {
-    console.log('back end : save plugin project  parameters :', request.body);
+    //  console.log('back end : save plugin project  parameters :', request.body);
 
     const parameterform = request.body;
     models.plugin_projectparameters
@@ -1387,8 +1381,8 @@ async function epaddb(fastify, options, done) {
         type: parameterform.type,
         description: parameterform.description,
         updatetime: '1970-01-01 00:00:01',
-        //developer: parameterform.developer,
-        //documentation: parameterform.documentation,
+        //  developer: parameterform.developer,
+        //  documentation: parameterform.documentation,
       })
       .then(inserteddata => {
         reply.code(200).send(inserteddata);
@@ -1406,7 +1400,7 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('deleteOneProjectParameter', (request, reply) => {
     const parameterIdToDelete = request.params.parameterdbid;
-    console.log('delete back end called params:', request.params);
+    //  console.log('delete back end called params:', request.params);
 
     models.plugin_projectparameters
       .destroy({
@@ -1428,11 +1422,11 @@ async function epaddb(fastify, options, done) {
           );
       });
 
-    //reply.code(200).send('Plugin deleted seccessfully');
+    //  reply.code(200).send('Plugin deleted seccessfully');
   });
   fastify.decorate('editProjectParameter', (request, reply) => {
-    //returns all paramters for a given plugin with the dbid not plugin_id
-    console.log('edit project parameter back end received edit form:', request.body);
+    //  returns all paramters for a given plugin with the dbid not plugin_id
+    //  console.log('edit project parameter back end received edit form:', request.body);
 
     const paramsForm = request.body;
     models.plugin_projectparameters
@@ -1470,11 +1464,10 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('getTemplateParameter', (request, reply) => {
-    //returns all paramters for a given plugin with the dbid not plugin_id
-    console.log('get project paramter list with expects 2 params:', request.params);
+    //  returns all paramters for a given plugin with the dbid not plugin_id
+    // console.log('get project paramter list with expects 2 params:', request.params);
 
-    const plugindbid = request.params.plugindbid;
-    const templatedbid = request.params.templatedbid;
+    const { plugindbid, templatedbid } = request.params;
     const parameters = [];
     models.plugin_templateparameters
       .findAll({
@@ -1501,7 +1494,7 @@ async function epaddb(fastify, options, done) {
 
           parameters.push(parameterObj);
         });
-        console.log('template parametes ------>', parameters);
+
         reply.code(200).send(parameters);
       })
       .catch(err => {
@@ -1517,8 +1510,6 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('saveTemplateParameter', (request, reply) => {
-    console.log('back end : save plugin project  parameters :', request.body);
-
     const parameterform = request.body;
     models.plugin_templateparameters
       .create({
@@ -1534,8 +1525,8 @@ async function epaddb(fastify, options, done) {
         type: parameterform.type,
         description: parameterform.description,
         updatetime: '1970-01-01 00:00:01',
-        //developer: parameterform.developer,
-        //documentation: parameterform.documentation,
+        //  developer: parameterform.developer,
+        //  documentation: parameterform.documentation,
       })
       .then(inserteddata => {
         reply.code(200).send(inserteddata);
@@ -1553,7 +1544,6 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('deleteOneTemplateParameter', (request, reply) => {
     const parameterIdToDelete = request.params.parameterdbid;
-    console.log('delete back end called params:', request.params);
 
     models.plugin_templateparameters
       .destroy({
@@ -1576,12 +1566,9 @@ async function epaddb(fastify, options, done) {
             )
           );
       });
-
-    //reply.code(200).send('Plugin deleted seccessfully');
   });
   fastify.decorate('editTemplateParameter', (request, reply) => {
-    //returns all paramters for a given plugin with the dbid not plugin_id
-    console.log('edit tempate parameter back end received edit form:', request.body);
+    //  returns all paramters for a given plugin with the dbid not plugin_id
 
     const paramsForm = request.body;
     models.plugin_templateparameters
@@ -1618,10 +1605,10 @@ async function epaddb(fastify, options, done) {
       });
   });
   fastify.decorate('addPluginsToQueue', (request, reply) => {
-    //change this function to get selected project, logged user , selected template and selected aims ,
-    //onces these received get data from tables iternally and start queue
-    console.log('request. params : -----------', request.body);
-    const projectids = request.body.projectids;
+    //  change this function to get selected project, logged user , selected template and selected aims ,
+    //  onces these received get data from tables iternally and start queue
+    //  console.log('request. params : -----------', request.body);
+    const { projectids } = request.body;
     models.project_plugin
       .findAll({
         include: ['projectpluginrowbyrow'],
@@ -1631,10 +1618,10 @@ async function epaddb(fastify, options, done) {
       })
       .then(eachRowObj => {
         const result = [];
-        console.log('back end addPluginsToQueue eachobj : ', eachRowObj);
+        //  console.log('back end addPluginsToQueue eachobj : ', eachRowObj);
         // console.log('def params : ', plugins[0].dataValues.defaultparameters);
-        eachRowObj.forEach(data => {
-          //console.log('back end getPluginsProjectsWithParameters eachobj : ', data.dataValues);
+        eachRowObj.forEach(() => {
+          //  console.log('back end getPluginsProjectsWithParameters eachobj : ', data.dataValues);
           // const pluginObj = {
           //   description: data.dataValues.description,
           //   developer: data.dataValues.developer,
@@ -1683,9 +1670,9 @@ async function epaddb(fastify, options, done) {
           //   };
           //   pluginObj.parameters.push(parameterObj);
           // });
-          //result.push(pluginObj);
+          //  result.push(pluginObj);
         });
-        //console.log('getPluginsProjectsWithParameters', result);
+        //  console.log('getPluginsProjectsWithParameters', result);
 
         reply.code(200).send(result);
       })
@@ -1726,7 +1713,7 @@ async function epaddb(fastify, options, done) {
           result.push(pluginObj);
         });
 
-        //console.log('getPluginsProjectsWithParameters', result);
+        //  console.log('getPluginsProjectsWithParameters', result);
         reply.code(200).send(result);
       })
       .catch(err => {
@@ -1734,25 +1721,25 @@ async function epaddb(fastify, options, done) {
       });
   });
   fastify.decorate('runPluginsQueue', async (request, reply) => {
-    //will receive a queue object which contains plugin id
-    console.log('running queue one by one ', request.body);
+    //  will receive a queue object which contains plugin id
+    //  console.log('running queue one by one ', request.body);
     try {
       const pluginInQueue = await models.plugin_queue.findAll({
         include: ['queueplugin'],
         where: { status: null },
       });
-      //const dock = new dockerService();
-      //let containername = 'testcnt' + request.body.id;
+      //  const dock = new dockerService();
+      //  let containername = 'testcnt' + request.body.id;
       // contRemove = async (err, data) => {
       //   console.log('err : ', err);
       //   console.log('data :', data);
       //   reply.code(200).send(`PrunPluginsQueue retuened`);
       // };
-      //const res = await dock.createContainer('test:latest', containername);
-      //console.log('resultsss : ', res);
+      //  const res = await dock.createContainer('test:latest', containername);
+      //  console.log('resultsss : ', res);
       reply.code(202).send(`PrunPluginsQueue called and retuened 202 inernal queue is started`);
       fastify.runPluginsQueueInternal(pluginInQueue, request);
-      //new EpadNotification(request, 'Docker finished processing', containername).notify(fastify);
+      //  new EpadNotification(request, 'Docker finished processing', containername).notify(fastify);
     } catch (err) {
       reply.send(new InternalError('running queue error', err));
     }
@@ -1798,51 +1785,53 @@ async function epaddb(fastify, options, done) {
     //   reply.send(new InternalError(`Deleting project ${request.params.project}`, err));
     // }
   });
-  //internal functions
+  //  internal functions
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
-    //console.log('this queue to run ', pluginQueueList);
-    for (const eachQueueObj of pluginQueueList) {
-      console.log('---------++++++++++++____________________');
-      console.log('this function intendet to work by itself', eachQueueObj.dataValues);
+    //  console.log('this queue to run ', pluginQueueList);
+    for (let i = 0; i < pluginQueueList.length; i += 1) {
+      const eachQueueObj = pluginQueueList[i];
+      //  console.log('---------++++++++++++____________________');
+      //  onsole.log('this function intendet to work by itself', eachQueueObj.dataValues);
       if (eachQueueObj.dataValues.queueplugin !== null) {
-        console.log('plugin data in queue ', eachQueueObj.dataValues.queueplugin.dataValues.name);
+        //  console.log('plugin data in queue ', eachQueueObj.dataValues.queueplugin.dataValues.name);
       }
-      console.log('---------++++++++++++____________________');
-      const dock = new dockerService();
-      let containername = 'testcnt' + eachQueueObj.dataValues.id;
+      //  console.log('---------++++++++++++____________________');
+      const dock = new DockerService();
+      const containername = `testcnt${eachQueueObj.dataValues.id}`;
       // contRemove = async (err, data) => {
       //   console.log('err : ', err);
       //   console.log('data :', data);
       //   reply.code(200).send(`PrunPluginsQueue retuened`);
       // };
-      let res = await dock.createContainer('test:latest', containername);
+      // eslint-disable-next-line no-await-in-loop
+      await dock.createContainer('test:latest', containername);
       new EpadNotification(
         request,
         'Docker finished processing',
-        'container name : ' + containername
+        `container name : ${containername}`
       ).notify(fastify);
-      console.log('resultsss : ', res);
+      //  console.log('resultsss : ', res);
     }
   });
-  //internal functions end
-  //docker section
+  //  internal functions end
+  //  docker section
   fastify.decorate('getDockerImages', (request, reply) => {
-    console.log('getting docker images');
-    const dock = new dockerService();
-    //dock.pullImage('ubuntu', 'latest');
+    //  console.log('getting docker images');
+    const dock = new DockerService();
+    //  dock.pullImage('ubuntu', 'latest');
     dock.createContainer('5f81ef91ee2e', 'test');
     reply.code(200).send('ok');
   });
 
-  //docker section end
-  ///////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////
-  //plugin section end
-  //cavit end
+  //  docker section end
+  //  /////////////////////////////////////////////////////////////////////
+  //  /////////////////////////////////////////////////////////////////////
+  //  /////////////////////////////////////////////////////////////////////
+  //  /////////////////////////////////////////////////////////////////////
+  //  /////////////////////////////////////////////////////////////////////
+  //  plugin section end
+  //  cavit end
 
   fastify.decorate('validateRequestBodyFields', (name, id) => {
     if (!name || !id) {
@@ -4917,9 +4906,9 @@ async function epaddb(fastify, options, done) {
       })
       .then(users => {
         const result = [];
-        //cavit
-        console.log('users --------->', users);
-        //cavit
+        //  cavit
+        //  console.log('users --------->', users);
+        //  cavit
         users.forEach(user => {
           const projects = [];
           const projectToRole = [];
@@ -4947,9 +4936,9 @@ async function epaddb(fastify, options, done) {
             username: user.username,
             role: user.role,
           };
-          //cavit
-          console.log(' after adding project to each user --->>', obj);
-          //cavit
+          //  cavit
+          //  console.log(' after adding project to each user --->>', obj);
+          //  cavit
           result.push(obj);
         });
         reply.code(200).send(result);

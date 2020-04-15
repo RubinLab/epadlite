@@ -119,8 +119,8 @@ fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // 
 fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
 
 if (config.mode === 'thick') {
-    fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require
-  
+  fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require
+}
 // Run the server!
 fastify.listen(port, host);
 

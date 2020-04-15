@@ -315,9 +315,9 @@ async function routes(fastify) {
     handler: fastify.deleteOneTemplateParameter,
   });
 
-  //trigger
+  //  trigger
 
-  //trigger section ends
-  //docker section below
+  //  trigger section ends
+  //  docker section below
 }
 module.exports = routes;
