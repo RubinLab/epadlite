@@ -2942,7 +2942,7 @@ async function epaddb(fastify, options, done) {
   // whereJSON should include project_id, can also include subject_id
   fastify.decorate(
     'getStudiesInternal',
-    (whereJSON, params, epadAuth) =>
+    (whereJSON, params, epadAuth, justIds) =>
       new Promise(async (resolve, reject) => {
         try {
           const projectSubjects = await models.project_subject.findAll({
@@ -2982,50 +2982,54 @@ async function epaddb(fastify, options, done) {
                   });
               }
             }
-            const result = await fastify.getPatientStudiesInternal(params, studyUids, epadAuth);
-            if (studyUids.length !== result.length)
-              if (studyUids.length === result.length + nondicoms.length) {
-                for (let i = 0; i < nondicoms.length; i += 1) {
-                  // eslint-disable-next-line no-await-in-loop
-                  const numberOfAnnotations = await models.project_aim.count({
-                    where: {
-                      project_id: whereJSON.project_id,
-                      study_uid: nondicoms[i].study.dataValues.studyuid,
-                    },
-                  });
-                  result.push({
-                    projectID: params.project,
-                    patientID: nondicoms[i].subject.dataValues.subjectuid,
-                    patientName: nondicoms[i].subject.dataValues.name,
-                    studyUID: nondicoms[i].study.dataValues.studyuid,
-                    insertDate: '',
-                    firstSeriesUID: '',
-                    firstSeriesDateAcquired: '',
-                    physicianName: '',
-                    referringPhysicianName: '',
-                    birthdate: nondicoms[i].subject.dataValues.dob,
-                    sex: nondicoms[i].subject.dataValues.gender,
-                    studyDescription: nondicoms[i].study.dataValues.description,
-                    studyAccessionNumber: '',
-                    examTypes: [],
-                    numberOfImages: 0, // TODO
-                    numberOfSeries: 0, // TODO
-                    numberOfAnnotations,
-                    createdTime: '',
-                    // extra for flexview
-                    studyID: '',
-                    studyDate: '',
-                    studyTime: '',
-                  });
-                }
-              } else
-                fastify.log.warn(
-                  `There are ${studyUids.length} studies associated with this project. But only ${
-                    result.length
-                  } of them have dicom files`
-                );
+            if (!justIds) {
+              const result = await fastify.getPatientStudiesInternal(params, studyUids, epadAuth);
+              if (studyUids.length !== result.length)
+                if (studyUids.length === result.length + nondicoms.length) {
+                  for (let i = 0; i < nondicoms.length; i += 1) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const numberOfAnnotations = await models.project_aim.count({
+                      where: {
+                        project_id: whereJSON.project_id,
+                        study_uid: nondicoms[i].study.dataValues.studyuid,
+                      },
+                    });
+                    result.push({
+                      projectID: params.project,
+                      patientID: nondicoms[i].subject.dataValues.subjectuid,
+                      patientName: nondicoms[i].subject.dataValues.name,
+                      studyUID: nondicoms[i].study.dataValues.studyuid,
+                      insertDate: '',
+                      firstSeriesUID: '',
+                      firstSeriesDateAcquired: '',
+                      physicianName: '',
+                      referringPhysicianName: '',
+                      birthdate: nondicoms[i].subject.dataValues.dob,
+                      sex: nondicoms[i].subject.dataValues.gender,
+                      studyDescription: nondicoms[i].study.dataValues.description,
+                      studyAccessionNumber: '',
+                      examTypes: [],
+                      numberOfImages: 0, // TODO
+                      numberOfSeries: 0, // TODO
+                      numberOfAnnotations,
+                      createdTime: '',
+                      // extra for flexview
+                      studyID: '',
+                      studyDate: '',
+                      studyTime: '',
+                    });
+                  }
+                } else
+                  fastify.log.warn(
+                    `There are ${studyUids.length} studies associated with this project. But only ${
+                      result.length
+                    } of them have dicom files`
+                  );
 
-            resolve(result);
+              resolve(result);
+            } else {
+              resolve(studyUids);
+            }
           }
         } catch (err) {
           reject(
@@ -3247,32 +3251,33 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('getStudySeriesFromProject', async (request, reply) => {
     // TODO project filtering
-    if (request.query.format === 'stream' && request.params.series) {
-      const buffer = await fastify.getWadoMultipart(request.params, request.epadAuth);
-      reply.header('Content-Disposition', `attachment; filename=${request.series}.zip`);
-
-      reply.code(200).send(buffer);
-    } else {
-      fastify
-        .getStudySeriesInternal(request.params, request.query, request.epadAuth)
-        .then(result => reply.code(200).send(result))
-        .catch(err =>
-          fastify
-            .getNondicomStudySeriesFromProjectInternal(request.params)
-            .then(nondicomResult => reply.code(200).send(nondicomResult))
-            .catch(nondicomErr => {
-              reply.send(
-                new InternalError(
-                  'Retrieving series',
-                  new Error(
-                    `Failed from dicomweb with ${err.message} and from nondicom with ${
-                      nondicomErr.message
-                    }`
+    try {
+      if (request.query.format === 'stream' && request.params.series) {
+        await fastify.getWadoMultipart(request.params, request.query, request.epadAuth, reply);
+      } else {
+        fastify
+          .getStudySeriesInternal(request.params, request.query, request.epadAuth)
+          .then(result => reply.code(200).send(result))
+          .catch(err =>
+            fastify
+              .getNondicomStudySeriesFromProjectInternal(request.params)
+              .then(nondicomResult => reply.code(200).send(nondicomResult))
+              .catch(nondicomErr => {
+                reply.send(
+                  new InternalError(
+                    'Retrieving series',
+                    new Error(
+                      `Failed from dicomweb with ${err.message} and from nondicom with ${
+                        nondicomErr.message
+                      }`
+                    )
                   )
-                )
-              );
-            })
-        );
+                );
+              })
+          );
+      }
+    } catch (err) {
+      reply.send(new InternalError(`Retrieving series of study ${request.params.study}`, err));
     }
   });
   fastify.decorate(
@@ -3716,8 +3721,8 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
-    'getWadoMultipart',
-    (params, epadAuth) =>
+    'getSeriesWadoMultipart',
+    params =>
       new Promise(async (resolve, reject) => {
         try {
           let query = params.study ? `/${params.study}` : '';
@@ -3727,34 +3732,35 @@ async function epaddb(fastify, options, done) {
           });
           const res = await fastify.getMultipartBuffer(resultStream.data);
           const parts = dcmjs.utilities.message.multipartDecode(res);
-          const timestamp = new Date().getTime();
-          const dir = `tmp_${timestamp}`;
-          const dataDir = `${dir}/${params.series ? params.series : params.study}`;
+          resolve(parts);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
+  fastify.decorate(
+    'prepSeriesDownloadDir',
+    (dataDir, params, query, epadAuth, retrieveSegs) =>
+      new Promise(async (resolve, reject) => {
+        try {
           // have a boolean just to avoid filesystem check for empty annotations directory
-          let isThereDcmDataToWrite = false;
-          let isThereAimDataToWrite = false;
-
-          if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir);
-            fs.mkdirSync(dataDir);
-            fs.mkdirSync(`${dataDir}/dcms`);
-            fs.mkdirSync(`${dataDir}/annotations`);
-
-            // get dicoms
-            const dcmPromises = [];
-            for (let i = 0; i < parts.length; i += 1) {
-              const arrayBuffer = parts[i];
-              const ds = dcmjs.data.DicomMessage.readFile(arrayBuffer);
-              const dicomUid =
-                ds.dict['00080018'] && ds.dict['00080018'].Value ? ds.dict['00080018'].Value[0] : i;
-              dcmPromises.push(() => {
-                return fs.writeFile(`${dataDir}/dcms/${dicomUid}.dcm`, Buffer.from(arrayBuffer));
-              });
-              isThereDcmDataToWrite = true;
-            }
-            await fastify.pq.addAll(dcmPromises);
-
+          let isThereDataToWrite = false;
+          const parts = await fastify.getSeriesWadoMultipart(params);
+          // get dicoms
+          const dcmPromises = [];
+          for (let i = 0; i < parts.length; i += 1) {
+            const arrayBuffer = parts[i];
+            const ds = dcmjs.data.DicomMessage.readFile(arrayBuffer);
+            const dicomUid =
+              ds.dict['00080018'] && ds.dict['00080018'].Value ? ds.dict['00080018'].Value[0] : i;
+            dcmPromises.push(() => {
+              return fs.writeFile(`${dataDir}/${dicomUid}.dcm`, Buffer.from(arrayBuffer));
+            });
+            isThereDataToWrite = true;
+          }
+          await fastify.pq.addAll(dcmPromises);
+          if (query.includeAims && query.includeAims === 'true') {
             // get aims
             const aimPromises = [];
             const aims = await fastify.filterProjectAims(params, {}, epadAuth);
@@ -3762,14 +3768,13 @@ async function epaddb(fastify, options, done) {
             for (let i = 0; i < aims.length; i += 1) {
               aimPromises.push(() => {
                 return fs.writeFile(
-                  `${dataDir}/annotations/${
-                    aims[i].ImageAnnotationCollection.uniqueIdentifier.root
-                  }.json`,
+                  `${dataDir}/${aims[i].ImageAnnotationCollection.uniqueIdentifier.root}.json`,
                   JSON.stringify(aims[i])
                 );
               });
               // only get the segs if we are retrieving series. study already gets it
               if (
+                retrieveSegs &&
                 params.series &&
                 aims[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                   .segmentationEntityCollection
@@ -3781,11 +3786,13 @@ async function epaddb(fastify, options, done) {
                   return fastify.getSegDicom(segEntity);
                 });
               }
-              isThereAimDataToWrite = true;
+              isThereDataToWrite = true;
             }
             await fastify.pq.addAll(aimPromises);
 
-            if (segRetrievePromises.length > 0) {
+            if (retrieveSegs && segRetrievePromises.length > 0) {
+              // we need to create the segs dir. this should only happen with retrieveSegs
+              fs.mkdirSync(`${dataDir}/segs`);
               const segWritePromises = [];
               const segs = await fastify.pq.addAll(segRetrievePromises);
               for (let i = 0; i < segs.length; i += 1) {
@@ -3795,53 +3802,146 @@ async function epaddb(fastify, options, done) {
                     ? ds.dict['00080018'].Value[0]
                     : i;
                 segWritePromises.push(() => {
-                  return fs.writeFile(`${dataDir}/dcms/${dicomUid}.dcm`, Buffer.from(segs[i]));
+                  return fs.writeFile(`${dataDir}/segs/${dicomUid}.dcm`, Buffer.from(segs[i]));
                 });
-                isThereDcmDataToWrite = true;
+                isThereDataToWrite = true;
               }
               await fastify.pq.addAll(segWritePromises);
             }
-
-            // TODO get files
-
-            // remove empty dirs
-            if (!isThereDcmDataToWrite) fs.rmdirSync(`${dataDir}/dcms`);
-            if (!isThereAimDataToWrite) fs.rmdirSync(`${dataDir}/annotations`);
           }
-          if (isThereDcmDataToWrite || isThereAimDataToWrite) {
-            // create a file to stream archive data to.
-            const output = fs.createWriteStream(`${dataDir}.zip`);
-            const archive = archiver('zip', {
-              zlib: { level: 9 }, // Sets the compression level.
-            });
-            // create the archive
-            archive
-              .directory(`${dataDir}`, false)
-              .on('error', err => reject(new InternalError('Archiving ', err)))
-              .pipe(output);
+          resolve(isThereDataToWrite);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
-            output.on('close', () => {
-              fastify.log.info(`Created zip in ${dir}`);
-              const readStream = fs.createReadStream(`${dataDir}.zip`);
-              // delete tmp folder after the file is sent
-              readStream.once('end', () => {
-                readStream.destroy(); // make sure stream closed, not close if download aborted.
+  fastify.decorate(
+    'prepStudyDownloadDir',
+    (dataDir, params, query, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let isThereDataToWrite = false;
+          // get study series
+          const studySeries = await fastify.getStudySeriesInternal(
+            { study: params.study },
+            { format: 'summary' },
+            epadAuth,
+            true
+          );
+          // call fastify.prepSeriesDownloadDir(); for each
+          for (let i = 0; i < studySeries.length; i += 1) {
+            const seriesDir = `${dataDir}/Series-${studySeries[i].seriesUID}`;
+            fs.mkdirSync(seriesDir);
+            // eslint-disable-next-line no-await-in-loop
+            const isThereData = await fastify.prepSeriesDownloadDir(
+              seriesDir,
+              { ...params, series: studySeries[i].seriesUID },
+              query,
+              epadAuth,
+              false
+            );
+            isThereDataToWrite = isThereDataToWrite || isThereData;
+          }
+          resolve(isThereDataToWrite);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getWadoMultipart',
+    async (params, query, epadAuth, reply, studyUids) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const timestamp = new Date().getTime();
+          const dir = `tmp_${timestamp}`;
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir);
+            let dirName = params.series ? params.series : params.study;
+            if (studyUids) dirName = params.subject; // if subject
+            const dataDir = `${dir}/${dirName}`;
+            fs.mkdirSync(dataDir);
+            let isThereDataToWrite = false;
+            if (params.series) {
+              // just download one series
+              const isThereData = await fastify.prepSeriesDownloadDir(
+                dataDir,
+                params,
+                query,
+                epadAuth,
+                true
+              );
+              if (!isThereData) fs.rmdirSync(dataDir);
+              isThereDataToWrite = isThereDataToWrite || isThereData;
+            } else if (params.study) {
+              // download all series under study
+              const isThereData = await fastify.prepStudyDownloadDir(
+                dataDir,
+                params,
+                query,
+                epadAuth
+              );
+              if (!isThereData) fs.rmdirSync(dataDir);
+              isThereDataToWrite = isThereDataToWrite || isThereData;
+            } else if (studyUids) {
+              // download all studies under subject
+              for (let i = 0; i < studyUids.length; i += 1) {
+                const studyDir = `${dataDir}/Study-${studyUids[i]}`;
+                fs.mkdirSync(studyDir);
+                // eslint-disable-next-line no-await-in-loop
+                const isThereData = await fastify.prepStudyDownloadDir(
+                  studyDir,
+                  { ...params, study: studyUids[i] },
+                  query,
+                  epadAuth
+                );
+                if (!isThereData) fs.rmdirSync(studyDir);
+                isThereDataToWrite = isThereDataToWrite || isThereData;
+              }
+            }
+            // check files
+            const files = await fastify.getFilesInternal({ format: 'stream' }, params, dataDir);
+            isThereDataToWrite = isThereDataToWrite || files;
+
+            if (isThereDataToWrite) {
+              reply.res.writeHead(200, {
+                'Content-Type': 'application/zip',
+                'Content-Disposition': `attachment; filename=${dirName}.zip`,
+                'Access-Control-Allow-Origin': '*',
+              });
+              const archive = archiver('zip', {
+                zlib: { level: 9 }, // Sets the compression level.
+              });
+
+              reply.res.on('finish', () => {
                 fs.remove(dir, error => {
                   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                   else fastify.log.info(`${dir} deleted`);
                 });
               });
-              resolve(readStream);
-            });
-            archive.finalize();
-          } else {
-            fs.remove(dir, error => {
-              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-              else fastify.log.info(`${dir} deleted`);
-            });
-            reject(
-              new InternalError('Downloading templates', new Error('No template in download'))
-            );
+
+              archive.on('end', () => {
+                // eslint-disable-next-line no-param-reassign
+                reply.sent = true;
+                resolve();
+              });
+
+              // create the archive
+              archive
+                .directory(`${dataDir}`, false)
+                .on('error', err => reject(new InternalError('Archiving ', err)))
+                .pipe(reply.res);
+
+              archive.finalize();
+            } else {
+              fs.remove(dir, error => {
+                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                else fastify.log.info(`${dir} deleted`);
+              });
+              reject(new InternalError('Downloading', new Error('No file in download')));
+            }
           }
         } catch (err) {
           reject(err);
@@ -3854,10 +3954,7 @@ async function epaddb(fastify, options, done) {
       // TODO check if it is in the project
 
       if (request.query.format === 'stream') {
-        const buffer = await fastify.getWadoMultipart(request.params, request.epadAuth);
-        reply.header('Content-Disposition', `attachment; filename=${request.study}.zip`);
-
-        reply.code(200).send(buffer);
+        await fastify.getWadoMultipart(request.params, request.query, request.epadAuth, reply);
       } else {
         const studyUids = [request.params.study];
         const result = await fastify.getPatientStudiesInternal(
@@ -3876,14 +3973,50 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getSubjectFromProject', async (request, reply) => {
     try {
       // TODO check if it is in the project
-      const subjectUids = [request.params.subject];
-      const result = await fastify.getPatientsInternal(
-        request.params,
-        subjectUids,
-        request.epadAuth
-      );
-      if (result.length === 1) reply.code(200).send(result[0]);
-      else reply.send(new ResourceNotFoundError('Subject', request.params.subject));
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+      const subject = await models.subject.findOne({
+        where: { subjectuid: request.params.subject },
+      });
+
+      if (project === null)
+        reply.send(
+          new BadRequestError(
+            'Get studies from project',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      else if (subject === null)
+        reply.send(new ResourceNotFoundError('Subject', request.params.subject));
+      else if (request.query.format === 'stream') {
+        const studyUids = await fastify.getStudiesInternal(
+          {
+            project_id: project.id,
+            subject_id: subject.id,
+          },
+          request.params,
+          request.epadAuth,
+          true
+        );
+
+        await fastify.getWadoMultipart(
+          request.params,
+          request.query,
+          request.epadAuth,
+          reply,
+          studyUids
+        );
+      } else {
+        const subjectUids = [request.params.subject];
+        const result = await fastify.getPatientsInternal(
+          request.params,
+          subjectUids,
+          request.epadAuth
+        );
+        if (result.length === 1) reply.code(200).send(result[0]);
+        else reply.send(new ResourceNotFoundError('Subject', request.params.subject));
+      }
     } catch (err) {
       reply.send(new InternalError(`Get subject ${request.params.subject}`, err));
     }
@@ -5309,7 +5442,7 @@ async function epaddb(fastify, options, done) {
 
             // 2. project_file
             // get files from couch and add entities
-            const files = await fastify.getFilesInternal({ format: 'json' });
+            const files = await fastify.getFilesInternal({ format: 'json' }, {});
             for (let i = 0; i < files.length; i += 1) {
               const params = { project: project.project_id };
               if (files[i].subject_uid) params.subject = files[i].subject_uid;

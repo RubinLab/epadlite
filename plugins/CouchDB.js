@@ -366,49 +366,14 @@ async function couchdb(fastify, options) {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
             reject(new UnauthenticatedError('No epadauth in request'));
-          // make sure there is value in all three
-          // only the last ove should have \u9999 at the end
-          const myParams = params;
-          let isFiltered = false;
-          if (!params.series) {
-            myParams.series = '';
-            myParams.seriesEnd = '{}';
-            if (!params.study) {
-              myParams.study = '';
-              myParams.studyEnd = '{}';
-              if (!params.subject) {
-                myParams.subject = '';
-                myParams.subjectEnd = '{}';
-              } else {
-                myParams.subject = params.subject;
-                myParams.subjectEnd = `${params.subject}\u9999`;
-                isFiltered = true;
-              }
-            } else {
-              myParams.studyEnd = `${params.study}\u9999`;
-              myParams.subjectEnd = params.subject;
-              isFiltered = true;
-            }
-          } else {
-            myParams.seriesEnd = `${params.series}\u9999`;
-            myParams.studyEnd = params.study;
-            myParams.subjectEnd = params.subject;
-            isFiltered = true;
-          }
-          let filterOptions = {};
-          if (isFiltered) {
-            filterOptions = {
-              startkey: [myParams.subject, myParams.study, myParams.series, ''],
-              endkey: [myParams.subjectEnd, myParams.studyEnd, myParams.seriesEnd, '{}'],
-              reduce: true,
-              group_level: 5,
-            };
-          } else {
-            filterOptions = {
-              reduce: true,
-              group_level: 5,
-            };
-          }
+          const paramsFilter = fastify.getFilter(params);
+
+          const filterOptions = {
+            ...paramsFilter,
+            reduce: true,
+            group_level: 5,
+          };
+
           // define which view to use according to the parameter format
           // default is json
           let view = 'aims_json';
@@ -1101,38 +1066,78 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('getFilter', params => {
+    // make sure there is value in all three
+    // only the last ove should have \u9999 at the end
+    const myParams = params;
+    let isFiltered = false;
+    if (!params.series) {
+      myParams.series = '';
+      myParams.seriesEnd = '{}';
+      if (!params.study) {
+        myParams.study = '';
+        myParams.studyEnd = '{}';
+        if (!params.subject) {
+          myParams.subject = '';
+          myParams.subjectEnd = '{}';
+        } else {
+          myParams.subject = params.subject;
+          myParams.subjectEnd = `${params.subject}\u9999`;
+          isFiltered = true;
+        }
+      } else {
+        myParams.studyEnd = `${params.study}\u9999`;
+        myParams.subjectEnd = params.subject;
+        isFiltered = true;
+      }
+    } else {
+      myParams.seriesEnd = `${params.series}\u9999`;
+      myParams.studyEnd = params.study;
+      myParams.subjectEnd = params.subject;
+      isFiltered = true;
+    }
+    if (isFiltered) {
+      return {
+        startkey: [myParams.subject, myParams.study, myParams.series, ''],
+        endkey: [myParams.subjectEnd, myParams.studyEnd, myParams.seriesEnd, '{}'],
+      };
+    }
+    return {};
+  });
+
   fastify.decorate(
     'getFilesInternal',
-    query =>
+    (query, params, subDir) =>
       new Promise((resolve, reject) => {
         try {
           let format = 'json';
           if (query.format) format = query.format.toLowerCase();
+          const filter = fastify.getFilter(params);
           const view = 'files';
           const db = fastify.couch.db.use(config.db);
           db.view(
             'instances',
             view,
             {
+              ...filter,
               reduce: true,
-              group_level: 2,
+              group_level: 5,
             },
             (error, body) => {
               if (!error) {
                 const res = [];
-
                 if (format === 'stream') {
                   body.rows.forEach(file => {
-                    res.push(file.key[0]);
+                    res.push(file.key[3]);
                   });
                   fastify
-                    .downloadFiles(res)
+                    .downloadFiles(res, subDir)
                     .then(result => resolve(result))
                     .catch(err => reject(err));
                 } else {
                   // the default is json! The old APIs were XML, no XML in epadlite
                   body.rows.forEach(file => {
-                    res.push(file.key[1]);
+                    res.push(file.key[4]);
                   });
                   resolve(res);
                 }
@@ -1172,28 +1177,33 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'downloadFiles',
-    ids =>
+    (ids, subDir) =>
       new Promise((resolve, reject) => {
         try {
-          const timestamp = new Date().getTime();
-          const dir = `tmp_${timestamp}`;
+          let dir = '';
+          if (subDir) dir = subDir;
+          else {
+            const timestamp = new Date().getTime();
+            dir = `tmp_${timestamp}`;
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+          }
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
 
-          if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir);
-            fs.mkdirSync(`${dir}/files`);
+          fs.mkdirSync(`${dir}/files`);
 
-            const db = fastify.couch.db.use(config.db);
-            for (let i = 0; i < ids.length; i += 1) {
-              const filename = ids[i].split('_')[0];
-              db.attachment
-                .getAsStream(ids[i], filename)
-                .pipe(fs.createWriteStream(`${dir}/files/${filename}`));
-              isThereDataToWrite = true;
-            }
+          const db = fastify.couch.db.use(config.db);
+          for (let i = 0; i < ids.length; i += 1) {
+            const filename = ids[i].split('_')[0];
+            db.attachment
+              .getAsStream(ids[i], filename)
+              .pipe(fs.createWriteStream(`${dir}/files/${filename}`));
+            isThereDataToWrite = true;
           }
-          if (isThereDataToWrite) {
+          if (subDir) {
+            if (!isThereDataToWrite) fs.rmdirSync(`${dir}/files`);
+            resolve(isThereDataToWrite);
+          } else if (isThereDataToWrite) {
             // create a file to stream archive data to.
             const output = fs.createWriteStream(`${dir}/files.zip`);
             const archive = archiver('zip', {
@@ -1301,7 +1311,7 @@ async function couchdb(fastify, options) {
   fastify.decorate('getFiles', (request, reply) => {
     try {
       fastify
-        .getFilesInternal(request.query)
+        .getFilesInternal(request.query, request.params)
         .then(result => {
           if (request.query.format === 'stream') {
             reply.header('Content-Disposition', `attachment; filename=files.zip`);
