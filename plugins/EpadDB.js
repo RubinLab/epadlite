@@ -3805,9 +3805,6 @@ async function epaddb(fastify, options, done) {
               await fastify.pq.addAll(segWritePromises);
             }
           }
-
-          // TODO get files
-
           resolve(isThereDataToWrite);
         } catch (err) {
           reject(err);
@@ -3892,6 +3889,10 @@ async function epaddb(fastify, options, done) {
             isThereDataToWrite = isThereDataToWrite || isThereData;
           }
         }
+        // check files
+        const files = await fastify.getFilesInternal({ format: 'stream' }, params, dataDir);
+        isThereDataToWrite = isThereDataToWrite || files;
+
         if (isThereDataToWrite) {
           reply.res.writeHead(200, {
             'Content-Type': 'application/zip',
@@ -5417,7 +5418,7 @@ async function epaddb(fastify, options, done) {
 
             // 2. project_file
             // get files from couch and add entities
-            const files = await fastify.getFilesInternal({ format: 'json' });
+            const files = await fastify.getFilesInternal({ format: 'json' }, {});
             for (let i = 0; i < files.length; i += 1) {
               const params = { project: project.project_id };
               if (files[i].subject_uid) params.subject = files[i].subject_uid;
