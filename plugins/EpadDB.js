@@ -4575,6 +4575,102 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('updateDcm', (dataset, tagValues) => {
+    // define this to make sure they don't send funny stuff
+    const queryKeys = {
+      PatientID: '00100020',
+      PatientName: '00100010',
+      StudyInstanceUID: '0020000D',
+      StudyDescription: '00081030',
+      SeriesInstanceUID: '0020000E',
+      SeriesDescription: '0008103E',
+    };
+    const keysInQuery = Object.keys(tagValues);
+    const editedDataset = dataset;
+    for (let i = 0; i < keysInQuery.length; i += 1) {
+      if (queryKeys[keysInQuery[i]]) {
+        switch (editedDataset[queryKeys[keysInQuery[i]]].vr) {
+          case 'PN':
+            editedDataset[queryKeys[keysInQuery[i]]].Value = [
+              {
+                Alphabetic: tagValues[keysInQuery[i]],
+              },
+            ];
+            break;
+          case 'DS':
+            editedDataset[queryKeys[keysInQuery[i]]].Value = [
+              parseFloat(tagValues[keysInQuery[i]]),
+            ];
+            break;
+          case 'IS':
+            editedDataset[queryKeys[keysInQuery[i]]].Value = [
+              parseInt(tagValues[keysInQuery[i]], 10),
+            ];
+            break;
+          default:
+            editedDataset[queryKeys[keysInQuery[i]]].Value = [tagValues[keysInQuery[i]]];
+        }
+      }
+    }
+    return editedDataset;
+  });
+
+  fastify.decorate(
+    'updateSeriesBuffers',
+    (params, tagValues) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const parts = await fastify.getSeriesWadoMultipart(params);
+          const updatedDatasets = [];
+          for (let i = 0; i < parts.length; i += 1) {
+            const arrayBuffer = parts[i];
+            const ds = dcmjs.data.DicomMessage.readFile(arrayBuffer);
+            ds.dict = fastify.updateDcm(ds.dict, tagValues);
+            const buffer = ds.write();
+            updatedDatasets.push(toArrayBuffer(buffer));
+          }
+          const { data, boundary } = dcmjs.utilities.message.multipartEncode(updatedDatasets);
+          fastify.log.info(
+            `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
+          );
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.saveDicomsInternal(data, boundary);
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(`Updating ${JSON.stringify(params)} dicoms with ${tagValues}`, err)
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'editTags',
+    (params, body) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          //     let dicoms = [];
+          // if (body.applyPatient)
+          //   dicoms=getPatientDicoms(params);
+          // else if (body.applyStudy)
+          //   dicoms=getStudyDicoms(params);
+          // else
+          //   dicoms=getSeriesDicoms(params);
+          await fastify.updateSeriesBuffers(params, body);
+
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(`Editing tags ${JSON.stringify(params)} ${JSON.stringify(body)}`, err)
+          );
+        }
+      })
+  );
+
+  // tagvalues: {tag: value},
+  // applyStudy: bool,
+  // applyPatient: bool,
+  // /projects/:p/subjects/:s/studies/:s/series/:s?editTag=true
   fastify.decorate('addNondicomSeries', async (request, reply) => {
     // eslint-disable-next-line prefer-destructuring
     let seriesUid = request.params.series;
@@ -4590,32 +4686,38 @@ async function epaddb(fastify, options, done) {
         )
       );
     }
-    const promisses = [];
-    promisses.push(
-      models.study.findOne({
-        where: { studyuid: request.params.study },
-        raw: true,
-      })
-    );
-    promisses.push(
-      models.nondicom_series.findOne({
-        where: { seriesuid: seriesUid },
-      })
-    );
-    const [study, series] = await Promise.all(promisses);
-    if (series) {
-      reply.send(new ResourceAlreadyExistsError('Nondicom series', seriesUid));
+    if (request.query.editTags === 'true') {
+      request.params.series = seriesUid;
+      await fastify.editTags(request.params, request.body);
+      reply.code(200).send(`${seriesUid} tags edited `);
     } else {
-      await models.nondicom_series.create({
-        seriesuid: seriesUid,
-        study_id: study.id,
-        description: request.body.description,
-        seriesdate: Date.now(),
-        updatetime: Date.now(),
-        createdtime: Date.now(),
-        creator: request.epadAuth.username,
-      });
-      reply.code(200).send(`${seriesUid} added successfully`);
+      const promisses = [];
+      promisses.push(
+        models.study.findOne({
+          where: { studyuid: request.params.study },
+          raw: true,
+        })
+      );
+      promisses.push(
+        models.nondicom_series.findOne({
+          where: { seriesuid: seriesUid },
+        })
+      );
+      const [study, series] = await Promise.all(promisses);
+      if (series) {
+        reply.send(new ResourceAlreadyExistsError('Nondicom series', seriesUid));
+      } else {
+        await models.nondicom_series.create({
+          seriesuid: seriesUid,
+          study_id: study.id,
+          description: request.body.description,
+          seriesdate: Date.now(),
+          updatetime: Date.now(),
+          createdtime: Date.now(),
+          creator: request.epadAuth.username,
+        });
+        reply.code(200).send(`${seriesUid} added successfully`);
+      }
     }
   });
 

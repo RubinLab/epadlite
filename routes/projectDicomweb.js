@@ -431,6 +431,14 @@ async function routes(fastify) {
           },
         },
       },
+      query: {
+        type: 'object',
+        properties: {
+          editTags: {
+            type: 'string',
+          },
+        },
+      },
       body: {
         type: 'object',
         properties: {
