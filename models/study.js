@@ -10,8 +10,7 @@ module.exports = function(sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
-      study_uid: {
-        //changed from studyuid to study_uid //cavit
+      studyuid: {
         type: DataTypes.STRING(128),
         allowNull: true,
         unique: true,
