@@ -995,12 +995,14 @@ async function other(fastify) {
       // eslint-disable-next-line no-param-reassign
       fastify.messageId += 1;
       fastify.connectedUsers[username].write(`data: ${JSON.stringify(messageJson)}\n\n`);
+      return true;
     }
+    return false;
   });
   fastify.decorate(
     'addConnectedUser',
     // eslint-disable-next-line no-return-assign
-    (req, res) => {
+    async (req, res) => {
       fastify.log.info(
         `Adding ${req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'}`
       );
@@ -1008,6 +1010,8 @@ async function other(fastify) {
       fastify.connectedUsers[
         req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'
       ] = res.res;
+      // send unsent notifications
+      await fastify.getUnnotifiedEventLogs(req);
     }
   );
   fastify.decorate(

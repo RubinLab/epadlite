@@ -72,6 +72,10 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.INTEGER(1),
         allowNull: true,
       },
+      notified: {
+        type: DataTypes.INTEGER(1),
+        allowNull: true,
+      },
     },
     {
       tableName: 'eventlog',
