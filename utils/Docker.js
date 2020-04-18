@@ -1,10 +1,11 @@
 //  const { Docker } = require('node-docker-api');
 //  const docker = new Docker({ socketPath: '/var/run/docker.sock' });
-const { Docker } = require('dockerode');
+//  const { Docker } = require('dockerode');
 
 class DockerService {
   constructor() {
-    //  const Docker = require('dockerode');
+    // eslint-disable-next-line global-require
+    const Docker = require('dockerode');
     this.counter = 0;
     //  this.tar = require('tar-fs');
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
@@ -144,6 +145,7 @@ class DockerService {
   // }
   createContainer(imageId, containerNameToGive) {
     let auxContainer;
+
     return (
       this.docker
         .createContainer({
@@ -168,7 +170,8 @@ class DockerService {
 
         // eslint-disable-next-line func-names
         .then(function() {
-          //  console.log('waitin for plugin container to finish processing');
+          // eslint-disable-next-line no-console
+          console.log('waitin for plugin container to finish processing');
           return auxContainer.wait();
         })
         // eslint-disable-next-line func-names
@@ -177,13 +180,9 @@ class DockerService {
           return auxContainer.remove();
         })
         // eslint-disable-next-line func-names
-        .then(function() {
-          //  console.log('plugin container removed successfully ');
-          return 204;
-        })
-        // eslint-disable-next-line func-names
-        .catch(function() {
-          //  console.log(err);
+        .catch(function(err) {
+          console.log(err);
+          throw err;
         })
     );
   }
@@ -214,18 +213,22 @@ class DockerService {
   listImages() {
     const imageList = [];
     return this.docker
-      .listContainers({ all: true })
+      .listImages({ all: true })
       .then(images => {
         images.forEach(image => {
-          //  console.log('images', image);
+          console.log('each image', image);
           const imageObject = {
             id: image.Id,
-            names: image.Names,
-            imagename: image.Image,
-            imageid: image.ImageID,
-            command: image.Command,
-            state: image.State,
+            RepoTags: image.RepoTags,
           };
+          // const imageObject = {
+          //   id: image.Id,
+          //   names: image.Names,
+          //   imagename: image.Image,
+          //   imageid: image.ImageID,
+          //   command: image.Command,
+          //   state: image.State,
+          // };
           imageList.push(imageObject);
         });
         return imageList;
@@ -233,34 +236,43 @@ class DockerService {
       .catch(error => console.log(error));
   }
 
+  //  does not follow image pulling process
   pullImage(img) {
     return this.docker
       .pull(img)
       .then(() => {
-        //  console.log('image pulled');
+        console.log('image pulled');
       })
       .catch(() => {
-        //  console.log('error happened while pulling image');
+        console.log('error happened while pulling image');
       });
   }
 
-  pullImageWc(img, cnt) {
+  pullImageWithTracking(img, cnt) {
     const self = this;
-    this.docker.pull(img, (_err, stream) => {
-      // eslint-disable-next-line no-use-before-define
-      this.docker.modem.followProgress(stream, onFinished, onProgress);
+    return new Promise((resolve, reject) => {
+      this.docker.pull(img, (_err, stream) => {
+        // eslint-disable-next-line no-use-before-define
+        console.log('docker pull is working');
+        this.docker.modem.followProgress(stream, onFinished, onProgress);
 
-      // eslint-disable-next-line no-unused-vars
-      function onFinished(err, _output) {
-        if (!err) {
-          //  console.log('\nDone pulling.');
-          self.createContainer(img, cnt);
-        } else {
-          //  console.log(err);
+        // eslint-disable-next-line no-unused-vars
+        function onFinished(err, _output) {
+          if (!err) {
+            console.log('\nDone pulling.');
+            resolve('done pulling');
+            //self.createContainer(img, cnt);
+          } else {
+            console.log(err);
+            reject(err);
+          }
         }
-      }
-      // eslint-disable-next-line no-unused-vars
-      function onProgress(_event) {}
+        // eslint-disable-next-line no-unused-vars
+        function onProgress(_event) {
+          console.log('progress :');
+          process.stdout.write(`.`);
+        }
+      });
     });
   }
   /*

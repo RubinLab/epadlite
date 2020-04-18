@@ -986,6 +986,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('savePlugin', (request, reply) => {
     //  console.log('back end saved the plugin', request.body);
+    console.log('checking user right ', request.epadAuth);
     const { pluginform } = request.body;
     models.plugin
       .create({
@@ -1682,17 +1683,16 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('getPluginsQueue', (request, reply) => {
     console.log('plugin queue list called');
+    const result = [];
     models.plugin_queue
       .findAll({
         include: ['queueplugin'],
         required: false,
       })
       .then(eachRowObj => {
-        const result = [];
-        console.log('eachRowObj : ', eachRowObj);
         // console.log('def params : ', plugins[0].dataValues.defaultparameters);
         eachRowObj.forEach(data => {
-          console.log('back end getPluginsQueue eachobj : ', data.dataValues);
+          //  console.log('back end getPluginsQueue eachobj : ', data.dataValues);
           const pluginObj = {
             id: data.dataValues.id,
             plugin_id: data.dataValues.plugin_id,
@@ -1708,7 +1708,7 @@ async function epaddb(fastify, options, done) {
             parameters: [],
           };
           if (data.dataValues.queueplugin !== null) {
-            pluginObj.pluguin = { ...data.dataValues.queueplugin.dataValues };
+            pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
           }
           result.push(pluginObj);
         });
@@ -1724,94 +1724,62 @@ async function epaddb(fastify, options, done) {
     //  will receive a queue object which contains plugin id
     //  console.log('running queue one by one ', request.body);
     try {
-      const pluginInQueue = await models.plugin_queue.findAll({
-        include: ['queueplugin'],
-        where: { status: null },
-      });
-      //  const dock = new dockerService();
-      //  let containername = 'testcnt' + request.body.id;
-      // contRemove = async (err, data) => {
-      //   console.log('err : ', err);
-      //   console.log('data :', data);
-      //   reply.code(200).send(`PrunPluginsQueue retuened`);
-      // };
-      //  const res = await dock.createContainer('test:latest', containername);
-      //  console.log('resultsss : ', res);
+      const result = [];
+      await models.plugin_queue
+        .findAll({
+          include: ['queueplugin'],
+          where: { status: null },
+        })
+        .then(eachRowObj => {
+          eachRowObj.forEach(data => {
+            const pluginObj = {
+              id: data.dataValues.id,
+              plugin_id: data.dataValues.plugin_id,
+              plugin_parametertype: data.dataValues.plugin_parametertype,
+              aim_uid: data.dataValues.aim_uid,
+              container_id: data.dataValues.container_id,
+              container_name: data.dataValues.container_name,
+              max_memory: data.dataValues.max_memory,
+              status: data.dataValues.status,
+              starttime: data.dataValues.starttime,
+              endtime: data.dataValues.endtime,
+              plugin: {},
+              parameters: [],
+            };
+            if (data.dataValues.queueplugin !== null) {
+              pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+            }
+            result.push(pluginObj);
+          });
+        });
+
       reply.code(202).send(`PrunPluginsQueue called and retuened 202 inernal queue is started`);
-      fastify.runPluginsQueueInternal(pluginInQueue, request);
-      //  new EpadNotification(request, 'Docker finished processing', containername).notify(fastify);
+
+      fastify.runPluginsQueueInternal(result, request);
     } catch (err) {
       reply.send(new InternalError('running queue error', err));
     }
-    // try {
-    //   const project = await models.project.findOne({
-    //     where: { projectid: request.params.project },
-    //   });
-    //   if (!project) {
-    //     reply.code(404).send(`Project ${request.params.project} not found`);
-    //   } else {
-    //     // delete projects files (delete orphan files)
-    //     await fastify.deleteRelationAndOrphanedCouchDocInternal(
-    //       project.id,
-    //       'project_file',
-    //       'file_uid'
-    //     );
-    //     // delete projects aims (delete orphan aims)
-    //     await fastify.deleteRelationAndOrphanedCouchDocInternal(
-    //       project.id,
-    //       'project_aim',
-    //       'aim_uid'
-    //     );
-    //     // delete projects templates (delete orphan templates)
-    //     await fastify.deleteRelationAndOrphanedCouchDocInternal(
-    //       project.id,
-    //       'project_template',
-    //       'template_uid'
-    //     );
-    //     // delete projects subjects (delete orphan dicom files)
-    //     await fastify.deleteRelationAndOrphanedSubjectsInternal(
-    //       project.id,
-    //       request.params.project,
-    //       request.epadAuth
-    //     );
-    //     await models.project.destroy({
-    //       where: {
-    //         projectId: request.params.project,
-    //       },
-    //     });
-    //     reply.code(200).send(`Project ${request.params.project} deleted successfully`);
-    //   }
-    // } catch (err) {
-    //   reply.send(new InternalError(`Deleting project ${request.params.project}`, err));
-    // }
   });
   //  internal functions
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
-    //  console.log('this queue to run ', pluginQueueList);
+
+    const dock = new DockerService();
     for (let i = 0; i < pluginQueueList.length; i += 1) {
       const eachQueueObj = pluginQueueList[i];
-      //  console.log('---------++++++++++++____________________');
-      //  onsole.log('this function intendet to work by itself', eachQueueObj.dataValues);
-      if (eachQueueObj.dataValues.queueplugin !== null) {
-        //  console.log('plugin data in queue ', eachQueueObj.dataValues.queueplugin.dataValues.name);
+
+      const image = `${eachQueueObj.plugin.image_repo}:${eachQueueObj.plugin.image_tag}`;
+      let oprationresult = '';
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await dock.createContainer(image, '');
+        oprationresult = ` plugin image : ${image} terminated with success`;
+        new EpadNotification(request, oprationresult, 'success', true).notify(fastify);
+      } catch (err) {
+        oprationresult = `plugin terminated with error : ${err}`;
+        new EpadNotification(request, oprationresult, err, true).notify(fastify);
       }
-      //  console.log('---------++++++++++++____________________');
-      const dock = new DockerService();
-      const containername = `testcnt${eachQueueObj.dataValues.id}`;
-      // contRemove = async (err, data) => {
-      //   console.log('err : ', err);
-      //   console.log('data :', data);
-      //   reply.code(200).send(`PrunPluginsQueue retuened`);
-      // };
-      // eslint-disable-next-line no-await-in-loop
-      await dock.createContainer('test:latest', containername);
-      new EpadNotification(
-        request,
-        'Docker finished processing',
-        `container name : ${containername}`
-      ).notify(fastify);
-      //  console.log('resultsss : ', res);
+      //  request, info, reason, refresh
     }
   });
   //  internal functions end
