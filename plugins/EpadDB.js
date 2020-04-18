@@ -3584,6 +3584,33 @@ async function epaddb(fastify, options, done) {
       });
   });
 
+  fastify.decorate('getUserPreferences', (request, reply) => {
+    fastify
+      .getUserInternal(request.params)
+      .then(res => {
+        reply.code(200).send(res.preferences ? JSON.parse(res.preferences) : {});
+      })
+      .catch(err => {
+        reply.send(err);
+      });
+  });
+
+  fastify.decorate('updateUserPreferences', (request, reply) => {
+    const rowsUpdated = {
+      preferences: JSON.stringify(request.body),
+      updated_by: request.epadAuth.username,
+      updatetime: Date.now(),
+    };
+    fastify
+      .updateUserInternal(rowsUpdated, request.params)
+      .then(() => {
+        reply.code(200).send(`User ${request.params.user} updated sucessfully`);
+      })
+      .catch(err => {
+        reply.send(new InternalError(`Updating user ${request.params.user}`, err));
+      });
+  });
+
   fastify.decorate('updateUser', (request, reply) => {
     const rowsUpdated = {
       ...request.body,
@@ -3648,6 +3675,7 @@ async function epaddb(fastify, options, done) {
               projectToRole,
               projects,
               username: user[0].username,
+              preferences: user[0].preferences,
             };
             resolve(obj);
           } else {
@@ -5231,6 +5259,11 @@ async function epaddb(fastify, options, done) {
             await fastify.orm.query(
               `ALTER TABLE user 
                 MODIFY COLUMN username varchar(128) NOT NULL;`,
+              { transaction: t }
+            );
+            await fastify.orm.query(
+              `ALTER TABLE user 
+                ADD COLUMN IF NOT EXISTS preferences varchar(3000) NULL AFTER colorpreference;`,
               { transaction: t }
             );
             fastify.log.warn('Migrated user');
