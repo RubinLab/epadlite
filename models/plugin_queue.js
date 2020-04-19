@@ -18,10 +18,26 @@ module.exports = function(sequelize, DataTypes) {
           key: 'id',
         },
       },
-      plugin_parametertype: {
+      project_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: false,
-        defaultValue: 0,
+        allowNull: true,
+        references: {
+          model: 'project',
+          key: 'id',
+        },
+      },
+      template_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+        references: {
+          model: 'template',
+          key: 'id',
+        },
+      },
+      plugin_parametertype: {
+        type: DataTypes.STRING(10),
+        allowNull: true,
+        defaultValue: null,
       },
       aim_uid: {
         type: DataTypes.STRING(255),
@@ -40,8 +56,9 @@ module.exports = function(sequelize, DataTypes) {
         allowNull: true,
       },
       status: {
-        type: DataTypes.INTEGER(1),
+        type: DataTypes.STRING(10),
         allowNull: true,
+        defaultValue: null,
       },
       creator: {
         type: DataTypes.STRING(128),

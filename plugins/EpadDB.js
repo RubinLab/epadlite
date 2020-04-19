@@ -579,55 +579,11 @@ async function epaddb(fastify, options, done) {
         reply.code(200).send(plugins);
       })
       .catch(err => {
-        reply
-          .code(500)
-          .send(
-            new InternalError(
-              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
-                request.epadAuth.admin
-              }`,
-              err
-            )
-          );
+        reply.code(500).send(new InternalError('Getting plugin list', err));
       });
   });
 
   fastify.decorate('getTemplatesDataFromDb', (request, reply) => {
-    //  const dock = new DockerService();
-    // dock.createContainer('myimage:1.0', 'test').then(data => {
-    //   console.log('returned outer', data);
-    //   reply.code(200).send('ok');
-
-    // });
-    // dock
-    //   .listImages()
-    //   .then(data => {
-    //     console.log('------------list images-------------------');
-    //     console.log('------------list images-------------------');
-    //     console.log('------------list images-------------------');
-    //     console.log('------------list images-------------------');
-    //     console.log('------------list images-------------------');
-    //     console.log('------------list images-------------------');
-
-    //     //console.log('returned list images', data);
-    //     console.log('------------list images--ends-----------------');
-    //     //reply.code(200).send('ok');
-    //   })
-    //   .catch(err => {
-    //     reply.code(500).send(new InternalError('couldnt inspect container', err));
-    //   });
-    // dock.listContainers().then(data => {
-    //   console.log('------------list containers-------------------');
-    //   console.log('------------list containers-------------------');
-    //   console.log('------------list containers-------------------');
-    //   console.log('------------list containers-------------------');
-    //   console.log('------------list containers-------------------');
-    //   console.log('------------list containers-------------------');
-    //   //console.log('returned list containers', data);
-    //   console.log('------------list containers- ends------------------');
-
-    //   //reply.code(200).send('ok');
-    // });
     models.template
       .findAll()
       .then(templates => {
@@ -797,11 +753,14 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('updateProjectsForPlugin', (request, reply) => {
-    const { pluginid } = request.params.pluginid;
+    const { pluginid } = request.params;
     const { projectsToRemove, projectsToAdd } = request.body;
     const dbPromisesForCreate = [];
     const formattedProjects = [];
-
+    console.log('request.params : ', request.params);
+    console.log('request.body : ', request.body);
+    console.log('project to remove : ', projectsToRemove);
+    console.log('project to add : ', projectsToAdd);
     if (projectsToRemove && projectsToAdd) {
       models.project_plugin
         .destroy({
@@ -819,13 +778,13 @@ async function epaddb(fastify, options, done) {
                 createdtime: Date.now(),
                 updatetime: Date.now(),
                 enabled: 1,
-                creator: null,
-                updated_by: null,
+                creator: request.epadAuth.username,
+                updated_by: request.epadAuth.username,
               })
             );
           });
 
-          Promise.all(dbPromisesForCreate).then(() => {
+          return Promise.all(dbPromisesForCreate).then(() => {
             models.plugin
               .findOne({
                 include: ['pluginproject'],
@@ -844,8 +803,25 @@ async function epaddb(fastify, options, done) {
                   formattedProjects.push(projectObj);
                 });
                 reply.code(200).send(formattedProjects);
+              })
+              .catch(err => {
+                reply
+                  .code(500)
+                  .send(
+                    new InternalError(
+                      'something went wrong while assigning project to plugin ',
+                      err
+                    )
+                  );
               });
           });
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError('something went wrong while unassigning project from plugin ', err)
+            );
         });
     } else {
       reply
@@ -882,13 +858,13 @@ async function epaddb(fastify, options, done) {
                 createdtime: Date.now(),
                 updatetime: Date.now(),
                 enabled: 1,
-                creator: 'null',
-                updated_by: 'null',
+                creator: request.epadAuth.username,
+                updated_by: request.epadAuth.username,
               })
             );
           });
 
-          Promise.all(dbPromisesForCreate).then(() => {
+          return Promise.all(dbPromisesForCreate).then(() => {
             models.plugin
               .findOne({
                 include: ['plugintemplate'],
@@ -906,8 +882,25 @@ async function epaddb(fastify, options, done) {
                   formattedTemplates.push(templateObj);
                 });
                 reply.send(formattedTemplates);
+              })
+              .catch(err => {
+                reply
+                  .code(500)
+                  .send(
+                    new InternalError(
+                      'something went wrong while assigning template to plugin ',
+                      err
+                    )
+                  );
               });
           });
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError('something went wrong while unassigning template from plugin ', err)
+            );
         });
     } else {
       reply
@@ -999,7 +992,7 @@ async function epaddb(fastify, options, done) {
         image_id: pluginform.image_id,
         enabled: pluginform.enabled,
         modality: pluginform.modality,
-        creator: null,
+        creator: request.epadAuth.username,
         createdtime: Date.now(),
         updatetime: '1970-01-01 00:00:01',
         developer: pluginform.developer,
@@ -1038,6 +1031,7 @@ async function epaddb(fastify, options, done) {
         {
           ...pluginform,
           updatetime: Date.now(),
+          updated_by: request.epadAuth.username,
         },
         {
           where: {
@@ -1182,7 +1176,7 @@ async function epaddb(fastify, options, done) {
         prefix: parameterform.prefix,
         inputBinding: parameterform.inputBinding,
         default_value: parameterform.default_value,
-        creator: null,
+        creator: request.epadAuth.username,
         createdtime: Date.now(),
         type: parameterform.type,
         description: parameterform.description,
@@ -1218,7 +1212,7 @@ async function epaddb(fastify, options, done) {
     const parameters = [];
     models.plugin_parameters
       .findAll({
-        where: { plugin_id: plugindbid },
+        where: { plugin_id: plugindbid, creator: request.epadAuth.username },
       })
       .then(result => {
         result.forEach(parameter => {
@@ -1294,7 +1288,7 @@ async function epaddb(fastify, options, done) {
           inputBinding: null,
           default_value: paramsForm.default_value,
           updatetime: Date.now(),
-          updated_by: null,
+          updated_by: request.epadAuth.username,
           type: paramsForm.type,
           description: paramsForm.description,
         },
@@ -1327,7 +1321,11 @@ async function epaddb(fastify, options, done) {
     const parameters = [];
     models.plugin_projectparameters
       .findAll({
-        where: { plugin_id: plugindbid, project_id: projectdbid },
+        where: {
+          plugin_id: plugindbid,
+          project_id: projectdbid,
+          creator: request.epadAuth.username,
+        },
       })
       .then(result => {
         result.forEach(parameter => {
@@ -1377,7 +1375,7 @@ async function epaddb(fastify, options, done) {
         prefix: parameterform.prefix,
         inputBinding: parameterform.inputBinding,
         default_value: parameterform.default_value,
-        creator: null,
+        creator: request.epadAuth.username,
         createdtime: Date.now(),
         type: parameterform.type,
         description: parameterform.description,
@@ -1439,7 +1437,7 @@ async function epaddb(fastify, options, done) {
           inputBinding: null,
           default_value: paramsForm.default_value,
           updatetime: Date.now(),
-          updated_by: null,
+          updated_by: request.epadAuth.username,
           type: paramsForm.type,
           description: paramsForm.description,
         },
@@ -1472,7 +1470,11 @@ async function epaddb(fastify, options, done) {
     const parameters = [];
     models.plugin_templateparameters
       .findAll({
-        where: { plugin_id: plugindbid, template_id: templatedbid },
+        where: {
+          plugin_id: plugindbid,
+          template_id: templatedbid,
+          creator: request.epadAuth.username,
+        },
       })
       .then(result => {
         result.forEach(parameter => {
@@ -1521,7 +1523,7 @@ async function epaddb(fastify, options, done) {
         prefix: parameterform.prefix,
         inputBinding: parameterform.inputBinding,
         default_value: parameterform.default_value,
-        creator: null,
+        creator: request.epadAuth.username,
         createdtime: Date.now(),
         type: parameterform.type,
         description: parameterform.description,
@@ -1581,7 +1583,7 @@ async function epaddb(fastify, options, done) {
           inputBinding: null,
           default_value: paramsForm.default_value,
           updatetime: Date.now(),
-          updated_by: null,
+          updated_by: request.epadAuth.username,
           type: paramsForm.type,
           description: paramsForm.description,
         },
@@ -1605,81 +1607,26 @@ async function epaddb(fastify, options, done) {
           );
       });
   });
-  fastify.decorate('addPluginsToQueue', (request, reply) => {
+  fastify.decorate('addPluginsToQueue', async (request, reply) => {
+    // plugin queue table, column status can have these string values: waiting, running, terminated,error, null
+    // plugin queue table column plugin_parametertype  can have these string values: default, project, template, annotation
     //  change this function to get selected project, logged user , selected template and selected aims ,
     //  onces these received get data from tables iternally and start queue
     //  console.log('request. params : -----------', request.body);
-    const { projectids } = request.body;
-    models.project_plugin
-      .findAll({
+    //  const { projectids  templateids, annotationuids, } = request.body;
+    const projectids = [];
+    projectids.push(16);
+    try {
+      const projectPluginTable = await models.project_plugin.findAll({
         include: ['projectpluginrowbyrow'],
         where: {
           project_id: projectids,
+          creator: request.epadAuth.username,
         },
-      })
-      .then(eachRowObj => {
-        const result = [];
-        //  console.log('back end addPluginsToQueue eachobj : ', eachRowObj);
-        // console.log('def params : ', plugins[0].dataValues.defaultparameters);
-        eachRowObj.forEach(() => {
-          //  console.log('back end getPluginsProjectsWithParameters eachobj : ', data.dataValues);
-          // const pluginObj = {
-          //   description: data.dataValues.description,
-          //   developer: data.dataValues.developer,
-          //   documentation: data.dataValues.documentation,
-          //   enabled: data.dataValues.enabled,
-          //   id: data.dataValues.id,
-          //   image_repo: data.dataValues.image_repo,
-          //   image_tag: data.dataValues.image_tag,
-          //   image_name: data.dataValues.image_name,
-          //   image_id: data.dataValues.image_id,
-          //   modality: data.dataValues.modality,
-          //   name: data.dataValues.name,
-          //   plugin_id: data.dataValues.plugin_id,
-          //   processmultipleaims: data.dataValues.processmultipleaims,
-          //   projects: [],
-          //   status: data.dataValues.status,
-          //   templates: [],
-          //   parameters: [],
-          // };
-          // data.dataValues.pluginproject.forEach(project => {
-          //   const projectObj = {
-          //     id: project.id,
-          //     projectid: project.projectid,
-          //     projectname: project.name,
-          //   };
-          //   pluginObj.projects.push(projectObj);
-          // });
-          // data.dataValues.plugintemplate.forEach(template => {
-          //   const templateObj = {
-          //     id: template.id,
-          //     templateName: template.templateName,
-          //   };
-          //   pluginObj.templates.push(templateObj);
-          // });
-          // data.dataValues.defaultparameters.forEach(parameter => {
-          //   const parameterObj = {
-          //     id: parameter.id,
-          //     plugin_id: parameter.plugin_id,
-          //     name: parameter.name,
-          //     format: parameter.format,
-          //     prefix: parameter.prefix,
-          //     inputbinding: parameter.inputBinding,
-          //     default_value: parameter.default_value,
-          //     type: parameter.type,
-          //     description: parameter.description,
-          //   };
-          //   pluginObj.parameters.push(parameterObj);
-          // });
-          //  result.push(pluginObj);
-        });
-        //  console.log('getPluginsProjectsWithParameters', result);
-
-        reply.code(200).send(result);
-      })
-      .catch(err => {
-        reply.code(500).send(new InternalError(`getPluginsWithProject error `, err));
       });
+    } catch (err) {
+      reply.send(new InternalError('running queue error', err));
+    }
   });
   fastify.decorate('getPluginsQueue', (request, reply) => {
     console.log('plugin queue list called');
@@ -1763,6 +1710,11 @@ async function epaddb(fastify, options, done) {
   //  internal functions
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
+    //  const dir = '/pluginsDataFolder/cavit';
+    const pluginsDataFolder = path.join(__dirname, '../pluginsDataFolder/cavit');
+    if (!fs.existsSync(pluginsDataFolder)) {
+      fs.mkdirSync(pluginsDataFolder);
+    }
 
     const dock = new DockerService();
     for (let i = 0; i < pluginQueueList.length; i += 1) {
@@ -1781,6 +1733,14 @@ async function epaddb(fastify, options, done) {
       }
       //  request, info, reason, refresh
     }
+    await models.user
+      .findOne({
+        include: ['projects'],
+        where: { username: request.epadAuth.username },
+      })
+      .then(userObj => {
+        console.log('getting all projects for user', userObj.dataValues.projects);
+      });
   });
   //  internal functions end
   //  docker section
