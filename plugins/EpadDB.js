@@ -1662,11 +1662,11 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('arrayUnique', array => {
+  fastify.decorate('arrayUnique', (array, idField) => {
     const a = array.concat();
     for (let i = 0; i < a.length; i += 1) {
       for (let j = i + 1; j < a.length; j += 1) {
-        if (a[i] === a[j]) {
+        if ((idField && a[i][idField] === a[j][idField]) || a[i] === a[j]) {
           a.splice(j, 1);
           j -= 1;
         }
