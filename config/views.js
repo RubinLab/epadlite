@@ -33,7 +33,8 @@ module.exports.views = {
   },
 
   files: {
-    map: ' function(doc) { if (doc.fileInfo) { emit([doc._id, doc.fileInfo], 1)}} ',
+    map:
+      ' function(doc) { if (doc.fileInfo) { emit([doc.fileInfo.subject_uid,doc.fileInfo.study_uid,doc.fileInfo.series_uid, doc._id, doc.fileInfo], 1)}} ',
     reduce: '_count()',
   },
 };
