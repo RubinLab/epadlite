@@ -520,13 +520,22 @@ async function other(fastify) {
                 )
                 .then(() => resolve({ success: true, errors: [] }))
                 .catch(err => reject(err));
-            else
-              reject(
-                new BadRequestError(
-                  'Uploading files',
-                  new Error(`Unsupported filetype for file ${dir}/${filename}`)
-                )
-              );
+            else {
+              // check to see if it is a dicom file with no dcm extension
+              try {
+                const arrayBuffer = toArrayBuffer(buffer);
+                studies.add(fastify.getDicomInfo(arrayBuffer));
+                datasets.push(arrayBuffer);
+                resolve({ success: true, errors: [] });
+              } catch (err) {
+                reject(
+                  new BadRequestError(
+                    'Uploading files',
+                    new Error(`Unsupported filetype for file ${dir}/${filename}`)
+                  )
+                );
+              }
+            }
           });
         } catch (err) {
           reject(new InternalError(`Processing file ${filename}`, err));
