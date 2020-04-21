@@ -5353,6 +5353,13 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
 
+            // set the orphaned project_user entities to the first admin
+            await fastify.orm.query(
+              `UPDATE project_user SET user_id = (SELECT id FROM user WHERE admin = true LIMIT 1) 
+                WHERE id IN (SELECT id FROM project_user 
+                  WHERE user_id NOT IN (SELECT id FROM user)); `
+            );
+
             // project_user delete cascade
             await fastify.orm.query(
               `ALTER TABLE project_user 
