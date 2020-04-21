@@ -5354,7 +5354,25 @@ async function epaddb(fastify, options, done) {
                 ADD FOREIGN KEY IF NOT EXISTS FK_study_subject (subject_id) REFERENCES subject (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
               { transaction: t }
             );
+
+            // project_user delete cascade
+            await fastify.orm.query(
+              `ALTER TABLE project_user 
+                DROP FOREIGN KEY IF EXISTS FK_project_user_project,
+                DROP KEY IF EXISTS FK_project_user_project,
+                DROP FOREIGN KEY IF EXISTS FK_project_user_user,
+                DROP KEY IF EXISTS FK_project_user_user`,
+              { transaction: t }
+            );
+            // for some reason doesn't work in the same alter table statement
+            await fastify.orm.query(
+              `ALTER TABLE project_user 
+                ADD FOREIGN KEY IF NOT EXISTS FK_project_user_project (project_id) REFERENCES project (id) ON DELETE CASCADE ON UPDATE CASCADE,
+                ADD FOREIGN KEY IF NOT EXISTS FK_project_user_user (user_id) REFERENCES user (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
+              { transaction: t }
+            );
           });
+
           // the db schema is updated successfully lets copy the files
           await fastify.moveAims();
           await fastify.moveFiles();
