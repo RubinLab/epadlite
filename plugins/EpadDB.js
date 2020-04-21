@@ -130,6 +130,10 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'subject_id',
           });
 
+          models.study.hasMany(models.project_subject_study, {
+            foreignKey: 'study_id',
+          });
+
           models.project_subject.belongsToMany(models.study, {
             through: 'project_subject_study',
             foreignKey: 'proj_subj_id',
@@ -1678,95 +1682,133 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
-      const project = await models.project.findOne({
-        where: { projectid: request.params.project },
-        include: [
-          {
-            model: models.project_subject,
-            include: [models.subject, models.study],
-          },
-          { model: models.project_aim, attributes: ['aim_uid'] },
-        ],
-      });
-      if (project === null) {
-        reply.send(
-          new BadRequestError(
-            'Getting subjects from project',
-            new ResourceNotFoundError('Project', request.params.project)
-          )
-        );
-      } else {
-        const aimUIDs = [];
-        for (let i = 0; i < project.dataValues.project_aims.length; i += 1) {
-          aimUIDs.push(project.dataValues.project_aims[i].dataValues.aim_uid);
+      if (request.params.project === config.unassignedProjectID) {
+        const dbStudyUIDs = [];
+        const studies = await models.study.findAll({
+          include: [
+            {
+              model: models.project_subject_study,
+            },
+          ],
+        });
+        for (let i = 0; i < studies.length; i += 1) {
+          dbStudyUIDs.push(studies[i].dataValues.studyuid);
         }
-        const aimsCountMap = {};
-        const aims = await fastify.getAimsInternal(
-          'summary',
-          {
-            subject: '',
-            study: '',
-            series: '',
-          },
-          aimUIDs,
-          request.epadAuth
+        // eslint-disable-next-line no-await-in-loop
+        let results = await fastify.getPatientsInternal(
+          request.params,
+          dbStudyUIDs,
+          request.epadAuth,
+          true,
+          '0020000D',
+          'studyUID',
+          true
         );
-        _.chain(aims)
-          .groupBy(value => {
-            return value.subjectID;
-          })
-          .map(value => {
-            const numberOfAims = _.reduce(
-              value,
-              memo => {
-                return memo + 1;
-              },
-              0
-            );
-            aimsCountMap[value[0].subjectID] = numberOfAims;
-            return value;
-          })
-          .value();
-        let results = [];
-        for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
-          let examTypes = [];
-          for (
-            let j = 0;
-            j < project.dataValues.project_subjects[i].dataValues.studies.length;
-            j += 1
-          ) {
-            const studyExamTypes = JSON.parse(
-              project.dataValues.project_subjects[i].dataValues.studies[j].dataValues.exam_types
-            );
-            examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
-          }
-
-          results.push({
-            subjectName: project.dataValues.project_subjects[i].dataValues.subject.dataValues.name,
-            subjectID: fastify.replaceNull(
-              project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-            ),
-            projectID: project.dataValues.projectid,
-            insertUser: '', // no user in studies call
-            xnatID: '', // no xnatID should remove
-            insertDate: '', // no date in studies call
-            uri: '', // no uri should remove
-            displaySubjectID: fastify.replaceNull(
-              project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-            ),
-            numberOfStudies: project.dataValues.project_subjects[i].dataValues.studies.length,
-            numberOfAnnotations: aimsCountMap[
-              project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-            ]
-              ? aimsCountMap[
-                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-                ]
-              : 0,
-            examTypes,
-          });
-        }
         results = _.sortBy(results, 'subjectName');
         reply.code(200).send(results);
+      } else {
+        let whereJSON = { projectid: request.params.project };
+        if (request.params.project === config.XNATUploadProjectID) whereJSON = {};
+
+        const projects = await models.project.findAll({
+          where: whereJSON,
+          include: [
+            {
+              model: models.project_subject,
+              include: [models.subject, models.study],
+            },
+            { model: models.project_aim, attributes: ['aim_uid'] },
+          ],
+        });
+        if (projects === null) {
+          reply.send(
+            new BadRequestError(
+              'Getting subjects from project',
+              new ResourceNotFoundError('Project', request.params.project)
+            )
+          );
+        } else {
+          let results = [];
+          for (let k = 0; k < projects.length; k += 1) {
+            const project = projects[k];
+            const aimsCountMap = {};
+            // if all or undefined no aim counts
+            if (request.params.project !== config.XNATUploadProjectID) {
+              const aimUIDs = [];
+              for (let i = 0; i < project.dataValues.project_aims.length; i += 1) {
+                aimUIDs.push(project.dataValues.project_aims[i].dataValues.aim_uid);
+              }
+              // eslint-disable-next-line no-await-in-loop
+              const aims = await fastify.getAimsInternal(
+                'summary',
+                {
+                  subject: '',
+                  study: '',
+                  series: '',
+                },
+                aimUIDs,
+                request.epadAuth
+              );
+              _.chain(aims)
+                .groupBy(value => {
+                  return value.subjectID;
+                })
+                .map(value => {
+                  const numberOfAims = _.reduce(
+                    value,
+                    memo => {
+                      return memo + 1;
+                    },
+                    0
+                  );
+                  aimsCountMap[value[0].subjectID] = numberOfAims;
+                  return value;
+                })
+                .value();
+            }
+            for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
+              let examTypes = [];
+              for (
+                let j = 0;
+                j < project.dataValues.project_subjects[i].dataValues.studies.length;
+                j += 1
+              ) {
+                const studyExamTypes = JSON.parse(
+                  project.dataValues.project_subjects[i].dataValues.studies[j].dataValues.exam_types
+                );
+                examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
+              }
+
+              results.push({
+                subjectName:
+                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.name,
+                subjectID: fastify.replaceNull(
+                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+                ),
+                projectID: project.dataValues.projectid,
+                insertUser: '', // no user in studies call
+                xnatID: '', // no xnatID should remove
+                insertDate: '', // no date in studies call
+                uri: '', // no uri should remove
+                displaySubjectID: fastify.replaceNull(
+                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+                ),
+                numberOfStudies: project.dataValues.project_subjects[i].dataValues.studies.length,
+                numberOfAnnotations: aimsCountMap[
+                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+                ]
+                  ? aimsCountMap[
+                      project.dataValues.project_subjects[i].dataValues.subject.dataValues
+                        .subjectuid
+                    ]
+                  : 0,
+                examTypes,
+              });
+            }
+          }
+          results = _.sortBy(results, 'subjectName');
+          reply.code(200).send(results);
+        }
       }
     } catch (err) {
       reply.send(new InternalError(`Getting patients from project ${request.params.project}`, err));

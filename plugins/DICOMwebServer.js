@@ -174,7 +174,15 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'getPatientsInternal',
-    (params, filter, epadAuth, noStats) =>
+    (
+      params,
+      filter,
+      epadAuth,
+      noStats,
+      tag = '00100020',
+      aimField = 'subjectID',
+      negateFilter = false
+    ) =>
       new Promise((resolve, reject) => {
         try {
           // make studies call and aims call
@@ -199,8 +207,9 @@ async function dicomwebserver(fastify) {
                 values[0].data,
                 values[1],
                 filter,
-                '00100020',
-                'subjectID'
+                tag,
+                aimField,
+                negateFilter
               );
               // populate an aim counts map containing each subject
               const aimsCountMap = {};
@@ -279,7 +288,7 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'filter',
-    (studies, aims, filter, tag, aimField) =>
+    (studies, aims, filter, tag, aimField, negateFilter) =>
       new Promise((resolve, reject) => {
         try {
           let filteredStudies = studies;
@@ -287,11 +296,17 @@ async function dicomwebserver(fastify) {
           if (filter) {
             filteredStudies = _.filter(
               filteredStudies,
-              obj => obj[tag] && filter.includes(obj[tag].Value[0])
+              obj =>
+                obj[tag] &&
+                (negateFilter
+                  ? !filter.includes(obj[tag].Value[0])
+                  : filter.includes(obj[tag].Value[0]))
             );
             filteredAims = _.filter(
               filteredAims,
-              obj => obj[tag] && filter.includes(obj[aimField])
+              obj =>
+                obj[tag] &&
+                (negateFilter ? !filter.includes(obj[aimField]) : filter.includes(obj[aimField]))
             );
           }
           resolve({ filteredStudies, filteredAims });
