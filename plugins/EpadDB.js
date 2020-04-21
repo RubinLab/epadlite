@@ -157,9 +157,12 @@ async function epaddb(fastify, options, done) {
             }
           }
           fastify.log.info('Connected to mariadb server');
+          // do the schema and migration operations after the connection is established
+          await fastify.fixSchema();
+          await fastify.migrateDataLite2Thick({ username: 'admin' });
           resolve();
         } catch (err) {
-          reject(new InternalError('Leading models and syncing db', err));
+          reject(new InternalError('Creating models and syncing db', err));
         }
       });
     } catch (err) {
@@ -5550,8 +5553,6 @@ async function epaddb(fastify, options, done) {
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
-      await fastify.fixSchema();
-      await fastify.migrateDataLite2Thick({ username: 'admin' });
       if (config.env !== 'test') {
         // schedule calculating statistics at 1 am at night
         schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
