@@ -157,14 +157,12 @@ async function epaddb(fastify, options, done) {
             }
           }
           fastify.log.info('Connected to mariadb server');
-          // do the schema and migration operations after the connection is established
-          await fastify.fixSchema();
-          await fastify.migrateDataLite2Thick({ username: 'admin' });
           resolve();
         } catch (err) {
           reject(new InternalError('Creating models and syncing db', err));
         }
       });
+      return fastify.afterDBReady();
     } catch (err) {
       if (config.env !== 'test') {
         fastify.log.warn(`Waiting for mariadb server. ${err.message}`);
@@ -5355,6 +5353,13 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
 
+            // set the orphaned project_user entities to the first admin
+            await fastify.orm.query(
+              `UPDATE project_user SET user_id = (SELECT id FROM user WHERE admin = true LIMIT 1) 
+                WHERE id IN (SELECT id FROM project_user 
+                  WHERE user_id NOT IN (SELECT id FROM user)); `
+            );
+
             // project_user delete cascade
             await fastify.orm.query(
               `ALTER TABLE project_user 
@@ -5568,9 +5573,25 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate(
+    'afterDBReady',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // do the schema and migration operations after the connection is established
+          await fastify.fixSchema();
+          await fastify.migrateDataLite2Thick({ username: 'admin' });
+          resolve();
+        } catch (err) {
+          reject(new InternalError('afterDBReady', err));
+        }
+      })
+  );
+
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
+
       if (config.env !== 'test') {
         // schedule calculating statistics at 1 am at night
         schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
