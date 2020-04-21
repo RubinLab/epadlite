@@ -169,6 +169,7 @@ async function epaddb(fastify, options, done) {
         setTimeout(fastify.initMariaDB, 3000);
       } else throw new InternalError('No connection to mariadb', err);
     }
+    return null;
   });
 
   fastify.decorate('findUserIdInternal', username => {
