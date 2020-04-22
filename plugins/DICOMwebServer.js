@@ -56,7 +56,7 @@ async function dicomwebserver(fastify) {
                 baseURL: config.dicomWebConfig.baseUrl,
               });
               this.request
-                .get('/studies?limit=1', header)
+                .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`, header)
                 .then(() => {
                   resolve();
                 })
@@ -77,7 +77,7 @@ async function dicomwebserver(fastify) {
               },
             };
             this.request
-              .get('/studies?limit=1', header)
+              .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`, header)
               .then(() => {
                 resolve();
               })
@@ -92,7 +92,7 @@ async function dicomwebserver(fastify) {
               },
             });
             this.request
-              .get('/studies?limit=1')
+              .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
               .then(() => {
                 resolve();
               })
@@ -127,7 +127,7 @@ async function dicomwebserver(fastify) {
             resolve();
           } else {
             this.request
-              .post('/studies', data, postHeader)
+              .post(`${config.dicomWebConfig.qidoSubPath}/studies`, data, postHeader)
               .then(() => {
                 fastify.log.info('Dicoms sent to dicomweb with success');
                 resolve();
@@ -147,7 +147,7 @@ async function dicomwebserver(fastify) {
     params =>
       new Promise((resolve, reject) => {
         this.request
-          .delete(`/studies/${params.study}`)
+          .delete(`${config.dicomWebConfig.qidoSubPath}/studies/${params.study}`)
           .then(() => {
             fastify.log.info(`Study ${params.study} deletion request sent successfully`);
             resolve();
@@ -163,7 +163,7 @@ async function dicomwebserver(fastify) {
     params =>
       new Promise((resolve, reject) => {
         this.request
-          .delete(`/studies/${params.study}/series/${params.series}`)
+          .delete(`${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}`)
           .then(() => {
             fastify.log.info(`Series ${params.series} deletion request sent successfully`);
             resolve();
@@ -189,7 +189,7 @@ async function dicomwebserver(fastify) {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const query = params.subject ? `?PatientID=${params.subject}` : limit;
           const promisses = [];
-          promisses.push(this.request.get(`/studies${query}`, header));
+          promisses.push(this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header));
           if (!noStats)
             promisses.push(
               fastify.getAimsInternal(
@@ -337,7 +337,7 @@ async function dicomwebserver(fastify) {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const query = params.subject ? `?PatientID=${params.subject}` : limit;
           const promisses = [];
-          promisses.push(this.request.get(`/studies${query}`, header));
+          promisses.push(this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header));
           // get aims for a specific patient
           if (!noStats)
             promisses.push(
@@ -486,7 +486,7 @@ async function dicomwebserver(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
-          const studies = await this.request.get(`/studies${limit}`, header);
+          const studies = await this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${limit}`, header);
           const studyUids = _.map(studies.data, value => {
             return value['0020000D'].Value[0];
           });
@@ -522,7 +522,7 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          promisses.push(this.request.get(`/studies/${params.study}/series`, header));
+          promisses.push(this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series`, header));
           // get aims for a specific study
           if (noStats === undefined || noStats === false)
             promisses.push(
@@ -636,7 +636,7 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           this.request
-            .get(`/studies/${params.study}/series/${params.series}/instances`, header)
+            .get(`${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances`, header)
             .then(async response => {
               // handle success
               // map each instance to epadlite image object
@@ -673,11 +673,11 @@ async function dicomwebserver(fastify) {
                         : '1'
                     ),
                     losslessImage: '', // TODO
-                    // lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
+                    // lossyImage: `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances/${
                     //   value['00080018'].Value[0]
                     // }`,
                     // send wado-uri instead of wado-rs
-                    lossyImage: `/studies/${params.study}/series/${params.series}&/instances/${
+                    lossyImage: `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}&/instances/${
                       value['00080018'].Value[0]
                     }`,
                     dicomElements: '', // TODO
@@ -733,7 +733,7 @@ async function dicomwebserver(fastify) {
   fastify.decorate('getWadoRS', (request, reply) => {
     this.request
       .get(
-        `/studies/${request.params.study}/series/${request.params.series}/instances/${
+        `${config.dicomWebConfig.qidoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${
           request.params.instance
         }`,
         { ...header, responseType: 'stream' }
