@@ -1032,6 +1032,7 @@ async function other(fastify) {
       config.auth &&
       config.auth !== 'none' &&
       !req.req.url.startsWith('/documentation') &&
+      !req.req.url.startsWith('/api/wadors') &&
       !req.req.url.startsWith('/epads/stats') &&
       !req.req.url.startsWith('/epad/statistics') // disabling auth for put is dangerous
     ) {
