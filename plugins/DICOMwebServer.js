@@ -578,7 +578,10 @@ async function dicomwebserver(fastify) {
                     value['00100010'] && value['00100010'].Value
                       ? value['00100010'].Value[0].Alphabetic
                       : '',
-                  studyUID: value['0020000D'].Value[0],
+                  studyUID:
+                    value['0020000D'] && value['0020000D'].Value
+                      ? value['0020000D'].Value[0]
+                      : params.study,
                   seriesUID: value['0020000E'].Value[0],
                   seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
                   seriesDescription:
@@ -645,9 +648,18 @@ async function dicomwebserver(fastify) {
                       value['00100020'] && value['00100020'].Value
                         ? fastify.replaceNull(value['00100020'].Value[0])
                         : '',
-                    studyUID: value['0020000D'].Value ? value['0020000D'].Value[0] : '',
-                    seriesUID: value['0020000E'].Value ? value['0020000E'].Value[0] : '',
-                    imageUID: value['00080018'].Value ? value['00080018'].Value[0] : '',
+                    studyUID:
+                      value['0020000D'] && value['0020000D'].Value
+                        ? value['0020000D'].Value[0]
+                        : params.study,
+                    seriesUID:
+                      value['0020000E'] && value['0020000E'].Value
+                        ? value['0020000E'].Value[0]
+                        : params.series,
+                    imageUID:
+                      value['00080018'] && value['00080018'].Value
+                        ? value['00080018'].Value[0]
+                        : '',
                     classUID:
                       value['00080016'] && value['00080016'].Value
                         ? value['00080016'].Value[0]
