@@ -572,7 +572,7 @@ async function dicomwebserver(fastify) {
                   patientID:
                     value['00100020'] && value['00100020'].Value
                       ? fastify.replaceNull(value['00100020'].Value[0])
-                      : '',
+                      : params.subject,
                   // TODO
                   patientName:
                     value['00100010'] && value['00100010'].Value
@@ -647,7 +647,7 @@ async function dicomwebserver(fastify) {
                     patientID:
                       value['00100020'] && value['00100020'].Value
                         ? fastify.replaceNull(value['00100020'].Value[0])
-                        : '',
+                        : params.subject,
                     studyUID:
                       value['0020000D'] && value['0020000D'].Value
                         ? value['0020000D'].Value[0]
@@ -677,9 +677,9 @@ async function dicomwebserver(fastify) {
                     //   value['00080018'].Value[0]
                     // }`,
                     // send wado-uri instead of wado-rs
-                    lossyImage: `/?requestType=WADO&studyUID=${params.study}&seriesUID=${
-                      params.series
-                    }&objectUID=${value['00080018'].Value[0]}`,
+                    lossyImage: `/studies/${params.study}/series/${params.series}&/instances/${
+                      value['00080018'].Value[0]
+                    }`,
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
                     numberOfFrames:
@@ -721,6 +721,21 @@ async function dicomwebserver(fastify) {
         `/?requestType=WADO&studyUID=${request.query.studyUID}&seriesUID=${
           request.query.seriesUID
         }&objectUID=${request.query.objectUID}`,
+        { ...header, responseType: 'stream' }
+      )
+      .then(result => {
+        reply.headers(result.headers);
+        reply.code(200).send(result.data);
+      })
+      .catch(err => reply.send(new InternalError('WADO', err)));
+  });
+
+  fastify.decorate('getWadoRS', (request, reply) => {
+    this.request
+      .get(
+        `/studies/${request.params.study}/series/${request.params.series}/instances/${
+          request.params.instance
+        }`,
         { ...header, responseType: 'stream' }
       )
       .then(result => {

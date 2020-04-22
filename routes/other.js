@@ -292,7 +292,33 @@ async function otherRoutes(fastify) {
   fastify.route({
     method: 'GET',
     url: '/wado/',
+    schema: {
+      tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          studyUID: {
+            type: 'string',
+          },
+          seriesUID: {
+            type: 'string',
+          },
+          objectUID: {
+            type: 'string',
+          },
+        },
+      },
+    },
     handler: fastify.getWado,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/wadors/studies/:study/series/:series/instances/:instance',
+    schema: {
+      tags: ['wado'],
+    },
+    handler: fastify.getWadoRS,
   });
 }
 module.exports = otherRoutes;
