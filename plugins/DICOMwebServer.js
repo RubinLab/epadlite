@@ -28,7 +28,7 @@ async function dicomwebserver(fastify) {
       fastify.log.info('Connected to dicomweb server');
       return connect;
     } catch (err) {
-      if (config.env !== 'test') {
+      if (config.env !== 'test' || config.limitStudies) {
         fastify.log.warn('Waiting for dicomweb server');
         setTimeout(fastify.initDicomWeb, 3000);
       } else throw err;
@@ -87,6 +87,9 @@ async function dicomwebserver(fastify) {
           } else {
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
+              headers: {
+                accept: 'application/json',
+              },
             });
             this.request
               .get('/studies?limit=1')
