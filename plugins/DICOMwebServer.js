@@ -119,15 +119,20 @@ async function dicomwebserver(fastify) {
             },
             // },
           };
-          this.request
-            .post('/studies', data, postHeader)
-            .then(() => {
-              fastify.log.info('Dicoms sent to dicomweb with success');
-              resolve();
-            })
-            .catch(error => {
-              reject(new InternalError('Sending dicoms to dicomweb stow', error));
-            });
+          if (config.disableDICOMSend) {
+            fastify.log.err('DICOMSend disabled');
+            resolve();
+          } else {
+            this.request
+              .post('/studies', data, postHeader)
+              .then(() => {
+                fastify.log.info('Dicoms sent to dicomweb with success');
+                resolve();
+              })
+              .catch(error => {
+                reject(new InternalError('Sending dicoms to dicomweb stow', error));
+              });
+          }
         } catch (err) {
           reject(new InternalError('Preparing header and sending dicoms to dicomweb stow', err));
         }

@@ -50,4 +50,5 @@ config.maxConcurrent = config.maxConcurrent || 5;
 config.disableStats = config.disableStats || false;
 config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
 config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;
+config.disableDICOMSend = process.env.DISABLE_DICOM_SEND === 'true' || config.disableDICOMSend;
 module.exports = config;
