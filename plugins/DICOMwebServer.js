@@ -696,9 +696,9 @@ async function dicomwebserver(fastify) {
                     //   value['00080018'].Value[0]
                     // }`,
                     // send wado-uri instead of wado-rs
-                    lossyImage: `/studies/${
-                      params.study
-                    }/series/${params.series}&/instances/${value['00080018'].Value[0]}`,
+                    lossyImage: `/studies/${params.study}/series/${params.series}&/instances/${
+                      value['00080018'].Value[0]
+                    }`,
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
                     numberOfFrames:
