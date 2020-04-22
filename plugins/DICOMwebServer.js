@@ -163,7 +163,9 @@ async function dicomwebserver(fastify) {
     params =>
       new Promise((resolve, reject) => {
         this.request
-          .delete(`${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}`)
+          .delete(
+            `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}`
+          )
           .then(() => {
             fastify.log.info(`Series ${params.series} deletion request sent successfully`);
             resolve();
@@ -189,7 +191,9 @@ async function dicomwebserver(fastify) {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const query = params.subject ? `?PatientID=${params.subject}` : limit;
           const promisses = [];
-          promisses.push(this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header));
+          promisses.push(
+            this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
+          );
           if (!noStats)
             promisses.push(
               fastify.getAimsInternal(
@@ -337,7 +341,9 @@ async function dicomwebserver(fastify) {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const query = params.subject ? `?PatientID=${params.subject}` : limit;
           const promisses = [];
-          promisses.push(this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header));
+          promisses.push(
+            this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
+          );
           // get aims for a specific patient
           if (!noStats)
             promisses.push(
@@ -486,7 +492,10 @@ async function dicomwebserver(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
-          const studies = await this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${limit}`, header);
+          const studies = await this.request.get(
+            `${config.dicomWebConfig.qidoSubPath}/studies${limit}`,
+            header
+          );
           const studyUids = _.map(studies.data, value => {
             return value['0020000D'].Value[0];
           });
@@ -522,7 +531,12 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          promisses.push(this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series`, header));
+          promisses.push(
+            this.request.get(
+              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series`,
+              header
+            )
+          );
           // get aims for a specific study
           if (noStats === undefined || noStats === false)
             promisses.push(
@@ -636,7 +650,12 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           this.request
-            .get(`${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances`, header)
+            .get(
+              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${
+                params.series
+              }/instances`,
+              header
+            )
             .then(async response => {
               // handle success
               // map each instance to epadlite image object
@@ -677,9 +696,9 @@ async function dicomwebserver(fastify) {
                     //   value['00080018'].Value[0]
                     // }`,
                     // send wado-uri instead of wado-rs
-                    lossyImage: `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}&/instances/${
-                      value['00080018'].Value[0]
-                    }`,
+                    lossyImage: `${config.dicomWebConfig.qidoSubPath}/studies/${
+                      params.study
+                    }/series/${params.series}&/instances/${value['00080018'].Value[0]}`,
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
                     numberOfFrames:
@@ -718,9 +737,9 @@ async function dicomwebserver(fastify) {
   fastify.decorate('getWado', (request, reply) => {
     this.request
       .get(
-        `/?requestType=WADO&studyUID=${request.query.studyUID}&seriesUID=${
-          request.query.seriesUID
-        }&objectUID=${request.query.objectUID}`,
+        `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${
+          request.query.studyUID
+        }&seriesUID=${request.query.seriesUID}&objectUID=${request.query.objectUID}`,
         { ...header, responseType: 'stream' }
       )
       .then(result => {
@@ -733,9 +752,9 @@ async function dicomwebserver(fastify) {
   fastify.decorate('getWadoRS', (request, reply) => {
     this.request
       .get(
-        `${config.dicomWebConfig.qidoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${
-          request.params.instance
-        }`,
+        `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${
+          request.params.series
+        }/instances/${request.params.instance}`,
         { ...header, responseType: 'stream' }
       )
       .then(result => {
