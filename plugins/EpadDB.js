@@ -5472,6 +5472,70 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate(
+    'saveEventLog',
+    (request, notification, notified, logId) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          if (logId) {
+            await models.eventlog.update(
+              { updatetime: Date.now(), updated_by: request.epadAuth.username, notified },
+              { where: { id: logId } }
+            );
+          } else {
+            const log = {
+              projectID: request.params.project,
+              subjectuid: request.params.subject,
+              studyUID: request.params.study,
+              seriesUID: request.params.series,
+              aimID: request.params.aimuid,
+              username: request.epadAuth.username,
+              function: notification.function,
+              params: notification.params,
+              error: notification.error,
+              notified,
+              updatetime: Date.now(),
+            };
+            await models.eventlog.create({
+              ...log,
+              creator: request.epadAuth.username,
+              createdtime: Date.now(),
+            });
+          }
+
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Saving notification ${config.statsEpad}`, err));
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getUnnotifiedEventLogs',
+    request =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const logs = await models.eventlog.findAll({
+            where: { username: request.epadAuth.username, notified: false },
+            raw: true,
+          });
+          for (let i = 0; i < logs.length; i += 1) {
+            new EpadNotification(
+              request,
+              logs[i].function,
+              logs[i].error ? new Error(logs[i].params) : logs[i].params,
+              false,
+              logs[i].id
+            ).notify(fastify);
+          }
+
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Saving notification ${config.statsEpad}`, err));
+        }
+      })
+  );
+
   // TODO
   // how to associate with transaction?? rolback??
   fastify.decorate(
@@ -5805,6 +5869,12 @@ async function epaddb(fastify, options, done) {
               `ALTER TABLE study 
                 ADD COLUMN IF NOT EXISTS exam_types varchar(128) DEFAULT NULL AFTER subject_id,
                 ADD FOREIGN KEY IF NOT EXISTS FK_study_subject (subject_id) REFERENCES subject (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
+              { transaction: t }
+            );
+
+            await fastify.orm.query(
+              `ALTER TABLE eventlog 
+                ADD COLUMN IF NOT EXISTS notified int(1) NOT NULL DEFAULT 0 AFTER error;`,
               { transaction: t }
             );
           });
