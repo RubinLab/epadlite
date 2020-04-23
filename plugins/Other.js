@@ -1265,16 +1265,7 @@ async function other(fastify) {
     // we have a successful request, lets get the hostname
     // getting the first one, is it better to get the last all the time?
     if (!fastify.hostname) fastify.decorate('hostname', request.req.hostname);
-
-    if (request.req.method === 'PUT') {
-      try {
-        new EpadNotification(request, fastify.getInfoFromRequest(request), 'Put successful').notify(
-          fastify
-        );
-      } catch (err) {
-        fastify.log.error(`Cannot notify user ${err.message}`);
-      }
-    }
+    
     done(null, payload);
   });
 
