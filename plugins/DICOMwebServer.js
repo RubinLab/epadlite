@@ -91,6 +91,9 @@ async function dicomwebserver(fastify) {
                 accept: 'application/json',
               },
             });
+            this.wadoRequest = Axios.create({
+              baseURL: config.dicomWebConfig.baseUrl,
+            });
             this.request
               .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
               .then(() => {
@@ -735,12 +738,12 @@ async function dicomwebserver(fastify) {
   );
 
   fastify.decorate('getWado', (request, reply) => {
-    this.request
+    this.wadoRequest
       .get(
         `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${
           request.query.studyUID
         }&seriesUID=${request.query.seriesUID}&objectUID=${request.query.objectUID}`,
-        { ...header, responseType: 'stream' }
+        { responseType: 'stream' }
       )
       .then(result => {
         reply.headers(result.headers);
@@ -750,12 +753,12 @@ async function dicomwebserver(fastify) {
   });
 
   fastify.decorate('getWadoRS', (request, reply) => {
-    this.request
+    this.wadoRequest
       .get(
         `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${
           request.params.series
         }/instances/${request.params.instance}`,
-        { ...header, responseType: 'stream' }
+        { responseType: 'stream' }
       )
       .then(result => {
         reply.headers(result.headers);
