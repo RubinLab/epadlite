@@ -12,6 +12,7 @@ const toArrayBuffer = require('to-array-buffer');
 window = {};
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
+const EpadNotification = require('../utils/EpadNotification');
 const {
   InternalError,
   ResourceNotFoundError,
@@ -3267,35 +3268,34 @@ async function epaddb(fastify, options, done) {
       );
     }
   });
-  fastify.decorate('getStudySeriesFromProject', async (request, reply) => {
+  fastify.decorate('getStudySeriesFromProject', (request, reply) => {
     // TODO project filtering
-    try {
-      if (request.query.format === 'stream' && request.params.series) {
-        await fastify.getWadoMultipart(request.params, request.query, request.epadAuth, reply);
-      } else {
-        fastify
-          .getStudySeriesInternal(request.params, request.query, request.epadAuth)
-          .then(result => reply.code(200).send(result))
-          .catch(err =>
-            fastify
-              .getNondicomStudySeriesFromProjectInternal(request.params)
-              .then(nondicomResult => reply.code(200).send(nondicomResult))
-              .catch(nondicomErr => {
-                reply.send(
-                  new InternalError(
-                    'Retrieving series',
-                    new Error(
-                      `Failed from dicomweb with ${err.message} and from nondicom with ${
-                        nondicomErr.message
-                      }`
-                    )
+    if (request.query.format === 'stream' && request.params.series) {
+      fastify
+        .getWadoMultipart(request.params, request.query, request.epadAuth, reply)
+        .then(() => fastify.log.info(`Series ${request.params.series} download completed`))
+        .catch(downloadErr => reply.send(new InternalError('Downloading series', downloadErr)));
+    } else {
+      fastify
+        .getStudySeriesInternal(request.params, request.query, request.epadAuth)
+        .then(result => reply.code(200).send(result))
+        .catch(err =>
+          fastify
+            .getNondicomStudySeriesFromProjectInternal(request.params)
+            .then(nondicomResult => reply.code(200).send(nondicomResult))
+            .catch(nondicomErr => {
+              reply.send(
+                new InternalError(
+                  'Retrieving series',
+                  new Error(
+                    `Failed from dicomweb with ${err.message} and from nondicom with ${
+                      nondicomErr.message
+                    }`
                   )
-                );
-              })
-          );
-      }
-    } catch (err) {
-      reply.send(new InternalError(`Retrieving series of study ${request.params.study}`, err));
+                )
+              );
+            })
+        );
     }
   });
   fastify.decorate(
@@ -3988,31 +3988,43 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate(
+    'getProjectSubjectIds',
+    params =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const project = await models.project.findOne({
+            where: { projectid: params.project },
+          });
+          const subject = await models.subject.findOne({
+            where: { subjectuid: params.subject },
+          });
+
+          if (project === null)
+            reject(
+              new BadRequestError(
+                'Get studies from project',
+                new ResourceNotFoundError('Project', params.project)
+              )
+            );
+          else if (subject === null) reject(new ResourceNotFoundError('Subject', params.subject));
+          resolve({
+            project_id: project.id,
+            subject_id: subject.id,
+          });
+        } catch (err) {
+          reject(new InternalError('Putting file to project', err));
+        }
+      })
+  );
+
   fastify.decorate('getSubjectFromProject', async (request, reply) => {
     try {
       // TODO check if it is in the project
-      const project = await models.project.findOne({
-        where: { projectid: request.params.project },
-      });
-      const subject = await models.subject.findOne({
-        where: { subjectuid: request.params.subject },
-      });
-
-      if (project === null)
-        reply.send(
-          new BadRequestError(
-            'Get studies from project',
-            new ResourceNotFoundError('Project', request.params.project)
-          )
-        );
-      else if (subject === null)
-        reply.send(new ResourceNotFoundError('Subject', request.params.subject));
-      else if (request.query.format === 'stream') {
+      if (request.query.format === 'stream') {
+        const whereJson = await fastify.getProjectSubjectIds(request.params);
         const studyUids = await fastify.getStudiesInternal(
-          {
-            project_id: project.id,
-            subject_id: subject.id,
-          },
+          whereJson,
           request.params,
           request.epadAuth,
           true
@@ -4593,6 +4605,394 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  // if applypatient or it is the series that is being edited apply the patient keys
+  // if applystudy or it is the series that is being edited or it is the study being edited apply the study keys and patient keys
+  // if it is the series that is being edited apply series keys
+  fastify.decorate(
+    'updateDcm',
+    (dataset, tagValues, studyUid, seriesUid, applyPatient, applyStudy) => {
+      // define this to make sure they don't send funny stuff
+      const queryKeysPatient = {
+        PatientID: '00100020',
+        PatientName: '00100010',
+      };
+      const queryKeysStudy = {
+        StudyInstanceUID: '0020000D',
+        StudyDescription: '00081030',
+      };
+      const queryKeysSeries = {
+        SeriesInstanceUID: '0020000E',
+        SeriesDescription: '0008103E',
+      };
+      let queryKeys = {};
+      if (
+        applyPatient ||
+        (applyStudy && dataset['0020000D'].Value[0] === studyUid) ||
+        dataset['0020000E'].Value[0] === seriesUid
+      ) {
+        queryKeys = { ...queryKeys, ...queryKeysPatient };
+      }
+      if (
+        (applyStudy && dataset['0020000D'].Value[0] === studyUid) ||
+        dataset['0020000E'].Value[0] === seriesUid
+      ) {
+        queryKeys = { ...queryKeys, ...queryKeysStudy };
+      }
+      if (dataset['0020000E'].Value[0] === seriesUid) {
+        queryKeys = { ...queryKeys, ...queryKeysSeries };
+      }
+
+      const keysInQuery = Object.keys(tagValues);
+      const editedDataset = dataset;
+      for (let i = 0; i < keysInQuery.length; i += 1) {
+        if (queryKeys[keysInQuery[i]]) {
+          switch (editedDataset[queryKeys[keysInQuery[i]]].vr) {
+            case 'PN':
+              editedDataset[queryKeys[keysInQuery[i]]].Value = [
+                // {
+                //   Alphabetic: tagValues[keysInQuery[i]],
+                // },
+                tagValues[keysInQuery[i]],
+              ];
+              break;
+            case 'DS':
+              editedDataset[queryKeys[keysInQuery[i]]].Value = [
+                parseFloat(tagValues[keysInQuery[i]]),
+              ];
+              break;
+            case 'IS':
+              editedDataset[queryKeys[keysInQuery[i]]].Value = [
+                parseInt(tagValues[keysInQuery[i]], 10),
+              ];
+              break;
+            default:
+              editedDataset[queryKeys[keysInQuery[i]]].Value = [tagValues[keysInQuery[i]]];
+          }
+        }
+      }
+      return editedDataset;
+    }
+  );
+
+  // if you pass a second seriesUid, you are updating study
+  fastify.decorate(
+    'updateSeriesBuffers',
+    (params, tagValues, studyUid, seriesUid, applyPatient, applyStudy) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const processParams = { subject: params.subject, study: studyUid, series: seriesUid };
+          const parts = await fastify.getSeriesWadoMultipart(processParams);
+          const updatedDatasets = [];
+          for (let i = 0; i < parts.length; i += 1) {
+            const arrayBuffer = parts[i];
+            const ds = dcmjs.data.DicomMessage.readFile(arrayBuffer);
+            // send in the study and series in the original request
+            ds.dict = fastify.updateDcm(
+              ds.dict,
+              tagValues,
+              params.study,
+              params.series,
+              applyPatient,
+              applyStudy
+            );
+            const buffer = ds.write();
+            updatedDatasets.push(toArrayBuffer(buffer));
+          }
+          const { data, boundary } = dcmjs.utilities.message.multipartEncode(updatedDatasets);
+          fastify.log.info(
+            `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
+          );
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.saveDicomsInternal(data, boundary);
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(`Updating ${JSON.stringify(params)} dicoms with ${tagValues}`, err)
+          );
+        }
+      })
+  );
+
+  // if you pass a second studyUid, you are updating patient
+  fastify.decorate(
+    'updateStudyBuffers',
+    (params, tagValues, studyUid, epadAuth, applyPatient, applyStudy) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // get study series
+          const studySeries = await fastify.getStudySeriesInternal(
+            { study: studyUid },
+            { format: 'summary' },
+            epadAuth,
+            true
+          );
+          const seriesPromises = [];
+          for (let i = 0; i < studySeries.length; i += 1) {
+            seriesPromises.push(() => {
+              return fastify.updateSeriesBuffers(
+                params,
+                tagValues,
+                studyUid,
+                studySeries[i].seriesUID,
+                applyPatient,
+                applyStudy
+              );
+            });
+          }
+          await fastify.pq.addAll(seriesPromises);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'editTags',
+    (request, reply) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const { params, body, query, epadAuth } = request;
+          const applyPatient = query.applyPatient === 'true';
+          const applyStudy = query.applyStudy === 'true';
+          const promises = [];
+          promises.push(
+            models.project.findOne({
+              where: { projectid: params.project },
+              raw: true,
+            })
+          );
+          promises.push(
+            models.subject.findOne({
+              where: { subjectuid: params.subject },
+              raw: true,
+            })
+          );
+
+          promises.push(
+            models.study.findOne({
+              where: { studyuid: params.study },
+              raw: true,
+            })
+          );
+          // eslint-disable-next-line prefer-const
+          let [project, subject, study] = await Promise.all(promises);
+          let projectSubject = await models.project_subject.findOne({
+            where: { project_id: project.id, subject_id: subject.id },
+            raw: true,
+          });
+          const projectSubjectStudy = await models.project_subject_study.findOne({
+            where: { proj_subj_id: projectSubject.id, study_id: study.id },
+            raw: true,
+          });
+          // sanity checks, can we update?
+          // if user changes name but not the PatientID and if not applyPatient, return badrequest
+          if (
+            (!body.PatientID || subject.subjectuid === body.PatientID) &&
+            body.PatientName &&
+            subject.name !== body.PatientName &&
+            !applyPatient
+          )
+            reject(
+              new BadRequestError(
+                'Edit Tags',
+                new Error(
+                  'Cannot change patient name without changing PatientID or with applyPatient query parameter true'
+                )
+              )
+            );
+          // if user changes description but not the StudyInstanceUID and if not applystudy, return badrequest
+          else if (
+            (!body.StudyInstanceUID || study.studyuid === body.StudyInstanceUID) &&
+            body.StudyDescription &&
+            study.description !== body.StudyDescription &&
+            !applyStudy
+          )
+            reject(
+              new BadRequestError(
+                'Edit Tags',
+                new Error(
+                  'Cannot change Study Description without changing Study Instance UID or with applyStudy query parameter true'
+                )
+              )
+            );
+          else {
+            reply
+              .code(202)
+              .send(
+                `${params.subject} ${params.study} ${params.series} tags edit request is initiated `
+              );
+            // changing the value in dicomweb. this will affect all projects!!
+            const whereJson = await fastify.getProjectSubjectIds(params);
+            const studyUids = await fastify.getStudiesInternal(whereJson, params, epadAuth, true);
+            if (applyPatient) {
+              for (let i = 0; i < studyUids.length; i += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.updateStudyBuffers(
+                  params,
+                  body,
+                  studyUids[i],
+                  epadAuth,
+                  applyPatient,
+                  applyStudy
+                );
+              }
+            } else if (applyStudy) {
+              await fastify.updateStudyBuffers(
+                params,
+                body,
+                params.study,
+                epadAuth,
+                applyPatient,
+                applyStudy
+              );
+            } else await fastify.updateSeriesBuffers(params, body, params.study, params.series);
+
+            // if patient data is changed
+            // if body has PatientID and PatientName we need to change db
+            // if applyPatient just update it
+            // if not we need to create another one if patient has more data!
+            if (
+              (body.PatientID && subject.subjectuid !== body.PatientID) ||
+              (body.PatientName && subject.name !== body.PatientName)
+            ) {
+              if (applyPatient) {
+                await models.subject.update(
+                  {
+                    subjectuid: body.PatientID,
+                    name: body.PatientName,
+                    updated_by: epadAuth.username,
+                    updatetime: Date.now(),
+                  },
+                  {
+                    where: {
+                      subjectuid: params.subject,
+                    },
+                  }
+                );
+              } else {
+                // needs to have subject.subjectuid !== body.PatientID but we already verify that in the beginning and verify applySubject
+                const existSubject = await models.subject.findOne({
+                  where: { subjectuid: body.PatientID },
+                  raw: true,
+                });
+                if (existSubject) {
+                  subject = existSubject;
+                  // patient already exist add to it
+                  fastify.log.warn(`Subject ${body.PatientID} already exist adding to it`);
+                } else {
+                  subject = await models.subject.create({
+                    subjectuid: body.PatientID,
+                    name: body.PatientName,
+                    gender: subject.gender,
+                    dob: subject.dob,
+                    creator: epadAuth.username,
+                    updatetime: Date.now(),
+                    createdtime: Date.now(),
+                  });
+                }
+                projectSubject = await fastify.upsert(
+                  models.project_subject,
+                  {
+                    project_id: project.id,
+                    subject_id: subject.id,
+                    updatetime: Date.now(),
+                  },
+                  { project_id: project.id, subject_id: subject.id },
+                  epadAuth.username
+                );
+              }
+            }
+
+            // if study data is changed
+            // if body has StudyInstanceUID we need to change db
+            // if applyStudy just update it
+            // if not we need to create another one!
+            if (
+              (body.StudyInstanceUID && study.studyuid !== body.StudyInstanceUID) ||
+              (body.StudyDescription && study.description !== body.StudyDescription)
+            ) {
+              if (applyStudy) {
+                await models.study.update(
+                  {
+                    studyuid: body.StudyInstanceUID,
+                    description: body.StudyDescription,
+                    subject_id: subject.id,
+                    updated_by: epadAuth.username,
+                    updatetime: Date.now(),
+                  },
+                  {
+                    where: {
+                      studyuid: params.study,
+                    },
+                  }
+                );
+                // update the project_subject if subject id changed
+                if (projectSubjectStudy.proj_subj_id !== projectSubject.id)
+                  await fastify.upsert(
+                    models.project_subject_study,
+                    {
+                      proj_subj_id: projectSubject.id,
+                      study_id: study.id,
+                      updatetime: Date.now(),
+                    },
+                    { proj_subj_id: projectSubjectStudy.proj_subj_id, study_id: study.id },
+                    epadAuth.username
+                  );
+              } else if (body.StudyInstanceUID && study.studyuid !== body.StudyInstanceUID) {
+                study = await models.study.findOne({
+                  where: { studyuid: body.StudyInstanceUID },
+                  raw: true,
+                });
+                if (subject) {
+                  // patient already exist add to it
+                  fastify.log.warn(`Study ${body.StudyInstanceUID} already exist adding to it`);
+                } else {
+                  study = await models.study.create({
+                    studyuid: body.StudyInstanceUID,
+                    description: body.StudyDescription,
+                    studydate: study.studydate,
+                    subject_id: subject.id,
+                    exam_types: study.examTypes,
+                    updated_by: epadAuth.username,
+                    updatetime: Date.now(),
+                  });
+                }
+                await fastify.upsert(
+                  models.project_subject_study,
+                  {
+                    proj_subj_id: projectSubject.id,
+                    study_id: study.id,
+                    updatetime: Date.now(),
+                  },
+                  { proj_subj_id: projectSubjectStudy.proj_subj_id, study_id: study.id },
+                  epadAuth.username
+                );
+              }
+            }
+            new EpadNotification(
+              request,
+              'Tag Edit Completed',
+              `${params.subject} ${params.study} ${params.series}`,
+              true
+            ).notify(fastify);
+            resolve();
+          }
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Editing tags ${JSON.stringify(request.params)} ${JSON.stringify(request.body)}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  // tagvalues: {tag: value},
+  // applyStudy: bool,
+  // applyPatient: bool,
+  // /projects/:p/subjects/:s/studies/:s/series/:s?editTag=true
   fastify.decorate('addNondicomSeries', async (request, reply) => {
     // eslint-disable-next-line prefer-destructuring
     let seriesUid = request.params.series;
@@ -4608,32 +5008,37 @@ async function epaddb(fastify, options, done) {
         )
       );
     }
-    const promisses = [];
-    promisses.push(
-      models.study.findOne({
-        where: { studyuid: request.params.study },
-        raw: true,
-      })
-    );
-    promisses.push(
-      models.nondicom_series.findOne({
-        where: { seriesuid: seriesUid },
-      })
-    );
-    const [study, series] = await Promise.all(promisses);
-    if (series) {
-      reply.send(new ResourceAlreadyExistsError('Nondicom series', seriesUid));
+    if (request.query.editTags === 'true') {
+      request.params.series = seriesUid;
+      await fastify.editTags(request, reply);
     } else {
-      await models.nondicom_series.create({
-        seriesuid: seriesUid,
-        study_id: study.id,
-        description: request.body.description,
-        seriesdate: Date.now(),
-        updatetime: Date.now(),
-        createdtime: Date.now(),
-        creator: request.epadAuth.username,
-      });
-      reply.code(200).send(`${seriesUid} added successfully`);
+      const promisses = [];
+      promisses.push(
+        models.study.findOne({
+          where: { studyuid: request.params.study },
+          raw: true,
+        })
+      );
+      promisses.push(
+        models.nondicom_series.findOne({
+          where: { seriesuid: seriesUid },
+        })
+      );
+      const [study, series] = await Promise.all(promisses);
+      if (series) {
+        reply.send(new ResourceAlreadyExistsError('Nondicom series', seriesUid));
+      } else {
+        await models.nondicom_series.create({
+          seriesuid: seriesUid,
+          study_id: study.id,
+          description: request.body.description,
+          seriesdate: Date.now(),
+          updatetime: Date.now(),
+          createdtime: Date.now(),
+          creator: request.epadAuth.username,
+        });
+        reply.code(200).send(`${seriesUid} added successfully`);
+      }
     }
   });
 
