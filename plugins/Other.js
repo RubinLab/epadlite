@@ -1304,7 +1304,15 @@ async function other(fastify) {
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
-              if (!fastify.hasCreatePermission(request, reqInfo.level))
+              if (
+                !fastify.hasCreatePermission(request, reqInfo.level) &&
+                !(
+                  reqInfo.level === 'worklist' &&
+                  request.body.assignees &&
+                  request.body.assignees.length === 1 &&
+                  request.body.assignees[0] === request.epadAuth.username
+                )
+              )
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner
