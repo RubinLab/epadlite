@@ -755,21 +755,23 @@ async function dicomwebserver(fastify) {
       .catch(err => reply.send(new InternalError('WADO', err)));
   });
 
-  fastify.decorate('getWadoRS', (request, reply) => {
-    this.wadoRequest
-      .get(
+  fastify.decorate('getWadoRS', async (request, reply) => {
+    try {
+      const result = await this.wadoRequest.get(
         `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${
           request.params.series
         }/instances/${request.params.instance}`,
-        { headers: { ...request.headers, responseType: 'stream' } }
-      )
-      .then(async result => {
-        const res = await fastify.getMultipartBuffer(result.data);
-        const parts = dcmjs.utilities.message.multipartDecode(res);
-        reply.headers(result.headers);
-        reply.code(200).send(parts[0]);
-      })
-      .catch(err => reply.send(new InternalError('WADO', err)));
+        { headers: request.headers, responseType: 'stream' }
+      );
+
+      const res = await fastify.getMultipartBuffer(result.data);
+      const parts = dcmjs.utilities.message.multipartDecode(res);
+      console.log(parts.length);
+      reply.headers(result.headers);
+      reply.code(200).send(parts[0]);
+    } catch (err) {
+      reply.send(new InternalError('WADO', err));
+    }
   });
 
   fastify.decorate('getPatient', (request, reply) => {
