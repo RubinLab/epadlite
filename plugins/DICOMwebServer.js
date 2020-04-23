@@ -3,6 +3,9 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
+// eslint-disable-next-line no-global-assign
+window = {};
+const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
@@ -758,11 +761,13 @@ async function dicomwebserver(fastify) {
         `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${
           request.params.series
         }/instances/${request.params.instance}`,
-        { headers: request.headers }
+        { headers: { ...request.headers, responseType: 'stream' } }
       )
-      .then(result => {
+      .then(async result => {
+        const res = await fastify.getMultipartBuffer(result.data);
+        const parts = dcmjs.utilities.message.multipartDecode(res);
         reply.headers(result.headers);
-        reply.code(200).send(result.data);
+        reply.code(200).send(parts[0]);
       })
       .catch(err => reply.send(new InternalError('WADO', err)));
   });
