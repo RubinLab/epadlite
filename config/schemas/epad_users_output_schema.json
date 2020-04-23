@@ -54,6 +54,9 @@
       },
       "username": {
         "type": "string"
+      },
+      "preferences": {
+        "type": "string"
       }
     },
     "required": [

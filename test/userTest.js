@@ -362,6 +362,66 @@ describe('User Tests', () => {
         done(e);
       });
   });
+  it('should get user correctly', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/users/test2@gmail.com')
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('should update user preference with JSON object ', done => {
+    const preferences = { color: '#ff00e2', menu: ['m1', 'm2'] };
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put('/users/test2@gmail.com/preferences')
+      .query({ username: 'admin' })
+      .send(preferences)
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  // user object has preferences as string
+  it('should get user correctly', done => {
+    const preferences = { color: '#ff00e2', menu: ['m1', 'm2'] };
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/users/test2@gmail.com')
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.preferences).to.equal(JSON.stringify(preferences));
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  // preferences endpoint returns json object
+  it('should get user preference correctly', done => {
+    const preferences = { color: '#ff00e2', menu: ['m1', 'm2'] };
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/users/test2@gmail.com/preferences')
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body).to.deep.equal(preferences);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
   it('should delete the user', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
