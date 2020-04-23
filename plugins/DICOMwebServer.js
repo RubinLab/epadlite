@@ -743,7 +743,7 @@ async function dicomwebserver(fastify) {
         `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${
           request.query.studyUID
         }&seriesUID=${request.query.seriesUID}&objectUID=${request.query.objectUID}`,
-        { responseType: 'stream' }
+        { headers: request.headers }
       )
       .then(result => {
         reply.headers(result.headers);
@@ -758,7 +758,7 @@ async function dicomwebserver(fastify) {
         `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${
           request.params.series
         }/instances/${request.params.instance}`,
-        { responseType: 'stream' }
+        { headers: request.headers }
       )
       .then(result => {
         reply.headers(result.headers);
