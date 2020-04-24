@@ -141,6 +141,10 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'project_id',
           });
 
+          models.project_template.belongsTo(models.project, {
+            foreignKey: 'project_id',
+          });
+
           await fastify.orm.sync();
           if (config.env === 'test') {
             try {
@@ -160,15 +164,17 @@ async function epaddb(fastify, options, done) {
           fastify.log.info('Connected to mariadb server');
           resolve();
         } catch (err) {
-          reject(new InternalError('Leading models and syncing db', err));
+          reject(new InternalError('Creating models and syncing db', err));
         }
       });
+      return fastify.afterDBReady();
     } catch (err) {
       if (config.env !== 'test') {
         fastify.log.warn(`Waiting for mariadb server. ${err.message}`);
         setTimeout(fastify.initMariaDB, 3000);
       } else throw new InternalError('No connection to mariadb', err);
     }
+    return null;
   });
 
   fastify.decorate('findUserIdInternal', username => {
@@ -1453,6 +1459,38 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
+
+  fastify.decorate('getTemplates', async (request, reply) => {
+    try {
+      const templates = await fastify.getTemplatesInternal(request.query);
+      if (request.query.format === 'stream') {
+        reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+      } else if (request.query.format === 'summary') {
+        // add project data
+        const projectTemplates = await models.project_template.findAll({
+          include: [models.project],
+        });
+        const templateProjects = {};
+        for (let i = 0; i < projectTemplates.length; i += 1) {
+          if (templateProjects[projectTemplates[i].template_uid]) {
+            templateProjects[projectTemplates[i].template_uid].push(
+              projectTemplates[i].dataValues.project.dataValues.projectid
+            );
+          } else {
+            templateProjects[projectTemplates[i].template_uid] = [
+              projectTemplates[i].dataValues.project.dataValues.projectid,
+            ];
+          }
+        }
+        for (let i = 0; i < templates.length; i += 1) {
+          templates[i].projects = templateProjects[templates[i].containerUID];
+        }
+      }
+      reply.code(200).send(templates);
+    } catch (err) {
+      reply.send(err);
+    }
+  });
 
   fastify.decorate('getProjectTemplates', async (request, reply) => {
     try {
@@ -5872,12 +5910,38 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
 
+            // set the orphaned project_user entities to the first admin
+            await fastify.orm.query(
+              `UPDATE project_user SET user_id = (SELECT id FROM user WHERE admin = true LIMIT 1) 
+                WHERE id IN (SELECT id FROM project_user 
+                  WHERE user_id NOT IN (SELECT id FROM user)); `
+            );
+
+            // project_user delete cascade
+            await fastify.orm.query(
+              `ALTER TABLE project_user 
+                DROP FOREIGN KEY IF EXISTS FK_project_user_project,
+                DROP KEY IF EXISTS FK_project_user_project,
+                DROP FOREIGN KEY IF EXISTS FK_project_user_user,
+                DROP KEY IF EXISTS FK_project_user_user`,
+              { transaction: t }
+            );
+            // for some reason doesn't work in the same alter table statement
+            await fastify.orm.query(
+              `ALTER TABLE project_user 
+                ADD FOREIGN KEY IF NOT EXISTS FK_project_user_project (project_id) REFERENCES project (id) ON DELETE CASCADE ON UPDATE CASCADE,
+                ADD FOREIGN KEY IF NOT EXISTS FK_project_user_user (user_id) REFERENCES user (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
+               { transaction: t }
+              );
+            });
+
             await fastify.orm.query(
               `ALTER TABLE eventlog 
                 ADD COLUMN IF NOT EXISTS notified int(1) NOT NULL DEFAULT 0 AFTER error;`,
               { transaction: t }
             );
           });
+
           // the db schema is updated successfully lets copy the files
           await fastify.moveAims();
           await fastify.moveFiles();
@@ -6073,11 +6137,25 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate(
+    'afterDBReady',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // do the schema and migration operations after the connection is established
+          await fastify.fixSchema();
+          await fastify.migrateDataLite2Thick({ username: 'admin' });
+          resolve();
+        } catch (err) {
+          reject(new InternalError('afterDBReady', err));
+        }
+      })
+  );
+
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
-      await fastify.fixSchema();
-      await fastify.migrateDataLite2Thick({ username: 'admin' });
+
       if (config.env !== 'test') {
         // schedule calculating statistics at 1 am at night
         schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
