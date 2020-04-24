@@ -590,16 +590,7 @@ async function epaddb(fastify, options, done) {
         reply.code(200).send(templates);
       })
       .catch(err => {
-        reply
-          .code(500)
-          .send(
-            new InternalError(
-              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
-                request.epadAuth.admin
-              }`,
-              err
-            )
-          );
+        reply.code(500).send(new InternalError('Getting templates from db', err));
       });
   });
 
@@ -1171,6 +1162,7 @@ async function epaddb(fastify, options, done) {
     models.plugin_parameters
       .create({
         plugin_id: parameterform.plugindbid,
+        paramid: parameterform.paramid,
         name: parameterform.name,
         format: parameterform.format,
         prefix: parameterform.prefix,
@@ -1219,6 +1211,7 @@ async function epaddb(fastify, options, done) {
           const parameterObj = {
             id: parameter.dataValues.id,
             plugin_id: parameter.dataValues.plugin_id,
+            paramid: parameter.dataValues.paramid,
             name: parameter.dataValues.name,
             format: parameter.dataValues.format,
             prefix: parameter.dataValues.prefix,
@@ -1282,10 +1275,11 @@ async function epaddb(fastify, options, done) {
     models.plugin_parameters
       .update(
         {
+          paramid: paramsForm.paramid,
           name: paramsForm.name,
-          format: null,
-          prefix: null,
-          inputBinding: null,
+          format: paramsForm.format,
+          prefix: paramsForm.prefix,
+          inputBinding: paramsForm.inputBinding,
           default_value: paramsForm.default_value,
           updatetime: Date.now(),
           updated_by: request.epadAuth.username,
@@ -1333,6 +1327,7 @@ async function epaddb(fastify, options, done) {
             id: parameter.dataValues.id,
             plugin_id: parameter.dataValues.plugin_id,
             project_id: parameter.dataValues.project_id,
+            paramid: parameter.dataValues.paramid,
             name: parameter.dataValues.name,
             format: parameter.dataValues.format,
             prefix: parameter.dataValues.prefix,
@@ -1370,6 +1365,7 @@ async function epaddb(fastify, options, done) {
       .create({
         plugin_id: parameterform.plugindbid,
         project_id: parameterform.projectdbid,
+        paramid: parameterform.paramid,
         name: parameterform.name,
         format: parameterform.format,
         prefix: parameterform.prefix,
@@ -1431,10 +1427,11 @@ async function epaddb(fastify, options, done) {
     models.plugin_projectparameters
       .update(
         {
+          paramid: paramsForm.id,
           name: paramsForm.name,
-          format: null,
-          prefix: null,
-          inputBinding: null,
+          format: paramsForm.format,
+          prefix: paramsForm.prefix,
+          inputBinding: paramsForm.inputBinding,
           default_value: paramsForm.default_value,
           updatetime: Date.now(),
           updated_by: request.epadAuth.username,
@@ -1482,6 +1479,7 @@ async function epaddb(fastify, options, done) {
             id: parameter.dataValues.id,
             plugin_id: parameter.dataValues.plugin_id,
             template_id: parameter.dataValues.template_id,
+            paramid: parameter.dataValues.paramid,
             name: parameter.dataValues.name,
             format: parameter.dataValues.format,
             prefix: parameter.dataValues.prefix,
@@ -1518,6 +1516,7 @@ async function epaddb(fastify, options, done) {
       .create({
         plugin_id: parameterform.plugindbid,
         template_id: parameterform.templatedbid,
+        paramid: parameterform.paramid,
         name: parameterform.name,
         format: parameterform.format,
         prefix: parameterform.prefix,
@@ -1577,10 +1576,11 @@ async function epaddb(fastify, options, done) {
     models.plugin_templateparameters
       .update(
         {
+          paramid: paramsForm.paramid,
           name: paramsForm.name,
-          format: null,
-          prefix: null,
-          inputBinding: null,
+          format: paramsForm.format,
+          prefix: paramsForm.prefix,
+          inputBinding: paramsForm.inputBinding,
           default_value: paramsForm.default_value,
           updatetime: Date.now(),
           updated_by: request.epadAuth.username,
