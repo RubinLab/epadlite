@@ -3482,6 +3482,21 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('1 template for system should have testassoc project in projects in summary format', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/templates?format=summary')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].projects).to.include('testassoc');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('should return 1 aim for system ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
