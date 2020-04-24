@@ -1267,15 +1267,6 @@ async function other(fastify) {
     // TODO fails in cavit, why?
     // if (!fastify.hasDecorator('hostname')) fastify.decorate('hostname', request.req.hostname);
 
-    if (request.req.method === 'PUT') {
-      try {
-        new EpadNotification(request, fastify.getInfoFromRequest(request), 'Put successful').notify(
-          fastify
-        );
-      } catch (err) {
-        fastify.log.error(`Cannot notify user ${err.message}`);
-      }
-    }
     done(null, payload);
   });
 
