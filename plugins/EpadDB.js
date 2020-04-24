@@ -5931,9 +5931,8 @@ async function epaddb(fastify, options, done) {
               `ALTER TABLE project_user 
                 ADD FOREIGN KEY IF NOT EXISTS FK_project_user_project (project_id) REFERENCES project (id) ON DELETE CASCADE ON UPDATE CASCADE,
                 ADD FOREIGN KEY IF NOT EXISTS FK_project_user_user (user_id) REFERENCES user (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
-               { transaction: t }
-              );
-            });
+              { transaction: t }
+            );
 
             await fastify.orm.query(
               `ALTER TABLE eventlog 
