@@ -140,6 +140,10 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'project_id',
           });
 
+          models.project_template.belongsTo(models.project, {
+            foreignKey: 'project_id',
+          });
+
           await fastify.orm.sync();
           if (config.env === 'test') {
             try {
@@ -1454,6 +1458,38 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
+
+  fastify.decorate('getTemplates', async (request, reply) => {
+    try {
+      const templates = await fastify.getTemplatesInternal(request.query);
+      if (request.query.format === 'stream') {
+        reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+      } else if (request.query.format === 'summary') {
+        // add project data
+        const projectTemplates = await models.project_template.findAll({
+          include: [models.project],
+        });
+        const templateProjects = {};
+        for (let i = 0; i < projectTemplates.length; i += 1) {
+          if (templateProjects[projectTemplates[i].template_uid]) {
+            templateProjects[projectTemplates[i].template_uid].push(
+              projectTemplates[i].dataValues.project.dataValues.projectid
+            );
+          } else {
+            templateProjects[projectTemplates[i].template_uid] = [
+              projectTemplates[i].dataValues.project.dataValues.projectid,
+            ];
+          }
+        }
+        for (let i = 0; i < templates.length; i += 1) {
+          templates[i].projects = templateProjects[templates[i].containerUID];
+        }
+      }
+      reply.code(200).send(templates);
+    } catch (err) {
+      reply.send(err);
+    }
+  });
 
   fastify.decorate('getProjectTemplates', async (request, reply) => {
     try {

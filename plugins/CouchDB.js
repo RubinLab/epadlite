@@ -660,17 +660,17 @@ async function couchdb(fastify, options) {
   });
 
   // template accessors
-  fastify.decorate('getTemplates', (request, reply) => {
-    fastify
-      .getTemplatesInternal(request.query)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=templates.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.send(err));
-  });
+  // fastify.decorate('getTemplates', (request, reply) => {
+  //   fastify
+  //     .getTemplatesInternal(request.query)
+  //     .then(result => {
+  //       if (request.query.format === 'stream') {
+  //         reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+  //       }
+  //       reply.code(200).send(result);
+  //     })
+  //     .catch(err => reply.send(err));
+  // });
 
   fastify.decorate(
     'getTemplatesInternal',
