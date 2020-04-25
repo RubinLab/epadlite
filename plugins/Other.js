@@ -863,6 +863,7 @@ async function other(fastify) {
         users: 'user',
         worklists: 'worklist',
       };
+      if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
         if (reqInfo.method === 'POST') reqInfo.level = levels[urlParts[urlParts.length - 1]];
         else reqInfo.level = urlParts[urlParts.length - 1];

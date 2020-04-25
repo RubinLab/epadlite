@@ -27,6 +27,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('initMariaDB', async () => {
     try {
+      const { Op } = Sequelize;
       const sequelizeConfig = {
         dialect: 'mariadb',
         database: config.thickDb.name,
@@ -44,6 +45,7 @@ async function epaddb(fastify, options, done) {
           timestamps: false,
         },
         logging: config.thickDb.logger === 'true' || config.thickDb.logger === true,
+        operatorsAliases: { $in: Op.in },
       };
 
       // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
@@ -3008,6 +3010,7 @@ async function epaddb(fastify, options, done) {
           });
 
           const studyUids = [];
+          const studyInfos = [];
           const nondicoms = [];
 
           if (!whereJSON.project_id) {
@@ -3031,6 +3034,10 @@ async function epaddb(fastify, options, done) {
             for (let j = 0; j < projectSubjects.length; j += 1) {
               for (let i = 0; i < projectSubjects[j].dataValues.studies.length; i += 1) {
                 studyUids.push(projectSubjects[j].dataValues.studies[i].dataValues.studyuid);
+                studyInfos.push({
+                  study: projectSubjects[j].dataValues.studies[i].dataValues.studyuid,
+                  subject: projectSubjects[j].dataValues.subject.dataValues.subjectuid,
+                });
                 // ASSUMPTION: nondicoms have no studydate
                 if (!projectSubjects[j].dataValues.studies[i].dataValues.studydate)
                   nondicoms.push({
@@ -3085,7 +3092,7 @@ async function epaddb(fastify, options, done) {
 
               resolve(result);
             } else {
-              resolve(studyUids);
+              resolve(studyInfos);
             }
           }
         } catch (err) {
@@ -3310,7 +3317,7 @@ async function epaddb(fastify, options, done) {
     // TODO project filtering
     if (request.query.format === 'stream' && request.params.series) {
       fastify
-        .getWadoMultipart(request.params, request.query, request.epadAuth, reply)
+        .prepDownload(request.params, request.query, request.epadAuth, reply)
         .then(() => fastify.log.info(`Series ${request.params.series} download completed`))
         .catch(downloadErr => reply.send(new InternalError('Downloading series', downloadErr)));
     } else {
@@ -3506,17 +3513,21 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('getProject', (request, reply) => {
-    models.project
-      .findOne({ where: { projectid: request.params.project } })
-      .then(project => {
-        if (project === null)
-          reply.send(new ResourceNotFoundError('Project', request.params.project));
-        else reply.code(200).send(project);
-      })
-      .catch(err => {
-        reply.send(new InternalError(`Getting project ${request.params.project}`, err));
+  fastify.decorate('getProject', async (request, reply) => {
+    try {
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
       });
+      if (project === null)
+        reply.send(new ResourceNotFoundError('Project', request.params.project));
+      else if (request.query.format === 'stream') {
+        await fastify.prepDownload(request.params, request.query, request.epadAuth, reply, {
+          project_id: project.id,
+        });
+      } else reply.code(200).send(project);
+    } catch (err) {
+      reply.send(new InternalError(`Getting project ${request.params.project}`, err));
+    }
   });
   /*
   fastify.decorate('updateProjectUser', async (request, reply) => {
@@ -3934,17 +3945,43 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate('writeHead', (dirName, res) => {
+    res.writeHead(200, {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename=${dirName}.zip`,
+      'Access-Control-Allow-Origin': '*',
+    });
+  });
+
+  // it needs the node response object
   fastify.decorate(
-    'getWadoMultipart',
-    async (params, query, epadAuth, reply, studyUids) =>
+    'prepDownload',
+    async (params, query, epadAuth, output, whereJSON, studyInfos, seriesInfos) =>
       new Promise(async (resolve, reject) => {
         try {
+          // if it has res, it is fastify reply
+          const isResponseJustStream = !output.res;
+          const res = isResponseJustStream ? output : output.res;
+          const studiesInfo = whereJSON
+            ? await fastify.getStudiesInternal(whereJSON, params, epadAuth, true)
+            : studyInfos;
+
           const timestamp = new Date().getTime();
           const dir = `tmp_${timestamp}`;
+          let headWritten = false;
           if (!fs.existsSync(dir)) {
+            const archive = archiver('zip', {
+              zlib: { level: 9 }, // Sets the compression level.
+            });
+
             fs.mkdirSync(dir);
             let dirName = params.series ? params.series : params.study;
-            if (studyUids) dirName = params.subject; // if subject
+            if (studyInfos) dirName = 'Studies';
+            else if (whereJSON) {
+              if (!whereJSON.subject_id) dirName = params.project;
+              else if (whereJSON.subject_id.$in) dirName = 'Patients';
+              else dirName = params.subject;
+            }
             const dataDir = `${dir}/${dirName}`;
             fs.mkdirSync(dataDir);
             let isThereDataToWrite = false;
@@ -3969,19 +4006,60 @@ async function epaddb(fastify, options, done) {
               );
               if (!isThereData) fs.rmdirSync(dataDir);
               isThereDataToWrite = isThereDataToWrite || isThereData;
-            } else if (studyUids) {
+            } else if (studiesInfo) {
               // download all studies under subject
-              for (let i = 0; i < studyUids.length; i += 1) {
-                const studyDir = `${dataDir}/Study-${studyUids[i]}`;
+              for (let i = 0; i < studiesInfo.length; i += 1) {
+                const studyUid = studiesInfo[i].study;
+                let studySubDir = `Study-${studyUid}`;
+                const subjectUid = studiesInfo[i].subject;
+                if (subjectUid) {
+                  if (!fs.existsSync(`${dataDir}/Patient-${subjectUid}`))
+                    fs.mkdirSync(`${dataDir}/Patient-${subjectUid}`);
+                  studySubDir = `Patient-${subjectUid}/Study-${studyUid}`;
+                }
+                const studyDir = `${dataDir}/${studySubDir}`;
                 fs.mkdirSync(studyDir);
                 // eslint-disable-next-line no-await-in-loop
                 const isThereData = await fastify.prepStudyDownloadDir(
                   studyDir,
-                  { ...params, study: studyUids[i] },
+                  { ...params, subject: subjectUid, study: studyUid },
                   query,
                   epadAuth
                 );
                 if (!isThereData) fs.rmdirSync(studyDir);
+                else {
+                  if (!headWritten) {
+                    if (!isResponseJustStream) {
+                      // start writing the head so that long requests do not fail
+                      fastify.writeHead(dirName, res);
+                    }
+                    // create the archive
+                    archive
+                      .on('error', err => reject(new InternalError('Archiving ', err)))
+                      .pipe(res);
+                    headWritten = true;
+                  }
+                  archive.directory(`${studyDir}`, studySubDir);
+                }
+                isThereDataToWrite = isThereDataToWrite || isThereData;
+              }
+            } else if (seriesInfos) {
+              for (let i = 0; i < seriesInfos.length; i += 1) {
+                const seriesDir = `${dataDir}/Series-${seriesInfos[i].series}`;
+                fs.mkdirSync(seriesDir);
+                // eslint-disable-next-line no-await-in-loop
+                const isThereData = await fastify.prepSeriesDownloadDir(
+                  seriesDir,
+                  {
+                    ...params,
+                    subject: seriesInfos[i].subject,
+                    study: seriesInfos[i].study,
+                    series: seriesInfos[i].series,
+                  },
+                  query,
+                  epadAuth,
+                  false
+                );
                 isThereDataToWrite = isThereDataToWrite || isThereData;
               }
             }
@@ -3990,16 +4068,12 @@ async function epaddb(fastify, options, done) {
             isThereDataToWrite = isThereDataToWrite || files;
 
             if (isThereDataToWrite) {
-              reply.res.writeHead(200, {
-                'Content-Type': 'application/zip',
-                'Content-Disposition': `attachment; filename=${dirName}.zip`,
-                'Access-Control-Allow-Origin': '*',
-              });
-              const archive = archiver('zip', {
-                zlib: { level: 9 }, // Sets the compression level.
-              });
-
-              reply.res.on('finish', () => {
+              if (!headWritten) {
+                if (!isResponseJustStream) fastify.writeHead(dirName, res);
+                // create the archive
+                archive.on('error', err => reject(new InternalError('Archiving ', err))).pipe(res);
+              }
+              res.on('finish', () => {
                 fs.remove(dir, error => {
                   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                   else fastify.log.info(`${dir} deleted`);
@@ -4007,19 +4081,21 @@ async function epaddb(fastify, options, done) {
               });
 
               archive.on('end', () => {
-                // eslint-disable-next-line no-param-reassign
-                reply.sent = true;
+                if (!isResponseJustStream) {
+                  // eslint-disable-next-line no-param-reassign
+                  output.sent = true;
+                }
                 resolve();
               });
 
-              // create the archive
-              archive
-                .directory(`${dataDir}`, false)
-                .on('error', err => reject(new InternalError('Archiving ', err)))
-                .pipe(reply.res);
+              if (!headWritten) {
+                archive.directory(`${dataDir}`, false);
+              }
 
               archive.finalize();
             } else {
+              // finalize even if no files?
+              archive.finalize();
               fs.remove(dir, error => {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 else fastify.log.info(`${dir} deleted`);
@@ -4038,7 +4114,7 @@ async function epaddb(fastify, options, done) {
       // TODO check if it is in the project
 
       if (request.query.format === 'stream') {
-        await fastify.getWadoMultipart(request.params, request.query, request.epadAuth, reply);
+        await fastify.prepDownload(request.params, request.query, request.epadAuth, reply);
       } else {
         const studyUids = [request.params.study];
         const result = await fastify.getPatientStudiesInternal(
@@ -4087,22 +4163,27 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getSubjectFromProject', async (request, reply) => {
     try {
       // TODO check if it is in the project
-      if (request.query.format === 'stream') {
-        const whereJson = await fastify.getProjectSubjectIds(request.params);
-        const studyUids = await fastify.getStudiesInternal(
-          whereJson,
-          request.params,
-          request.epadAuth,
-          true
-        );
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+      const subject = await models.subject.findOne({
+        where: { subjectuid: request.params.subject },
+      });
 
-        await fastify.getWadoMultipart(
-          request.params,
-          request.query,
-          request.epadAuth,
-          reply,
-          studyUids
+      if (project === null)
+        reply.send(
+          new BadRequestError(
+            'Get studies from project',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
         );
+      else if (subject === null)
+        reply.send(new ResourceNotFoundError('Subject', request.params.subject));
+      else if (request.query.format === 'stream') {
+        await fastify.prepDownload(request.params, request.query, request.epadAuth, reply, {
+          project_id: project.id,
+          subject_id: subject.id,
+        });
       } else {
         const subjectUids = [request.params.subject];
         const result = await fastify.getPatientsInternal(
@@ -4115,6 +4196,109 @@ async function epaddb(fastify, options, done) {
       }
     } catch (err) {
       reply.send(new InternalError(`Get subject ${request.params.subject}`, err));
+    }
+  });
+
+  fastify.decorate('downloadSubjects', async (request, reply) => {
+    try {
+      // TODO check if it is in the project
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+
+      if (project === null)
+        reply.send(
+          new BadRequestError(
+            'Download subjects from project',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      else {
+        // get subject ids
+        const subjectPromises = [];
+        for (let i = 0; i < request.body.length; i += 1) {
+          subjectPromises.push(
+            new Promise(async (resolve, reject) => {
+              try {
+                const subj = await models.subject.findOne({
+                  where: { subjectuid: request.body[i] },
+                  attributes: ['id'],
+                  raw: true,
+                });
+                resolve(subj.id);
+              } catch (err) {
+                reject(err);
+              }
+            })
+          );
+        }
+        const subjectIds = await Promise.all(subjectPromises);
+        await fastify.prepDownload(request.params, request.query, request.epadAuth, reply, {
+          project_id: project.id,
+          subject_id: { $in: subjectIds },
+        });
+      }
+    } catch (err) {
+      reply.send(new InternalError(`Download subjects ${JSON.stringify(request.body)}`, err));
+    }
+  });
+
+  fastify.decorate('downloadStudies', async (request, reply) => {
+    try {
+      // TODO check if it is in the project
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+
+      if (project === null)
+        reply.send(
+          new BadRequestError(
+            'Download studies from project',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      else {
+        await fastify.prepDownload(
+          request.params,
+          request.query,
+          request.epadAuth,
+          reply,
+          undefined,
+          request.body
+        );
+      }
+    } catch (err) {
+      reply.send(new InternalError(`Download subjects ${JSON.stringify(request.body)}`, err));
+    }
+  });
+
+  fastify.decorate('downloadSeries', async (request, reply) => {
+    try {
+      // TODO check if it is in the project
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+
+      if (project === null)
+        reply.send(
+          new BadRequestError(
+            'Download studies from project',
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      else {
+        await fastify.prepDownload(
+          request.params,
+          request.query,
+          request.epadAuth,
+          reply,
+          undefined,
+          undefined,
+          request.body
+        );
+      }
+    } catch (err) {
+      reply.send(new InternalError(`Download subjects ${JSON.stringify(request.body)}`, err));
     }
   });
 
