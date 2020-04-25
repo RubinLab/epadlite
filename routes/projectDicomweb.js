@@ -502,5 +502,93 @@ async function routes(fastify) {
 
     handler: fastify.getSeriesFromProject,
   });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/subjects/download',
+    schema: {
+      tags: ['project', 'subject'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+    },
+    handler: fastify.downloadSubjects,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/studies/download',
+    schema: {
+      tags: ['project', 'study'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            subject: {
+              type: 'string',
+            },
+            study: {
+              type: 'string',
+            },
+          },
+        },
+      },
+    },
+    handler: fastify.downloadStudies,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/series/download',
+    schema: {
+      tags: ['project', 'series'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            subject: {
+              type: 'string',
+            },
+            study: {
+              type: 'string',
+            },
+            series: {
+              type: 'string',
+            },
+          },
+        },
+      },
+    },
+    handler: fastify.downloadSeries,
+  });
 }
 module.exports = routes;
