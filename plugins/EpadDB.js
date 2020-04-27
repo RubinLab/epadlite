@@ -4148,6 +4148,28 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'saveFileInDB',
+    (filename, projectId, epadAuth, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await models.project_file.create(
+            {
+              project_id: projectId,
+              file_uid: filename,
+              creator: epadAuth.username,
+              updatetime: Date.now(),
+              createdtime: Date.now(),
+            },
+            transaction ? { transaction } : {}
+          );
+          resolve();
+        } catch (err) {
+          reject(new InternalError('Putting file to project', err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'putOtherFileToProjectInternal',
     (filename, params, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
@@ -4162,16 +4184,7 @@ async function epaddb(fastify, options, done) {
             fastify
               .checkProjectAssociation(project.id, params, transaction)
               .then(async () => {
-                await models.project_file.create(
-                  {
-                    project_id: project.id,
-                    file_uid: filename,
-                    creator: epadAuth.username,
-                    updatetime: Date.now(),
-                    createdtime: Date.now(),
-                  },
-                  transaction ? { transaction } : {}
-                );
+                await fastify.saveFileInDB(filename, project.id, epadAuth, transaction);
                 resolve();
               })
               .catch(errAssoc => {
@@ -5508,12 +5521,8 @@ async function epaddb(fastify, options, done) {
             // get files from couch and add entities
             const files = await fastify.getFilesInternal({ format: 'json' }, {});
             for (let i = 0; i < files.length; i += 1) {
-              const params = { project: project.projectid };
-              if (files[i].subject_uid) params.subject = files[i].subject_uid;
-              if (files[i].study_uid) params.study = files[i].study_uid;
-
               // eslint-disable-next-line no-await-in-loop
-              await fastify.putOtherFileToProjectInternal(files[i].name, params, epadAuth, t);
+              await fastify.saveFileInDB(files[i].name, project.id, epadAuth, t);
             }
             fastify.log.warn('File db records are created');
 
