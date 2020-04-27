@@ -16,6 +16,7 @@ async function routes(fastify) {
       },
     },
     handler: fastify.saveAimToProject,
+    bodyLimit: 10485760,
   });
   fastify.route({
     method: 'PUT',
