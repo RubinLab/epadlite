@@ -5508,7 +5508,7 @@ async function epaddb(fastify, options, done) {
             // get files from couch and add entities
             const files = await fastify.getFilesInternal({ format: 'json' }, {});
             for (let i = 0; i < files.length; i += 1) {
-              const params = { project: project.project_id };
+              const params = { project: project.projectid };
               if (files[i].subject_uid) params.subject = files[i].subject_uid;
               if (files[i].study_uid) params.study = files[i].study_uid;
 
