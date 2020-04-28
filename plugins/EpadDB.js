@@ -3007,7 +3007,7 @@ async function epaddb(fastify, options, done) {
 
           const studyUids = [];
           const nondicoms = [];
-          
+
           if (projectSubjects === null) {
             reject(
               new BadRequestError(
