@@ -337,7 +337,15 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'getPatientStudiesInternal',
-    (params, filter, epadAuth, noStats) =>
+    (
+      params,
+      filter,
+      epadAuth,
+      noStats,
+      tag = '0020000D',
+      aimField = 'studyUID',
+      negateFilter = false
+    ) =>
       new Promise((resolve, reject) => {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
@@ -367,8 +375,9 @@ async function dicomwebserver(fastify) {
                 values[0].data,
                 values[1],
                 filter,
-                '0020000D',
-                'studyUID'
+                tag,
+                aimField,
+                negateFilter
               );
               // populate an aim counts map containing each study
               const aimsCountMap = {};
