@@ -192,10 +192,14 @@ async function dicomwebserver(fastify) {
           promisses.push(this.request.get(`/studies${query}`, header));
           if (!noStats)
             promisses.push(
-              fastify.getAimsInternal(
-                'summary',
-                { subject: '', study: '', series: '' },
-                undefined,
+              fastify.filterProjectAims(
+                {
+                  project: params.project,
+                  subject: '',
+                  study: '',
+                  series: '',
+                },
+                { format: 'summary' },
                 epadAuth
               )
             );
@@ -355,14 +359,14 @@ async function dicomwebserver(fastify) {
           // get aims for a specific patient
           if (!noStats)
             promisses.push(
-              fastify.getAimsInternal(
-                'summary',
+              fastify.filterProjectAims(
                 {
+                  project: params.project,
                   subject: params.subject ? params.subject : '',
                   study: '',
                   series: '',
                 },
-                undefined,
+                { format: 'summary' },
                 epadAuth
               )
             );
@@ -511,14 +515,14 @@ async function dicomwebserver(fastify) {
           // get aims for a specific study
           if (noStats === undefined || noStats === false)
             promisses.push(
-              fastify.getAimsInternal(
-                'summary',
+              fastify.filterProjectAims(
                 {
+                  project: params.project,
                   subject: params.subject,
                   study: params.study,
                   series: '',
                 },
-                undefined,
+                { format: 'summary' },
                 epadAuth
               )
             );
