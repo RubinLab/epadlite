@@ -305,7 +305,7 @@ async function dicomwebserver(fastify) {
             filteredAims = _.filter(
               filteredAims,
               obj =>
-                obj[tag] &&
+                obj[aimField] &&
                 (negateFilter ? !filter.includes(obj[aimField]) : filter.includes(obj[aimField]))
             );
           }
@@ -341,7 +341,7 @@ async function dicomwebserver(fastify) {
       params,
       filter,
       epadAuth,
-      noStats,
+      noStats = false,
       tag = '0020000D',
       aimField = 'studyUID',
       negateFilter = false
@@ -366,6 +366,7 @@ async function dicomwebserver(fastify) {
                 epadAuth
               )
             );
+
           Promise.all(promisses)
             .then(async values => {
               // handle success
@@ -397,7 +398,6 @@ async function dicomwebserver(fastify) {
                     aimsCountMap[value[0].studyUID] = numberOfAims;
                   })
                   .value();
-
               // filter by patient id
               if (params.subject)
                 filteredStudies = _.filter(
