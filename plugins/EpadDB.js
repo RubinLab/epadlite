@@ -3120,6 +3120,7 @@ async function epaddb(fastify, options, done) {
           where: { subjectuid: request.params.subject },
         });
         if (subject === null) {
+          // handle unassigned project
           if (request.params.project === config.unassignedProjectID) {
             const result = await fastify.getPatientStudiesInternal(
               request.params,
