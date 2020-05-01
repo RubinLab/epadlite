@@ -122,11 +122,15 @@ describe('Subject Tests', () => {
       .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(1);
+        expect(res.body.length).to.be.eql(2);
         expect(res.body[0].patientID).to.be.eql('3');
         expect(res.body[0].patientName).to.be.eql('Phantom');
         expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
         expect(res.body[0].seriesUID).to.be.eql('0023.2015.09.28.3.3590');
+        expect(res.body[1].patientID).to.be.eql('3');
+        expect(res.body[1].patientName).to.be.eql('Phantom');
+        expect(res.body[1].studyUID).to.be.eql('0023.2015.09.28.3');
+        expect(res.body[1].seriesUID).to.be.eql('0023.2015.09.28.3.3590.111');
         done();
       })
       .catch(e => {
