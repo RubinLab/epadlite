@@ -5584,7 +5584,7 @@ async function epaddb(fastify, options, done) {
             const studies = await fastify.getPatientStudiesInternal(
               {},
               undefined,
-              undefined,
+              epadAuth,
               true,
               {}
             );
