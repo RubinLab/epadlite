@@ -1016,7 +1016,9 @@ async function epaddb(fastify, options, done) {
           const studyDetails = await fastify.getPatientStudiesInternal(
             request.params,
             studyUIDs,
-            request.epadAuth
+            request.epadAuth,
+            undefined,
+            request.query
           );
           studyDetails.forEach(el => {
             const { numberOfImages, numberOfSeries } = el;
@@ -1633,7 +1635,9 @@ async function epaddb(fastify, options, done) {
             studies = await fastify.getPatientStudiesInternal(
               request.params,
               undefined,
-              request.epadAuth
+              request.epadAuth,
+              undefined,
+              request.query
             );
           }
           if (!subject) {
@@ -2922,7 +2926,9 @@ async function epaddb(fastify, options, done) {
                 studies = await fastify.getPatientStudiesInternal(
                   { subject: params.subject, study: params.study },
                   undefined,
-                  epadAuth
+                  epadAuth,
+                  undefined,
+                  {}
                 );
               }
               // create the subject if no subject info sent via body (for upload)
@@ -3004,7 +3010,7 @@ async function epaddb(fastify, options, done) {
   // whereJSON should include project_id, can also include subject_id
   fastify.decorate(
     'getStudiesInternal',
-    (whereJSON, params, epadAuth, justIds) =>
+    (whereJSON, params, epadAuth, justIds, query) =>
       new Promise(async (resolve, reject) => {
         try {
           const projectSubjects = await models.project_subject.findAll({
@@ -3045,7 +3051,13 @@ async function epaddb(fastify, options, done) {
               }
             }
             if (!justIds) {
-              const result = await fastify.getPatientStudiesInternal(params, studyUids, epadAuth);
+              const result = await fastify.getPatientStudiesInternal(
+                params,
+                studyUids,
+                epadAuth,
+                undefined,
+                query
+              );
               if (studyUids.length !== result.length)
                 if (studyUids.length === result.length + nondicoms.length) {
                   for (let i = 0; i < nondicoms.length; i += 1) {
@@ -3131,7 +3143,9 @@ async function epaddb(fastify, options, done) {
             subject_id: subject.id,
           },
           request.params,
-          request.epadAuth
+          request.epadAuth,
+          undefined,
+          request.query
         );
         reply.code(200).send(result);
       }
@@ -4022,7 +4036,9 @@ async function epaddb(fastify, options, done) {
         const result = await fastify.getPatientStudiesInternal(
           request.params,
           studyUids,
-          request.epadAuth
+          request.epadAuth,
+          undefined,
+          request.query
         );
         if (result.length === 1) reply.code(200).send(result[0]);
         else reply.send(new ResourceNotFoundError('Study', request.params.study));
@@ -4059,7 +4075,8 @@ async function epaddb(fastify, options, done) {
           },
           request.params,
           request.epadAuth,
-          true
+          true,
+          request.query
         );
 
         await fastify.getWadoMultipart(
@@ -4550,7 +4567,9 @@ async function epaddb(fastify, options, done) {
             project_id: project.id,
           },
           request.params,
-          request.epadAuth
+          request.epadAuth,
+          undefined,
+          request.query
         );
 
         reply.code(200).send(result);
@@ -4793,12 +4812,18 @@ async function epaddb(fastify, options, done) {
             });
           } else {
             // TODO this will be affected by limit!
-            const studies = await fastify.getPatientStudiesInternal({}, undefined, undefined, true);
+            const studies = await fastify.getPatientStudiesInternal(
+              {},
+              undefined,
+              { username: 'admin' },
+              true,
+              {}
+            );
             numOfStudies = studies.length;
           }
 
           // always from dicomweb server
-          const series = await fastify.getAllStudySeriesInternal({}, undefined, undefined, true);
+          const series = await fastify.getAllStudySeriesInternal({}, undefined);
           const numOfDSOs = _.reduce(
             series,
             (count, serie) => {
@@ -4807,7 +4832,7 @@ async function epaddb(fastify, options, done) {
             },
             0
           );
-          const numOfSeries = series.length;
+          const numOfSeries = series.length - numOfDSOs;
 
           let numOfAims = 0;
           let numOfTemplateAimsMap = {};
@@ -5547,7 +5572,13 @@ async function epaddb(fastify, options, done) {
             // 4. project_subject_study
             // get studies from dicomwebserver and add entities
             // TODO this gets affected by limit, migrate will only transfer limited number of studies
-            const studies = await fastify.getPatientStudiesInternal({}, undefined, undefined, true);
+            const studies = await fastify.getPatientStudiesInternal(
+              {},
+              undefined,
+              undefined,
+              true,
+              {}
+            );
             // map to contain a studies attribute to contain a list of studies
             const subjects = {};
             const subjectPromisses = [];
