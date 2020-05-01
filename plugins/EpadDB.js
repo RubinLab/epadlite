@@ -446,6 +446,7 @@ async function epaddb(fastify, options, done) {
             description: project.description,
             loginNames: [],
             type: project.type,
+            defaultTemplate: project.defaulttemplate,
           };
 
           project.users.forEach(user => {
