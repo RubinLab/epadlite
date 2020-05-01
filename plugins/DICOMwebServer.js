@@ -321,6 +321,31 @@ async function dicomwebserver(fastify) {
   });
 
   fastify.decorate(
+    'updateStudyCounts',
+    (studyUid, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const studySeries = await fastify.getStudySeriesInternal(
+            { study: studyUid },
+            { format: 'summary', filterDSO: 'true' },
+            epadAuth,
+            true
+          );
+          const numberOfImages = _.reduce(
+            studySeries,
+            (imageCount, series) => {
+              return imageCount + series.numberOfImages;
+            },
+            0
+          );
+          resolve({ numberOfSeries: studySeries.length, numberOfImages });
+        } catch (err) {
+          reject(new InternalError('Update study counts', err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'getPatientStudiesInternal',
     (params, filter, epadAuth, noStats) =>
       new Promise((resolve, reject) => {
@@ -384,52 +409,66 @@ async function dicomwebserver(fastify) {
                 );
 
               // get the patients's studies and map each study to epadlite study object
-              const result = _.chain(filteredStudies)
-                .map(value => {
-                  // update examptypes in db
-                  fastify.updateStudyExamType(
-                    value['0020000D'].Value[0],
-                    value['00080061'].Value ? value['00080061'].Value : [],
-                    epadAuth
-                  );
+              const result = await Promise.all(
+                _.chain(filteredStudies)
+                  .map(async value => {
+                    // update examptypes in db
+                    await fastify.updateStudyExamType(
+                      value['0020000D'].Value[0],
+                      value['00080061'].Value ? value['00080061'].Value : [],
+                      epadAuth
+                    );
 
-                  return {
-                    projectID: params.project ? params.project : projectID,
-                    patientID: fastify.replaceNull(value['00100020'].Value[0]),
-                    patientName: value['00100010'].Value
-                      ? value['00100010'].Value[0].Alphabetic
-                      : '',
-                    studyUID: value['0020000D'].Value[0],
-                    insertDate: value['00080020'].Value ? value['00080020'].Value[0] : '', // study date
-                    firstSeriesUID: '', // TODO
-                    firstSeriesDateAcquired: '', // TODO
-                    physicianName: '', // TODO
-                    referringPhysicianName: value['00080090'].Value
-                      ? value['00080090'].Value[0].Alphabetic
-                      : '',
-                    birthdate: value['00100030'].Value ? value['00100030'].Value[0] : '',
-                    sex: value['00100040'].Value ? value['00100040'].Value[0] : '',
-                    studyDescription:
-                      value['00081030'] && value['00081030'].Value
-                        ? value['00081030'].Value[0]
+                    const { numberOfSeries, numberOfImages } =
+                      value['00080061'].Value && value['00080061'].Value.includes('SEG')
+                        ? await fastify.updateStudyCounts(value['0020000D'].Value[0])
+                        : {
+                            numberOfSeries: value['00201206'].Value
+                              ? value['00201206'].Value[0]
+                              : '',
+                            numberOfImages: value['00201208'].Value
+                              ? value['00201208'].Value[0]
+                              : '',
+                          };
+                    return {
+                      projectID: params.project ? params.project : projectID,
+                      patientID: fastify.replaceNull(value['00100020'].Value[0]),
+                      patientName: value['00100010'].Value
+                        ? value['00100010'].Value[0].Alphabetic
                         : '',
-                    studyAccessionNumber: value['00080050'].Value ? value['00080050'].Value[0] : '',
-                    examTypes: value['00080061'].Value ? value['00080061'].Value : [],
-                    numberOfImages: value['00201208'].Value ? value['00201208'].Value[0] : '',
-                    numberOfSeries: value['00201206'].Value ? value['00201206'].Value[0] : '',
-                    numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
-                      ? aimsCountMap[value['0020000D'].Value[0]]
-                      : 0,
-                    createdTime: '', // no date in studies call
-                    // extra for flexview
-                    studyID: value['00200010'].Value ? value['00200010'].Value[0] : '',
-                    studyDate: value['00080020'].Value ? value['00080020'].Value[0] : '',
-                    studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '',
-                  };
-                })
-                .sortBy('studyDescription')
-                .value();
-
+                      studyUID: value['0020000D'].Value[0],
+                      insertDate: value['00080020'].Value ? value['00080020'].Value[0] : '', // study date
+                      firstSeriesUID: '', // TODO
+                      firstSeriesDateAcquired: '', // TODO
+                      physicianName: '', // TODO
+                      referringPhysicianName: value['00080090'].Value
+                        ? value['00080090'].Value[0].Alphabetic
+                        : '',
+                      birthdate: value['00100030'].Value ? value['00100030'].Value[0] : '',
+                      sex: value['00100040'].Value ? value['00100040'].Value[0] : '',
+                      studyDescription:
+                        value['00081030'] && value['00081030'].Value
+                          ? value['00081030'].Value[0]
+                          : '',
+                      studyAccessionNumber: value['00080050'].Value
+                        ? value['00080050'].Value[0]
+                        : '',
+                      examTypes: value['00080061'].Value ? value['00080061'].Value : [],
+                      numberOfImages,
+                      numberOfSeries,
+                      numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
+                        ? aimsCountMap[value['0020000D'].Value[0]]
+                        : 0,
+                      createdTime: '', // no date in studies call
+                      // extra for flexview
+                      studyID: value['00200010'].Value ? value['00200010'].Value[0] : '',
+                      studyDate: value['00080020'].Value ? value['00080020'].Value[0] : '',
+                      studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '',
+                    };
+                  })
+                  .sortBy('studyDescription')
+                  .value()
+              );
               resolve(result);
             })
             .catch(error => {
