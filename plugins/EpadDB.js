@@ -1778,7 +1778,6 @@ async function epaddb(fastify, options, done) {
             );
             examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
           }
-
           results.push({
             subjectName: project.dataValues.project_subjects[i].dataValues.subject.dataValues.name,
             subjectID: fastify.replaceNull(
@@ -2806,6 +2805,31 @@ async function epaddb(fastify, options, done) {
       .then(result => reply.code(200).send(result))
       .catch(err => reply.send(err));
   });
+  fastify.decorate(
+    'updateStudyExamType',
+    (studyUid, examTypes, epadAuth, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // update with latest value
+          await fastify.upsert(
+            models.study,
+            {
+              studyuid: studyUid,
+              exam_types: JSON.stringify(examTypes),
+              updatetime: Date.now(),
+            },
+            {
+              studyuid: studyUid,
+            },
+            epadAuth.username,
+            transaction
+          );
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Adding study ${studyUid} DB`, err));
+        }
+      })
+  );
 
   fastify.decorate(
     'addPatientStudyToProjectDBInternal',

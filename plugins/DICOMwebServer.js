@@ -386,6 +386,13 @@ async function dicomwebserver(fastify) {
               // get the patients's studies and map each study to epadlite study object
               const result = _.chain(filteredStudies)
                 .map(value => {
+                  // update examptypes in db
+                  fastify.updateStudyExamType(
+                    value['0020000D'].Value[0],
+                    value['00080061'].Value ? value['00080061'].Value : [],
+                    epadAuth
+                  );
+
                   return {
                     projectID: params.project ? params.project : projectID,
                     patientID: fastify.replaceNull(value['00100020'].Value[0]),
