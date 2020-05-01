@@ -512,9 +512,10 @@ describe('Worklist Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(4);
           const worklistId = res.body[0].worklist_id;
+          const projectId = res.body[0].project_id;
           expect(res.body).to.deep.include({
             worklist_id: worklistId,
-            project_id: 38,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -528,7 +529,7 @@ describe('Worklist Tests', () => {
 
           expect(res.body).to.deep.include({
             worklist_id: worklistId,
-            project_id: 38,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -542,7 +543,7 @@ describe('Worklist Tests', () => {
 
           expect(res.body).to.deep.include({
             worklist_id: worklistId,
-            project_id: 38,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -555,7 +556,7 @@ describe('Worklist Tests', () => {
           });
           expect(res.body).to.deep.include({
             worklist_id: worklistId,
-            project_id: 38,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -635,9 +636,10 @@ describe('Worklist Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(4);
           const worklistId = res.body[0].worklist_id;
+          const projectId = res.body[0].project_id;
           expect(res.body).to.deep.include({
             worklist_id: worklistId,
-            project_id: 38,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -650,7 +652,7 @@ describe('Worklist Tests', () => {
           });
           expect(res.body).to.deep.include({
             worklist_id: worklistId,
-            project_id: 38,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -663,7 +665,7 @@ describe('Worklist Tests', () => {
           });
           expect(res.body).to.deep.include({
             worklist_id: worklistId,
-            project_id: 38,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -676,7 +678,7 @@ describe('Worklist Tests', () => {
           });
           expect(res.body).to.deep.include({
             worklist_id: worklistId,
-            project_id: 38,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
