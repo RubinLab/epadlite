@@ -191,18 +191,20 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(this.request.get(`/studies${query}`, header));
           if (!noStats)
-            promisses.push(
-              fastify.filterProjectAims(
-                {
-                  project: params.project,
-                  subject: '',
-                  study: '',
-                  series: '',
-                },
-                { format: 'summary' },
-                epadAuth
-              )
-            );
+            if (params.project)
+              promisses.push(
+                fastify.filterProjectAims(
+                  {
+                    project: params.project,
+                    subject: '',
+                    study: '',
+                    series: '',
+                  },
+                  { format: 'summary' },
+                  epadAuth
+                )
+              );
+            else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
           Promise.all(promisses)
             .then(async values => {
               // handle success
@@ -358,18 +360,20 @@ async function dicomwebserver(fastify) {
           promisses.push(this.request.get(`/studies${query}`, header));
           // get aims for a specific patient
           if (!noStats)
-            promisses.push(
-              fastify.filterProjectAims(
-                {
-                  project: params.project,
-                  subject: params.subject ? params.subject : '',
-                  study: '',
-                  series: '',
-                },
-                { format: 'summary' },
-                epadAuth
-              )
-            );
+            if (params.project)
+              promisses.push(
+                fastify.filterProjectAims(
+                  {
+                    project: params.project,
+                    subject: params.subject ? params.subject : '',
+                    study: '',
+                    series: '',
+                  },
+                  { format: 'summary' },
+                  epadAuth
+                )
+              );
+            else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
 
           Promise.all(promisses)
             .then(async values => {
@@ -514,18 +518,20 @@ async function dicomwebserver(fastify) {
           promisses.push(this.request.get(`/studies/${params.study}/series`, header));
           // get aims for a specific study
           if (noStats === undefined || noStats === false)
-            promisses.push(
-              fastify.filterProjectAims(
-                {
-                  project: params.project,
-                  subject: params.subject,
-                  study: params.study,
-                  series: '',
-                },
-                { format: 'summary' },
-                epadAuth
-              )
-            );
+            if (params.project)
+              promisses.push(
+                fastify.filterProjectAims(
+                  {
+                    project: params.project,
+                    subject: params.subject,
+                    study: params.study,
+                    series: '',
+                  },
+                  { format: 'summary' },
+                  epadAuth
+                )
+              );
+            else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
 
           Promise.all(promisses)
             .then(values => {

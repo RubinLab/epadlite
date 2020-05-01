@@ -1988,9 +1988,13 @@ async function epaddb(fastify, options, done) {
     (params, query, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const project = await models.project.findOne({
-            where: { projectid: params.project },
-          });
+          const project = await models.project.findOne(
+            params.project
+              ? {
+                  where: { projectid: params.project },
+                }
+              : {}
+          );
           if (project === null)
             reject(
               new BadRequestError(
@@ -3145,7 +3149,10 @@ async function epaddb(fastify, options, done) {
             project_id: project.id,
             subject_id: subject.id,
           };
-          if (request.params.project === config.XNATUploadProjectID)
+          if (
+            request.params.project === config.XNATUploadProjectID ||
+            request.params.project === config.unassignedProjectID
+          )
             whereJSON = {
               subject_id: subject.id,
             };
