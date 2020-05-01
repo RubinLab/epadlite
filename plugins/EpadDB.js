@@ -133,6 +133,10 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'subject_id',
           });
 
+          models.study.hasMany(models.project_subject_study, {
+            foreignKey: 'study_id',
+          });
+
           models.project_subject.belongsToMany(models.study, {
             through: 'project_subject_study',
             foreignKey: 'proj_subj_id',
@@ -1718,97 +1722,148 @@ async function epaddb(fastify, options, done) {
     return a;
   });
 
+  fastify.decorate(
+    'getDBStudies',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const dbStudyUIDs = [];
+          const studies = await models.study.findAll({
+            include: [
+              {
+                model: models.project_subject_study,
+              },
+            ],
+          });
+          for (let i = 0; i < studies.length; i += 1) {
+            dbStudyUIDs.push(studies[i].dataValues.studyuid);
+          }
+          resolve(dbStudyUIDs);
+        } catch (err) {
+          reject(new InternalError(`Getting DB StudyUIDs`, err));
+        }
+      })
+  );
+
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
-      const project = await models.project.findOne({
-        where: { projectid: request.params.project },
-        include: [
-          {
-            model: models.project_subject,
-            include: [models.subject, models.study],
-          },
-          { model: models.project_aim, attributes: ['aim_uid'] },
-        ],
-      });
-      if (project === null) {
-        reply.send(
-          new BadRequestError(
-            'Getting subjects from project',
-            new ResourceNotFoundError('Project', request.params.project)
-          )
+      if (request.params.project === config.unassignedProjectID) {
+        const dbStudyUIDs = await fastify.getDBStudies();
+        // eslint-disable-next-line no-await-in-loop
+        let results = await fastify.getPatientsInternal(
+          request.params,
+          dbStudyUIDs,
+          request.epadAuth,
+          true,
+          '0020000D',
+          'studyUID',
+          true
         );
-      } else {
-        const aimUIDs = [];
-        for (let i = 0; i < project.dataValues.project_aims.length; i += 1) {
-          aimUIDs.push(project.dataValues.project_aims[i].dataValues.aim_uid);
-        }
-        const aimsCountMap = {};
-        const aims = await fastify.getAimsInternal(
-          'summary',
-          {
-            subject: '',
-            study: '',
-            series: '',
-          },
-          aimUIDs,
-          request.epadAuth
-        );
-        _.chain(aims)
-          .groupBy(value => {
-            return value.subjectID;
-          })
-          .map(value => {
-            const numberOfAims = _.reduce(
-              value,
-              memo => {
-                return memo + 1;
-              },
-              0
-            );
-            aimsCountMap[value[0].subjectID] = numberOfAims;
-            return value;
-          })
-          .value();
-        let results = [];
-        for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
-          let examTypes = [];
-          for (
-            let j = 0;
-            j < project.dataValues.project_subjects[i].dataValues.studies.length;
-            j += 1
-          ) {
-            const studyExamTypes = JSON.parse(
-              project.dataValues.project_subjects[i].dataValues.studies[j].dataValues.exam_types
-            );
-            examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
-          }
-
-          results.push({
-            subjectName: project.dataValues.project_subjects[i].dataValues.subject.dataValues.name,
-            subjectID: fastify.replaceNull(
-              project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-            ),
-            projectID: project.dataValues.projectid,
-            insertUser: '', // no user in studies call
-            xnatID: '', // no xnatID should remove
-            insertDate: '', // no date in studies call
-            uri: '', // no uri should remove
-            displaySubjectID: fastify.replaceNull(
-              project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-            ),
-            numberOfStudies: project.dataValues.project_subjects[i].dataValues.studies.length,
-            numberOfAnnotations: aimsCountMap[
-              project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-            ]
-              ? aimsCountMap[
-                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-                ]
-              : 0,
-            examTypes,
-          });
-        }
         results = _.sortBy(results, 'subjectName');
         reply.code(200).send(results);
+      } else {
+        let whereJSON = { projectid: request.params.project };
+        if (request.params.project === config.XNATUploadProjectID) whereJSON = {};
+
+        const projects = await models.project.findAll({
+          where: whereJSON,
+          include: [
+            {
+              model: models.project_subject,
+              include: [models.subject, models.study],
+            },
+            { model: models.project_aim, attributes: ['aim_uid'] },
+          ],
+        });
+        if (projects === null) {
+          reply.send(
+            new BadRequestError(
+              'Getting subjects from project',
+              new ResourceNotFoundError('Project', request.params.project)
+            )
+          );
+        } else {
+          let results = [];
+          for (let k = 0; k < projects.length; k += 1) {
+            const project = projects[k];
+            const aimsCountMap = {};
+            // if all or undefined no aim counts
+            if (request.params.project !== config.XNATUploadProjectID) {
+              const aimUIDs = [];
+              for (let i = 0; i < project.dataValues.project_aims.length; i += 1) {
+                aimUIDs.push(project.dataValues.project_aims[i].dataValues.aim_uid);
+              }
+              // eslint-disable-next-line no-await-in-loop
+              const aims = await fastify.getAimsInternal(
+                'summary',
+                {
+                  subject: '',
+                  study: '',
+                  series: '',
+                },
+                aimUIDs,
+                request.epadAuth
+              );
+              _.chain(aims)
+                .groupBy(value => {
+                  return value.subjectID;
+                })
+                .map(value => {
+                  const numberOfAims = _.reduce(
+                    value,
+                    memo => {
+                      return memo + 1;
+                    },
+                    0
+                  );
+                  aimsCountMap[value[0].subjectID] = numberOfAims;
+                  return value;
+                })
+                .value();
+            }
+            for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
+              let examTypes = [];
+              for (
+                let j = 0;
+                j < project.dataValues.project_subjects[i].dataValues.studies.length;
+                j += 1
+              ) {
+                const studyExamTypes = JSON.parse(
+                  project.dataValues.project_subjects[i].dataValues.studies[j].dataValues.exam_types
+                );
+                examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
+              }
+
+              results.push({
+                subjectName:
+                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.name,
+                subjectID: fastify.replaceNull(
+                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+                ),
+                projectID: project.dataValues.projectid,
+                insertUser: '', // no user in studies call
+                xnatID: '', // no xnatID should remove
+                insertDate: '', // no date in studies call
+                uri: '', // no uri should remove
+                displaySubjectID: fastify.replaceNull(
+                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+                ),
+                numberOfStudies: project.dataValues.project_subjects[i].dataValues.studies.length,
+                numberOfAnnotations: aimsCountMap[
+                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
+                ]
+                  ? aimsCountMap[
+                      project.dataValues.project_subjects[i].dataValues.subject.dataValues
+                        .subjectuid
+                    ]
+                  : 0,
+                examTypes,
+              });
+            }
+          }
+          results = _.sortBy(results, 'subjectName');
+          reply.code(200).send(results);
+        }
       }
     } catch (err) {
       reply.send(new InternalError(`Getting patients from project ${request.params.project}`, err));
@@ -1975,9 +2030,13 @@ async function epaddb(fastify, options, done) {
     (params, query, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const project = await models.project.findOne({
-            where: { projectid: params.project },
-          });
+          const project = await models.project.findOne(
+            params.project
+              ? {
+                  where: { projectid: params.project },
+                }
+              : {}
+          );
           if (project === null)
             reject(
               new BadRequestError(
@@ -3014,14 +3073,7 @@ async function epaddb(fastify, options, done) {
           const studyInfos = [];
           const nondicoms = [];
 
-          if (!whereJSON.project_id) {
-            reject(
-              new BadRequestError(
-                'Get studies from project',
-                new ResourceNotFoundError('Project id', whereJSON.project_id)
-              )
-            );
-          } else if (projectSubjects === null) {
+          if (projectSubjects === null) {
             reject(
               new BadRequestError(
                 'Get studies from project',
@@ -3048,50 +3100,65 @@ async function epaddb(fastify, options, done) {
               }
             }
             if (!justIds) {
-              const result = await fastify.getPatientStudiesInternal(params, studyUids, epadAuth);
-              if (studyUids.length !== result.length)
-                if (studyUids.length === result.length + nondicoms.length) {
-                  for (let i = 0; i < nondicoms.length; i += 1) {
-                    // eslint-disable-next-line no-await-in-loop
-                    const numberOfAnnotations = await models.project_aim.count({
-                      where: {
-                        project_id: whereJSON.project_id,
-                        study_uid: nondicoms[i].study.dataValues.studyuid,
-                      },
-                    });
-                    result.push({
-                      projectID: params.project,
-                      patientID: nondicoms[i].subject.dataValues.subjectuid,
-                      patientName: nondicoms[i].subject.dataValues.name,
-                      studyUID: nondicoms[i].study.dataValues.studyuid,
-                      insertDate: '',
-                      firstSeriesUID: '',
-                      firstSeriesDateAcquired: '',
-                      physicianName: '',
-                      referringPhysicianName: '',
-                      birthdate: nondicoms[i].subject.dataValues.dob,
-                      sex: nondicoms[i].subject.dataValues.gender,
-                      studyDescription: nondicoms[i].study.dataValues.description,
-                      studyAccessionNumber: '',
-                      examTypes: [],
-                      numberOfImages: 0, // TODO
-                      numberOfSeries: 0, // TODO
-                      numberOfAnnotations,
-                      createdTime: '',
-                      // extra for flexview
-                      studyID: '',
-                      studyDate: '',
-                      studyTime: '',
-                    });
-                  }
-                } else
-                  fastify.log.warn(
-                    `There are ${studyUids.length} studies associated with this project. But only ${
-                      result.length
-                    } of them have dicom files`
-                  );
+              if (params.project === config.unassignedProjectID) {
+                const result = await fastify.getPatientStudiesInternal(
+                  params,
+                  studyUids,
+                  epadAuth,
+                  false,
+                  '0020000D',
+                  'studyUID',
+                  true
+                );
+                resolve(result);
+              } else {
+                const result = await fastify.getPatientStudiesInternal(params, studyUids, epadAuth);
+                if (studyUids.length !== result.length)
+                  if (studyUids.length === result.length + nondicoms.length) {
+                    for (let i = 0; i < nondicoms.length; i += 1) {
+                      // eslint-disable-next-line no-await-in-loop
+                      const numberOfAnnotations = await models.project_aim.count({
+                        where: {
+                          project_id: whereJSON.project_id,
+                          study_uid: nondicoms[i].study.dataValues.studyuid,
+                        },
+                      });
+                      result.push({
+                        projectID: params.project,
+                        patientID: nondicoms[i].subject.dataValues.subjectuid,
+                        patientName: nondicoms[i].subject.dataValues.name,
+                        studyUID: nondicoms[i].study.dataValues.studyuid,
+                        insertDate: '',
+                        firstSeriesUID: '',
+                        firstSeriesDateAcquired: '',
+                        physicianName: '',
+                        referringPhysicianName: '',
+                        birthdate: nondicoms[i].subject.dataValues.dob,
+                        sex: nondicoms[i].subject.dataValues.gender,
+                        studyDescription: nondicoms[i].study.dataValues.description,
+                        studyAccessionNumber: '',
+                        examTypes: [],
+                        numberOfImages: 0, // TODO
+                        numberOfSeries: 0, // TODO
+                        numberOfAnnotations,
+                        createdTime: '',
+                        // extra for flexview
+                        studyID: '',
+                        studyDate: '',
+                        studyTime: '',
+                      });
+                    }
+                  } else
+                    fastify.log.warn(
+                      `There are ${
+                        studyUids.length
+                      } studies associated with this project. But only ${
+                        result.length
+                      } of them have dicom files`
+                    );
 
-              resolve(result);
+                resolve(result);
+              }
             } else {
               resolve(studyInfos);
             }
@@ -3109,9 +3176,6 @@ async function epaddb(fastify, options, done) {
       const project = await models.project.findOne({
         where: { projectid: request.params.project },
       });
-      const subject = await models.subject.findOne({
-        where: { subjectuid: request.params.subject },
-      });
 
       if (project === null)
         reply.send(
@@ -3120,23 +3184,50 @@ async function epaddb(fastify, options, done) {
             new ResourceNotFoundError('Project', request.params.project)
           )
         );
-      else if (subject === null)
-        reply.send(
-          new BadRequestError(
-            'Get studies from project',
-            new ResourceNotFoundError('Subject', request.params.subject)
-          )
-        );
       else {
-        const result = await fastify.getStudiesInternal(
-          {
+        const subject = await models.subject.findOne({
+          where: { subjectuid: request.params.subject },
+        });
+        if (subject === null) {
+          // handle unassigned project
+          if (request.params.project === config.unassignedProjectID) {
+            const result = await fastify.getPatientStudiesInternal(
+              request.params,
+              [],
+              request.epadAuth,
+              false,
+              '0020000D',
+              'studyUID',
+              true
+            );
+            reply.code(200).send(result);
+          } else {
+            reply.send(
+              new BadRequestError(
+                'Get studies from project',
+                new ResourceNotFoundError('Subject', request.params.subject)
+              )
+            );
+          }
+        } else {
+          let whereJSON = {
             project_id: project.id,
             subject_id: subject.id,
-          },
-          request.params,
-          request.epadAuth
-        );
-        reply.code(200).send(result);
+          };
+          if (
+            request.params.project === config.XNATUploadProjectID ||
+            request.params.project === config.unassignedProjectID
+          )
+            whereJSON = {
+              subject_id: subject.id,
+            };
+          const result = await fastify.getStudiesInternal(
+            whereJSON,
+            request.params,
+            request.epadAuth
+          );
+          reply.code(200).send(result);
+        }
       }
     } catch (err) {
       reply.send(
