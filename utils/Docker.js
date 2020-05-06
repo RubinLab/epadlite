@@ -143,9 +143,10 @@ class DockerService {
   //     }
   //   );
   // }
-  createContainer(imageId, containerNameToGive) {
+  createContainer(imageId, containerNameToGive, params) {
     let auxContainer;
-
+    const tempParams = { ...params };
+    console.log('params from docker container side', tempParams);
     return (
       this.docker
         .createContainer({

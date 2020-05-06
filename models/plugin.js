@@ -1,5 +1,8 @@
 /* jshint indent: 2 */
-
+// type : values(local, store (remote plugin central store))
+// processmultipleaims : values(null , 0 ,1 ) null -> no annotation , 0 -> expects 1 annotations , 1 -> expects multiple annotations
+//  if processmultipleaims === 0 then if multiple annotation selected each annotataion will run plugin as seperate process
+// if processmultipleaims === 1 then multiple annotation will be sent to the plugin and there will be only one plugin process
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
     'plugin',
@@ -48,7 +51,7 @@ module.exports = function(sequelize, DataTypes) {
         allowNull: true,
       },
       type: {
-        type: DataTypes.STRING(64),
+        type: DataTypes.STRING(5),
         allowNull: true,
       },
       description: {

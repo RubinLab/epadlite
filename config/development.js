@@ -7,5 +7,5 @@ module.exports = {
   dicomweb: 'dicomweb_none',
   logger: process.env.LOGGER || true,
   https: process.env.HTTPS || false,
-  mode: process.env.MODE || 'lite',
+  mode: process.env.MODE || 'thick',
 };

@@ -25,6 +25,17 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'GET',
+    url: '/plugins/project/:projectid',
+    schema: {
+      tags: ['plugins'],
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getPluginsForProject,
+  });
+  fastify.route({
+    method: 'GET',
     url: '/pluginswithproject',
     schema: {
       tags: ['plugins'],
@@ -313,6 +324,18 @@ async function routes(fastify) {
       //   },
     },
     handler: fastify.deleteOneTemplateParameter,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/queue/delete',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.deleteFromPluginQueue,
   });
 
   //  trigger

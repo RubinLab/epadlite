@@ -1,5 +1,5 @@
 /* jshint indent: 2 */
-
+//status values: waiting, running, ended,error, added
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
     'plugin_queue',
@@ -26,37 +26,26 @@ module.exports = function(sequelize, DataTypes) {
           key: 'id',
         },
       },
-      template_id: {
-        type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
-        references: {
-          model: 'template',
-          key: 'id',
-        },
-      },
       plugin_parametertype: {
         type: DataTypes.STRING(10),
         allowNull: true,
         defaultValue: null,
       },
       aim_uid: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
+        type: DataTypes.JSON,
+        allowNull: true,
       },
-      container_id: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-      },
-      container_name: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
+      runtime_params: {
+        type: DataTypes.JSON,
+        allowNull: true,
       },
       max_memory: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
+        defaultValue: null,
       },
       status: {
-        type: DataTypes.STRING(10),
+        type: DataTypes.STRING(7),
         allowNull: true,
         defaultValue: null,
       },

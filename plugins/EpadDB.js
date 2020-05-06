@@ -183,8 +183,36 @@ async function epaddb(fastify, options, done) {
             as: 'queueplugin',
             foreignKey: 'plugin_id',
           });
+          models.plugin_queue.belongsTo(models.project, {
+            as: 'queueproject',
+            foreignKey: 'project_id',
+          });
           //  Post.find({ where: { ...}, include: [User]})
 
+          // below added to join queue -> project and plugin
+          // models.Plugin.belongsToMany(models.Project, {
+          //   through: 'plugin_queue',
+          //   foreignKey: 'plugin_id',
+          //   otherKey: 'project_id',
+          // });
+
+          // models.Project.belongsToMany(models.Plugin, {
+          //   through: 'plugin_queue',
+          //   foreignKey: 'project_id',
+          //   otherKey: 'plugin_id',
+          // });
+
+          // usage below
+          // User.findAll({
+          //   include: [
+          //     {
+          //       model: Team,
+          //       include: [
+          //         Folder
+          //       ]
+          //     }
+          //   ]
+          // });
           //  cavit
 
           models.project.hasMany(models.project_subject, {
@@ -584,7 +612,21 @@ async function epaddb(fastify, options, done) {
         reply.code(500).send(new InternalError('Getting plugin list', err));
       });
   });
-
+  fastify.decorate('getPluginsForProject', async (request, reply) => {
+    const paramProjectId = request.params.projectid;
+    models.project
+      .findOne({
+        include: ['projectplugin'],
+        where: { projectid: paramProjectId },
+      })
+      .then(plugins => {
+        console.log('plugins for project :', plugins);
+        reply.code(200).send(plugins);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError('Getting plugin list for the project', err));
+      });
+  });
   fastify.decorate('getTemplatesDataFromDb', (request, reply) => {
     models.template
       .findAll()
@@ -1609,33 +1651,136 @@ async function epaddb(fastify, options, done) {
           );
       });
   });
-  fastify.decorate('addPluginsToQueue', async (request, reply) => {
-    // plugin queue table, column status can have these string values: waiting, running, terminated,error, null
-    // plugin queue table column plugin_parametertype  can have these string values: default, project, template, annotation
+  fastify.decorate('deleteFromPluginQueue', (request, reply) => {
+    console.log('request body ids ', request.body);
+    const parameterIdToDelete = request.body;
+
+    models.plugin_queue
+      .destroy({
+        where: {
+          id: parameterIdToDelete,
+        },
+      })
+      .then(() => {
+        reply.code(200).send('one process deleted seccessfully from the queue');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError('Something went wrong while deleting the process from queue', err)
+          );
+      });
+
+    //  reply.code(200).send('Plugin deleted seccessfully');
+  });
+  fastify.decorate('addPluginsToQueue', (request, reply) => {
+    // plugin queue table, column status can have these string values: waiting, running, ended,error, added
+    // plugin queue table column plugin_parametertype  can have these string values: default, project, template, runtime
     //  change this function to get selected project, logged user , selected template and selected aims ,
     //  onces these received get data from tables iternally and start queue
-    //  console.log('request. params : -----------', request.body);
-    //  const { projectids  templateids, annotationuids, } = request.body;
-    const projectids = [];
-    projectids.push(16);
-    try {
-      const projectPluginTable = await models.project_plugin.findAll({
-        include: ['projectpluginrowbyrow'],
-        where: {
-          project_id: projectids,
+
+    // queueObject: {
+    //   queueId: -1,
+    //   projectDbId: -1,
+    //   projectId: "",
+    //   projectName: "",
+    //   pluginDbId: -1,
+    //   pluginId: "",
+    //   pluginName: "",
+    //   pluginType: "", //local or pluginstore
+    //   processMultipleAims: null, // -1 : -> null -> no aim ; 0 -> only one aim ; 1-> multiple aim
+    //   runtimeParams: {},
+    //   parameterType: "",
+    //   aims: {},
+    // },
+    const promisesCreateForEachAnnotation = [];
+    //console.log('request. body : -----------', request.body);
+    const queueObjects = request.body;
+    //console.log('type of param type : ', typeof queueObjects.processMultipleAims);
+    // if each aim is a plugin process
+    if (queueObjects.processMultipleAims === 0) {
+      const tempAims = { ...queueObjects.aims };
+      // eslint-disable-next-line no-restricted-syntax
+      for (const [key, value] of Object.entries(tempAims)) {
+        // console.log('multi aim create key :', key, ': value ', tempAims[key]);
+        const newAimObject = {};
+        newAimObject[key] = value;
+        //console.log('new aim object : ', newAimObject);
+        promisesCreateForEachAnnotation.push(
+          models.plugin_queue.create({
+            plugin_id: queueObjects.pluginDbId,
+            project_id: queueObjects.projectDbId,
+            template_id: -1,
+            plugin_parametertype: queueObjects.parameterType,
+            creator: request.epadAuth.username,
+            status: 'added',
+            runtime_params: queueObjects.runtimeParams,
+            aim_uid: newAimObject,
+            endtime: '1970-01-01 00:00:01',
+          })
+        );
+      }
+
+      Promise.all(promisesCreateForEachAnnotation)
+        .then(() => {
+          reply
+            .code(200)
+            .send('plugin process added to the plugin queue for each selected annotation');
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError(
+                'Something went wrong while adding each selected annotation to the plugin queue',
+                err
+              )
+            );
+        });
+    } else {
+      // if all aims are sent to same plugin process
+      models.plugin_queue
+        .create({
+          plugin_id: queueObjects.pluginDbId,
+          project_id: queueObjects.projectDbId,
+          template_id: -1,
+          plugin_parametertype: queueObjects.parameterType,
           creator: request.epadAuth.username,
-        },
-      });
-    } catch (err) {
-      reply.send(new InternalError('running queue error', err));
+          status: 'added',
+          runtime_params: queueObjects.runtimeParams,
+          aim_uid: queueObjects.aims,
+          endtime: '1970-01-01 00:00:01',
+        })
+        .then(() => {
+          reply.code(200).send('plugin process added to the plugin queue');
+          //  const dock = new dockerService();
+          // dock.createContainer('myimage:1.0', 'test').then(data => {
+          //   console.log('returned outer', data);
+          //   reply.code(200).send('ok');
+          // });
+          //  dock.pullImage('ubuntu:latest', 'test2');
+          //  dock.createVolume('cavcav');
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError(
+                'Something went wrong while adding plugin process to the queue',
+                err
+              )
+            );
+        });
     }
   });
+
   fastify.decorate('getPluginsQueue', (request, reply) => {
     console.log('plugin queue list called');
     const result = [];
     models.plugin_queue
       .findAll({
-        include: ['queueplugin'],
+        include: ['queueplugin', 'queueproject'],
         required: false,
       })
       .then(eachRowObj => {
@@ -1645,19 +1790,21 @@ async function epaddb(fastify, options, done) {
           const pluginObj = {
             id: data.dataValues.id,
             plugin_id: data.dataValues.plugin_id,
+            project_id: data.dataValues.project_id,
             plugin_parametertype: data.dataValues.plugin_parametertype,
             aim_uid: data.dataValues.aim_uid,
-            container_id: data.dataValues.container_id,
-            container_name: data.dataValues.container_name,
+            runtime_params: data.dataValues.runtime_params,
             max_memory: data.dataValues.max_memory,
             status: data.dataValues.status,
+            creator: data.dataValues.creator,
             starttime: data.dataValues.starttime,
             endtime: data.dataValues.endtime,
-            plugin: {},
-            parameters: [],
           };
           if (data.dataValues.queueplugin !== null) {
             pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+          }
+          if (data.dataValues.queueproject !== null) {
+            pluginObj.project = { ...data.dataValues.queueproject.dataValues };
           }
           result.push(pluginObj);
         });
@@ -1677,23 +1824,22 @@ async function epaddb(fastify, options, done) {
       await models.plugin_queue
         .findAll({
           include: ['queueplugin'],
-          where: { status: null },
+          where: { status: 'added' },
         })
         .then(eachRowObj => {
           eachRowObj.forEach(data => {
             const pluginObj = {
               id: data.dataValues.id,
               plugin_id: data.dataValues.plugin_id,
+              project_id: data.dataValues.project_id,
               plugin_parametertype: data.dataValues.plugin_parametertype,
               aim_uid: data.dataValues.aim_uid,
-              container_id: data.dataValues.container_id,
-              container_name: data.dataValues.container_name,
+              runtime_params: data.dataValues.runtime_params,
               max_memory: data.dataValues.max_memory,
               status: data.dataValues.status,
+              creator: data.dataValues.creator,
               starttime: data.dataValues.starttime,
               endtime: data.dataValues.endtime,
-              plugin: {},
-              parameters: [],
             };
             if (data.dataValues.queueplugin !== null) {
               pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
@@ -1710,39 +1856,191 @@ async function epaddb(fastify, options, done) {
     }
   });
   //  internal functions
+  fastify.decorate('getPluginProjectParametersInternal', (pluginid, projectid) => {
+    const parameters = [];
+    return models.plugin_projectparameters
+      .findAll({
+        where: { plugin_id: pluginid, project_id: projectid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            project_id: parameter.dataValues.project_id,
+            paramid: parameter.dataValues.paramid,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        //  console.log('parametes ------>', parameters);
+        return parameters;
+      })
+      .catch(err => {
+        return new InternalError('error while getPluginProjectParametersInternal', err);
+      });
+  });
+  fastify.decorate('getPluginDeafultParametersInternal', pluginid => {
+    const parameters = [];
+    return models.plugin_parameters
+      .findAll({
+        where: { plugin_id: pluginid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            paramid: parameter.dataValues.paramid,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        //  console.log('parametes ------>', parameters);
+        return parameters;
+      })
+      .catch(err => {
+        return new InternalError('error while getPluginDeafultParametersInternal', err);
+      });
+  });
+  fastify.decorate('createPluginFoldersInternal', queueObject => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const parametertype = queueObject.plugin_parametertype;
+        const pluginid = queueObject.plugin_id;
+        const projectid = queueObject.project_id;
+        const processMultipleAims = queueObject.plugin.processmultipleaims;
+
+        const pluginsDataFolder = path.join(
+          __dirname,
+          `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/`
+        );
+
+        switch (parametertype) {
+          case 'default':
+            fastify
+              .getPluginDeafultParametersInternal(pluginid)
+              .then(result => {
+                console.log('result : createPluginFoldersInternal : params for default : ', result);
+                console.log('+++++++++++++++++++++++++++++++++++++++++++++++');
+              })
+              .catch(err => {
+                new InternalError('error while getPluginDeafultParametersInternal', err);
+              });
+
+            break;
+          case 'project':
+            console.log('pluginid', pluginid);
+            console.log('projectid', projectid);
+            fastify
+              .getPluginProjectParametersInternal(pluginid, projectid)
+              .then(result => {
+                console.log(
+                  'result : getPluginProjectParametersInternal : params for project : ',
+                  result
+                );
+                console.log('+++++++++++++++++++++++++++++++++++++++++++++++');
+              })
+              .catch(err => {
+                new InternalError('error while getPluginProjectParametersInternal', err);
+              });
+
+            break;
+          case 'runtime':
+            console.log('process multi ', processMultipleAims);
+            if (processMultipleAims === null || processMultipleAims === 1) {
+              console.log('runtime 1 or null');
+            } else {
+              console.log('runtime  0 ');
+            }
+
+            console.log('+++++++++++++++++++++++++++++++++++++++++++++++');
+            break;
+          default:
+          // code block
+        }
+
+        if (!fs.existsSync(pluginsDataFolder)) {
+          fs.mkdirSync(pluginsDataFolder);
+        }
+        // console.log('folder name : ', pluginsDataFolder);
+        // console.log('passed queue object :', queueObject);
+        resolve('returned');
+        //const user = await models.user.findOne({ where: { id: userid }, attributes: ['username'] });
+        // if (user === null) {
+        //   reject(new ResourceNotFoundError('User', userid));
+        // } else {
+        //   resolve('username');
+        // }
+      } catch (err) {
+        reject(new InternalError('error while creating plugin user folders', err));
+      }
+    });
+  });
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
+    console.log('plugin queue list : ', pluginQueueList);
+    console.log('+++++++++++++++++++++++++++++++++++++++++++++++');
     //  const dir = '/pluginsDataFolder/cavit';
-    const pluginsDataFolder = path.join(__dirname, '../pluginsDataFolder/cavit');
-    if (!fs.existsSync(pluginsDataFolder)) {
-      fs.mkdirSync(pluginsDataFolder);
-    }
 
-    const dock = new DockerService();
     for (let i = 0; i < pluginQueueList.length; i += 1) {
-      const eachQueueObj = pluginQueueList[i];
-
-      const image = `${eachQueueObj.plugin.image_repo}:${eachQueueObj.plugin.image_tag}`;
-      let oprationresult = '';
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        await dock.createContainer(image, '');
-        oprationresult = ` plugin image : ${image} terminated with success`;
-        new EpadNotification(request, oprationresult, 'success', true).notify(fastify);
-      } catch (err) {
-        oprationresult = `plugin terminated with error : ${err}`;
-        new EpadNotification(request, oprationresult, err, true).notify(fastify);
-      }
-      //  request, info, reason, refresh
+      // eslint-disable-next-line no-await-in-loop
+      const returnCreatePluginFolders = await fastify.createPluginFoldersInternal(
+        pluginQueueList[i]
+      );
     }
-    await models.user
-      .findOne({
-        include: ['projects'],
-        where: { username: request.epadAuth.username },
-      })
-      .then(userObj => {
-        console.log('getting all projects for user', userObj.dataValues.projects);
-      });
+    //  below here used
+
+    // const dock = new DockerService();
+    // for (let i = 0; i < pluginQueueList.length; i += 1) {
+    //   const eachQueueObj = pluginQueueList[i];
+
+    //   const image = `${eachQueueObj.plugin.image_repo}:${eachQueueObj.plugin.image_tag}`;
+    //   let oprationresult = '';
+    //   try {
+    //     // eslint-disable-next-line no-await-in-loop
+    //     await dock.createContainer(image, '');
+    //     oprationresult = ` plugin image : ${image} terminated with success`;
+    //     new EpadNotification(request, oprationresult, 'success', true).notify(fastify);
+    //   } catch (err) {
+    //     oprationresult = `plugin terminated with error : ${err}`;
+    //     new EpadNotification(request, oprationresult, err, true).notify(fastify);
+    //   }
+    //  request, info, reason, refresh
+    // }
+
+    // above here used
+    //
+    // await models.user
+    //   .findOne({
+    //     include: ['projects'],
+    //     where: { username: request.epadAuth.username },
+    //   })
+    //   .then(userObj => {
+    //     console.log('getting all projects for user', userObj.dataValues.projects);
+    //   });
   });
   //  internal functions end
   //  docker section
