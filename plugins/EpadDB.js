@@ -8,6 +8,7 @@ const os = require('os');
 const schedule = require('node-schedule-tz');
 const archiver = require('archiver');
 const toArrayBuffer = require('to-array-buffer');
+const unzip = require('unzip-stream');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -620,7 +621,7 @@ async function epaddb(fastify, options, done) {
         where: { projectid: paramProjectId },
       })
       .then(plugins => {
-        console.log('plugins for project :', plugins);
+        //  console.log('plugins for project :', plugins);
         reply.code(200).send(plugins);
       })
       .catch(err => {
@@ -1852,7 +1853,7 @@ async function epaddb(fastify, options, done) {
 
       fastify.runPluginsQueueInternal(result, request);
     } catch (err) {
-      reply.send(new InternalError('running queue error', err));
+      reply.send(new InternalError(' plugin queue error while starting', err));
     }
   });
   //  internal functions
@@ -1925,26 +1926,132 @@ async function epaddb(fastify, options, done) {
         return new InternalError('error while getPluginDeafultParametersInternal', err);
       });
   });
-  fastify.decorate('createPluginFoldersInternal', queueObject => {
+  fastify.decorate(
+    'createPluginfoldersInternal',
+    (pluginparams, userfolder, aims, processmultipleaims, request) => {
+      return new Promise(async (resolve, reject) => {
+        try {
+          // if (!fs.existsSync(pluginsDataFolder)) {
+          //   fs.mkdirSync(pluginsDataFolder);
+          // }
+          console.log('aims ', aims);
+          console.log(Object.keys(aims));
+          console.log(' creating plugin fodlers :', userfolder);
+          console.log(' creating plugin fodlers params :', pluginparams);
+          console.log('type of pluginparams', Array.isArray(pluginparams));
+          if (Array.isArray(pluginparams)) {
+            for (let i = 0; i < pluginparams.length; i += 1) {
+              console.log(pluginparams[i].format);
+              if (pluginparams[i].format === 'InputFolder') {
+                console.log(pluginparams[i].paramid);
+                const inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
+                console.log(inputfolder);
+                if (!fs.existsSync(inputfolder)) {
+                  fs.mkdirSync(inputfolder, { recursive: true });
+                }
+                switch (pluginparams[i].paramid) {
+                  case 'aims':
+                    fastify
+                      .getAimsInternal('stream', {}, Object.keys(aims), request.epadAuth)
+                      // eslint-disable-next-line no-loop-func
+                      .then(source => {
+                        // const readStream = fs.createReadStream(source.path);
+                        const writeStream = fs.createWriteStream(`${inputfolder}annotations.zip`);
+                        source
+                          .pipe(writeStream)
+                          .on('close', () => {
+                            fastify.log.info(
+                              `Aims zip copied to aims folder ${inputfolder}annotations.zip`
+                            );
+
+                            fs.createReadStream(`${inputfolder}annotations.zip`)
+                              .pipe(unzip.Extract({ path: `${inputfolder}annotations` }))
+                              .on('close', () => {
+                                fastify.log.info(`${inputfolder}annotations.zip extracted`);
+                                fs.remove(`${inputfolder}annotations.zip`, error => {
+                                  if (error)
+                                    fastify.log.info(
+                                      `Zip annotations.zip file deletion error ${error.message}`
+                                    );
+                                  else fastify.log.info(`${inputfolder}annotations.zip deleted`);
+                                });
+                              })
+                              .on('error', error => {
+                                return new InternalError(
+                                  `Extracting zip ${inputfolder}annotations.zip`,
+                                  error
+                                );
+                              });
+                          })
+                          .on('error', error => {
+                            return new InternalError(
+                              `Copying zip ${inputfolder}annotations.zip`,
+                              error
+                            );
+                          });
+                      })
+                      .catch(err => {
+                        return new InternalError('error while writing file', err);
+                      });
+
+                    //console.log('download aim ', returnaim);
+                    break;
+                  case 'dicoms':
+                    break;
+                  case 'dso':
+                    break;
+                  default:
+                  // code block
+                }
+              }
+            }
+          } else {
+            console.log('pluginparams not array');
+          }
+          resolve('returned');
+        } catch (err) {
+          reject(new InternalError('error while creating plugin folders', err));
+        }
+      });
+    }
+  );
+  fastify.decorate('extractPluginParamtersInternal', (queueObject, request) => {
     return new Promise(async (resolve, reject) => {
       try {
         const parametertype = queueObject.plugin_parametertype;
         const pluginid = queueObject.plugin_id;
         const projectid = queueObject.project_id;
-        const processMultipleAims = queueObject.plugin.processmultipleaims;
+        const { processmultipleaims } = queueObject.plugin.processmultipleaims;
+        const runtimeParams = queueObject.runtime_params;
+        const aims = queueObject.aim_uid;
+        let paramsToSendToContainer = [];
 
         const pluginsDataFolder = path.join(
           __dirname,
           `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/`
         );
-
+        if (!fs.existsSync(pluginsDataFolder)) {
+          fs.mkdirSync(pluginsDataFolder, { recursive: true });
+        }
+        console.log('extractPluginParamters switch parameter type', parametertype);
         switch (parametertype) {
           case 'default':
             fastify
               .getPluginDeafultParametersInternal(pluginid)
               .then(result => {
-                console.log('result : createPluginFoldersInternal : params for default : ', result);
-                console.log('+++++++++++++++++++++++++++++++++++++++++++++++');
+                paramsToSendToContainer = result;
+                return fastify
+                  .createPluginfoldersInternal(
+                    paramsToSendToContainer,
+                    pluginsDataFolder,
+                    aims,
+                    processmultipleaims,
+                    request
+                  )
+                  .then({})
+                  .catch(err => {
+                    new InternalError('error while createPluginfolders', err);
+                  });
               })
               .catch(err => {
                 new InternalError('error while getPluginDeafultParametersInternal', err);
@@ -1952,16 +2059,22 @@ async function epaddb(fastify, options, done) {
 
             break;
           case 'project':
-            console.log('pluginid', pluginid);
-            console.log('projectid', projectid);
             fastify
               .getPluginProjectParametersInternal(pluginid, projectid)
               .then(result => {
-                console.log(
-                  'result : getPluginProjectParametersInternal : params for project : ',
-                  result
-                );
-                console.log('+++++++++++++++++++++++++++++++++++++++++++++++');
+                paramsToSendToContainer = result;
+                return fastify
+                  .createPluginfoldersInternal(
+                    paramsToSendToContainer,
+                    pluginsDataFolder,
+                    aims,
+                    processmultipleaims,
+                    request
+                  )
+                  .then({})
+                  .catch(err => {
+                    new InternalError('error while createPluginfolders', err);
+                  });
               })
               .catch(err => {
                 new InternalError('error while getPluginProjectParametersInternal', err);
@@ -1969,24 +2082,28 @@ async function epaddb(fastify, options, done) {
 
             break;
           case 'runtime':
-            console.log('process multi ', processMultipleAims);
-            if (processMultipleAims === null || processMultipleAims === 1) {
-              console.log('runtime 1 or null');
+            if (processmultipleaims === null || processmultipleaims === 1) {
+              paramsToSendToContainer = runtimeParams;
             } else {
-              console.log('runtime  0 ');
+              paramsToSendToContainer = aims[Object.keys(aims)[0]].pluginparamters;
             }
-
-            console.log('+++++++++++++++++++++++++++++++++++++++++++++++');
+            fastify
+              .createPluginfoldersInternal(
+                paramsToSendToContainer,
+                pluginsDataFolder,
+                aims,
+                processmultipleaims,
+                request
+              )
+              .then({})
+              .catch(err => {
+                new InternalError('error while createPluginfolders', err);
+              });
             break;
           default:
           // code block
         }
 
-        if (!fs.existsSync(pluginsDataFolder)) {
-          fs.mkdirSync(pluginsDataFolder);
-        }
-        // console.log('folder name : ', pluginsDataFolder);
-        // console.log('passed queue object :', queueObject);
         resolve('returned');
         //const user = await models.user.findOne({ where: { id: userid }, attributes: ['username'] });
         // if (user === null) {
@@ -1995,7 +2112,7 @@ async function epaddb(fastify, options, done) {
         //   resolve('username');
         // }
       } catch (err) {
-        reject(new InternalError('error while creating plugin user folders', err));
+        reject(new InternalError('error while extracting plugin parameters', err));
       }
     });
   });
@@ -2007,8 +2124,9 @@ async function epaddb(fastify, options, done) {
 
     for (let i = 0; i < pluginQueueList.length; i += 1) {
       // eslint-disable-next-line no-await-in-loop
-      const returnCreatePluginFolders = await fastify.createPluginFoldersInternal(
-        pluginQueueList[i]
+      const returnExtractPluginFolders = await fastify.extractPluginParamtersInternal(
+        pluginQueueList[i],
+        request
       );
     }
     //  below here used
