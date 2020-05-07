@@ -1939,22 +1939,24 @@ async function epaddb(fastify, options, done) {
           console.log(' creating plugin fodlers :', userfolder);
           console.log(' creating plugin fodlers params :', pluginparams);
           console.log('type of pluginparams', Array.isArray(pluginparams));
+          let inputfolder = null;
           if (Array.isArray(pluginparams)) {
             for (let i = 0; i < pluginparams.length; i += 1) {
               console.log(pluginparams[i].format);
               if (pluginparams[i].format === 'InputFolder') {
                 console.log(pluginparams[i].paramid);
-                const inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
-                console.log(inputfolder);
-                if (!fs.existsSync(inputfolder)) {
-                  fs.mkdirSync(inputfolder, { recursive: true });
-                }
+
                 switch (pluginparams[i].paramid) {
                   case 'aims':
                     fastify
                       .getAimsInternal('stream', {}, Object.keys(aims), request.epadAuth)
                       // eslint-disable-next-line no-loop-func
                       .then(source => {
+                        inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
+                        console.log(inputfolder);
+                        if (!fs.existsSync(inputfolder)) {
+                          fs.mkdirSync(inputfolder, { recursive: true });
+                        }
                         // const readStream = fs.createReadStream(source.path);
                         const writeStream = fs.createWriteStream(`${inputfolder}annotations.zip`);
                         source
@@ -1965,7 +1967,7 @@ async function epaddb(fastify, options, done) {
                             );
 
                             fs.createReadStream(`${inputfolder}annotations.zip`)
-                              .pipe(unzip.Extract({ path: `${inputfolder}annotations` }))
+                              .pipe(unzip.Extract({ path: `${inputfolder}` }))
                               .on('close', () => {
                                 fastify.log.info(`${inputfolder}annotations.zip extracted`);
                                 fs.remove(`${inputfolder}annotations.zip`, error => {
@@ -1997,6 +1999,11 @@ async function epaddb(fastify, options, done) {
                     //console.log('download aim ', returnaim);
                     break;
                   case 'dicoms':
+                    inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
+                    console.log(inputfolder);
+                    if (!fs.existsSync(inputfolder)) {
+                      fs.mkdirSync(inputfolder, { recursive: true });
+                    }
                     break;
                   case 'dso':
                     break;
