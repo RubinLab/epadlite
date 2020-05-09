@@ -1261,7 +1261,7 @@ describe('User Rights Tests', () => {
           done(e);
         });
     });
-    it('should fail in creating new worklist for testMember by testMember', done => {
+    it('should fail in creating new worklist for testCollaborator by testMember', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/worklists')
@@ -1271,7 +1271,7 @@ describe('User Rights Tests', () => {
           worklistId: 'testWorklistMember',
           description: 'testdesc',
           duedate: '2019-12-01',
-          assignees: ['testMember@gmail.com'],
+          assignees: ['testCollaborator@gmail.com'],
         })
         .then(res => {
           expect(res.statusCode).to.equal(403);

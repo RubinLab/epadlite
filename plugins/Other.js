@@ -9,6 +9,7 @@ window = {};
 const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
+const { createOfflineAimSegmentation } = require('aimapi');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -252,47 +253,108 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate('getDicomInfo', arrayBuffer => {
-    const dicomTags = dcmjs.data.DicomMessage.readFile(arrayBuffer);
-    return JSON.stringify({
-      subject:
-        dicomTags.dict['00100020'] && dicomTags.dict['00100020'].Value
-          ? dicomTags.dict['00100020'].Value[0]
-          : '',
-      study:
-        dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
-          ? dicomTags.dict['0020000D'].Value[0]
-          : '',
-      subjectName:
-        dicomTags.dict['00100010'] && dicomTags.dict['00100010'].Value
-          ? dicomTags.dict['00100010'].Value[0]
-          : '',
-      studyDesc:
-        dicomTags.dict['00081030'] && dicomTags.dict['00081030'].Value
-          ? dicomTags.dict['00081030'].Value[0]
-          : '',
-      insertDate:
-        dicomTags.dict['00080020'] && dicomTags.dict['00080020'].Value
-          ? dicomTags.dict['00080020'].Value[0]
-          : '',
-      birthdate:
-        dicomTags.dict['00100030'] && dicomTags.dict['00100030'].Value
-          ? dicomTags.dict['00100030'].Value[0]
-          : '',
-      sex:
-        dicomTags.dict['00100040'] && dicomTags.dict['00100040'].Value
-          ? dicomTags.dict['00100040'].Value[0]
-          : '',
-      // seriesUID:
-      //   dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
-      //     ? dicomTags.dict['0020000E'].Value[0]
-      //     : '',
-      // imageUID:
-      //   dicomTags.dict['00080018'] && dicomTags.dict['00080018'].Value
-      //     ? dicomTags.dict['00080018'].Value[0]
-      //     : '',
-    });
-  });
+  fastify.decorate(
+    'saveAimJsonWithProjectRef',
+    (aimJson, params, epadAuth, filename) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          fastify
+            .saveAimInternal(aimJson)
+            .then(async () => {
+              try {
+                await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
+                if (filename) fastify.log.info(`Saving successful for ${filename}`);
+                resolve({ success: true, errors: [] });
+              } catch (errProject) {
+                reject(errProject);
+              }
+            })
+            .catch(err => {
+              reject(err);
+            });
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getDicomInfo',
+    (arrayBuffer, params, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const dicomTags = dcmjs.data.DicomMessage.readFile(arrayBuffer);
+          const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(dicomTags.dict);
+          // eslint-disable-next-line no-underscore-dangle
+          dataset._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(dicomTags.meta);
+          if (dataset.Modality === 'SEG') {
+            const aimExist = await fastify.checkProjectSegAimExistence(
+              dataset.SeriesInstanceUID,
+              params.project
+            );
+            // create a segmentation aim if it doesn't exist
+            if (!aimExist) {
+              fastify.log.info(
+                `A segmentation is uploaded with series UID ${
+                  dataset.SeriesInstanceUID
+                } which doesn't have an aim, generating an aim with name ${
+                  dataset.SeriesDescription
+                } `
+              );
+              const { aim } = createOfflineAimSegmentation(dataset, {
+                loginName: 'admin', // TODO assuming admin user
+                name: 'Admin',
+              });
+              const aimJson = aim.getAimJSON();
+              await fastify.saveAimJsonWithProjectRef(aimJson, params, epadAuth);
+            }
+          }
+          resolve(
+            JSON.stringify({
+              subject:
+                dicomTags.dict['00100020'] && dicomTags.dict['00100020'].Value
+                  ? dicomTags.dict['00100020'].Value[0]
+                  : '',
+              study:
+                dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
+                  ? dicomTags.dict['0020000D'].Value[0]
+                  : '',
+              subjectName:
+                dicomTags.dict['00100010'] && dicomTags.dict['00100010'].Value
+                  ? dicomTags.dict['00100010'].Value[0]
+                  : '',
+              studyDesc:
+                dicomTags.dict['00081030'] && dicomTags.dict['00081030'].Value
+                  ? dicomTags.dict['00081030'].Value[0]
+                  : '',
+              insertDate:
+                dicomTags.dict['00080020'] && dicomTags.dict['00080020'].Value
+                  ? dicomTags.dict['00080020'].Value[0]
+                  : '',
+              birthdate:
+                dicomTags.dict['00100030'] && dicomTags.dict['00100030'].Value
+                  ? dicomTags.dict['00100030'].Value[0]
+                  : '',
+              sex:
+                dicomTags.dict['00100040'] && dicomTags.dict['00100040'].Value
+                  ? dicomTags.dict['00100040'].Value[0]
+                  : '',
+              // seriesUID:
+              //   dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
+              //     ? dicomTags.dict['0020000E'].Value[0]
+              //     : '',
+              // imageUID:
+              //   dicomTags.dict['00080018'] && dicomTags.dict['00080018'].Value
+              //     ? dicomTags.dict['00080018'].Value[0]
+              //     : '',
+            })
+          );
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate(
     'processZip',
@@ -452,13 +514,14 @@ async function other(fastify) {
           readableStream.on('close', () => {
             readableStream.destroy();
           });
-          readableStream.on('end', () => {
+          readableStream.on('end', async () => {
             buffer = Buffer.concat(buffer);
             // fastify.log.info(`Finished reading ${dir}/${filename}. Buffer length ${buffer.length}`);
             if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
               try {
                 const arrayBuffer = toArrayBuffer(buffer);
-                studies.add(fastify.getDicomInfo(arrayBuffer));
+                const dicomInfo = await fastify.getDicomInfo(arrayBuffer, params, epadAuth);
+                studies.add(dicomInfo);
                 datasets.push(arrayBuffer);
                 resolve({ success: true, errors: [] });
               } catch (err) {
@@ -489,12 +552,11 @@ async function other(fastify) {
                   });
               } else {
                 fastify
-                  .saveAimInternal(jsonBuffer)
-                  .then(async () => {
+                  .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
+                  .then(res => {
                     try {
-                      await fastify.addProjectAimRelInternal(jsonBuffer, params.project, epadAuth);
                       fastify.log.info(`Saving successful for ${filename}`);
-                      resolve({ success: true, errors: [] });
+                      resolve(res);
                     } catch (errProject) {
                       reject(errProject);
                     }
@@ -520,13 +582,22 @@ async function other(fastify) {
                 )
                 .then(() => resolve({ success: true, errors: [] }))
                 .catch(err => reject(err));
-            else
-              reject(
-                new BadRequestError(
-                  'Uploading files',
-                  new Error(`Unsupported filetype for file ${dir}/${filename}`)
-                )
-              );
+            else {
+              // check to see if it is a dicom file with no dcm extension
+              try {
+                const arrayBuffer = toArrayBuffer(buffer);
+                studies.add(fastify.getDicomInfo(arrayBuffer));
+                datasets.push(arrayBuffer);
+                resolve({ success: true, errors: [] });
+              } catch (err) {
+                reject(
+                  new BadRequestError(
+                    'Uploading files',
+                    new Error(`Unsupported filetype for file ${dir}/${filename}`)
+                  )
+                );
+              }
+            }
           });
         } catch (err) {
           reject(new InternalError(`Processing file ${filename}`, err));
@@ -792,6 +863,7 @@ async function other(fastify) {
         users: 'user',
         worklists: 'worklist',
       };
+      if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
         if (reqInfo.method === 'POST') reqInfo.level = levels[urlParts[urlParts.length - 1]];
         else reqInfo.level = urlParts[urlParts.length - 1];
@@ -995,12 +1067,14 @@ async function other(fastify) {
       // eslint-disable-next-line no-param-reassign
       fastify.messageId += 1;
       fastify.connectedUsers[username].write(`data: ${JSON.stringify(messageJson)}\n\n`);
+      return true;
     }
+    return false;
   });
   fastify.decorate(
     'addConnectedUser',
     // eslint-disable-next-line no-return-assign
-    (req, res) => {
+    async (req, res) => {
       fastify.log.info(
         `Adding ${req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'}`
       );
@@ -1008,6 +1082,8 @@ async function other(fastify) {
       fastify.connectedUsers[
         req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'
       ] = res.res;
+      // send unsent notifications
+      await fastify.getUnnotifiedEventLogs(req);
     }
   );
   fastify.decorate(
@@ -1229,7 +1305,15 @@ async function other(fastify) {
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
-              if (!fastify.hasCreatePermission(request, reqInfo.level))
+              if (
+                !fastify.hasCreatePermission(request, reqInfo.level) &&
+                !(
+                  reqInfo.level === 'worklist' &&
+                  request.body.assignees &&
+                  request.body.assignees.length === 1 &&
+                  request.body.assignees[0] === request.epadAuth.username
+                )
+              )
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner

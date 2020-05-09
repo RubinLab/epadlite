@@ -218,6 +218,53 @@ async function couchdb(fastify, options) {
     return row;
   });
 
+  fastify.decorate('getCalculationHeaders', (imageAnnotation, header) => {
+    // very clumsy, long code, but traverses once
+    // Imaging observation, imaging physical entity
+    if (imageAnnotation.calculationEntityCollection) {
+      let calcs = [];
+      if (Array.isArray(imageAnnotation.calculationEntityCollection.CalculationEntity)) {
+        calcs = imageAnnotation.calculationEntityCollection.CalculationEntity;
+      } else {
+        calcs.push(imageAnnotation.calculationEntityCollection.CalculationEntity);
+      }
+      calcs.forEach(calc => {
+        header.push({ id: calc.description.value.toLowerCase(), title: calc.description.value });
+      });
+    }
+    return header;
+  });
+
+  fastify.decorate('getCalculationData', (imageAnnotation, rowIn) => {
+    // very clumsy, long code, but traverses once
+    const row = rowIn;
+    // add imagingPhysicalEntitys
+    if (imageAnnotation.calculationEntityCollection) {
+      let calcs = [];
+      if (Array.isArray(imageAnnotation.calculationEntityCollection.CalculationEntity)) {
+        calcs = imageAnnotation.calculationEntityCollection.CalculationEntity;
+      } else {
+        calcs.push(imageAnnotation.calculationEntityCollection.CalculationEntity);
+      }
+      calcs.forEach(calc => {
+        if (
+          calc.calculationResultCollection &&
+          calc.calculationResultCollection.CalculationResult[0]
+        ) {
+          const calcResult = calc.calculationResultCollection.CalculationResult[0];
+          if (calcResult['xsi:type'] === 'CompactCalculationResult')
+            row[calc.description.value.toLowerCase()] = `${calcResult.value.value} ${
+              calcResult.unitOfMeasure.value
+            }`;
+          else {
+            // TODO handle old aims
+          }
+        }
+      });
+    }
+    return row;
+  });
+
   fastify.decorate(
     'downloadAims',
     (params, aims) =>
@@ -256,7 +303,10 @@ async function couchdb(fastify, options) {
                 imageAnnotations.forEach(imageAnnotation => {
                   const commentSplit = imageAnnotation.comment.value.split('~~');
                   const points = [];
-                  if (imageAnnotation.markupEntityCollection) {
+                  if (
+                    imageAnnotation.markupEntityCollection &&
+                    imageAnnotation.markupEntityCollection.MarkupEntity[0]
+                  ) {
                     imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
                       coor => {
                         points.push(`(${coor.x.value} ${coor.y.value})`);
@@ -264,8 +314,9 @@ async function couchdb(fastify, options) {
                     );
                   }
 
+                  header = fastify.getCalculationHeaders(imageAnnotation, header);
                   header = fastify.getOtherHeaders(imageAnnotation, header);
-
+                  header = fastify.arrayUnique(header, 'id');
                   // add values common to all annotations
                   let row = {
                     date: dateFormatter.asString(
@@ -293,6 +344,7 @@ async function couchdb(fastify, options) {
                         .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
                   };
 
+                  row = fastify.getCalculationData(imageAnnotation, row);
                   row = fastify.getOtherData(imageAnnotation, row);
                   data.push(row);
                 });
@@ -660,17 +712,17 @@ async function couchdb(fastify, options) {
   });
 
   // template accessors
-  fastify.decorate('getTemplates', (request, reply) => {
-    fastify
-      .getTemplatesInternal(request.query)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=templates.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.send(err));
-  });
+  // fastify.decorate('getTemplates', (request, reply) => {
+  //   fastify
+  //     .getTemplatesInternal(request.query)
+  //     .then(result => {
+  //       if (request.query.format === 'stream') {
+  //         reply.header('Content-Disposition', `attachment; filename=templates.zip`);
+  //       }
+  //       reply.code(200).send(result);
+  //     })
+  //     .catch(err => reply.send(err));
+  // });
 
   fastify.decorate(
     'getTemplatesInternal',

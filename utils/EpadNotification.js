@@ -1,5 +1,5 @@
 class EpadNotification {
-  constructor(request, info, reason, refresh) {
+  constructor(request, info, reason, refresh, logId) {
     this.notification = {
       projectID: EpadNotification.getProject(request.req.url),
       username: request.epadAuth.username ? request.epadAuth.username : 'nouser',
@@ -9,6 +9,8 @@ class EpadNotification {
       error: reason instanceof Error,
       refresh,
     };
+    this.request = request;
+    this.logId = logId;
   }
 
   static prepareMethodText(reqInfo) {
@@ -25,10 +27,19 @@ class EpadNotification {
 
   notify(fastify) {
     try {
-      if (this.notification.error) fastify.log.error(`Error as response ${JSON.stringify(this)}`);
-      fastify.sse(this, this.notification.username);
+      if (this.notification.error)
+        fastify.log.error(
+          `Error as response ${JSON.stringify({ notification: this.notification })}`
+        );
+      const notified = fastify.sse({ notification: this.notification }, this.notification.username);
+      // add to eventlog with notified
+      fastify.saveEventLog(this.request, this.notification, notified, this.logId);
     } catch (err) {
-      fastify.log.error(`Error sending notification to user ${this.notification.username}`);
+      fastify.log.error(
+        `Error sending notification to user ${this.notification.username}. Error: ${err.message}`
+      );
+      // add to eventlog with notified false (1)
+      fastify.saveEventLog(this.request, this.notification, false, this.logId);
     }
   }
 }

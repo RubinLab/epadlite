@@ -107,6 +107,43 @@ async function routes(fastify) {
     },
     handler: fastify.updateUser,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/users/:user/preferences',
+    schema: {
+      tags: ['user'],
+      params: {
+        type: 'object',
+        properties: {
+          user: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getUserPreferences,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/users/:user/preferences',
+    schema: {
+      tags: ['user'],
+      params: {
+        type: 'object',
+        properties: {
+          user: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'object',
+      },
+    },
+    handler: fastify.updateUserPreferences,
+  });
 }
 
 module.exports = routes;
