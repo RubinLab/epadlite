@@ -1819,13 +1819,14 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('runPluginsQueue', async (request, reply) => {
     //  will receive a queue object which contains plugin id
-    //  console.log('running queue one by one ', request.body);
+    console.log('running queue one by one ', request.body);
+    const queueIdsArrayToStart = request.body;
     try {
       const result = [];
       await models.plugin_queue
         .findAll({
           include: ['queueplugin'],
-          where: { status: 'added' },
+          where: { id: queueIdsArrayToStart, status: 'added' },
         })
         .then(eachRowObj => {
           eachRowObj.forEach(data => {
@@ -2028,7 +2029,7 @@ async function epaddb(fastify, options, done) {
         const parametertype = queueObject.plugin_parametertype;
         const pluginid = queueObject.plugin_id;
         const projectid = queueObject.project_id;
-        const { processmultipleaims } = queueObject.plugin.processmultipleaims;
+        const processmultipleaims = queueObject.plugin.processmultipleaims;
         const runtimeParams = queueObject.runtime_params;
         const aims = queueObject.aim_uid;
         let paramsToSendToContainer = [];
