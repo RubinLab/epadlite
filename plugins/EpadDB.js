@@ -1828,19 +1828,50 @@ async function epaddb(fastify, options, done) {
         reply.code(500).send(new InternalError(`getPluginsQueue error `, err));
       });
   });
+  fastify.decorate('stopPluginsQueue', async (request, reply) => {
+    console.log('stopping  queue ', request.body);
+    const queueId = request.body[0];
+    const dock = new DockerService();
+    const containerLists = await dock.listContainers();
+    const containerName = `/epadplugin_${queueId}`;
+    let containerId = null;
+    let containerFound = false;
+
+    console.log('container lists', containerLists);
+
+    for (let i = 0; i < containerLists.length; i += 1) {
+      if (containerLists[i].names.includes(containerName)) {
+        if (containerLists[i].state === 'exited' || containerLists[i].state === 'running') {
+          containerFound = true;
+          containerId = containerLists[i].id;
+
+          break;
+        }
+      }
+    }
+    if (containerFound === true) {
+      containerFound = false;
+      console.log('container name found  stopping', containerName);
+      const returnContainerStop = await dock.stopContainer(containerId);
+      console.log('stop container returned ', returnContainerStop);
+    }
+
+    reply.code(200).send('plugin stopped');
+  });
   fastify.decorate('runPluginsQueue', async (request, reply) => {
     //  will receive a queue object which contains plugin id
     console.log('running queue one by one ', request.body);
     const queueIdsArrayToStart = request.body;
+    const allStatus = ['added', 'ended', 'error'];
     try {
       const result = [];
       await models.plugin_queue
         .findAll({
-          include: ['queueplugin'],
-          where: { id: queueIdsArrayToStart, status: 'added' },
+          include: ['queueplugin', 'queueproject'],
+          where: { id: queueIdsArrayToStart, status: allStatus },
         })
-        .then(eachRowObj => {
-          eachRowObj.forEach(data => {
+        .then(tableData => {
+          tableData.forEach(data => {
             const pluginObj = {
               id: data.dataValues.id,
               plugin_id: data.dataValues.plugin_id,
@@ -1856,6 +1887,9 @@ async function epaddb(fastify, options, done) {
             };
             if (data.dataValues.queueplugin !== null) {
               pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+            }
+            if (data.dataValues.queueproject !== null) {
+              pluginObj.project = { ...data.dataValues.queueproject.dataValues };
             }
             result.push(pluginObj);
           });
@@ -1940,213 +1974,373 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate(
     'createPluginfoldersInternal',
-    (pluginparams, userfolder, aims, processmultipleaims, request) => {
+    (pluginparams, userfolder, aims, projectid, processmultipleaims, request) => {
       return new Promise(async (resolve, reject) => {
-        try {
-          // if (!fs.existsSync(pluginsDataFolder)) {
-          //   fs.mkdirSync(pluginsDataFolder);
-          // }
-          console.log('aims ', aims);
-          console.log(Object.keys(aims));
-          console.log(' creating plugin fodlers :', userfolder);
-          console.log(' creating plugin fodlers params :', pluginparams);
-          console.log('type of pluginparams', Array.isArray(pluginparams));
-          let inputfolder = null;
-          if (Array.isArray(pluginparams)) {
-            for (let i = 0; i < pluginparams.length; i += 1) {
-              console.log(pluginparams[i].format);
-              if (pluginparams[i].format === 'InputFolder') {
-                console.log(pluginparams[i].paramid);
+        // if (!fs.existsSync(pluginsDataFolder)) {
+        //   fs.mkdirSync(pluginsDataFolder);
+        // }
+        let aimsParamsProcessed = false;
+        let dicomsParamsProcessed = false;
+        // console.log('aims ', aims);
+        // console.log(Object.keys(aims));
+        //console.log(' creating plugin fodlers :', userfolder);
+        //console.log(' creating plugin fodlers params :', pluginparams);
+        //console.log('type of pluginparams', Array.isArray(pluginparams));
+        let inputfolder = null;
+        if (Array.isArray(pluginparams)) {
+          for (let i = 0; i < pluginparams.length; i += 1) {
+            console.log(pluginparams[i].format);
+            if (pluginparams[i].format === 'InputFolder') {
+              console.log(pluginparams[i].paramid);
 
-                switch (pluginparams[i].paramid) {
-                  case 'aims':
-                    fastify
-                      .getAimsInternal('stream', {}, Object.keys(aims), request.epadAuth)
-                      // eslint-disable-next-line no-loop-func
-                      .then(source => {
-                        inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
-                        console.log(inputfolder);
-                        if (!fs.existsSync(inputfolder)) {
-                          fs.mkdirSync(inputfolder, { recursive: true });
-                        }
-                        // const readStream = fs.createReadStream(source.path);
-                        const writeStream = fs.createWriteStream(`${inputfolder}annotations.zip`);
-                        source
-                          .pipe(writeStream)
-                          .on('close', () => {
-                            fastify.log.info(
-                              `Aims zip copied to aims folder ${inputfolder}annotations.zip`
-                            );
+              if (pluginparams[i].paramid === 'aims') {
+                try {
+                  // eslint-disable-next-line no-await-in-loop
+                  const source = await fastify.getAimsInternal(
+                    'stream',
+                    {},
+                    Object.keys(aims),
+                    request.epadAuth
+                  );
 
-                            fs.createReadStream(`${inputfolder}annotations.zip`)
-                              .pipe(unzip.Extract({ path: `${inputfolder}` }))
-                              .on('close', () => {
-                                fastify.log.info(`${inputfolder}annotations.zip extracted`);
-                                fs.remove(`${inputfolder}annotations.zip`, error => {
-                                  if (error)
-                                    fastify.log.info(
-                                      `Zip annotations.zip file deletion error ${error.message}`
-                                    );
-                                  else fastify.log.info(`${inputfolder}annotations.zip deleted`);
-                                });
-                              })
-                              .on('error', error => {
-                                return new InternalError(
-                                  `Extracting zip ${inputfolder}annotations.zip`,
-                                  error
-                                );
-                              });
-                          })
-                          .on('error', error => {
-                            return new InternalError(
-                              `Copying zip ${inputfolder}annotations.zip`,
-                              error
-                            );
+                  inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
+                  console.log(inputfolder);
+                  if (!fs.existsSync(inputfolder)) {
+                    fs.mkdirSync(inputfolder, { recursive: true });
+                  }
+                  // const readStream = fs.createReadStream(source.path);
+                  const writeStream = fs.createWriteStream(`${inputfolder}annotations.zip`);
+                  source
+                    .pipe(writeStream)
+                    // eslint-disable-next-line no-loop-func
+                    .on('close', () => {
+                      fastify.log.info(
+                        `Aims zip copied to aims folder ${inputfolder}annotations.zip`
+                      );
+
+                      fs.createReadStream(`${inputfolder}annotations.zip`)
+                        .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                        .on('close', () => {
+                          fastify.log.info(`${inputfolder}annotations.zip extracted`);
+                          fs.remove(`${inputfolder}annotations.zip`, error => {
+                            if (error) {
+                              fastify.log.info(
+                                `Zip annotations.zip file deletion error ${error.message}`
+                              );
+                              reject(error);
+                            } else {
+                              fastify.log.info(`${inputfolder}annotations.zip deleted`);
+                              resolve('annotation zip deleted');
+                            }
                           });
-                      })
-                      .catch(err => {
-                        return new InternalError('error while writing file', err);
-                      });
-
-                    //console.log('download aim ', returnaim);
-                    break;
-                  case 'dicoms':
-                    inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
-                    console.log(inputfolder);
-                    if (!fs.existsSync(inputfolder)) {
-                      fs.mkdirSync(inputfolder, { recursive: true });
-                    }
-                    break;
-                  case 'dso':
-                    break;
-                  default:
-                  // code block
-                }
+                        })
+                        .on('error', error => {
+                          reject(
+                            new InternalError(`Extracting zip ${inputfolder}annotations.zip`, error)
+                          );
+                        });
+                    })
+                    // eslint-disable-next-line no-loop-func
+                    .on('error', error => {
+                      reject(new InternalError(`Copying zip ${inputfolder}annotations.zip`, error));
+                    });
+                } catch (err) {
+                  reject(err);
+                } //console.log('download aim ', returnaim);
+              }
+              if (pluginparams[i].paramid === 'dicoms') {
+                // inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
+                // console.log(inputfolder);
+                // if (!fs.existsSync(inputfolder)) {
+                //   fs.mkdirSync(inputfolder, { recursive: true });
+                // }
+                // // eslint-disable-next-line no-case-declarations
+                // const writeStream = fs.createWriteStream(`${inputfolder}/cav.zip`);
+                // try {
+                //   // eslint-disable-next-line no-await-in-loop
+                //   const returnDicom = await fastify.prepDownload(
+                //     {
+                //       project: projectid,
+                //       subject: '87654321',
+                //       study: '1.2.826.0.1.3680043.9.6883.1.27939524453445721325265426006463727',
+                //       series: '2.25.628770194347671830041600940178672086522',
+                //     },
+                //     { format: 'stream', includeAims: 'true' },
+                //     request.epadAuth,
+                //     writeStream
+                //   );
+                //   resolve('dicom copied ');
+                // } catch (err) {
+                //   reject(err);
+                // }
               }
             }
-          } else {
-            console.log('pluginparams not array');
           }
-          resolve('returned');
-        } catch (err) {
-          reject(new InternalError('error while creating plugin folders', err));
+        } else {
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+
+          console.log('pluginparams not array', pluginparams);
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+          console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
         }
       });
     }
   );
   fastify.decorate('extractPluginParamtersInternal', (queueObject, request) => {
     return new Promise(async (resolve, reject) => {
-      try {
-        const parametertype = queueObject.plugin_parametertype;
-        const pluginid = queueObject.plugin_id;
-        const projectid = queueObject.project_id;
-        const processmultipleaims = queueObject.plugin.processmultipleaims;
-        const runtimeParams = queueObject.runtime_params;
-        const aims = queueObject.aim_uid;
-        let paramsToSendToContainer = [];
+      const parametertype = queueObject.plugin_parametertype;
+      const pluginid = queueObject.plugin_id;
+      const projectdbid = queueObject.project_id;
+      const { projectid } = queueObject.project.projectid;
+      // eslint-disable-next-line prefer-destructuring
+      const processmultipleaims = queueObject.plugin.processmultipleaims;
+      const runtimeParams = queueObject.runtime_params;
+      const aims = queueObject.aim_uid;
+      let paramsToSendToContainer = null;
 
-        const pluginsDataFolder = path.join(
-          __dirname,
-          `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/`
-        );
-        if (!fs.existsSync(pluginsDataFolder)) {
-          fs.mkdirSync(pluginsDataFolder, { recursive: true });
+      const pluginsDataFolder = path.join(
+        __dirname,
+        `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/`
+      );
+      if (!fs.existsSync(pluginsDataFolder)) {
+        fs.mkdirSync(pluginsDataFolder, { recursive: true });
+      }
+
+      if (parametertype === 'default') {
+        try {
+          paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
+
+          await fastify.createPluginfoldersInternal(
+            paramsToSendToContainer,
+            pluginsDataFolder,
+            aims,
+            projectid,
+            processmultipleaims,
+            request
+          );
+          const returnObject = {
+            params: paramsToSendToContainer,
+            serverfolder: pluginsDataFolder,
+          };
+          resolve(returnObject);
+        } catch (err) {
+          reject(new InternalError('error while getting plugin default paraeters', err));
         }
-        console.log('extractPluginParamters switch parameter type', parametertype);
-        switch (parametertype) {
-          case 'default':
-            fastify
-              .getPluginDeafultParametersInternal(pluginid)
-              .then(result => {
-                paramsToSendToContainer = result;
-                return fastify
-                  .createPluginfoldersInternal(
-                    paramsToSendToContainer,
-                    pluginsDataFolder,
-                    aims,
-                    processmultipleaims,
-                    request
-                  )
-                  .then({})
-                  .catch(err => {
-                    new InternalError('error while createPluginfolders', err);
-                  });
-              })
-              .catch(err => {
-                new InternalError('error while getPluginDeafultParametersInternal', err);
-              });
+      }
 
-            break;
-          case 'project':
-            fastify
-              .getPluginProjectParametersInternal(pluginid, projectid)
-              .then(result => {
-                paramsToSendToContainer = result;
-                return fastify
-                  .createPluginfoldersInternal(
-                    paramsToSendToContainer,
-                    pluginsDataFolder,
-                    aims,
-                    processmultipleaims,
-                    request
-                  )
-                  .then({})
-                  .catch(err => {
-                    new InternalError('error while createPluginfolders', err);
-                  });
-              })
-              .catch(err => {
-                new InternalError('error while getPluginProjectParametersInternal', err);
-              });
+      if (parametertype === 'project') {
+        try {
+          paramsToSendToContainer = await fastify.getPluginProjectParametersInternal(
+            pluginid,
+            projectdbid
+          );
 
-            break;
-          case 'runtime':
-            if (processmultipleaims === null || processmultipleaims === 1) {
-              paramsToSendToContainer = runtimeParams;
-            } else {
-              paramsToSendToContainer = aims[Object.keys(aims)[0]].pluginparamters;
-            }
-            fastify
-              .createPluginfoldersInternal(
-                paramsToSendToContainer,
-                pluginsDataFolder,
-                aims,
-                processmultipleaims,
-                request
-              )
-              .then({})
-              .catch(err => {
-                new InternalError('error while createPluginfolders', err);
-              });
-            break;
-          default:
-          // code block
+          await fastify.createPluginfoldersInternal(
+            paramsToSendToContainer,
+            pluginsDataFolder,
+            aims,
+            projectid,
+            processmultipleaims,
+            request
+          );
+          const returnObject = {
+            params: paramsToSendToContainer,
+            serverfolder: pluginsDataFolder,
+          };
+          resolve(returnObject);
+        } catch (err) {
+          reject(new InternalError('error while getting plugin project paraeters', err));
         }
+      }
 
-        resolve('returned');
-        //const user = await models.user.findOne({ where: { id: userid }, attributes: ['username'] });
-        // if (user === null) {
-        //   reject(new ResourceNotFoundError('User', userid));
-        // } else {
-        //   resolve('username');
-        // }
-      } catch (err) {
-        reject(new InternalError('error while extracting plugin parameters', err));
+      if (parametertype === 'runtime') {
+        if (processmultipleaims === null || processmultipleaims === 1) {
+          paramsToSendToContainer = runtimeParams;
+        } else {
+          paramsToSendToContainer = aims[Object.keys(aims)[0]].pluginparamters;
+        }
+        try {
+          await fastify.createPluginfoldersInternal(
+            paramsToSendToContainer,
+            pluginsDataFolder,
+            aims,
+            projectid,
+            processmultipleaims,
+            request
+          );
+          const returnObject = {
+            params: paramsToSendToContainer,
+            serverfolder: pluginsDataFolder,
+          };
+          resolve(returnObject);
+        } catch (err) {
+          reject(new InternalError('error while getting plugin runtime paraeters', err));
+        }
       }
     });
   });
+
+  fastify.decorate('updateStatusQueueProcessInternal', (queuid, status) => {
+    console.log('update queue ');
+
+    models.plugin_queue
+      .update(
+        {
+          status,
+          endtime: '1970-01-01 00:00:01',
+        },
+        {
+          where: {
+            id: queuid,
+          },
+        }
+      )
+      .then(data => {
+        return data;
+      })
+      .catch(err => {
+        return new InternalError('error while getting plugin runtime paraeters', err);
+      });
+  });
+
+  fastify.decorate('sortPluginParamsAndExtractWhatToMapInternal', async pluginParamsObj => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const tempPluginParams = [...pluginParamsObj.params];
+        const tempLocalFolder = pluginParamsObj.serverfolder;
+
+        // eslint-disable-next-line func-names
+        tempPluginParams.sort((first, second) => {
+          if (first.inputBinding === '' && second.inputBinding === '') {
+            return -1;
+          }
+          if (first.inputBinding !== '' && second.inputBinding !== '') {
+            if (parseInt(first.inputBinding, 10) < parseInt(second.inputBinding, 10)) {
+              return -1;
+            }
+
+            return 1;
+          }
+          if (first.inputBinding === '' && second.inputBinding !== '') {
+            return -1;
+          }
+          if (first.inputBinding !== '' && second.inputBinding === '') {
+            return 1;
+          }
+
+          return 0;
+        });
+        const onlyNameValues = [];
+        const foldersToBind = [];
+        for (let i = 0; i < tempPluginParams.length; i += 1) {
+          if (tempPluginParams[i].prefix !== '') {
+            onlyNameValues.push(tempPluginParams[i].prefix);
+          }
+          if (
+            tempPluginParams[i].format === 'InputFolder' ||
+            tempPluginParams[i].format === 'OutputFolder'
+          ) {
+            foldersToBind.push(
+              `${tempLocalFolder}/${tempPluginParams[i].paramid}:${
+                tempPluginParams[i].default_value
+              }`
+            );
+          }
+          onlyNameValues.push(tempPluginParams[i].name);
+          onlyNameValues.push(tempPluginParams[i].default_value);
+        }
+        const returnObj = {
+          paramsDocker: onlyNameValues,
+          dockerFoldersToBind: foldersToBind,
+        };
+
+        resolve(returnObj);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
-    console.log('plugin queue list : ', pluginQueueList);
-    console.log('+++++++++++++++++++++++++++++++++++++++++++++++');
-    //  const dir = '/pluginsDataFolder/cavit';
 
+    //  const dir = '/pluginsDataFolder/cavit';
+    console.log('calling extractPluginParamtersInternal');
     for (let i = 0; i < pluginQueueList.length; i += 1) {
+      const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${
+        pluginQueueList[i].plugin.image_tag
+      }`;
+      const queueId = pluginQueueList[i].id;
+      console.log('running plugin on this object', pluginQueueList[i]);
+
       // eslint-disable-next-line no-await-in-loop
-      const returnExtractPluginFolders = await fastify.extractPluginParamtersInternal(
+      const pluginParameters = await fastify.extractPluginParamtersInternal(
         pluginQueueList[i],
         request
       );
+      console.log('first process is ready to send to docker ', pluginParameters);
+      console.log('this the image we call', imageRepo);
+      const dock = new DockerService();
+      let checkImageExistOnHub = false;
+      let checkImageExistLocal = false;
+      try {
+        console.log(' tryitn to pull first ', imageRepo);
+        // eslint-disable-next-line no-await-in-loop
+        await dock.pullImageA(imageRepo);
+        checkImageExistOnHub = true;
+      } catch (err) {
+        console.log(`${imageRepo} is not reachable , does not exist on the hub or requires login`);
+      }
+      if (checkImageExistOnHub === false) {
+        // check local image existance
+        console.log('cehcking image if exist locally');
+        // eslint-disable-next-line no-await-in-loop
+        const imageList = await dock.listImages();
+        console.log('image list ', imageList);
+        const litSize = imageList.length;
+
+        for (let cnt = 0; cnt < litSize; cnt += 1) {
+          if (imageList[cnt].RepoTags.includes(imageRepo)) {
+            checkImageExistLocal = true;
+            console.log('image found locally');
+            break;
+          }
+        }
+      }
+      if (checkImageExistOnHub === true || checkImageExistLocal === true) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
+            pluginParameters
+          );
+
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'running');
+          new EpadNotification(request, 'set to runnning', 'success', true).notify(fastify);
+          // eslint-disable-next-line no-await-in-loop
+          await dock.createContainer(imageRepo, `epadplugin_${queueId}`, sortedParams);
+          const opreationresult = ` plugin image : ${imageRepo} terminated with success`;
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
+          new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
+          console.log('plugin finished working', imageRepo);
+        } catch (err) {
+          const operationresult = `plugin terminated with error : ${err}`;
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+          new EpadNotification(request, operationresult, err, true).notify(fastify);
+        }
+      }
     }
     //  below here used
 

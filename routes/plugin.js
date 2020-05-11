@@ -166,6 +166,18 @@ async function routes(fastify) {
     },
     handler: fastify.updateTemplatesForPlugin,
   });
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/plugins/queue/update/:queueid/status/:tostatus',
+  //   schema: {
+  //     tags: ['plugins'],
+
+  //     //   response: {
+  //     //     200: 'templates_schema#',
+  //     //   },
+  //   },
+  //   handler: fastify.updateStatusQueueProcess,
+  // });
   fastify.route({
     method: 'POST',
     url: '/plugins/queue/run',
@@ -177,6 +189,18 @@ async function routes(fastify) {
       //   },
     },
     handler: fastify.runPluginsQueue,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/queue/stop',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.stopPluginsQueue,
   });
   fastify.route({
     method: 'POST',
@@ -288,6 +312,18 @@ async function routes(fastify) {
     },
     handler: fastify.editPlugin,
   });
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/queue/delete',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.deleteFromPluginQueue,
+  });
 
   fastify.route({
     method: 'DELETE',
@@ -324,18 +360,6 @@ async function routes(fastify) {
       //   },
     },
     handler: fastify.deleteOneTemplateParameter,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/queue/delete',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.deleteFromPluginQueue,
   });
 
   //  trigger
