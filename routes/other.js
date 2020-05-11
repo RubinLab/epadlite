@@ -270,5 +270,29 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.triggerStats,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/scanfolder',
+    schema: {
+      tags: ['files'],
+    },
+    handler: fastify.scanFolder,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/userinfo',
+    schema: {
+      tags: ['user'],
+    },
+    handler: fastify.getUserInfo,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/wado/',
+    handler: fastify.getWado,
+  });
 }
 module.exports = otherRoutes;

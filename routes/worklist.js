@@ -24,14 +24,17 @@ async function routes(fastify) {
           },
           assignee: {
             type: 'array',
+            items: {
+              type: 'string',
+            },
           },
           description: {
             type: 'string',
           },
-          dueDate: {
+          duedate: {
             type: 'string',
           },
-          requirement: {
+          requirements: {
             type: 'array',
             items: {
               properties: {
@@ -184,6 +187,9 @@ async function routes(fastify) {
           },
           assigneeList: {
             type: 'array',
+            items: {
+              type: 'string',
+            },
           },
         },
       },
@@ -239,8 +245,45 @@ async function routes(fastify) {
 
   // /worklists/0987iuy/users/admin/subjects - POST
 
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/worklists/:worklist/requirements/:requirement',
+  //   schema: {
+  //     tags: ['worklist'],
+  //     params: {
+  //       type: 'object',
+  //       properties: {
+  //         worklist: {
+  //           type: 'string',
+  //         },
+  //         requirement: {
+  //           type: 'integer',
+  //         },
+  //       },
+  //     },
+  //     body: {
+  //       type: 'object',
+  //       properties: {
+  //         level: {
+  //           type: 'string',
+  //         },
+  //         numOfAims: {
+  //           type: 'integer',
+  //         },
+  //         template: {
+  //           type: 'string',
+  //         },
+  //         required: {
+  //           type: 'boolean',
+  //         },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.setWorklistRequirement,
+  // });
+
   fastify.route({
-    method: 'PUT',
+    method: 'DELETE',
     url: '/worklists/:worklist/requirements/:requirement',
     schema: {
       tags: ['worklist'],
@@ -255,25 +298,8 @@ async function routes(fastify) {
           },
         },
       },
-      body: {
-        type: 'object',
-        properties: {
-          level: {
-            type: 'string',
-          },
-          numOfAims: {
-            type: 'integer',
-          },
-          template: {
-            type: 'string',
-          },
-          required: {
-            type: 'boolean',
-          },
-        },
-      },
     },
-    handler: fastify.setWorklistRequirement,
+    handler: fastify.deleteWorklistRequirement,
   });
 
   fastify.route({
@@ -290,19 +316,22 @@ async function routes(fastify) {
         },
       },
       body: {
-        type: 'object',
-        properties: {
-          level: {
-            type: 'string',
-          },
-          numOfAims: {
-            type: 'integer',
-          },
-          template: {
-            type: 'string',
-          },
-          required: {
-            type: 'boolean',
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            level: {
+              type: 'string',
+            },
+            numOfAims: {
+              type: 'integer',
+            },
+            template: {
+              type: 'string',
+            },
+            required: {
+              type: 'boolean',
+            },
           },
         },
       },

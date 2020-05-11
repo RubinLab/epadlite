@@ -12,7 +12,7 @@ module.exports = function(sequelize, DataTypes) {
       },
       worklist_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
+        allowNull: false,
         references: {
           model: 'worklist',
           key: 'id',

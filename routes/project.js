@@ -117,7 +117,7 @@ async function routes(fastify) {
       params: {
         type: 'object',
         properties: {
-          uid: {
+          project: {
             type: 'string',
           },
         },
@@ -612,6 +612,23 @@ async function routes(fastify) {
       },
     },
     handler: fastify.deleteProjectUser,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/scanfolder',
+    schema: {
+      tags: ['project', 'files'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.scanFolder,
   });
 }
 module.exports = routes;

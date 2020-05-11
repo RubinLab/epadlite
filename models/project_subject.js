@@ -12,19 +12,19 @@ module.exports = function(sequelize, DataTypes) {
       },
       project_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
+        allowNull: false,
         references: {
           model: 'project',
           key: 'id',
         },
       },
-      subject_uid: {
-        type: DataTypes.STRING(128),
+      subject_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: false,
-      },
-      subject_name: {
-        type: DataTypes.STRING(256),
-        allowNull: true,
+        references: {
+          model: 'subject',
+          key: 'id',
+        },
       },
       creator: {
         type: DataTypes.STRING(128),

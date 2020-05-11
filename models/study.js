@@ -27,6 +27,10 @@ module.exports = function(sequelize, DataTypes) {
           key: 'id',
         },
       },
+      exam_types: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,

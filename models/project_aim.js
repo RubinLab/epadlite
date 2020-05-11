@@ -46,6 +46,14 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
+      frame_id: {
+        type: DataTypes.STRING(5),
+        allowNull: true,
+      },
+      dso_series_uid: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,
