@@ -678,7 +678,7 @@ async function other(fastify) {
       new Promise((resolve, reject) => {
         const promisses = [];
         fastify
-          .getPatientStudiesInternal(params, undefined, epadAuth, true, {})
+          .getPatientStudiesInternal(params, undefined, epadAuth, {}, true)
           .then(result => {
             result.forEach(study => {
               promisses.push(() => {

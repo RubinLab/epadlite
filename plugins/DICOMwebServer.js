@@ -328,7 +328,6 @@ async function dicomwebserver(fastify) {
         request.params,
         [request.params.study],
         request.epadAuth,
-        undefined,
         request.query
       )
       .then(result => {
@@ -342,13 +341,7 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getPatientStudies', (request, reply) => {
     fastify
-      .getPatientStudiesInternal(
-        request.params,
-        undefined,
-        request.epadAuth,
-        undefined,
-        request.query
-      )
+      .getPatientStudiesInternal(request.params, undefined, request.epadAuth, request.query)
       .then(result => reply.code(200).send(result))
       .catch(err => reply.send(err));
   });
@@ -384,11 +377,12 @@ async function dicomwebserver(fastify) {
       params,
       filter,
       epadAuth,
+      requestQuery,
       noStats = false,
       tag = '0020000D',
       aimField = 'studyUID',
       negateFilter = false
-    ) 
+    ) =>
       new Promise((resolve, reject) => {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';

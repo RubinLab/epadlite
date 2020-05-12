@@ -1025,7 +1025,6 @@ async function epaddb(fastify, options, done) {
             request.params,
             studyUIDs,
             request.epadAuth,
-            undefined,
             request.query
           );
           studyDetails.forEach(el => {
@@ -1644,7 +1643,6 @@ async function epaddb(fastify, options, done) {
               request.params,
               undefined,
               request.epadAuth,
-              undefined,
               request.query
             );
           }
@@ -1736,6 +1734,7 @@ async function epaddb(fastify, options, done) {
             include: [
               {
                 model: models.project_subject_study,
+                required: true,
               },
             ],
           });
@@ -3009,7 +3008,6 @@ async function epaddb(fastify, options, done) {
                   { subject: params.subject, study: params.study },
                   undefined,
                   epadAuth,
-                  undefined,
                   {}
                 );
               }
@@ -3136,6 +3134,7 @@ async function epaddb(fastify, options, done) {
                   params,
                   studyUids,
                   epadAuth,
+                  query,
                   false,
                   '0020000D',
                   'studyUID',
@@ -3143,7 +3142,12 @@ async function epaddb(fastify, options, done) {
                 );
                 resolve(result);
               } else {
-                const result = await fastify.getPatientStudiesInternal(params, studyUids, epadAuth);
+                const result = await fastify.getPatientStudiesInternal(
+                  params,
+                  studyUids,
+                  epadAuth,
+                  query
+                );
                 if (studyUids.length !== result.length)
                   if (studyUids.length === result.length + nondicoms.length) {
                     for (let i = 0; i < nondicoms.length; i += 1) {
@@ -3226,6 +3230,7 @@ async function epaddb(fastify, options, done) {
               request.params,
               [],
               request.epadAuth,
+              request.query,
               false,
               '0020000D',
               'studyUID',
@@ -3255,7 +3260,9 @@ async function epaddb(fastify, options, done) {
           const result = await fastify.getStudiesInternal(
             whereJSON,
             request.params,
-            request.epadAuth
+            request.epadAuth,
+            false,
+            request.query
           );
           reply.code(200).send(result);
         }
@@ -4086,7 +4093,7 @@ async function epaddb(fastify, options, done) {
           const isResponseJustStream = !output.res;
           const res = isResponseJustStream ? output : output.res;
           const studiesInfo = whereJSON
-            ? await fastify.getStudiesInternal(whereJSON, params, epadAuth, true)
+            ? await fastify.getStudiesInternal(whereJSON, params, epadAuth, true, query)
             : studyInfos;
 
           const timestamp = new Date().getTime();
@@ -4244,7 +4251,6 @@ async function epaddb(fastify, options, done) {
           request.params,
           studyUids,
           request.epadAuth,
-          undefined,
           request.query
         );
         if (result.length === 1) reply.code(200).send(result[0]);
@@ -4907,7 +4913,7 @@ async function epaddb(fastify, options, done) {
           },
           request.params,
           request.epadAuth,
-          undefined,
+          false,
           request.query
         );
 
@@ -5214,7 +5220,13 @@ async function epaddb(fastify, options, done) {
               );
             // changing the value in dicomweb. this will affect all projects!!
             const whereJson = await fastify.getProjectSubjectIds(params);
-            const studyUids = await fastify.getStudiesInternal(whereJson, params, epadAuth, true);
+            const studyUids = await fastify.getStudiesInternal(
+              whereJson,
+              params,
+              epadAuth,
+              true,
+              query
+            );
             if (applyPatient) {
               for (let i = 0; i < studyUids.length; i += 1) {
                 // eslint-disable-next-line no-await-in-loop
@@ -5548,8 +5560,8 @@ async function epaddb(fastify, options, done) {
               {},
               undefined,
               { username: 'admin' },
-              true,
-              {}
+              {},
+              true
             );
             numOfStudies = studies.length;
           }
@@ -6379,8 +6391,8 @@ async function epaddb(fastify, options, done) {
               {},
               undefined,
               epadAuth,
-              true,
-              {}
+              {},
+              true
             );
             // map to contain a studies attribute to contain a list of studies
             const subjects = {};
