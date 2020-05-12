@@ -670,6 +670,20 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it(`project ${config.unassignedProjectID} should have 1 subject `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(`/projects/${config.unassignedProjectID}/subjects`)
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('project subject add of patient 3 to project testsubject should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -677,6 +691,34 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`project ${config.unassignedProjectID} should have 0 subject `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(`/projects/${config.unassignedProjectID}/subjects`)
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it(`project ${config.XNATUploadProjectID} should have 1 subject `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(`/projects/${config.XNATUploadProjectID}/subjects`)
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {
@@ -1039,6 +1081,29 @@ describe('Project Tests', () => {
           defaultTemplate: 'ROI',
           type: 'private',
         });
+      // study tests require nonassigned and all projects to be present
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: config.unassignedProjectID,
+          projectName: config.unassignedProjectID,
+          projectDescription: config.unassignedProjectID,
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: config.XNATUploadProjectID,
+          projectName: config.XNATUploadProjectID,
+          projectDescription: config.XNATUploadProjectID,
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
     });
     after(async () => {
       await chai
@@ -1052,6 +1117,15 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/teststudy3')
+        .query({ username: 'admin' });
+      // delete nonassinged and all
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(`/projects/${config.unassignedProjectID}`)
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(`/projects/${config.XNATUploadProjectID}`)
         .query({ username: 'admin' });
     });
     it('project teststudy should have no subjects ', done => {
@@ -1068,6 +1142,22 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+
+    it(`project ${config.unassignedProjectID} subject 3 should have 1 study `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(`/projects/${config.unassignedProjectID}/subjects/3/studies`)
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
     it('project study add of study 0023.2015.09.28.3 to project teststudy should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -1075,6 +1165,36 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it(`project ${config.unassignedProjectID} subject 3 should have no studies `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(`/projects/${config.unassignedProjectID}/subjects/3/studies`)
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it(`project ${config.XNATUploadProjectID} subject 3 should have 1 study `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(`/projects/${config.XNATUploadProjectID}/subjects/3/studies`)
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
           done();
         })
         .catch(e => {

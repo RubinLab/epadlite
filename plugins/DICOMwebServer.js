@@ -174,7 +174,15 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'getPatientsInternal',
-    (params, filter, epadAuth, noStats) =>
+    (
+      params,
+      filter,
+      epadAuth,
+      noStats,
+      tag = '00100020',
+      aimField = 'subjectID',
+      negateFilter = false
+    ) =>
       new Promise((resolve, reject) => {
         try {
           // make studies call and aims call
@@ -183,14 +191,20 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(this.request.get(`/studies${query}`, header));
           if (!noStats)
-            promisses.push(
-              fastify.getAimsInternal(
-                'summary',
-                { subject: '', study: '', series: '' },
-                undefined,
-                epadAuth
-              )
-            );
+            if (params.project)
+              promisses.push(
+                fastify.filterProjectAims(
+                  {
+                    project: params.project,
+                    subject: '',
+                    study: '',
+                    series: '',
+                  },
+                  { format: 'summary' },
+                  epadAuth
+                )
+              );
+            else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
           Promise.all(promisses)
             .then(async values => {
               // handle success
@@ -199,8 +213,9 @@ async function dicomwebserver(fastify) {
                 values[0].data,
                 values[1],
                 filter,
-                '00100020',
-                'subjectID'
+                tag,
+                aimField,
+                negateFilter
               );
               // populate an aim counts map containing each subject
               const aimsCountMap = {};
@@ -279,7 +294,7 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'filter',
-    (studies, aims, filter, tag, aimField) =>
+    (studies, aims, filter, tag, aimField, negateFilter) =>
       new Promise((resolve, reject) => {
         try {
           let filteredStudies = studies;
@@ -287,11 +302,17 @@ async function dicomwebserver(fastify) {
           if (filter) {
             filteredStudies = _.filter(
               filteredStudies,
-              obj => obj[tag] && filter.includes(obj[tag].Value[0])
+              obj =>
+                obj[tag] &&
+                (negateFilter
+                  ? !filter.includes(obj[tag].Value[0])
+                  : filter.includes(obj[tag].Value[0]))
             );
             filteredAims = _.filter(
               filteredAims,
-              obj => obj[tag] && filter.includes(obj[aimField])
+              obj =>
+                obj[aimField] &&
+                (negateFilter ? !filter.includes(obj[aimField]) : filter.includes(obj[aimField]))
             );
           }
           resolve({ filteredStudies, filteredAims });
@@ -359,7 +380,15 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate(
     'getPatientStudiesInternal',
-    (params, filter, epadAuth, noStats, requestQuery) =>
+    (
+      params,
+      filter,
+      epadAuth,
+      noStats = false,
+      tag = '0020000D',
+      aimField = 'studyUID',
+      negateFilter = false
+    ) 
       new Promise((resolve, reject) => {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
@@ -368,18 +397,21 @@ async function dicomwebserver(fastify) {
           promisses.push(this.request.get(`/studies${query}`, header));
           // get aims for a specific patient
           if (!noStats)
-            promisses.push(
-              fastify.getAimsInternal(
-                'summary',
-                {
-                  subject: params.subject ? params.subject : '',
-                  study: '',
-                  series: '',
-                },
-                undefined,
-                epadAuth
-              )
-            );
+            if (params.project)
+              promisses.push(
+                fastify.filterProjectAims(
+                  {
+                    project: params.project,
+                    subject: params.subject ? params.subject : '',
+                    study: '',
+                    series: '',
+                  },
+                  { format: 'summary' },
+                  epadAuth
+                )
+              );
+            else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
+
           Promise.all(promisses)
             .then(async values => {
               // handle success
@@ -389,8 +421,9 @@ async function dicomwebserver(fastify) {
                 values[0].data,
                 values[1],
                 filter,
-                '0020000D',
-                'studyUID'
+                tag,
+                aimField,
+                negateFilter
               );
               // populate an aim counts map containing each study
               const aimsCountMap = {};
@@ -410,6 +443,7 @@ async function dicomwebserver(fastify) {
                     aimsCountMap[value[0].studyUID] = numberOfAims;
                   })
                   .value();
+
               if (
                 filteredStudies.length === 0 ||
                 (filteredStudies.length === 1 && Object.keys(filteredStudies[0]).length === 0)
@@ -551,18 +585,20 @@ async function dicomwebserver(fastify) {
           promisses.push(this.request.get(`/studies/${params.study}/series`, header));
           // get aims for a specific study
           if (noStats === undefined || noStats === false)
-            promisses.push(
-              fastify.getAimsInternal(
-                'summary',
-                {
-                  subject: params.subject,
-                  study: params.study,
-                  series: '',
-                },
-                undefined,
-                epadAuth
-              )
-            );
+            if (params.project)
+              promisses.push(
+                fastify.filterProjectAims(
+                  {
+                    project: params.project,
+                    subject: params.subject,
+                    study: params.study,
+                    series: '',
+                  },
+                  { format: 'summary' },
+                  epadAuth
+                )
+              );
+            else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
 
           Promise.all(promisses)
             .then(values => {
