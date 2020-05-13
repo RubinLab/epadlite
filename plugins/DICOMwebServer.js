@@ -763,12 +763,11 @@ async function dicomwebserver(fastify) {
         }/instances/${request.params.instance}`,
         { headers: request.headers, responseType: 'stream' }
       );
+
+      const res = await fastify.getMultipartBuffer(result.data);
+      const parts = dcmjs.utilities.message.multipartDecode(res);
       reply.headers(result.headers);
-      reply.code(200).send(result.data);
-      // const res = await fastify.getMultipartBuffer(result.data);
-      // const parts = dcmjs.utilities.message.multipartDecode(res);
-      // reply.headers(result.headers);
-      // reply.send(Buffer.from(parts[0]));
+      reply.send(Buffer.from(parts[0]));
     } catch (err) {
       reply.send(new InternalError('WADO', err));
     }
