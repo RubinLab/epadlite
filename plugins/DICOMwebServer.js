@@ -135,6 +135,26 @@ async function dicomwebserver(fastify) {
   );
 
   fastify.decorate(
+    'sendLinkFolder',
+    dir =>
+      new Promise((resolve, reject) => {
+        try {
+          this.request
+            .post(`/linkFolder?path=${dir}`)
+            .then(() => {
+              fastify.log.info('linkFolder sent to dicomweb with success');
+              resolve();
+            })
+            .catch(error => {
+              reject(new InternalError('linkFolder dicomweb', error));
+            });
+        } catch (err) {
+          reject(new InternalError('Preparing linkFolder to dicomweb', err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'deleteStudyDicomsInternal',
     params =>
       new Promise((resolve, reject) => {

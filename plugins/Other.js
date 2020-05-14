@@ -393,6 +393,34 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate('scanFolderToLink', (request, reply) => {
+    const scanTimestamp = new Date().getTime();
+    const dataFolder = path.join(__dirname, '../data');
+    if (!fs.existsSync(dataFolder))
+      reply.send(
+        new InternalError('Scanning data folder', new Error(`${dataFolder} does not exist`))
+      );
+    else {
+      const studies = new Set();
+      fastify.log.info(`Started linking folder ${dataFolder}`);
+      reply.send(`Started scanning ${dataFolder}`);
+      fastify
+        .linkFolder(dataFolder, request.params, request.epadAuth, studies)
+        .then(result => {
+          fastify.log.info(
+            `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
+              result.success
+            } started at ${scanTimestamp}`
+          );
+          new EpadNotification(request, 'Folder scan completed', dataFolder, true).notify(fastify);
+        })
+        .catch(err => {
+          fastify.log.warn(`Error processing ${dataFolder} Error: ${err.message}`);
+          new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
+        });
+    }
+  });
+
   fastify.decorate('scanFolder', (request, reply) => {
     const scanTimestamp = new Date().getTime();
     const dataFolder = path.join(__dirname, '../data');
@@ -586,7 +614,7 @@ async function other(fastify) {
               // check to see if it is a dicom file with no dcm extension
               try {
                 const arrayBuffer = toArrayBuffer(buffer);
-                studies.add(fastify.getDicomInfo(arrayBuffer));
+                studies.add(fastify.getDicomInfo(arrayBuffer, params, epadAuth));
                 datasets.push(arrayBuffer);
                 resolve({ success: true, errors: [] });
               } catch (err) {
@@ -605,6 +633,122 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate(
+    'linkFolder',
+    (linkDir, params, epadAuth, studies) =>
+      new Promise((resolve, reject) => {
+        fastify.log.info(`Linking folder ${linkDir}`);
+        // call dicomweb server for linking
+        fastify.sendLinkFolder(linkDir);
+
+        // success variable is to check if there was at least one successful processing
+        const result = { success: false, errors: [] };
+        fs.readdir(linkDir, async (err, files) => {
+          if (err) {
+            reject(new InternalError(`Reading directory ${linkDir}`, err));
+          } else {
+            try {
+              const promises = [];
+              for (let i = 0; i < files.length; i += 1) {
+                if (files[i] !== '__MACOSX')
+                  if (fs.statSync(`${linkDir}/${files[i]}`).isDirectory() === true)
+                    try {
+                      // eslint-disable-next-line no-await-in-loop
+                      const subdirResult = await fastify.linkFolder(
+                        `${linkDir}/${files[i]}`,
+                        params,
+                        epadAuth,
+                        studies
+                      );
+                      if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
+                        result.errors = result.errors.concat(subdirResult.errors);
+                      }
+                      if (subdirResult && subdirResult.success) {
+                        result.success = result.success || subdirResult.success;
+                      }
+                    } catch (folderErr) {
+                      reject(folderErr);
+                    }
+                  else {
+                    promises.push(() => {
+                      return (
+                        fastify
+                          .linkFile(linkDir, files[i], params, epadAuth, studies)
+                          // eslint-disable-next-line no-loop-func
+                          .catch(error => {
+                            result.errors.push(error);
+                          })
+                      );
+                    });
+                  }
+              }
+              fastify.pq.addAll(promises).then(async values => {
+                try {
+                  for (let i = 0; values.length; i += 1) {
+                    if (
+                      values[i] === undefined ||
+                      (values[i].errors && values[i].errors.length === 0)
+                    ) {
+                      // one success is enough
+                      result.success = result.success || true;
+                      break;
+                    }
+                  }
+                  if (studies.size > 0) {
+                    fastify
+                      .addProjectReferences(params, epadAuth, studies)
+                      .then(() => resolve(result))
+                      .catch(error => reject(error));
+                  } else {
+                    resolve(result);
+                  }
+                } catch (saveDicomErr) {
+                  reject(saveDicomErr);
+                }
+              });
+            } catch (errDir) {
+              reject(errDir);
+            }
+          }
+        });
+      })
+  );
+
+  fastify.decorate(
+    'linkFile',
+    (dir, filename, params, epadAuth, studies) =>
+      new Promise((resolve, reject) => {
+        try {
+          let buffer = [];
+          const readableStream = fs.createReadStream(`${dir}/${filename}`);
+          readableStream.on('data', chunk => {
+            buffer.push(chunk);
+          });
+          readableStream.on('error', readErr => {
+            fastify.log.error(`Error in save when reading file ${dir}/${filename}: ${readErr}`);
+            reject(new InternalError(`Reading file ${dir}/${filename}`, readErr));
+          });
+          readableStream.on('close', () => {
+            readableStream.destroy();
+          });
+          readableStream.on('end', async () => {
+            buffer = Buffer.concat(buffer);
+            try {
+              const arrayBuffer = toArrayBuffer(buffer);
+              const dicomInfo = await fastify.getDicomInfo(arrayBuffer, params, epadAuth);
+              studies.add(dicomInfo);
+              resolve({ success: true, errors: [] });
+            } catch (err) {
+              console.log('file not supported ignore', err);
+              resolve({ success: true, errors: [] });
+              // reject(new InternalError(`Reading dicom file ${filename}`, err));
+            }
+          });
+        } catch (err) {
+          reject(new InternalError(`Processing file ${filename}`, err));
+        }
+      })
+  );
   fastify.decorate(
     'saveOtherFileToProjectInternal',
     (filename, params, query, buffer, length, epadAuth) =>

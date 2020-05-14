@@ -281,6 +281,15 @@ async function otherRoutes(fastify) {
   });
 
   fastify.route({
+    method: 'POST',
+    url: '/linkfolder',
+    schema: {
+      tags: ['files'],
+    },
+    handler: fastify.scanFolderToLink,
+  });
+
+  fastify.route({
     method: 'GET',
     url: '/userinfo',
     schema: {
