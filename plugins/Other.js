@@ -9,6 +9,7 @@ window = {};
 const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
+const plist = require('plist');
 const { createOfflineAimSegmentation } = require('aimapi');
 const config = require('../config/index');
 
@@ -49,6 +50,14 @@ async function other(fastify) {
   });
   // eslint-disable-next-line global-require
   fastify.register(require('fastify-multipart'));
+  fastify.decorate('parseOsirix', (request, reply) => {
+    const osirixObj = plist.parse(
+      fs.readFileSync('/Users/ozge/Downloads/7.3225.4503-4-3-08-DELAY.xml', 'utf8')
+    );
+    console.log(' --------> here in parsing xml <---------');
+    console.log(JSON.stringify(osirixObj));
+  });
+
   fastify.decorate('saveFile', (request, reply) => {
     const timestamp = new Date().getTime();
     const dir = `/tmp/tmp_${timestamp}`;
@@ -502,6 +511,7 @@ async function other(fastify) {
     (dir, filename, datasets, params, query, studies, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
+          const isOsirixAnnotation = filename.endsWith('bplist') || filename.endsWith('plist') || filename.endsWith('xml');
           let buffer = [];
           const readableStream = fs.createReadStream(`${dir}/${filename}`);
           readableStream.on('data', chunk => {
@@ -565,6 +575,8 @@ async function other(fastify) {
                     reject(err);
                   });
               }
+            } else if (isOsirixAnnotation && !filename.startsWith('__MACOSX')) {
+              fastify.parseOsirix();
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
