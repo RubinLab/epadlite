@@ -4194,9 +4194,10 @@ async function epaddb(fastify, options, done) {
               }
             }
             // check files
-            const files = await fastify.getFilesInternal({ format: 'stream' }, params, dataDir);
-            isThereDataToWrite = isThereDataToWrite || files;
-
+            if (query.includeFiles && query.includeFiles === 'true') {
+              const files = await fastify.getFilesInternal({ format: 'stream' }, params, dataDir);
+              isThereDataToWrite = isThereDataToWrite || files;
+            }
             if (isThereDataToWrite) {
               if (!headWritten) {
                 if (!isResponseJustStream) fastify.writeHead(dirName, res);
