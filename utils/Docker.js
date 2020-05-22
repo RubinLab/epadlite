@@ -164,9 +164,9 @@ class DockerService {
           //  Cmd: ['/bin/bash', '-c', 'tail -f /var/log/dmesg'],
           OpenStdin: false,
           StdinOnce: false,
-          // HostConfig: {
-          //   Binds: dockerFoldersToBind,
-          // },
+          HostConfig: {
+            Binds: dockerFoldersToBind,
+          },
         })
         // eslint-disable-next-line func-names
         .then(function(container) {

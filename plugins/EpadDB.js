@@ -1027,7 +1027,12 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('savePlugin', (request, reply) => {
     //  console.log('back end saved the plugin', request.body);
     console.log('checking user right ', request.epadAuth);
+    let tempprocessmultipleaims = null;
+
     const { pluginform } = request.body;
+    if (pluginform.processmultipleaims !== '') {
+      tempprocessmultipleaims = pluginform.processmultipleaims;
+    }
     models.plugin
       .create({
         plugin_id: pluginform.plugin_id,
@@ -1044,6 +1049,7 @@ async function epaddb(fastify, options, done) {
         updatetime: '1970-01-01 00:00:01',
         developer: pluginform.developer,
         documentation: pluginform.documentation,
+        processmultipleaims: tempprocessmultipleaims,
       })
       .then(() => {
         reply.code(200).send('Plugin saved seccessfully');
@@ -1070,7 +1076,10 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('editPlugin', (request, reply) => {
     //  console.log('back end edit plugin called', request.body);
     const { pluginform } = request.body;
-
+    let tempprocessmultipleaims = null;
+    if (pluginform.processmultipleaims !== '') {
+      tempprocessmultipleaims = pluginform.processmultipleaims;
+    }
     //  delete pluginform.dbid;
     //  console.log('edit sending plugin form data ', pluginform);
     models.plugin
@@ -1079,6 +1088,7 @@ async function epaddb(fastify, options, done) {
           ...pluginform,
           updatetime: Date.now(),
           updated_by: request.epadAuth.username,
+          processmultipleaims: tempprocessmultipleaims,
         },
         {
           where: {
@@ -1897,7 +1907,8 @@ async function epaddb(fastify, options, done) {
 
       reply.code(202).send(`PrunPluginsQueue called and retuened 202 inernal queue is started`);
 
-      fastify.runPluginsQueueInternal(result, request);
+      const resultPluginQueueInternal = fastify.runPluginsQueueInternal(result, request);
+      console.log('parent : ', resultPluginQueueInternal);
     } catch (err) {
       reply.send(new InternalError(' plugin queue error while starting', err));
     }
@@ -1974,7 +1985,25 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate(
     'createPluginfoldersInternal',
-    (pluginparams, userfolder, aims, projectid, processmultipleaims, request) => {
+    (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) => {
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('processmultipleaims : ', processmultipleaims);
+      console.log('type of processmultipleaims : ', typeof processmultipleaims);
+
+      console.log('projectid : ', projectid);
+      console.log('projectdbid : ', projectdbid);
+      console.log('aims : ', aims);
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+      console.log('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^');
+
       return new Promise(async (resolve, reject) => {
         // if (!fs.existsSync(pluginsDataFolder)) {
         //   fs.mkdirSync(pluginsDataFolder);
@@ -2001,65 +2030,84 @@ async function epaddb(fastify, options, done) {
 
         for (let i = 0; i < tempPluginparams.length; i += 1) {
           console.log(tempPluginparams[i].format);
+          // output folder
+          if (tempPluginparams[i].format === 'OutputFolder') {
+            console.log('creating outputfolder : ', tempPluginparams[i].paramid);
+
+            try {
+              const outputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
+              console.log(outputfolder);
+              if (!fs.existsSync(outputfolder)) {
+                fs.mkdirSync(outputfolder, { recursive: true });
+              }
+            } catch (err) {
+              reject(err);
+            }
+          }
+          // outputfolder end
           if (tempPluginparams[i].format === 'InputFolder') {
             console.log('creating each folder and files for param : ', tempPluginparams[i].paramid);
 
-            // if (tempPluginparams[i].paramid === 'aims') {
-            //   try {
-            //     // eslint-disable-next-line no-await-in-loop
-            //     const source = await fastify.getAimsInternal(
-            //       'stream',
-            //       {},
-            //       Object.keys(aims),
-            //       request.epadAuth
-            //     );
+            if (
+              tempPluginparams[i].paramid === 'aims' &&
+              Object.keys(aims).length > 0 &&
+              typeof processmultipleaims !== 'object'
+            ) {
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                const source = await fastify.getAimsInternal(
+                  'stream',
+                  {},
+                  Object.keys(aims),
+                  request.epadAuth
+                );
 
-            //     const inputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
-            //     console.log(inputfolder);
-            //     if (!fs.existsSync(inputfolder)) {
-            //       fs.mkdirSync(inputfolder, { recursive: true });
-            //     }
-            //     // const readStream = fs.createReadStream(source.path);
-            //     const writeStream = fs.createWriteStream(`${inputfolder}annotations.zip`);
+                const inputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
+                console.log(inputfolder);
+                if (!fs.existsSync(inputfolder)) {
+                  fs.mkdirSync(inputfolder, { recursive: true });
+                }
+                // const readStream = fs.createReadStream(source.path);
+                const writeStream = fs.createWriteStream(`${inputfolder}annotations.zip`);
 
-            //     source
-            //       .pipe(writeStream)
-            //       // eslint-disable-next-line no-loop-func
-            //       .on('close', () => {
-            //         fastify.log.info(
-            //           `Aims zip copied to aims folder ${inputfolder}annotations.zip`
-            //         );
+                source
+                  .pipe(writeStream)
+                  // eslint-disable-next-line no-loop-func
+                  .on('close', () => {
+                    fastify.log.info(
+                      `Aims zip copied to aims folder ${inputfolder}annotations.zip`
+                    );
 
-            //         fs.createReadStream(`${inputfolder}annotations.zip`)
-            //           .pipe(unzip.Extract({ path: `${inputfolder}` }))
-            //           .on('close', () => {
-            //             fastify.log.info(`${inputfolder}annotations.zip extracted`);
-            //             fs.remove(`${inputfolder}annotations.zip`, error => {
-            //               if (error) {
-            //                 fastify.log.info(
-            //                   `Zip annotations.zip file deletion error ${error.message}`
-            //                 );
-            //                 reject(error);
-            //               } else {
-            //                 fastify.log.info(`${inputfolder}annotations.zip deleted`);
-            //                 //resolve('annotation zip deleted');
-            //               }
-            //             });
-            //           })
-            //           .on('error', error => {
-            //             reject(
-            //               new InternalError(`Extracting zip ${inputfolder}annotations.zip`, error)
-            //             );
-            //           });
-            //       })
-            //       // eslint-disable-next-line no-loop-func
-            //       .on('error', error => {
-            //         reject(new InternalError(`Copying zip ${inputfolder}annotations.zip`, error));
-            //       });
-            //   } catch (err) {
-            //     reject(err);
-            //   } //  console.log('download aim ', returnaim);
-            // }
+                    fs.createReadStream(`${inputfolder}annotations.zip`)
+                      .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                      .on('close', () => {
+                        fastify.log.info(`${inputfolder}annotations.zip extracted`);
+                        fs.remove(`${inputfolder}annotations.zip`, error => {
+                          if (error) {
+                            fastify.log.info(
+                              `Zip annotations.zip file deletion error ${error.message}`
+                            );
+                            reject(error);
+                          } else {
+                            fastify.log.info(`${inputfolder}annotations.zip deleted`);
+                            //resolve('annotation zip deleted');
+                          }
+                        });
+                      })
+                      .on('error', error => {
+                        reject(
+                          new InternalError(`Extracting zip ${inputfolder}annotations.zip`, error)
+                        );
+                      });
+                  })
+                  // eslint-disable-next-line no-loop-func
+                  .on('error', error => {
+                    reject(new InternalError(`Copying zip ${inputfolder}annotations.zip`, error));
+                  });
+              } catch (err) {
+                reject(err);
+              } //  console.log('download aim ', returnaim);
+            }
             if (tempPluginparams[i].paramid === 'dicoms') {
               const inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
               console.log('creating dicoms in this folder', inputfolder);
@@ -2068,36 +2116,103 @@ async function epaddb(fastify, options, done) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                 }
                 // eslint-disable-next-line no-case-declarations
-                const writeStream = fs
-                  .createWriteStream(`${inputfolder}/dicoms.zip`)
-                  .on('finish', function(val) {
-                    console.log('dicom compy finished', val);
-                  });
 
-                // eslint-disable-next-line no-await-in-loop
-                // const returnDicom = await fastify.prepDownload(
-                //   {
-                //     project_id: projectid,
-                //     //project: projectid,
-                //     // subject: '87654321',
-                //     // study: '1.2.826.0.1.3680043.9.6883.1.27939524453445721325265426006463727',
-                //     // series: '1.2.826.0.1.3680043.9.6883.1.26061468719168573720143090973972967',
-                //   },
-                //   { format: 'stream', includeAims: 'false' },
-                //   request.epadAuth,
-                //   writeStream
-                // );
-                // eslint-disable-next-line no-await-in-loop
-                await fastify.prepDownload(
-                  { project: 'lite' },
-                  { format: 'stream', includeAims: 'true' },
-                  request.epadAuth,
-                  writeStream,
-                  {
-                    project_id: 17,
+                if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
+                  const aimsKeysLength = Object.keys(aims).length;
+                  const aimsKeys = Object.keys(aims);
+                  for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
+                    const writeStream = fs
+                      .createWriteStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
+                      // eslint-disable-next-line func-names
+                      .on('finish', function() {
+                        console.log('dicom copy finished');
+                        // unzip part
+                        fs.createReadStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
+                          .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                          .on('close', () => {
+                            fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip extracted`);
+                            fs.remove(`${inputfolder}/dicoms${aimsCnt}.zip`, error => {
+                              if (error) {
+                                fastify.log.info(
+                                  `${inputfolder}/dicoms${aimsCnt}.zip file deletion error ${
+                                    error.message
+                                  }`
+                                );
+                                reject(error);
+                              } else {
+                                fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip deleted`);
+                                //resolve('annotation zip deleted');
+                              }
+                            });
+                          })
+                          .on('error', error => {
+                            reject(
+                              new InternalError(
+                                `Extracting zip ${inputfolder}//dicoms${aimsCnt}.zip`,
+                                error
+                              )
+                            );
+                          });
+                        // un zip part over
+                      });
+                    const eacAimhObj = aims[aimsKeys[aimsCnt]];
+                    console.log('getting dicoms for aim ', eacAimhObj);
+                    // eslint-disable-next-line no-await-in-loop
+                    await fastify.prepDownload(
+                      {
+                        project: projectid,
+                        subject: eacAimhObj.subjectID,
+                        study: eacAimhObj.studyUID,
+                        series: eacAimhObj.seriesUID,
+                      },
+                      { format: 'stream', includeAims: 'false' },
+                      request.epadAuth,
+                      writeStream
+                    );
                   }
-                );
-                //resolve('dicom copied ');
+                } else {
+                  console.log('getting projects dicoms.........');
+                  const writeStream = fs
+                    .createWriteStream(`${inputfolder}/dicoms.zip`)
+                    // eslint-disable-next-line func-names
+                    .on('finish', function() {
+                      console.log('dicom copy finished');
+                      // unzip part
+                      fs.createReadStream(`${inputfolder}/dicoms.zip`)
+                        .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                        .on('close', () => {
+                          fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
+                          fs.remove(`${inputfolder}/dicoms.zip`, error => {
+                            if (error) {
+                              fastify.log.info(
+                                `${inputfolder}/dicoms.zip file deletion error ${error.message}`
+                              );
+                              reject(error);
+                            } else {
+                              fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
+                              //  resolve('annotation zip deleted');
+                            }
+                          });
+                        })
+                        .on('error', error => {
+                          reject(
+                            new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
+                          );
+                        });
+                      // un zip part over
+                    });
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.prepDownload(
+                    { project: projectid },
+                    { format: 'stream', includeAims: 'true' },
+                    request.epadAuth,
+                    writeStream,
+                    {
+                      project_id: projectdbid,
+                    }
+                  );
+                }
+                //  resolve('dicom copied ');
               } catch (err) {
                 reject(err);
               }
@@ -2113,7 +2228,7 @@ async function epaddb(fastify, options, done) {
       const parametertype = queueObject.plugin_parametertype;
       const pluginid = queueObject.plugin_id;
       const projectdbid = queueObject.project_id;
-      const { projectid } = queueObject.project.projectid;
+      const { projectid } = queueObject.project;
       // eslint-disable-next-line prefer-destructuring
       const processmultipleaims = queueObject.plugin.processmultipleaims;
       const runtimeParams = queueObject.runtime_params;
@@ -2137,6 +2252,7 @@ async function epaddb(fastify, options, done) {
             pluginsDataFolder,
             aims,
             projectid,
+            projectdbid,
             processmultipleaims,
             request
           );
@@ -2163,6 +2279,7 @@ async function epaddb(fastify, options, done) {
             pluginsDataFolder,
             aims,
             projectid,
+            projectdbid,
             processmultipleaims,
             request
           );
@@ -2189,6 +2306,7 @@ async function epaddb(fastify, options, done) {
             pluginsDataFolder,
             aims,
             projectid,
+            projectdbid,
             processmultipleaims,
             request
           );
@@ -2314,7 +2432,10 @@ async function epaddb(fastify, options, done) {
           if (tempPluginParams[i].prefix !== '') {
             onlyNameValues.push(tempPluginParams[i].prefix);
           }
-          if (tempPluginParams[i].format === 'InputFolder') {
+          if (
+            tempPluginParams[i].format === 'InputFolder' ||
+            tempPluginParams[i].format === 'OutputFolder'
+          ) {
             foldersToBind.push(
               `${tempLocalFolder}/${tempPluginParams[i].paramid}:${
                 tempPluginParams[i].default_value
@@ -2376,12 +2497,22 @@ async function epaddb(fastify, options, done) {
         const litSize = imageList.length;
 
         for (let cnt = 0; cnt < litSize; cnt += 1) {
-          if (imageList[cnt].RepoTags.includes(imageRepo)) {
-            checkImageExistLocal = true;
-            console.log('image found locally');
-            break;
+          if (imageRepo !== ':' && imageRepo !== '') {
+            if (imageList[cnt].RepoTags.includes(imageRepo)) {
+              checkImageExistLocal = true;
+              console.log('image found locally');
+              break;
+            }
+          } else {
+            console.log('image is : or empty');
           }
         }
+
+        // if (checkImageExistLocal === false) {
+        //   console.log('image not found 1 ');
+        //   // eslint-disable-next-line no-new
+        //   return new InternalError('no image found locally or remote ', imageRepo);
+        // }
       }
       if (checkImageExistOnHub === true || checkImageExistLocal === true) {
         try {
@@ -2390,6 +2521,7 @@ async function epaddb(fastify, options, done) {
           const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
             pluginParameters
           );
+          console.log('sorted params : ', sortedParams);
 
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'running');
@@ -2403,12 +2535,25 @@ async function epaddb(fastify, options, done) {
           opreationresult = ` plugin image : ${imageRepo} terminated with success`;
           new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
           console.log('plugin finished working', imageRepo);
+          return 'completed';
         } catch (err) {
           const operationresult = ` plugin image : ${imageRepo} terminated with error`;
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-          new EpadNotification(request, operationresult, err, true).notify(fastify);
+          return new EpadNotification(request, operationresult, err, true).notify(fastify);
         }
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+        console.log('image not found ', imageRepo);
+        return new EpadNotification(
+          request,
+          'error',
+          new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
+          true
+        ).notify(fastify);
+        //  new EpadNotification(request, 'not found', 'error', true).notify(fastify);
+        //  return new InternalError('no image found locally or remote ', imageRepo);
       }
     }
     //  below here used
