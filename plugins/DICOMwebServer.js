@@ -36,6 +36,64 @@ async function dicomwebserver(fastify) {
     return null;
   });
 
+  // get tagvalue with a default
+  fastify.decorate('getTagValue', (metadata, tag, defaultVal) => {
+    if (metadata[tag] && metadata[tag].Value) {
+      const tagValue = metadata[tag].Value[0];
+      if (typeof tagValue === 'string') {
+        return fastify.replaceNull(tagValue);
+      }
+      if (typeof tagValue === 'object' && !Array.isArray(tagValue)) {
+        const values = Object.values(tagValue);
+        return typeof values[0] === 'string' ? fastify.replaceNull(values[0]) : defaultVal;
+      }
+      return defaultVal;
+    }
+    return defaultVal;
+  });
+
+  // send a params obj with study, series, instance
+  fastify.decorate(
+    'getImageMetadata',
+    params =>
+      new Promise((resolve, reject) => {
+        try {
+          this.request
+            .get(
+              `/studies/${params.study}/series/${params.series}/instances/${
+                params.instance
+              }/metadata`,
+              header
+            )
+            .then(async response => {
+              // response.data has tags
+              const metadata = response.data;
+              // console.log('metadata', JSON.stringify(metadata));
+              const extractedMetadata = {
+                patientID: fastify.getTagValue(metadata[0], '00100020', ''),
+                sopClassUID: fastify.getTagValue(metadata[0], '00080016', ''),
+                studyDate: fastify.getTagValue(metadata[0], '00080020', ''),
+                studyTime: fastify.getTagValue(metadata[0], '00080030', ''),
+                accessionNumber: fastify.getTagValue(metadata[0], '00080050', ''),
+                patientName: fastify.getTagValue(metadata[0], '00100010', ''),
+                patientBirthDate: fastify.getTagValue(metadata[0], '00100030', ''),
+                patientSex: fastify.getTagValue(metadata[0], '00100040', ''),
+                studyInstanceUID: fastify.getTagValue(metadata[0], '0020000D', ''),
+                seriesInstanceUID: fastify.getTagValue(metadata[0], '0020000E', ''),
+              };
+              resolve(extractedMetadata);
+            })
+            .catch(error => {
+              reject(
+                new InternalError(`Error retrieving series's (${params.series}) instances`, error)
+              );
+            });
+        } catch (err) {
+          reject(new InternalError(`Error populating series's (${params.series}) instances`, err));
+        }
+      })
+  );
+
   // connects to the DICOMweb server using the authentication method in config.dicomWebConfig
   // tests the connection with /studies endpoint after connection and rejects if unsuccessful
   fastify.decorate(

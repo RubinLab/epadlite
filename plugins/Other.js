@@ -50,13 +50,6 @@ async function other(fastify) {
   });
   // eslint-disable-next-line global-require
   fastify.register(require('fastify-multipart'));
-  fastify.decorate('parseOsirix', (request, reply) => {
-    const osirixObj = plist.parse(
-      fs.readFileSync('/Users/ozge/Downloads/7.3225.4503-4-3-08-DELAY.xml', 'utf8')
-    );
-    console.log(' --------> here in parsing xml <---------');
-    console.log(JSON.stringify(osirixObj));
-  });
 
   fastify.decorate('saveFile', (request, reply) => {
     const timestamp = new Date().getTime();
@@ -511,7 +504,6 @@ async function other(fastify) {
     (dir, filename, datasets, params, query, studies, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
-          const isOsirixAnnotation = filename.endsWith('bplist') || filename.endsWith('plist') || filename.endsWith('xml');
           let buffer = [];
           const readableStream = fs.createReadStream(`${dir}/${filename}`);
           readableStream.on('data', chunk => {
@@ -575,8 +567,9 @@ async function other(fastify) {
                     reject(err);
                   });
               }
-            } else if (isOsirixAnnotation && !filename.startsWith('__MACOSX')) {
-              fastify.parseOsirix();
+            } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
+              const osirixObj = fastify.parseOsirix();
+              fastify.getImageMetaDataforOsirix(osirixObj);
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
@@ -616,6 +609,33 @@ async function other(fastify) {
         }
       })
   );
+
+  fastify.decorate('parseOsirix', () => {
+    const osirixObj = plist.parse(
+      fs.readFileSync('/Users/ozge/Downloads/7.3225.4503-4-3-08-DELAY.xml', 'utf8')
+    );
+    return osirixObj;
+  });
+
+  fastify.decorate('getImageMetaDataforOsirix', osirixObj => {
+    const metadataArr = [];
+    const images = osirixObj.Images;
+    // handle no SOPInstanceUID means no image in the system
+    images.forEach(obj => {
+      obj.ROIs.forEach(annotation => {
+        const parameters = {
+          instance: annotation.SOPInstanceUID,
+          series: annotation.SeriesInstanceUID,
+          study: annotation.StudyInstanceUID,
+        };
+        metadataArr.push(fastify.getImageMetadata(parameters));
+      });
+    });
+    return metadataArr;
+  });
+
+  // gets data fields from dicom for an image
+  fastify.decorate('getFieldsFromImageMetaData', () => {});
 
   fastify.decorate(
     'saveOtherFileToProjectInternal',
