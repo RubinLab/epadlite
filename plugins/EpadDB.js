@@ -4625,7 +4625,7 @@ async function epaddb(fastify, options, done) {
           );
         } else {
           for (let i = 0; i < projectSubjects.length; i += 1) {
-	    for (let j = 0; j < projectSubjects[i].dataValues.studies.length; j += 1) {
+            for (let j = 0; j < projectSubjects[i].dataValues.studies.length; j += 1) {
               studyUids.push(projectSubjects[i].dataValues.studies[j].dataValues.studyuid);
               // ASSUMPTION: nondicoms have no studydate
               if (!projectSubjects[i].dataValues.studies[j].dataValues.studydate)
