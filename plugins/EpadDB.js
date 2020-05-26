@@ -6298,6 +6298,19 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS notified int(1) NOT NULL DEFAULT 0 AFTER error;`,
               { transaction: t }
             );
+
+            // add nondicom delete cascade
+            await fastify.orm.query(
+              `ALTER TABLE nondicom_series 
+                DROP FOREIGN KEY IF EXISTS FK_series_study,
+                DROP KEY IF EXISTS FK_series_study;`,
+              { transaction: t }
+            );
+            await fastify.orm.query(
+              `ALTER TABLE nondicom_series 
+                ADD FOREIGN KEY IF NOT EXISTS FK_series_study (study_id) REFERENCES study (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
+              { transaction: t }
+            );
           });
 
           // the db schema is updated successfully lets copy the files
