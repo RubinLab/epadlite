@@ -584,19 +584,29 @@ async function other(fastify) {
                 .catch(err => reject(err));
             else {
               // check to see if it is a dicom file with no dcm extension
-              try {
-                const arrayBuffer = toArrayBuffer(buffer);
-                studies.add(fastify.getDicomInfo(arrayBuffer));
-                datasets.push(arrayBuffer);
-                resolve({ success: true, errors: [] });
-              } catch (err) {
+              const ext = fastify.getExtension(filename);
+              if (ext === '' || /^\d+$/.test(ext)) {
+                try {
+                  const arrayBuffer = toArrayBuffer(buffer);
+                  const dicomInfo = await fastify.getDicomInfo(arrayBuffer, params, epadAuth);
+                  studies.add(dicomInfo);
+                  datasets.push(arrayBuffer);
+                  resolve({ success: true, errors: [] });
+                } catch (err) {
+                  reject(
+                    new BadRequestError(
+                      'Uploading files',
+                      new Error(`Unsupported filetype for file ${dir}/${filename}`)
+                    )
+                  );
+                }
+              } else
                 reject(
                   new BadRequestError(
                     'Uploading files',
                     new Error(`Unsupported filetype for file ${dir}/${filename}`)
                   )
                 );
-              }
             }
           });
         } catch (err) {
@@ -636,7 +646,7 @@ async function other(fastify) {
   fastify.decorate('getExtension', filename => {
     const ext = path.extname(filename).replace('.', '');
     if (ext === '') return '';
-    return filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
+    return ext.toLowerCase();
   });
 
   fastify.decorate('checkFileType', filename => {
