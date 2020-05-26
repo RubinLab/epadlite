@@ -634,7 +634,8 @@ async function other(fastify) {
   );
 
   fastify.decorate('getExtension', filename => {
-    if (filename.lastIndexOf('.') === -1) return '';
+    const ext = path.extname(filename).replace('.', '');
+    if (ext === '') return '';
     return filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
   });
 
@@ -1264,8 +1265,12 @@ async function other(fastify) {
           // check the method and call specific rights check
           switch (request.req.method) {
             case 'GET': // check project access (projectToRole). filtering should be done in the methods
-              if (fastify.hasAccessToProject(request, reqInfo.project) === undefined)
-                reply.send(new UnauthorizedError('User has no access to project'));
+              if (fastify.hasAccessToProject(request, reqInfo.project) === undefined) {
+                // check if it is a public project
+                const project = await fastify.getProjectInternal(reqInfo.project);
+                if (project.type.toLowerCase() !== 'public')
+                  reply.send(new UnauthorizedError('User has no access to project'));
+              }
               break;
             case 'PUT': // check permissions
               // not really a good way to check it but

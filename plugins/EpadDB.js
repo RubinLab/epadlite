@@ -458,7 +458,11 @@ async function epaddb(fastify, options, done) {
           project.users.forEach(user => {
             obj.loginNames.push(user.username);
           });
-          if (request.epadAuth.admin || obj.loginNames.includes(request.epadAuth.username))
+          if (
+            request.epadAuth.admin ||
+            obj.loginNames.includes(request.epadAuth.username) ||
+            obj.type.toLowerCase() === 'public'
+          )
             result.push(obj);
         });
         reply.code(200).send(result);
@@ -3643,11 +3647,24 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate(
+    'getProjectInternal',
+    projectId =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const project = await models.project.findOne({
+            where: { projectid: projectId },
+          });
+          resolve(project);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate('getProject', async (request, reply) => {
     try {
-      const project = await models.project.findOne({
-        where: { projectid: request.params.project },
-      });
+      const project = await fastify.getProjectInternal(request.params.project);
       if (project === null)
         reply.send(new ResourceNotFoundError('Project', request.params.project));
       else if (request.query.format === 'stream') {
