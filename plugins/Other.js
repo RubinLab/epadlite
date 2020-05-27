@@ -60,49 +60,18 @@ async function other(fastify) {
       } else {
         Promise.all(fileSavePromisses)
           .then(async () => {
-            let errors = [];
-            let success = false;
-            let datasets = [];
-            let studies = new Set();
             if (config.env !== 'test') {
               fastify.log.info('Files copy completed. sending response');
               reply.code(202).send('Files received succesfully, saving..');
             }
             try {
-              for (let i = 0; i < filenames.length; i += 1) {
-                try {
-                  // eslint-disable-next-line no-await-in-loop
-                  const fileResult = await fastify.processFile(
-                    dir,
-                    filenames[i],
-                    datasets,
-                    request.params,
-                    request.query,
-                    studies,
-                    request.epadAuth
-                  );
-                  if (fileResult && fileResult.errors && fileResult.errors.length > 0)
-                    errors = errors.concat(fileResult.errors);
-                  if (
-                    (fileResult && fileResult.errors && fileResult.errors.length === 0) ||
-                    (fileResult && fileResult.success && fileResult.success === true)
-                  )
-                    success = success || true;
-                } catch (fileErr) {
-                  errors.push(fileErr);
-                }
-              }
-              // see if it was a dicom
-              if (datasets.length > 0) {
-                await fastify.sendDicomsInternal(
-                  request.params,
-                  request.epadAuth,
-                  studies,
-                  datasets
-                );
-                datasets = [];
-                studies = new Set();
-              }
+              const { success, errors } = await fastify.saveFiles(
+                dir,
+                filenames,
+                request.params,
+                request.query,
+                request.epadAuth
+              );
               fs.remove(dir, error => {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 fastify.log.info(`${dir} deleted`);
@@ -201,6 +170,51 @@ async function other(fastify) {
 
     request.multipart(handler, done);
   });
+
+  fastify.decorate(
+    'saveFiles',
+    (dir, filenames, params, query, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let errors = [];
+          let success = false;
+          let datasets = [];
+          let studies = new Set();
+          for (let i = 0; i < filenames.length; i += 1) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const fileResult = await fastify.processFile(
+                dir,
+                filenames[i],
+                datasets,
+                params,
+                query,
+                studies,
+                epadAuth
+              );
+              if (fileResult && fileResult.errors && fileResult.errors.length > 0)
+                errors = errors.concat(fileResult.errors);
+              if (
+                (fileResult && fileResult.errors && fileResult.errors.length === 0) ||
+                (fileResult && fileResult.success && fileResult.success === true)
+              )
+                success = success || true;
+            } catch (fileErr) {
+              errors.push(fileErr);
+            }
+          }
+          // see if it was a dicom
+          if (datasets.length > 0) {
+            await fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
+            datasets = [];
+            studies = new Set();
+          }
+          resolve({ success, errors });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate('chunkSize', 500);
 
