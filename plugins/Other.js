@@ -174,41 +174,45 @@ async function other(fastify) {
   fastify.decorate(
     'saveFiles',
     (dir, filenames, params, query, epadAuth) =>
-      new Promise(async resolve => {
-        let errors = [];
-        let success = false;
-        let datasets = [];
-        let studies = new Set();
-        for (let i = 0; i < filenames.length; i += 1) {
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            const fileResult = await fastify.processFile(
-              dir,
-              filenames[i],
-              datasets,
-              params,
-              query,
-              studies,
-              epadAuth
-            );
-            if (fileResult && fileResult.errors && fileResult.errors.length > 0)
-              errors = errors.concat(fileResult.errors);
-            if (
-              (fileResult && fileResult.errors && fileResult.errors.length === 0) ||
-              (fileResult && fileResult.success && fileResult.success === true)
-            )
-              success = success || true;
-          } catch (fileErr) {
-            errors.push(fileErr);
+      new Promise(async (resolve, reject) => {
+        try {
+          let errors = [];
+          let success = false;
+          let datasets = [];
+          let studies = new Set();
+          for (let i = 0; i < filenames.length; i += 1) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const fileResult = await fastify.processFile(
+                dir,
+                filenames[i],
+                datasets,
+                params,
+                query,
+                studies,
+                epadAuth
+              );
+              if (fileResult && fileResult.errors && fileResult.errors.length > 0)
+                errors = errors.concat(fileResult.errors);
+              if (
+                (fileResult && fileResult.errors && fileResult.errors.length === 0) ||
+                (fileResult && fileResult.success && fileResult.success === true)
+              )
+                success = success || true;
+            } catch (fileErr) {
+              errors.push(fileErr);
+            }
           }
+          // see if it was a dicom
+          if (datasets.length > 0) {
+            await fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
+            datasets = [];
+            studies = new Set();
+          }
+          resolve({ success, errors });
+        } catch (err) {
+          reject(err);
         }
-        // see if it was a dicom
-        if (datasets.length > 0) {
-          await fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
-          datasets = [];
-          studies = new Set();
-        }
-        resolve({ success, errors });
       })
   );
 
