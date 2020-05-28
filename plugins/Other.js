@@ -105,9 +105,10 @@ async function other(fastify) {
                 } else if (config.env === 'test') reply.code(200).send();
                 else {
                   fastify.log.info(`Upload Completed ${filenames}`);
-                  new EpadNotification(request, 'Upload Completed', filenames, true).notify(
-                    fastify
-                  );
+                  if (!(filenames.length === 1 && filenames[0] === 'blob.dcm'))
+                    new EpadNotification(request, 'Upload Completed', filenames, true).notify(
+                      fastify
+                    );
                 }
               } else if (config.env === 'test') {
                 reply.send(
