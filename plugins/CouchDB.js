@@ -478,6 +478,10 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('isCollaborator', (project, epadAuth) => {
+    return epadAuth.projectToRole.includes(`${project}:Collaborator`);
+  });
+
   // filter aims with aimId filter array
   fastify.decorate(
     'filterAims',
@@ -499,7 +503,7 @@ async function couchdb(fastify, options) {
           if (params.project) {
             // TODO if we want to return sth other than 404 for aim access we should check if this filtering empties filteredAims
             // if the user is a collaborator in the project he should only see his annotations
-            if (epadAuth.projectToRole.includes(`${params.project}:Collaborator`)) {
+            if (fastify.isCollaborator(params.project, epadAuth)) {
               if (format && format === 'summary') {
                 filteredRows = _.filter(
                   filteredRows,

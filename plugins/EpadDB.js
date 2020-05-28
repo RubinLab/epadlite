@@ -1777,9 +1777,12 @@ async function epaddb(fastify, options, done) {
           include: [
             {
               model: models.project_subject,
-              include: [models.subject, models.study],
+              include: [
+                { model: models.subject, attributes: ['name', 'subjectuid'] },
+                { model: models.study, attributes: ['exam_types'] },
+              ],
             },
-            { model: models.project_aim, attributes: ['aim_uid'] },
+            { model: models.project_aim, attributes: ['aim_uid', 'user', 'subject_uid'] },
           ],
         });
         if (projects === null) {
@@ -1790,43 +1793,29 @@ async function epaddb(fastify, options, done) {
             )
           );
         } else {
-          let results = [];
+          const results = [];
           for (let k = 0; k < projects.length; k += 1) {
             const project = projects[k];
             const aimsCountMap = {};
             // if all or undefined no aim counts
             if (request.params.project !== config.XNATUploadProjectID) {
-              const aimUIDs = [];
               for (let i = 0; i < project.dataValues.project_aims.length; i += 1) {
-                aimUIDs.push(project.dataValues.project_aims[i].dataValues.aim_uid);
+                // check if collaborator, then only his own
+                const isCollaborator = fastify.isCollaborator(
+                  request.params.project,
+                  request.epadAuth
+                );
+                if (
+                  project.dataValues.project_aims[i].dataValues.user ===
+                    request.epadAuth.username ||
+                  !isCollaborator
+                ) {
+                  // add to the map or increment
+                  if (!aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid])
+                    aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid] = 0;
+                  aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid] += 1;
+                }
               }
-              // eslint-disable-next-line no-await-in-loop
-              const aims = await fastify.getAimsInternal(
-                'summary',
-                {
-                  subject: '',
-                  study: '',
-                  series: '',
-                },
-                aimUIDs,
-                request.epadAuth
-              );
-              _.chain(aims)
-                .groupBy(value => {
-                  return value.subjectID;
-                })
-                .map(value => {
-                  const numberOfAims = _.reduce(
-                    value,
-                    memo => {
-                      return memo + 1;
-                    },
-                    0
-                  );
-                  aimsCountMap[value[0].subjectID] = numberOfAims;
-                  return value;
-                })
-                .value();
             }
             for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
               let examTypes = [];
