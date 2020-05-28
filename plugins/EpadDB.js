@@ -1769,23 +1769,12 @@ async function epaddb(fastify, options, done) {
         results = _.sortBy(results, 'subjectName');
         reply.code(200).send(results);
       } else {
-        let whereJSON = { projectid: request.params.project };
-        if (request.params.project === config.XNATUploadProjectID) whereJSON = {};
-
-        const projects = await models.project.findAll({
-          where: whereJSON,
-          include: [
-            {
-              model: models.project_subject,
-              include: [
-                { model: models.subject, attributes: ['name', 'subjectuid'] },
-                { model: models.study, attributes: ['exam_types'] },
-              ],
-            },
-            { model: models.project_aim, attributes: ['aim_uid', 'user', 'subject_uid'] },
-          ],
+        const project = await models.project.findOne({
+          where: { projectid: request.params.project },
+          include: [{ model: models.project_aim, attributes: ['aim_uid', 'user', 'subject_uid'] }],
         });
-        if (projects === null) {
+
+        if (project === null) {
           reply.send(
             new BadRequestError(
               'Getting subjects from project',
@@ -1793,69 +1782,70 @@ async function epaddb(fastify, options, done) {
             )
           );
         } else {
-          const results = [];
-          for (let k = 0; k < projects.length; k += 1) {
-            const project = projects[k];
-            const aimsCountMap = {};
-            // if all or undefined no aim counts
-            if (request.params.project !== config.XNATUploadProjectID) {
-              for (let i = 0; i < project.dataValues.project_aims.length; i += 1) {
-                // check if collaborator, then only his own
-                const isCollaborator = fastify.isCollaborator(
-                  request.params.project,
-                  request.epadAuth
-                );
-                if (
-                  project.dataValues.project_aims[i].dataValues.user ===
-                    request.epadAuth.username ||
-                  !isCollaborator
-                ) {
-                  // add to the map or increment
-                  if (!aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid])
-                    aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid] = 0;
-                  aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid] += 1;
-                }
-              }
-            }
-            for (let i = 0; i < project.dataValues.project_subjects.length; i += 1) {
-              let examTypes = [];
-              for (
-                let j = 0;
-                j < project.dataValues.project_subjects[i].dataValues.studies.length;
-                j += 1
+          const projectSubjectsWhereJSON =
+            request.params.project && request.params.project !== config.XNATUploadProjectID
+              ? { project_id: project.id }
+              : {};
+          const projectSubjects = await models.project_subject.findAll({
+            where: projectSubjectsWhereJSON,
+            include: [
+              { model: models.subject, attributes: ['name', 'subjectuid'] },
+              { model: models.study, attributes: ['exam_types', 'id'] },
+            ],
+            attributes: [],
+          });
+          let results = [];
+          const aimsCountMap = {};
+          // if all or undefined no aim counts
+          if (request.params.project !== config.XNATUploadProjectID) {
+            for (let i = 0; i < project.dataValues.project_aims.length; i += 1) {
+              // check if collaborator, then only his own
+              const isCollaborator = fastify.isCollaborator(
+                request.params.project,
+                request.epadAuth
+              );
+              if (
+                project.dataValues.project_aims[i].dataValues.user === request.epadAuth.username ||
+                !isCollaborator
               ) {
-                const studyExamTypes = JSON.parse(
-                  project.dataValues.project_subjects[i].dataValues.studies[j].dataValues.exam_types
-                );
-                examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
+                // add to the map or increment
+                if (!aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid])
+                  aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid] = 0;
+                aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid] += 1;
               }
-
-              results.push({
-                subjectName:
-                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.name,
-                subjectID: fastify.replaceNull(
-                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-                ),
-                projectID: project.dataValues.projectid,
-                insertUser: '', // no user in studies call
-                xnatID: '', // no xnatID should remove
-                insertDate: '', // no date in studies call
-                uri: '', // no uri should remove
-                displaySubjectID: fastify.replaceNull(
-                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-                ),
-                numberOfStudies: project.dataValues.project_subjects[i].dataValues.studies.length,
-                numberOfAnnotations: aimsCountMap[
-                  project.dataValues.project_subjects[i].dataValues.subject.dataValues.subjectuid
-                ]
-                  ? aimsCountMap[
-                      project.dataValues.project_subjects[i].dataValues.subject.dataValues
-                        .subjectuid
-                    ]
-                  : 0,
-                examTypes,
-              });
             }
+          }
+
+          for (let i = 0; i < projectSubjects.length; i += 1) {
+            let examTypes = [];
+            for (let j = 0; j < projectSubjects[i].dataValues.studies.length; j += 1) {
+              const studyExamTypes = JSON.parse(
+                projectSubjects[i].dataValues.studies[j].dataValues.exam_types
+              );
+              examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
+            }
+
+            results.push({
+              subjectName: projectSubjects[i].dataValues.subject.dataValues.name,
+              subjectID: fastify.replaceNull(
+                projectSubjects[i].dataValues.subject.dataValues.subjectuid
+              ),
+              projectID: request.params.project,
+              insertUser: '', // no user in studies call
+              xnatID: '', // no xnatID should remove
+              insertDate: '', // no date in studies call
+              uri: '', // no uri should remove
+              displaySubjectID: fastify.replaceNull(
+                projectSubjects[i].dataValues.subject.dataValues.subjectuid
+              ),
+              numberOfStudies: projectSubjects[i].dataValues.studies.length,
+              numberOfAnnotations: aimsCountMap[
+                projectSubjects[i].dataValues.subject.dataValues.subjectuid
+              ]
+                ? aimsCountMap[projectSubjects[i].dataValues.subject.dataValues.subjectuid]
+                : 0,
+              examTypes,
+            });
           }
           results = _.sortBy(results, 'subjectName');
           reply.code(200).send(results);

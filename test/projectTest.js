@@ -641,6 +641,29 @@ describe('Project Tests', () => {
           defaultTemplate: 'ROI',
           type: 'private',
         });
+      // subject tests require nonassigned and all projects to be present
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: config.unassignedProjectID,
+          projectName: config.unassignedProjectID,
+          projectDescription: config.unassignedProjectID,
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: config.XNATUploadProjectID,
+          projectName: config.XNATUploadProjectID,
+          projectDescription: config.XNATUploadProjectID,
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
     });
     after(async () => {
       await chai
@@ -654,6 +677,15 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testsubject3')
+        .query({ username: 'admin' });
+      // delete nonassinged and all
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(`/projects/${config.unassignedProjectID}`)
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(`/projects/${config.XNATUploadProjectID}`)
         .query({ username: 'admin' });
     });
     it('project testsubject should have no subjects ', done => {
