@@ -129,6 +129,10 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'project_id',
           });
 
+          models.subject.hasMany(models.project_subject, {
+            foreignKey: 'subject_id',
+          });
+
           models.project_subject.belongsTo(models.subject, {
             foreignKey: 'subject_id',
           });
@@ -1786,13 +1790,15 @@ async function epaddb(fastify, options, done) {
             request.params.project && request.params.project !== config.XNATUploadProjectID
               ? { project_id: project.id }
               : {};
-          const projectSubjects = await models.project_subject.findAll({
-            where: projectSubjectsWhereJSON,
+          const subjects = await models.subject.findAll({
             include: [
-              { model: models.subject, attributes: ['name', 'subjectuid'] },
-              { model: models.study, attributes: ['exam_types', 'id'] },
+              {
+                model: models.project_subject,
+                where: projectSubjectsWhereJSON,
+                include: [{ model: models.study, attributes: ['exam_types', 'id'] }],
+              },
             ],
-            attributes: [],
+            attributes: ['name', 'subjectuid'],
           });
           let results = [];
           const aimsCountMap = {};
@@ -1816,33 +1822,43 @@ async function epaddb(fastify, options, done) {
             }
           }
 
-          for (let i = 0; i < projectSubjects.length; i += 1) {
+          for (let i = 0; i < subjects.length; i += 1) {
             let examTypes = [];
-            for (let j = 0; j < projectSubjects[i].dataValues.studies.length; j += 1) {
-              const studyExamTypes = JSON.parse(
-                projectSubjects[i].dataValues.studies[j].dataValues.exam_types
-              );
-              examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
+            const studyIds = {};
+            for (let j = 0; j < subjects[i].dataValues.project_subjects.length; j += 1) {
+              for (
+                let k = 0;
+                k < subjects[i].dataValues.project_subjects[j].dataValues.studies.length;
+                k += 1
+              ) {
+                if (
+                  !studyIds[
+                    subjects[i].dataValues.project_subjects[j].dataValues.studies[k].dataValues.id
+                  ]
+                ) {
+                  studyIds[
+                    subjects[i].dataValues.project_subjects[j].dataValues.studies[k].dataValues.id
+                  ] = true;
+                  const studyExamTypes = JSON.parse(
+                    subjects[i].dataValues.project_subjects[j].dataValues.studies[k].dataValues
+                      .exam_types
+                  );
+                  examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
+                }
+              }
             }
-
             results.push({
-              subjectName: projectSubjects[i].dataValues.subject.dataValues.name,
-              subjectID: fastify.replaceNull(
-                projectSubjects[i].dataValues.subject.dataValues.subjectuid
-              ),
+              subjectName: subjects[i].dataValues.name,
+              subjectID: fastify.replaceNull(subjects[i].dataValues.subjectuid),
               projectID: request.params.project,
               insertUser: '', // no user in studies call
               xnatID: '', // no xnatID should remove
               insertDate: '', // no date in studies call
               uri: '', // no uri should remove
-              displaySubjectID: fastify.replaceNull(
-                projectSubjects[i].dataValues.subject.dataValues.subjectuid
-              ),
-              numberOfStudies: projectSubjects[i].dataValues.studies.length,
-              numberOfAnnotations: aimsCountMap[
-                projectSubjects[i].dataValues.subject.dataValues.subjectuid
-              ]
-                ? aimsCountMap[projectSubjects[i].dataValues.subject.dataValues.subjectuid]
+              displaySubjectID: fastify.replaceNull(subjects[i].dataValues.subjectuid),
+              numberOfStudies: Object.keys(studyIds).length,
+              numberOfAnnotations: aimsCountMap[subjects[i].dataValues.subjectuid]
+                ? aimsCountMap[subjects[i].dataValues.subjectuid]
                 : 0,
               examTypes,
             });
