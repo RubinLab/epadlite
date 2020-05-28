@@ -289,6 +289,7 @@ async function couchdb(fastify, options) {
               { id: 'comment', title: 'Comment' },
               { id: 'userComment', title: 'User_Comment' },
               { id: 'points', title: 'Points' },
+              { id: 'dsoSeriesUid', title: 'DSO_Series_UID' },
               { id: 'studyUid', title: 'Study_UID' },
               { id: 'seriesUid', title: 'Series_UID' },
               { id: 'imageUid', title: 'Image_UID' },
@@ -333,6 +334,12 @@ async function couchdb(fastify, options) {
                     comment: commentSplit[0],
                     userComment: commentSplit.length > 1 ? commentSplit[1] : '',
                     points: `[${points}]`,
+                    dsoSeriesUid:
+                      imageAnnotation.segmentationEntityCollection &&
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity
+                        ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                            .seriesInstanceUid.root
+                        : '',
                     studyUid:
                       imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
                         .imageStudy.instanceUid.root,
