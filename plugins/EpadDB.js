@@ -3150,13 +3150,16 @@ async function epaddb(fastify, options, done) {
                 if (studyUids.length !== result.length)
                   if (studyUids.length === result.length + nondicoms.length) {
                     for (let i = 0; i < nondicoms.length; i += 1) {
-                      // eslint-disable-next-line no-await-in-loop
-                      const numberOfAnnotations = await models.project_aim.count({
-                        where: {
-                          project_id: whereJSON.project_id,
-                          study_uid: nondicoms[i].study.dataValues.studyuid,
-                        },
-                      });
+                      let numberOfAnnotations = 0;
+                      if (params.project !== config.XNATUploadProjectID) {
+                        // eslint-disable-next-line no-await-in-loop
+                        numberOfAnnotations = await models.project_aim.count({
+                          where: {
+                            project_id: whereJSON.project_id,
+                            study_uid: nondicoms[i].study.dataValues.studyuid,
+                          },
+                        });
+                      }
                       result.push({
                         projectID: params.project,
                         patientID: nondicoms[i].subject.dataValues.subjectuid,
