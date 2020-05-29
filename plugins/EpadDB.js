@@ -4661,6 +4661,7 @@ async function epaddb(fastify, options, done) {
           }
           // TODO handle nondicom series
 
+          result = _.sortBy(result, ['patientName', 'seriesDescription']);
           reply.code(200).send(result);
         }
       }
