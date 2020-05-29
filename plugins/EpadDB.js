@@ -2436,14 +2436,20 @@ async function epaddb(fastify, options, done) {
             tempPluginParams[i].format === 'InputFolder' ||
             tempPluginParams[i].format === 'OutputFolder'
           ) {
-            foldersToBind.push(
-              `${tempLocalFolder}/${tempPluginParams[i].paramid}:${
-                tempPluginParams[i].default_value
-              }`
-            );
+            if (tempPluginParams[i].default_value !== '') {
+              foldersToBind.push(
+                `${tempLocalFolder}/${tempPluginParams[i].paramid}:${
+                  tempPluginParams[i].default_value
+                }`
+              );
+            }
           }
-          onlyNameValues.push(tempPluginParams[i].name);
-          onlyNameValues.push(tempPluginParams[i].default_value);
+          if (tempPluginParams[i].name !== '') {
+            onlyNameValues.push(tempPluginParams[i].name);
+          }
+          if (tempPluginParams[i].default_value !== '') {
+            onlyNameValues.push(tempPluginParams[i].default_value);
+          }
         }
         const returnObj = {
           paramsDocker: onlyNameValues,
