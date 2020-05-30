@@ -1756,6 +1756,22 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate('getAimCountMap', (projectAims, project, epadAuth, field) => {
+    const aimsCountMap = {};
+    // if all or undefined no aim counts
+    for (let i = 0; i < projectAims.length; i += 1) {
+      // check if collaborator, then only his own
+      const isCollaborator = fastify.isCollaborator(project, epadAuth);
+      if (projectAims[i].dataValues.user === epadAuth.username || !isCollaborator) {
+        // add to the map or increment
+        if (!aimsCountMap[projectAims[i].dataValues[field]])
+          aimsCountMap[projectAims[i].dataValues[field]] = 0;
+        aimsCountMap[projectAims[i].dataValues[field]] += 1;
+      }
+    }
+    return aimsCountMap;
+  });
+
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
       if (request.params.project === config.unassignedProjectID) {
@@ -1801,25 +1817,15 @@ async function epaddb(fastify, options, done) {
             attributes: ['name', 'subjectuid'],
           });
           let results = [];
-          const aimsCountMap = {};
+          let aimsCountMap = {};
           // if all or undefined no aim counts
           if (request.params.project !== config.XNATUploadProjectID) {
-            for (let i = 0; i < project.dataValues.project_aims.length; i += 1) {
-              // check if collaborator, then only his own
-              const isCollaborator = fastify.isCollaborator(
-                request.params.project,
-                request.epadAuth
-              );
-              if (
-                project.dataValues.project_aims[i].dataValues.user === request.epadAuth.username ||
-                !isCollaborator
-              ) {
-                // add to the map or increment
-                if (!aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid])
-                  aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid] = 0;
-                aimsCountMap[project.dataValues.project_aims[i].dataValues.subject_uid] += 1;
-              }
-            }
+            aimsCountMap = fastify.getAimCountMap(
+              project.dataValues.project_aims,
+              request.params.project,
+              request.epadAuth,
+              'subject_uid'
+            );
           }
 
           for (let i = 0; i < subjects.length; i += 1) {
@@ -3145,20 +3151,36 @@ async function epaddb(fastify, options, done) {
                   params,
                   studyUids,
                   epadAuth,
-                  query
+                  query,
+                  true
                 );
+                let aimsCountMap = {};
+                if (params.project !== config.XNATUploadProjectID) {
+                  const projectAims = await models.project_aim.findAll({
+                    where: {
+                      project_id: whereJSON.project_id,
+                    },
+                    attributes: ['aim_uid', 'user', 'study_uid'],
+                  });
+                  aimsCountMap = fastify.getAimCountMap(
+                    projectAims,
+                    params.project,
+                    epadAuth,
+                    'study_uid'
+                  );
+                }
+                for (let i = 0; i < result.length; i += 1) {
+                  result[i].numberOfAnnotations = aimsCountMap[result[i].studyUID]
+                    ? aimsCountMap[result[i].studyUID]
+                    : 0;
+                }
                 if (studyUids.length !== result.length)
                   if (studyUids.length === result.length + nondicoms.length) {
                     for (let i = 0; i < nondicoms.length; i += 1) {
                       let numberOfAnnotations = 0;
                       if (params.project !== config.XNATUploadProjectID) {
                         // eslint-disable-next-line no-await-in-loop
-                        numberOfAnnotations = await models.project_aim.count({
-                          where: {
-                            project_id: whereJSON.project_id,
-                            study_uid: nondicoms[i].study.dataValues.studyuid,
-                          },
-                        });
+                        numberOfAnnotations = aimsCountMap[nondicoms[i].study.dataValues.studyuid];
                       }
                       result.push({
                         projectID: params.project,

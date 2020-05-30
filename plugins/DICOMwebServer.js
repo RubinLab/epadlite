@@ -405,7 +405,6 @@ async function dicomwebserver(fastify) {
                 )
               );
             else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
-
           Promise.all(promisses)
             .then(async values => {
               // handle success
