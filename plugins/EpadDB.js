@@ -440,6 +440,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getProjects', (request, reply) => {
     models.project
       .findAll({
+        order: [['name', 'ASC']],
         include: ['users'],
       })
       .then(projects => {
