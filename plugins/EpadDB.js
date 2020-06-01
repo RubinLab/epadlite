@@ -3170,19 +3170,9 @@ async function epaddb(fastify, options, done) {
                     'study_uid'
                   );
                 }
-                for (let i = 0; i < result.length; i += 1) {
-                  result[i].numberOfAnnotations = aimsCountMap[result[i].studyUID]
-                    ? aimsCountMap[result[i].studyUID]
-                    : 0;
-                }
                 if (studyUids.length !== result.length)
                   if (studyUids.length === result.length + nondicoms.length) {
                     for (let i = 0; i < nondicoms.length; i += 1) {
-                      let numberOfAnnotations = 0;
-                      if (params.project !== config.XNATUploadProjectID) {
-                        // eslint-disable-next-line no-await-in-loop
-                        numberOfAnnotations = aimsCountMap[nondicoms[i].study.dataValues.studyuid];
-                      }
                       result.push({
                         projectID: params.project,
                         patientID: nondicoms[i].subject.dataValues.subjectuid,
@@ -3200,7 +3190,7 @@ async function epaddb(fastify, options, done) {
                         examTypes: [],
                         numberOfImages: 0, // TODO
                         numberOfSeries: 0, // TODO
-                        numberOfAnnotations,
+                        numberOfAnnotations: 0,
                         createdTime: '',
                         // extra for flexview
                         studyID: '',
@@ -3216,7 +3206,11 @@ async function epaddb(fastify, options, done) {
                         result.length
                       } of them have dicom files`
                     );
-
+                for (let i = 0; i < result.length; i += 1) {
+                  result[i].numberOfAnnotations = aimsCountMap[result[i].studyUID]
+                    ? aimsCountMap[result[i].studyUID]
+                    : 0;
+                }
                 resolve(result);
               }
             } else {
