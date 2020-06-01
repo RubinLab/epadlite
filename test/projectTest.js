@@ -61,7 +61,7 @@ beforeEach(() => {
         query.numOfStudies === '1' &&
         query.numOfSeries === '1' &&
         query.numOfAims === '0' &&
-        query.numOfDSOs === '0' &&
+        query.numOfDSOs === '1' &&
         query.numOfWorkLists === '0' &&
         query.numOfFiles === '0' &&
         query.numOfPlugins === '0' &&
@@ -372,7 +372,7 @@ describe('Project Tests', () => {
             numOfStudies: 1,
             numOfSeries: 1,
             numofAims: 0,
-            numOfDSOs: 0,
+            numOfDSOs: 1,
             numOfPacs: 0,
             numOfAutoQueries: 0,
             numOfWorkLists: 0,
@@ -641,6 +641,29 @@ describe('Project Tests', () => {
           defaultTemplate: 'ROI',
           type: 'private',
         });
+      // subject tests require nonassigned and all projects to be present
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: config.unassignedProjectID,
+          projectName: config.unassignedProjectID,
+          projectDescription: config.unassignedProjectID,
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: config.XNATUploadProjectID,
+          projectName: config.XNATUploadProjectID,
+          projectDescription: config.XNATUploadProjectID,
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
     });
     after(async () => {
       await chai
@@ -654,6 +677,15 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testsubject3')
+        .query({ username: 'admin' });
+      // delete nonassinged and all
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(`/projects/${config.unassignedProjectID}`)
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(`/projects/${config.XNATUploadProjectID}`)
         .query({ username: 'admin' });
     });
     it('project testsubject should have no subjects ', done => {
@@ -898,7 +930,7 @@ describe('Project Tests', () => {
           expect(res.body[0].projectID).to.be.eql('testsubject3');
           expect(res.body[0].displaySubjectID).to.be.eql('3');
           expect(res.body[0].numberOfStudies).to.be.eql(1);
-          expect(res.body[0].examTypes).to.be.eql(['MR']);
+          expect(res.body[0].examTypes).to.be.eql(['MR', 'SEG']);
           done();
         })
         .catch(e => {
@@ -1287,10 +1319,28 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project teststudy should have 1 series and it should be 0023.2015.09.28.3.3590', done => {
+    it('project teststudy should have 2 series including DSO', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/teststudy/series')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project teststudy should have 1 nonDSO series and it should be 0023.2015.09.28.3.3590', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/series?filterDSO=true')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -4155,7 +4205,7 @@ describe('Project Tests', () => {
     it('should return one nondicom series 14356765342 DESC for project testsubjectnondicom ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/testsubjectnondicom/series')
+        .get('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/series')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);

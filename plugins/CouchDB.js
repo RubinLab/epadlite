@@ -289,6 +289,7 @@ async function couchdb(fastify, options) {
               { id: 'comment', title: 'Comment' },
               { id: 'userComment', title: 'User_Comment' },
               { id: 'points', title: 'Points' },
+              { id: 'dsoSeriesUid', title: 'DSO_Series_UID' },
               { id: 'studyUid', title: 'Study_UID' },
               { id: 'seriesUid', title: 'Series_UID' },
               { id: 'imageUid', title: 'Image_UID' },
@@ -333,6 +334,12 @@ async function couchdb(fastify, options) {
                     comment: commentSplit[0],
                     userComment: commentSplit.length > 1 ? commentSplit[1] : '',
                     points: `[${points}]`,
+                    dsoSeriesUid:
+                      imageAnnotation.segmentationEntityCollection &&
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity
+                        ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                            .seriesInstanceUid.root
+                        : '',
                     studyUid:
                       imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
                         .imageStudy.instanceUid.root,
@@ -478,6 +485,10 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('isCollaborator', (project, epadAuth) => {
+    return epadAuth.projectToRole.includes(`${project}:Collaborator`);
+  });
+
   // filter aims with aimId filter array
   fastify.decorate(
     'filterAims',
@@ -499,7 +510,7 @@ async function couchdb(fastify, options) {
           if (params.project) {
             // TODO if we want to return sth other than 404 for aim access we should check if this filtering empties filteredAims
             // if the user is a collaborator in the project he should only see his annotations
-            if (epadAuth.projectToRole.includes(`${params.project}:Collaborator`)) {
+            if (fastify.isCollaborator(params.project, epadAuth)) {
               if (format && format === 'summary') {
                 filteredRows = _.filter(
                   filteredRows,
