@@ -1874,7 +1874,8 @@ async function epaddb(fastify, options, done) {
     const queueIdsArrayToStart = request.body;
     const allStatus = ['added', 'ended', 'error'];
     try {
-      const result = [];
+      reply.code(202).send(`PrunPluginsQueue called and retuened 202 inernal queue is started`);
+
       await models.plugin_queue
         .findAll({
           include: ['queueplugin', 'queueproject'],
@@ -1882,6 +1883,7 @@ async function epaddb(fastify, options, done) {
         })
         .then(tableData => {
           tableData.forEach(data => {
+            const result = [];
             const pluginObj = {
               id: data.dataValues.id,
               plugin_id: data.dataValues.plugin_id,
@@ -1902,13 +1904,11 @@ async function epaddb(fastify, options, done) {
               pluginObj.project = { ...data.dataValues.queueproject.dataValues };
             }
             result.push(pluginObj);
+            const resultPluginQueueInternal = fastify.runPluginsQueueInternal(result, request);
           });
         });
 
-      reply.code(202).send(`PrunPluginsQueue called and retuened 202 inernal queue is started`);
-
-      const resultPluginQueueInternal = fastify.runPluginsQueueInternal(result, request);
-      console.log('parent : ', resultPluginQueueInternal);
+      //  console.log('parent : ', resultPluginQueueInternal);
     } catch (err) {
       reply.send(new InternalError(' plugin queue error while starting', err));
     }
@@ -2262,7 +2262,7 @@ async function epaddb(fastify, options, done) {
           };
           resolve(returnObject);
         } catch (err) {
-          //reject(new InternalError('error while getting plugin default paraeters', err));
+          //  reject(new InternalError('error while getting plugin default paraeters', err));
           reject(err);
         }
       }
@@ -2289,7 +2289,7 @@ async function epaddb(fastify, options, done) {
           };
           resolve(returnObject);
         } catch (err) {
-          //reject(new InternalError('error while getting plugin project paraeters', err));
+          //  reject(new InternalError('error while getting plugin project paraeters', err));
           reject(err);
         }
       }
