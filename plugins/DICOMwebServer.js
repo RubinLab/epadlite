@@ -405,6 +405,7 @@ async function dicomwebserver(fastify) {
                 )
               );
             else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
+
           Promise.all(promisses)
             .then(async values => {
               // handle success
@@ -755,18 +756,26 @@ async function dicomwebserver(fastify) {
   );
 
   fastify.decorate('getWado', (request, reply) => {
-    this.request
-      .get(
-        `/?requestType=WADO&studyUID=${request.query.studyUID}&seriesUID=${
-          request.query.seriesUID
-        }&objectUID=${request.query.objectUID}`,
-        { ...header, responseType: 'stream' }
-      )
+    fastify
+      .getWadoInternal({
+        study: request.query.studyUID,
+        series: request.query.seriesUID,
+        image: request.query.objectUID,
+      })
       .then(result => {
         reply.headers(result.headers);
         reply.code(200).send(result.data);
       })
       .catch(err => reply.send(new InternalError('WADO', err)));
+  });
+
+  fastify.decorate('getWadoInternal', params => {
+    return this.request.get(
+      `/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${
+        params.image
+      }`,
+      { ...header, responseType: 'stream' }
+    );
   });
 
   fastify.decorate('getPatient', (request, reply) => {
