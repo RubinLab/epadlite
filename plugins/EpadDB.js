@@ -3453,26 +3453,43 @@ async function epaddb(fastify, options, done) {
         .then(() => fastify.log.info(`Series ${request.params.series} download completed`))
         .catch(downloadErr => reply.send(new InternalError('Downloading series', downloadErr)));
     } else {
-      fastify
-        .getStudySeriesInternal(request.params, request.query, request.epadAuth)
-        .then(result => reply.code(200).send(result))
-        .catch(err =>
-          fastify
-            .getNondicomStudySeriesFromProjectInternal(request.params)
-            .then(nondicomResult => reply.code(200).send(nondicomResult))
-            .catch(nondicomErr => {
-              reply.send(
-                new InternalError(
-                  'Retrieving series',
-                  new Error(
-                    `Failed from dicomweb with ${err.message} and from nondicom with ${
-                      nondicomErr.message
-                    }`
-                  )
-                )
-              );
-            })
-        );
+      const dicomPromise = new Promise(async resolve => {
+        try {
+          const result = await fastify.getStudySeriesInternal(
+            request.params,
+            request.query,
+            request.epadAuth
+          );
+          resolve({ result, error: undefined });
+        } catch (err) {
+          fastify.log.info(`Retrieving series Failed from dicomweb with ${err.message}`);
+          resolve({ result: [], error: `${err.message}` });
+        }
+      });
+      const nondicomPromise = new Promise(async resolve => {
+        try {
+          const result = await fastify.getNondicomStudySeriesFromProjectInternal(request.params);
+          resolve({ result, error: undefined });
+        } catch (err) {
+          fastify.log.info(`Retrieving series Failed from nondicom with ${err.message}`);
+          resolve({ result: [], error: `${err.message}` });
+        }
+      });
+      Promise.all([dicomPromise, nondicomPromise]).then(results => {
+        const combinedResult = results[0].result.concat(results[1].result);
+        if (results[0].error && results[1].error)
+          reply.send(
+            new InternalError(
+              'Retrieving series',
+              new Error(
+                `Failed from dicomweb with ${results[0].error} and from nondicom with ${
+                  results[1].error
+                }`
+              )
+            )
+          );
+        else reply.code(200).send(combinedResult);
+      });
     }
   });
   fastify.decorate(
