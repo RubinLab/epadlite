@@ -3986,7 +3986,7 @@ async function epaddb(fastify, options, done) {
           });
           result.data.on('end', () => {
             const buf = Buffer.concat(bufs);
-            resolve(toArrayBuffer(buf));
+            resolve({ uid: segEntity.sopInstanceUid.root, buffer: buf });
           });
         } catch (err) {
           reject(err);
@@ -4070,13 +4070,8 @@ async function epaddb(fastify, options, done) {
               const segWritePromises = [];
               const segs = await fastify.pq.addAll(segRetrievePromises);
               for (let i = 0; i < segs.length; i += 1) {
-                const ds = dcmjs.data.DicomMessage.readFile(segs[i]);
-                const dicomUid =
-                  ds.dict['00080018'] && ds.dict['00080018'].Value
-                    ? ds.dict['00080018'].Value[0]
-                    : i;
                 segWritePromises.push(() => {
-                  return fs.writeFile(`${dataDir}/segs/${dicomUid}.dcm`, Buffer.from(segs[i]));
+                  return fs.writeFile(`${dataDir}/segs/${segs[i].uid}.dcm`, segs[i].buffer);
                 });
                 isThereDataToWrite = true;
               }
