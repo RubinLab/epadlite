@@ -60,6 +60,9 @@ fastify.register(require('./plugins/DICOMwebServer'), {
 // register Other plugin we created
 fastify.register(require('./plugins/Other'));
 
+// register tcia plugin we created
+fastify.register(require('./plugins/TCIA'));
+
 const port = process.env.port || '8080';
 const host = process.env.host || '0.0.0.0';
 
@@ -117,6 +120,8 @@ fastify.register(require('./routes/project'), { prefix: config.prefix }); // esl
 fastify.register(require('./routes/projectTemplate'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
+
+fastify.register(require('./routes/tcia'), { prefix: config.prefix }); // eslint-disable-line global-require
 
 // Run the server!
 fastify.listen(port, host);

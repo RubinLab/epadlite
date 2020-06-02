@@ -52,4 +52,5 @@ config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
 config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;
 config.unassignedProjectID = config.unassignedProjectID || 'nonassigned';
 config.XNATUploadProjectID = config.XNATUploadProjectID || 'all';
+config.TCIABase = config.TCIABase || 'https://services.cancerimagingarchive.net/services/v4/TCIA';
 module.exports = config;
