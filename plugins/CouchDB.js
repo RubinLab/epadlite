@@ -296,6 +296,7 @@ async function couchdb(fastify, options) {
             ];
 
             const data = [];
+            const segRetrievePromises = [];
             aims.forEach(aim => {
               if (params.summary && params.summary.toLowerCase() === 'true') {
                 const imageAnnotations =
@@ -363,6 +364,19 @@ async function couchdb(fastify, options) {
                 );
                 isThereDataToWrite = true;
               }
+              if (
+                params.seg &&
+                params.seg.toLowerCase() === 'true' &&
+                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .segmentationEntityCollection
+              ) {
+                const segEntity =
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .segmentationEntityCollection.SegmentationEntity[0];
+                segRetrievePromises.push(() => {
+                  return fastify.getSegDicom(segEntity);
+                });
+              }
             });
             if (params.summary && params.summary.toLowerCase() === 'true') {
               // create the csv writer and write the summary
@@ -375,41 +389,56 @@ async function couchdb(fastify, options) {
                 .then(() => fastify.log.info('The summary CSV file was written successfully'));
               isThereDataToWrite = true;
             }
-            if (isThereDataToWrite) {
-              // create a file to stream archive data to.
-              const output = fs.createWriteStream(`${dir}/annotations.zip`);
-              const archive = archiver('zip', {
-                zlib: { level: 9 }, // Sets the compression level.
-              });
-              // create the archive
-              archive
-                .directory(`${dir}/annotations`, false)
-                .on('error', err => reject(new InternalError('Archiving aims', err)))
-                .pipe(output);
+            fastify.pq
+              .addAll(segRetrievePromises)
+              .then(segs => {
+                for (let i = 0; i < segs.length; i += 1) {
+                  fs.writeFileSync(`${dir}/annotations/${segs[i].uid}.dcm`, segs[i].buffer);
+                  isThereDataToWrite = true;
+                }
+                if (isThereDataToWrite) {
+                  // create a file to stream archive data to.
+                  const output = fs.createWriteStream(`${dir}/annotations.zip`);
+                  const archive = archiver('zip', {
+                    zlib: { level: 9 }, // Sets the compression level.
+                  });
+                  // create the archive
+                  archive
+                    .directory(`${dir}/annotations`, false)
+                    .on('error', err => reject(new InternalError('Archiving aims', err)))
+                    .pipe(output);
 
-              output.on('close', () => {
-                fastify.log.info(`Created zip in ${dir}`);
-                const readStream = fs.createReadStream(`${dir}/annotations.zip`);
-                // delete tmp folder after the file is sent
-                readStream.once('end', () => {
-                  readStream.destroy(); // make sure stream closed, not close if download aborted.
+                  output.on('close', () => {
+                    fastify.log.info(`Created zip in ${dir}`);
+                    const readStream = fs.createReadStream(`${dir}/annotations.zip`);
+                    // delete tmp folder after the file is sent
+                    readStream.once('end', () => {
+                      readStream.destroy(); // make sure stream closed, not close if download aborted.
+                      fs.remove(dir, error => {
+                        if (error)
+                          fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                        else fastify.log.info(`${dir} deleted`);
+                      });
+                    });
+                    resolve(readStream);
+                  });
+                  archive.finalize();
+                } else {
                   fs.remove(dir, error => {
                     if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                     else fastify.log.info(`${dir} deleted`);
                   });
-                });
-                resolve(readStream);
+                  reject(
+                    new InternalError(
+                      'Downloading aims',
+                      new Error('No aim or summary in download')
+                    )
+                  );
+                }
+              })
+              .catch(segErr => {
+                reject(new InternalError('Downloading aims with segmentations', segErr));
               });
-              archive.finalize();
-            } else {
-              fs.remove(dir, error => {
-                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                else fastify.log.info(`${dir} deleted`);
-              });
-              reject(
-                new InternalError('Downloading aims', new Error('No aim or summary in download'))
-              );
-            }
           }
         } catch (err) {
           reject(new InternalError('Downloading aims', err));
@@ -547,7 +576,11 @@ async function couchdb(fastify, options) {
 
   fastify.decorate('getAimsFromUIDs', (request, reply) => {
     try {
-      if (request.query.summary === undefined && request.query.aim === undefined) {
+      if (
+        request.query.summary === undefined &&
+        request.query.aim === undefined &&
+        request.query.seg === undefined
+      ) {
         reply.send(
           new BadRequestError(
             'Getting aims with uids',
