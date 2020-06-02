@@ -394,30 +394,48 @@ async function other(fastify) {
   );
 
   fastify.decorate('scanFolderToLink', (request, reply) => {
-    const scanTimestamp = new Date().getTime();
-    const dataFolder = path.join(__dirname, '../data');
+    const dataFolder = path.join(__dirname, request.query.path);
     if (!fs.existsSync(dataFolder))
       reply.send(
-        new InternalError('Scanning data folder', new Error(`${dataFolder} does not exist`))
+        new InternalError('Linking data folder', new Error(`${dataFolder} does not exist`))
       );
     else {
-      const studies = new Set();
       fastify.log.info(`Started linking folder ${dataFolder}`);
-      reply.send(`Started scanning ${dataFolder}`);
+      reply.send(`Started linking ${dataFolder}`);
       fastify
-        .linkFolder(dataFolder, request.params, request.epadAuth, studies)
-        .then(result => {
-          fastify.log.info(
-            `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
-              result.success
-            } started at ${scanTimestamp}`
-          );
-          new EpadNotification(request, 'Folder scan completed', dataFolder, true).notify(fastify);
+        .sendLinkFolder(dataFolder)
+        .then(() => {
+          fastify.log.info(`Sent linking request for ${dataFolder}`);
+          new EpadNotification(
+            request,
+            `Folder link requested successfully. It may take sometime to process, the data will appear in ${
+              config.unassignedProjectID
+            } project`,
+            dataFolder,
+            false
+          ).notify(fastify);
         })
         .catch(err => {
           fastify.log.warn(`Error processing ${dataFolder} Error: ${err.message}`);
-          new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
+          new EpadNotification(request, 'Folder link failed', err, true).notify(fastify);
         });
+      // this method is for scanning the folder also and adding project links.
+      // we are not going to enable that feature for now to have better performance
+      // const studies = new Set();
+      // fastify
+      //   .linkFolder(dataFolder, request.params, request.epadAuth, studies)
+      //   .then(result => {
+      //     fastify.log.info(
+      //       `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
+      //         result.success
+      //       } started at ${scanTimestamp}`
+      //     );
+      //     new EpadNotification(request, 'Folder link completed', dataFolder, true).notify(fastify);
+      //   })
+      //   .catch(err => {
+      //     fastify.log.warn(`Error processing ${dataFolder} Error: ${err.message}`);
+      //     new EpadNotification(request, 'Folder link failed', err, true).notify(fastify);
+      //   });
     }
   });
 
@@ -633,86 +651,88 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate(
-    'linkFolder',
-    (linkDir, params, epadAuth, studies) =>
-      new Promise((resolve, reject) => {
-        fastify.log.info(`Linking folder ${linkDir}`);
-        // call dicomweb server for linking
-        fastify.sendLinkFolder(linkDir);
+  // comment out for now, for performance. the studies will go to unassigned when scanned by dicomweb-server
+  // leaving the code here just in case we want the feature in the future
+  // fastify.decorate(
+  //   'linkFolder',
+  //   (linkDir, params, epadAuth, studies) =>
+  //     new Promise(async (resolve, reject) => {
+  //       fastify.log.info(`Linking folder ${linkDir}`);
+  //       // call dicomweb server for linking
+  //       await fastify.sendLinkFolder(linkDir);
 
-        // success variable is to check if there was at least one successful processing
-        const result = { success: false, errors: [] };
-        fs.readdir(linkDir, async (err, files) => {
-          if (err) {
-            reject(new InternalError(`Reading directory ${linkDir}`, err));
-          } else {
-            try {
-              const promises = [];
-              for (let i = 0; i < files.length; i += 1) {
-                if (files[i] !== '__MACOSX')
-                  if (fs.statSync(`${linkDir}/${files[i]}`).isDirectory() === true)
-                    try {
-                      // eslint-disable-next-line no-await-in-loop
-                      const subdirResult = await fastify.linkFolder(
-                        `${linkDir}/${files[i]}`,
-                        params,
-                        epadAuth,
-                        studies
-                      );
-                      if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
-                        result.errors = result.errors.concat(subdirResult.errors);
-                      }
-                      if (subdirResult && subdirResult.success) {
-                        result.success = result.success || subdirResult.success;
-                      }
-                    } catch (folderErr) {
-                      reject(folderErr);
-                    }
-                  else {
-                    promises.push(() => {
-                      return (
-                        fastify
-                          .linkFile(linkDir, files[i], params, epadAuth, studies)
-                          // eslint-disable-next-line no-loop-func
-                          .catch(error => {
-                            result.errors.push(error);
-                          })
-                      );
-                    });
-                  }
-              }
-              fastify.pq.addAll(promises).then(async values => {
-                try {
-                  for (let i = 0; values.length; i += 1) {
-                    if (
-                      values[i] === undefined ||
-                      (values[i].errors && values[i].errors.length === 0)
-                    ) {
-                      // one success is enough
-                      result.success = result.success || true;
-                      break;
-                    }
-                  }
-                  if (studies.size > 0) {
-                    fastify
-                      .addProjectReferences(params, epadAuth, studies)
-                      .then(() => resolve(result))
-                      .catch(error => reject(error));
-                  } else {
-                    resolve(result);
-                  }
-                } catch (saveDicomErr) {
-                  reject(saveDicomErr);
-                }
-              });
-            } catch (errDir) {
-              reject(errDir);
-            }
-          }
-        });
-      })
-  );
+  //       // success variable is to check if there was at least one successful processing
+  //       const result = { success: false, errors: [] };
+  //       fs.readdir(linkDir, async (err, files) => {
+  //         if (err) {
+  //           reject(new InternalError(`Reading directory ${linkDir}`, err));
+  //         } else {
+  //           try {
+  //             const promises = [];
+  //             for (let i = 0; i < files.length; i += 1) {
+  //               if (files[i] !== '__MACOSX')
+  //                 if (fs.statSync(`${linkDir}/${files[i]}`).isDirectory() === true)
+  //                   try {
+  //                     // eslint-disable-next-line no-await-in-loop
+  //                     const subdirResult = await fastify.linkFolder(
+  //                       `${linkDir}/${files[i]}`,
+  //                       params,
+  //                       epadAuth,
+  //                       studies
+  //                     );
+  //                     if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
+  //                       result.errors = result.errors.concat(subdirResult.errors);
+  //                     }
+  //                     if (subdirResult && subdirResult.success) {
+  //                       result.success = result.success || subdirResult.success;
+  //                     }
+  //                   } catch (folderErr) {
+  //                     reject(folderErr);
+  //                   }
+  //                 else {
+  //                   promises.push(() => {
+  //                     return (
+  //                       fastify
+  //                         .linkFile(linkDir, files[i], params, epadAuth, studies)
+  //                         // eslint-disable-next-line no-loop-func
+  //                         .catch(error => {
+  //                           result.errors.push(error);
+  //                         })
+  //                     );
+  //                   });
+  //                 }
+  //             }
+  //             fastify.pq.addAll(promises).then(async values => {
+  //               try {
+  //                 for (let i = 0; values.length; i += 1) {
+  //                   if (
+  //                     values[i] === undefined ||
+  //                     (values[i].errors && values[i].errors.length === 0)
+  //                   ) {
+  //                     // one success is enough
+  //                     result.success = result.success || true;
+  //                     break;
+  //                   }
+  //                 }
+  //                 if (studies.size > 0) {
+  //                   fastify
+  //                     .addProjectReferences(params, epadAuth, studies)
+  //                     .then(() => resolve(result))
+  //                     .catch(error => reject(error));
+  //                 } else {
+  //                   resolve(result);
+  //                 }
+  //               } catch (saveDicomErr) {
+  //                 reject(saveDicomErr);
+  //               }
+  //             });
+  //           } catch (errDir) {
+  //             reject(errDir);
+  //           }
+  //         }
+  //       });
+  //     })
+  // );
 
   fastify.decorate(
     'linkFile',

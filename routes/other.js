@@ -285,6 +285,14 @@ async function otherRoutes(fastify) {
     url: '/linkfolder',
     schema: {
       tags: ['files'],
+      query: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+          },
+        },
+      },
     },
     handler: fastify.scanFolderToLink,
   });
