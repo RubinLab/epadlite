@@ -5908,6 +5908,12 @@ async function epaddb(fastify, options, done) {
               { where: { id: logId } }
             );
           } else {
+            // remove error text just to save some space
+            let params = notification.params.split('Error: ').join('');
+            if (params.length >= 128) {
+              params = params.slice(0, 124);
+              params += '...';
+            }
             const log = {
               projectID: request.params.project,
               subjectuid: request.params.subject,
@@ -5916,7 +5922,7 @@ async function epaddb(fastify, options, done) {
               aimID: request.params.aimuid,
               username: request.epadAuth.username,
               function: notification.function,
-              params: notification.params,
+              params,
               error: notification.error,
               notified,
               updatetime: Date.now(),
@@ -5930,7 +5936,7 @@ async function epaddb(fastify, options, done) {
 
           resolve();
         } catch (err) {
-          reject(new InternalError(`Saving notification ${config.statsEpad}`, err));
+          reject(new InternalError(`Saving notification`, err));
         }
       })
   );
