@@ -38,13 +38,26 @@ const {
 async function other(fastify) {
   fastify.log.info(`Starting a promise queue with ${config.maxConcurrent} concurrent promisses`);
   const pq = new PQueue({ concurrency: config.maxConcurrent });
+  // seperate promise queue for dicom sending to ensure sending one folder at a time
+  const pqDicoms = new PQueue({ concurrency: 1 });
   fastify.decorate('pq', pq);
+  fastify.decorate('pqDicoms', pqDicoms);
   let count = 0;
   pq.on('active', () => {
     count += 1;
     // eslint-disable-next-line no-plusplus
     fastify.log.info(
       `P-queue working on item #${count}.  Size: ${pq.size}  Pending: ${pq.pending}`
+    );
+  });
+  let countDicoms = 0;
+  pqDicoms.on('active', () => {
+    countDicoms += 1;
+    // eslint-disable-next-line no-plusplus
+    fastify.log.info(
+      `P-queue working on item #${countDicoms}.  Size: ${pqDicoms.size}  Pending: ${
+        pqDicoms.pending
+      }`
     );
   });
   // eslint-disable-next-line global-require
@@ -206,7 +219,9 @@ async function other(fastify) {
           }
           // see if it was a dicom
           if (datasets.length > 0) {
-            await fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
+            await pqDicoms.add(() =>
+              fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
+            );
             datasets = [];
             studies = new Set();
           }
@@ -217,7 +232,7 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate('chunkSize', 500);
+  fastify.decorate('chunkSize', 300);
 
   fastify.decorate(
     'sendDicomsInternal',
@@ -492,8 +507,8 @@ async function other(fastify) {
                     }
                   }
                   if (datasets.length > 0) {
-                    fastify
-                      .sendDicomsInternal(params, epadAuth, studies, datasets)
+                    pqDicoms
+                      .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
                       .then(() => resolve(result))
                       .catch(error => reject(error));
                   } else {
