@@ -471,16 +471,15 @@ async function other(fastify) {
                       reject(folderErr);
                     }
                   else
-                    promisses.push(
-                      fastify
+                    promisses.push(() => {
+                      return fastify
                         .processFile(zipDir, files[i], datasets, params, query, studies, epadAuth)
-                        // eslint-disable-next-line no-loop-func
                         .catch(error => {
                           result.errors.push(error);
-                        })
-                    );
+                        });
+                    });
               }
-              Promise.all(promisses).then(async values => {
+              pq.addAll(promisses).then(async values => {
                 try {
                   for (let i = 0; values.length; i += 1) {
                     if (
