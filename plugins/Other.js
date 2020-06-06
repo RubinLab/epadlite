@@ -55,7 +55,7 @@ async function other(fastify) {
     countDicoms += 1;
     // eslint-disable-next-line no-plusplus
     fastify.log.info(
-      `P-queue working on item #${countDicoms}.  Size: ${pqDicoms.size}  Pending: ${
+      `P-queue dicom working on item #${countDicoms}.  Size: ${pqDicoms.size}  Pending: ${
         pqDicoms.pending
       }`
     );
@@ -241,18 +241,13 @@ async function other(fastify) {
         try {
           await fastify.addProjectReferences(params, epadAuth, studies);
           fastify.log.info(`Writing ${datasets.length} dicoms`);
-          for (let i = 0; i < datasets.length; i += fastify.chunkSize) {
-            const dataSetPart = datasets.slice(
-              i,
-              i + fastify.chunkSize > datasets.length ? datasets.length : i + fastify.chunkSize
-            );
-            const { data, boundary } = dcmjs.utilities.message.multipartEncode(dataSetPart);
-            fastify.log.info(
-              `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
-            );
-            // eslint-disable-next-line no-await-in-loop
-            await fastify.saveDicomsInternal(data, boundary);
-          }
+          const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
+          fastify.log.info(
+            `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
+          );
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.saveDicomsInternal(data, boundary);
+          // }
           resolve();
         } catch (err) {
           reject(err);
@@ -552,6 +547,15 @@ async function other(fastify) {
                 const dicomInfo = await fastify.getDicomInfo(arrayBuffer, params, epadAuth);
                 studies.add(dicomInfo);
                 datasets.push(arrayBuffer);
+                if (datasets.length >= fastify.chunk) {
+                  await pqDicoms.add(() =>
+                    fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
+                  );
+                  // eslint-disable-next-line no-param-reassign
+                  datasets = [];
+                  // eslint-disable-next-line no-param-reassign
+                  studies = new Set();
+                }
                 resolve({ success: true, errors: [] });
               } catch (err) {
                 reject(new InternalError(`Reading dicom file ${filename}`, err));
@@ -620,6 +624,15 @@ async function other(fastify) {
                   const dicomInfo = await fastify.getDicomInfo(arrayBuffer, params, epadAuth);
                   studies.add(dicomInfo);
                   datasets.push(arrayBuffer);
+                  if (datasets.length >= fastify.chunk) {
+                    await pqDicoms.add(() =>
+                      fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
+                    );
+                    // eslint-disable-next-line no-param-reassign
+                    datasets = [];
+                    // eslint-disable-next-line no-param-reassign
+                    studies = new Set();
+                  }
                   resolve({ success: true, errors: [] });
                 } catch (err) {
                   reject(
