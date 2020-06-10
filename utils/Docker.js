@@ -59,78 +59,7 @@ class DockerService {
         //  console.log('error happened while creating volume');
       });
   }
-  // we change the one below
-  // createContainer(imageId, containerNameToGive) {
-  //   let auxContainer;
 
-  //   return this.docker
-  //     .createContainer({
-  //       Image: imageId,
-  //       name: containerNameToGive,
-  //       AttachStdin: false,
-  //       AttachStdout: true,
-  //       AttachStderr: true,
-  //       Tty: true,
-  //       //Cmd: ['/bin/bash', '-c', 'tail -f /var/log/dmesg'],
-  //       OpenStdin: false,
-  //       StdinOnce: false,
-  //       // HostConfig: {
-  //       //   Binds: ['testvolume:/home'],
-  //       // },
-  //       // HostConfig: {
-  //       //   Binds: ['/Users/cavit/epadlitev1/distribution/ePad/exampleContaienr/sharewcont:/stuff'],
-  //       // },
-  //     })
-  //     .then(function(container) {
-  //       auxContainer = container;
-  //       return auxContainer.start();
-  //     })
-  //     .catch(function(err) {
-  //       console.log(err);
-  //     });
-  // }
-  // createContainer(imageId, containerNameToGive, contRemove) {
-  //   return;
-  //   this.docker.createContainer(
-  //     {
-  //       Image: imageId,
-  //       // Cmd: ['/bin/ls', '/tmp/app'],
-  //       // Volumes: {
-  //       //   '/tmp/app': {},
-  //       // },
-  //     },
-  //     function(err, container) {
-  //       console.log('attaching to... ' + container.id);
-
-  //       container.attach({ stream: true, stdout: true, stderr: true, tty: true }, function(
-  //         err,
-  //         stream
-  //       ) {
-  //         stream.pipe(process.stdout);
-
-  //         console.log('starting... ' + container.id);
-
-  //         container.start(
-  //           // {
-  //           //   Binds: [volume + ':/tmp/app'],
-  //           // },
-  //           function(err, data) {}
-  //         );
-
-  //         container.wait(function(err, data) {
-  //           console.log('waiting end ... ' + container.id);
-  //           console.log('data : ', data);
-  //           contRemove(err, data);
-  //           //container.remove(contRemove(err, data));
-  //           // container.kill(function(err, data) {
-  //           //   console.log('removing... ' + container.id);
-
-  //           // });
-  //         });
-  //       });
-  //     }
-  //   );
-  // }
   stopContainer(containerId) {
     return new Promise((resolve, reject) => {
       try {
@@ -198,13 +127,6 @@ class DockerService {
       .then(containers => {
         // eslint-disable-next-line no-unused-vars
         containers.forEach(container => {
-          //  console.log('---------containers--------------', container);
-          // console.log('id :', container.Id);
-          // console.log('names :', container.Names);
-          // console.log('image :', container.Image);
-          // console.log('State :', container.State);
-          // console.log('State ', container.Status);
-          // console.log('Mounts :', container.Mounts);
           const contObj = {
             id: container.Id,
             names: container.Names,
@@ -265,13 +187,8 @@ class DockerService {
         // eslint-disable-next-line func-names
         this.docker.pull(img, function(err, stream) {
           if (err) {
-            //  console.log('err', err);
             reject(err);
           } else {
-            //  console.log('stream', stream);
-            // stream.on('progress', () => {
-            //   process.stdout.write(`.`);
-            // });
             stream.on('data', info => console.log(info));
             stream.on('end', () => {
               resolve('finished pulling');
@@ -284,31 +201,37 @@ class DockerService {
     });
   }
 
-  // pullImageWithTracking(img) {
-  //   return new Promise((resolve, reject) => {
-  //     stream = this.docker.pull(img, (_err, stream) => {
-  //       // eslint-disable-next-line no-use-before-define
-  //       console.log('docker pull is working');
-  //       // eslint-disable-next-line no-unused-vars
-  //       function onFinished(err, _output) {
-  //         if (!err) {
-  //           console.log('\nDone pulling.');
-  //           resolve('done pulling');
-  //           //  self.createContainer(img, cnt);
-  //         } else {
-  //           console.log(err);
-  //           reject(err);
-  //         }
-  //       }
-  //       // eslint-disable-next-line no-unused-vars
-  //       function onProgress(_event) {
-  //         console.log('progress :');
-  //         process.stdout.write(`.`);
-  //       }
-  //       this.docker.modem.followProgress(stream, onFinished, onProgress);
-  //     });
-  //   });
-  // }
+  checkContainerExistance(containerName) {
+    return new Promise((resolve, reject) => {
+      const container = this.docker.getContainer(containerName);
+      // query API for container info
+      // eslint-disable-next-line func-names
+      container.inspect(function(err, data) {
+        if (err) {
+          //console.log(err);
+          reject(err);
+        }
+        if (data) {
+          //console.log(data);
+          resolve(data);
+        }
+      });
+    });
+  }
+
+  deleteContainer(containerName) {
+    return new Promise((resolve, reject) => {
+      try {
+        const container = this.docker.getContainer(containerName);
+        // query API for container info
+        // eslint-disable-next-line func-names
+        container.remove();
+        resolve('success');
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
 }
 
 module.exports = DockerService;

@@ -324,6 +324,18 @@ async function routes(fastify) {
     },
     handler: fastify.deleteFromPluginQueue,
   });
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/download/queue/result',
+    schema: {
+      tags: ['plugins'],
+
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.downloadPluginResult,
+  });
 
   fastify.route({
     method: 'DELETE',

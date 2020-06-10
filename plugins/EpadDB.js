@@ -1747,6 +1747,7 @@ async function epaddb(fastify, options, done) {
             status: 'added',
             runtime_params: queueObjects.runtimeParams,
             aim_uid: newAimObject,
+            starttime: '1970-01-01 00:00:01', //  added this
             endtime: '1970-01-01 00:00:01',
           })
         );
@@ -1780,6 +1781,7 @@ async function epaddb(fastify, options, done) {
           status: 'added',
           runtime_params: queueObjects.runtimeParams,
           aim_uid: queueObjects.aims,
+          starttime: '1970-01-01 00:00:01', //  added this
           endtime: '1970-01-01 00:00:01',
         })
         .then(() => {
@@ -1848,41 +1850,44 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('stopPluginsQueue', async (request, reply) => {
     console.log('stopping  queue ', request.body);
-    const queueId = request.body[0];
+    const queueIds = [...request.body];
     const dock = new DockerService();
     const containerLists = await dock.listContainers();
-    const containerName = `/epadplugin_${queueId}`;
-    let containerId = null;
-    let containerFound = false;
+    for (let cnt = 0; cnt < queueIds.length; cnt += 1) {
+      const containerName = `/epadplugin_${queueIds[cnt]}`;
+      let containerId = null;
+      let containerFound = false;
 
-    console.log('container lists', containerLists);
+      console.log('container lists', containerLists);
 
-    for (let i = 0; i < containerLists.length; i += 1) {
-      if (containerLists[i].names.includes(containerName)) {
-        if (containerLists[i].state === 'exited' || containerLists[i].state === 'running') {
-          containerFound = true;
-          containerId = containerLists[i].id;
+      for (let i = 0; i < containerLists.length; i += 1) {
+        if (containerLists[i].names.includes(containerName)) {
+          if (containerLists[i].state === 'running') {
+            containerFound = true;
+            containerId = containerLists[i].id;
 
-          break;
+            break;
+          }
         }
       }
+      if (containerFound === true) {
+        containerFound = false;
+        console.log('container name found  stopping', containerName);
+        // eslint-disable-next-line no-await-in-loop
+        const returnContainerStop = await dock.stopContainer(containerId);
+        console.log('stop container returned ', returnContainerStop);
+      }
     }
-    if (containerFound === true) {
-      containerFound = false;
-      console.log('container name found  stopping', containerName);
-      const returnContainerStop = await dock.stopContainer(containerId);
-      console.log('stop container returned ', returnContainerStop);
-    }
-
     reply.code(200).send('plugin stopped');
   });
   fastify.decorate('runPluginsQueue', async (request, reply) => {
     //  will receive a queue object which contains plugin id
     console.log('running queue one by one ', request.body);
+
     const queueIdsArrayToStart = request.body;
-    const allStatus = ['added', 'ended', 'error'];
+    const allStatus = ['added', 'ended', 'error', 'running'];
     try {
-      reply.code(202).send(`PrunPluginsQueue called and retuened 202 inernal queue is started`);
+      reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
 
       await models.plugin_queue
         .findAll({
@@ -1911,8 +1916,35 @@ async function epaddb(fastify, options, done) {
             if (data.dataValues.queueproject !== null) {
               pluginObj.project = { ...data.dataValues.queueproject.dataValues };
             }
-            result.push(pluginObj);
-            const resultPluginQueueInternal = fastify.runPluginsQueueInternal(result, request);
+
+            const dock = new DockerService();
+            const containerName = `epadplugin_${pluginObj.id}`;
+            dock
+              .checkContainerExistance(containerName)
+              .then(resInspect => {
+                console.log('inspect element result', resInspect.State.Status);
+                if (resInspect.State.Status !== 'running') {
+                  console.log('not running');
+                  dock.deleteContainer(containerName).then(deleteReturn => {
+                    console.log('delete container result :', deleteReturn);
+                    result.push(pluginObj);
+                    const resultPluginQueueInternal = fastify.runPluginsQueueInternal(
+                      result,
+                      request
+                    );
+                  });
+                }
+              })
+              .catch(err => {
+                console.log('inspect element err', err.statusCode);
+                if (err.statusCode === 404) {
+                  result.push(pluginObj);
+                  const resultPluginQueueInternal = fastify.runPluginsQueueInternal(
+                    result,
+                    request
+                  );
+                }
+              });
           });
         });
 
@@ -2267,6 +2299,8 @@ async function epaddb(fastify, options, done) {
           const returnObject = {
             params: paramsToSendToContainer,
             serverfolder: pluginsDataFolder,
+            projectid,
+            projectdbid,
           };
           resolve(returnObject);
         } catch (err) {
@@ -2294,6 +2328,8 @@ async function epaddb(fastify, options, done) {
           const returnObject = {
             params: paramsToSendToContainer,
             serverfolder: pluginsDataFolder,
+            projectid,
+            projectdbid,
           };
           resolve(returnObject);
         } catch (err) {
@@ -2321,6 +2357,8 @@ async function epaddb(fastify, options, done) {
           const returnObject = {
             params: paramsToSendToContainer,
             serverfolder: pluginsDataFolder,
+            projectid,
+            projectdbid,
           };
           resolve(returnObject);
         } catch (err) {
@@ -2353,12 +2391,33 @@ async function epaddb(fastify, options, done) {
     console.log('++++++++++++++++++++++++++++++++++++++');
     console.log('++++++++++++++++++++++++++++++++++++++');
     console.log('++++++++++++++++++++++++++++++++++++++');
-    if (status === 'running') {
+    if (status === 'waiting') {
       models.plugin_queue
         .update(
           {
             status,
             starttime: Date.now(),
+            endtime: tempTime,
+          },
+          {
+            where: {
+              id: queuid,
+            },
+          }
+        )
+        .then(data => {
+          return data;
+        })
+        .catch(err => {
+          return new InternalError('error while getting plugin runtime paraeters', err);
+        });
+    }
+    if (status === 'running') {
+      models.plugin_queue
+        .update(
+          {
+            status,
+            //  starttime: Date.now(),
           },
           {
             where: {
@@ -2472,6 +2531,41 @@ async function epaddb(fastify, options, done) {
     });
   });
 
+  fastify.decorate('downloadPluginResult', (request, reply) => {
+    console.log('downloadPluginResult ', request.body);
+    const queueObject = request.body;
+    const outputPath = `${queueObject.creator}/${queueObject.id}/output/`;
+    const dest = path.join(__dirname, `../pluginsDataFolder/${outputPath}`);
+
+    reply.res.writeHead(200, {
+      'Content-Type': 'application/zip',
+      'Content-disposition': `attachment; filename=${queueObject.name}.output.zip`,
+      'Access-Control-Allow-Origin': '*',
+    });
+    const archive = archiver('zip', {
+      zlib: { level: 9 }, // Sets the compression level.
+    });
+
+    // eslint-disable-next-line func-names
+    archive.on('warning', function(err) {
+      if (err.code === 'ENOENT') {
+        // log warning
+      } else {
+        // throw error
+        throw err;
+      }
+    });
+
+    // eslint-disable-next-line func-names
+    archive.on('error', function(err) {
+      throw err;
+    });
+
+    archive.directory(dest, false);
+    archive.finalize();
+    archive.pipe(reply.res);
+  });
+
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
 
@@ -2482,6 +2576,10 @@ async function epaddb(fastify, options, done) {
         pluginQueueList[i].plugin.image_tag
       }`;
       const queueId = pluginQueueList[i].id;
+      console.log('set waiting ');
+      // eslint-disable-next-line no-await-in-loop
+      await fastify.updateStatusQueueProcessInternal(queueId, 'waiting');
+      new EpadNotification(request, 'set to waiting', 'success', true).notify(fastify);
       console.log('running plugin on this object', pluginQueueList[i]);
 
       // eslint-disable-next-line no-await-in-loop
@@ -2504,10 +2602,10 @@ async function epaddb(fastify, options, done) {
       }
       if (checkImageExistOnHub === false) {
         // check local image existance
-        console.log('cehcking image if exist locally');
+        //  console.log('cehcking image if exist locally');
         // eslint-disable-next-line no-await-in-loop
         const imageList = await dock.listImages();
-        console.log('image list ', imageList);
+        //  console.log('image list ', imageList);
         const litSize = imageList.length;
 
         for (let cnt = 0; cnt < litSize; cnt += 1) {
@@ -2536,6 +2634,7 @@ async function epaddb(fastify, options, done) {
             pluginParameters
           );
           console.log('sorted params : ', sortedParams);
+          console.log('plugin parameters', pluginParameters);
 
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'running');
@@ -2549,6 +2648,40 @@ async function epaddb(fastify, options, done) {
           opreationresult = ` plugin image : ${imageRepo} terminated with success`;
           new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
           console.log('plugin finished working', imageRepo);
+          console.log('we will upload back files ,,,,,,,,, ', pluginParameters);
+          const isFile = fileName => {
+            const nameArry = fileName.split('.');
+            const ext = nameArry[nameArry.length - 1];
+            if (ext === 'dcm') {
+              return true;
+            }
+            return false;
+          };
+
+          //  upload the result from container to the series
+          const fileArray = fs
+            .readdirSync(`${pluginParameters.serverfolder}output`)
+            // eslint-disable-next-line no-loop-func
+            .map(fileName => {
+              console.log('filename : ', fileName);
+              //  return path.join(`${pluginParameters.serverfolder}output`, fileName);
+              return fileName;
+            })
+            .filter(isFile);
+          console.log('file array : ', fileArray);
+          //  eslint-disable-next-line no-await-in-loop
+          const { success, errors } = await fastify.saveFiles(
+            `${pluginParameters.serverfolder}output`,
+            fileArray,
+            { project: pluginParameters.projectid },
+            {},
+            request.epadAuth
+          );
+          console.log('project id :', pluginParameters.projectid);
+          console.log('projectdb id :', pluginParameters.projectdbid);
+          console.log('upload dir back error: ', errors);
+          console.log('upload dir back success: ', success);
+          //  end
           return 'completed';
         } catch (err) {
           const operationresult = ` plugin image : ${imageRepo} terminated with error`;
