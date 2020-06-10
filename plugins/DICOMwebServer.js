@@ -381,7 +381,8 @@ async function dicomwebserver(fastify) {
       noStats = false,
       tag = '0020000D',
       aimField = 'studyUID',
-      negateFilter = false
+      negateFilter = false,
+      createdTimes
     ) =>
       new Promise((resolve, reject) => {
         try {
@@ -505,7 +506,10 @@ async function dicomwebserver(fastify) {
                         numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
                           ? aimsCountMap[value['0020000D'].Value[0]]
                           : 0,
-                        createdTime: '', // no date in studies call
+                        createdTime:
+                          createdTimes && createdTimes[value['0020000D'].Value[0]]
+                            ? createdTimes[value['0020000D'].Value[0]]
+                            : '',
                         // extra for flexview
                         studyID: value['00200010'].Value ? value['00200010'].Value[0] : '',
                         studyDate: value['00080020'].Value ? value['00080020'].Value[0] : '',
