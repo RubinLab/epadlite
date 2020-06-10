@@ -36,64 +36,6 @@ async function dicomwebserver(fastify) {
     return null;
   });
 
-  // get tagvalue with a default
-  fastify.decorate('getTagValue', (metadata, tag, defaultVal) => {
-    if (metadata[tag] && metadata[tag].Value) {
-      const tagValue = metadata[tag].Value[0];
-      if (typeof tagValue === 'string') {
-        return fastify.replaceNull(tagValue);
-      }
-      if (typeof tagValue === 'object' && !Array.isArray(tagValue)) {
-        const values = Object.values(tagValue);
-        return typeof values[0] === 'string' ? fastify.replaceNull(values[0]) : defaultVal;
-      }
-      return defaultVal;
-    }
-    return defaultVal;
-  });
-
-  // send a params obj with study, series, instance
-  fastify.decorate(
-    'getImageMetadata',
-    params =>
-      new Promise((resolve, reject) => {
-        try {
-          this.request
-            .get(
-              `/studies/${params.study}/series/${params.series}/instances/${
-                params.instance
-              }/metadata`,
-              header
-            )
-            .then(async response => {
-              // response.data has tags
-              const metadata = response.data;
-              // console.log('metadata', JSON.stringify(metadata));
-              const extractedMetadata = {
-                patientID: fastify.getTagValue(metadata[0], '00100020', ''),
-                sopClassUID: fastify.getTagValue(metadata[0], '00080016', ''),
-                studyDate: fastify.getTagValue(metadata[0], '00080020', ''),
-                studyTime: fastify.getTagValue(metadata[0], '00080030', ''),
-                accessionNumber: fastify.getTagValue(metadata[0], '00080050', ''),
-                patientName: fastify.getTagValue(metadata[0], '00100010', ''),
-                patientBirthDate: fastify.getTagValue(metadata[0], '00100030', ''),
-                patientSex: fastify.getTagValue(metadata[0], '00100040', ''),
-                studyInstanceUID: fastify.getTagValue(metadata[0], '0020000D', ''),
-                seriesInstanceUID: fastify.getTagValue(metadata[0], '0020000E', ''),
-              };
-              resolve(extractedMetadata);
-            })
-            .catch(error => {
-              reject(
-                new InternalError(`Error retrieving series's (${params.series}) instances`, error)
-              );
-            });
-        } catch (err) {
-          reject(new InternalError(`Error populating series's (${params.series}) instances`, err));
-        }
-      })
-  );
-
   // connects to the DICOMweb server using the authentication method in config.dicomWebConfig
   // tests the connection with /studies endpoint after connection and rejects if unsuccessful
   fastify.decorate(
@@ -839,6 +781,82 @@ async function dicomwebserver(fastify) {
       })
       .catch(err => reply.code(503).send(err.message));
   });
+  // get tagvalue with a default
+  fastify.decorate('getTagValue', (metadata, tag, defaultVal) => {
+    if (metadata[tag] && metadata[tag].Value) {
+      const tagValue = metadata[tag].Value[0];
+      if (typeof tagValue === 'string') {
+        return fastify.replaceNull(tagValue);
+      }
+      if (typeof tagValue === 'number') {
+        return `${tagValue}`;
+      }
+      if (typeof tagValue === 'object' && !Array.isArray(tagValue)) {
+        const values = Object.values(tagValue);
+        return typeof values[0] === 'string' ? fastify.replaceNull(values[0]) : defaultVal;
+      }
+      return defaultVal;
+    }
+    return defaultVal;
+  });
+
+  // send a params obj with study, series, instance
+  fastify.decorate(
+    'getImageMetadata',
+    params =>
+      new Promise((resolve, reject) => {
+        try {
+          this.request
+            .get(
+              `/studies/${params.study}/series/${params.series}/instances/${
+                params.instance
+              }/metadata`,
+              header
+            )
+            .then(async response => {
+              const metadata = response.data;
+
+              const obj = {};
+              obj.aim = {};
+              obj.study = {};
+              obj.series = {};
+              obj.equipment = {};
+              obj.person = {};
+              obj.image = [];
+              const { aim, study, series, equipment, person } = obj;
+
+              aim.studyInstanceUid = fastify.getTagValue(metadata[0], '0020000D', '');
+              study.startTime = fastify.getTagValue(metadata[0], '00080030', '');
+              study.instanceUid = fastify.getTagValue(metadata[0], '0020000D', '');
+              study.startDate = fastify.getTagValue(metadata[0], '00080020', '');
+              study.accessionNumber = fastify.getTagValue(metadata[0], '00080050', '');
+              series.instanceUid = fastify.getTagValue(metadata[0], '0020000E', '');
+              series.modality = fastify.getTagValue(metadata[0], '00080060', '');
+              series.number = fastify.getTagValue(metadata[0], '00200011', '');
+              series.description = fastify.getTagValue(metadata[0], '0008103E', '');
+              series.instanceNumber = fastify.getTagValue(metadata[0], '00200013', '');
+              equipment.manufacturerName = fastify.getTagValue(metadata[0], '00080070', '');
+              equipment.manufacturerModelName = fastify.getTagValue(metadata[0], '00081090', '');
+              equipment.softwareVersion = fastify.getTagValue(metadata[0], '00181020', '');
+              person.sex = fastify.getTagValue(metadata[0], '00100040', '');
+              person.name = fastify.getTagValue(metadata[0], '00100010', '');
+              person.patientId = fastify.getTagValue(metadata[0], '00100020', '');
+              person.birthDate = fastify.getTagValue(metadata[0], '00100030', '');
+              const sopClassUid = fastify.getTagValue(metadata[0], '00080016', '');
+              const sopInstanceUid = fastify.getTagValue(metadata[0], '00080018', '');
+              obj.image.push({ sopClassUid, sopInstanceUid });
+              resolve(obj);
+            })
+            .catch(error => {
+              reject(
+                new InternalError(`Error retrieving series's (${params.series}) instances`, error)
+              );
+            });
+        } catch (err) {
+          reject(new InternalError(`Error populating series's (${params.series}) instances`, err));
+        }
+      })
+  );
 
   fastify.log.info(`Using DICOMwebServer: ${config.dicomWebConfig.baseUrl}`);
 

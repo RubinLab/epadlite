@@ -11,6 +11,7 @@ const atob = require('atob');
 const axios = require('axios');
 const plist = require('plist');
 const { createOfflineAimSegmentation } = require('aimapi');
+// const Aim = require('aimapi');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -568,8 +569,8 @@ async function other(fastify) {
                   });
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
-              const osirixObj = fastify.parseOsirix();
-              fastify.getImageMetaDataforOsirix(osirixObj);
+              const osirixObj = fastify.parseOsirix(`${dir}/${filename}`);
+              const imageData = await fastify.getImageMetaDataforOsirix(osirixObj);
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
@@ -610,28 +611,30 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate('parseOsirix', () => {
-    const osirixObj = plist.parse(
-      fs.readFileSync('/Users/ozge/Downloads/7.3225.4503-4-3-08-DELAY.xml', 'utf8')
-    );
+  fastify.decorate('parseOsirix', docPath => {
+    const osirixObj = plist.parse(fs.readFileSync(docPath, 'utf8'));
     return osirixObj;
   });
 
-  fastify.decorate('getImageMetaDataforOsirix', osirixObj => {
-    const metadataArr = [];
-    const images = osirixObj.Images;
-    // handle no SOPInstanceUID means no image in the system
-    images.forEach(obj => {
-      obj.ROIs.forEach(annotation => {
-        const parameters = {
-          instance: annotation.SOPInstanceUID,
-          series: annotation.SeriesInstanceUID,
-          study: annotation.StudyInstanceUID,
-        };
-        metadataArr.push(fastify.getImageMetadata(parameters));
+  fastify.decorate('getImageMetaDataforOsirix', async osirixObj => {
+    try {
+      const metadataArr = [];
+      const images = osirixObj.Images;
+      // handle no SOPInstanceUID means no image in the system
+      images.forEach(obj => {
+        obj.ROIs.forEach(annotation => {
+          const parameters = {
+            instance: annotation.SOPInstanceUID,
+            series: annotation.SeriesInstanceUID,
+            study: annotation.StudyInstanceUID,
+          };
+          metadataArr.push(fastify.getImageMetadata(parameters));
+        });
       });
-    });
-    return metadataArr;
+      return await Promise.all(metadataArr);
+    } catch (err) {
+      return err;
+    }
   });
 
   // gets data fields from dicom for an image
