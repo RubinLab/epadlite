@@ -1815,7 +1815,7 @@ async function epaddb(fastify, options, done) {
                 include: [{ model: models.study, attributes: ['exam_types', 'id'] }],
               },
             ],
-            attributes: ['name', 'subjectuid'],
+            attributes: ['name', 'subjectuid', 'creator', 'createdtime'],
           });
           let results = [];
           let aimsCountMap = {};
@@ -1858,9 +1858,11 @@ async function epaddb(fastify, options, done) {
               subjectName: subjects[i].dataValues.name,
               subjectID: fastify.replaceNull(subjects[i].dataValues.subjectuid),
               projectID: request.params.project,
-              insertUser: '', // no user in studies call
+              insertUser: subjects[i].dataValues.creator ? subjects[i].dataValues.creator : '',
               xnatID: '', // no xnatID should remove
-              insertDate: '', // no date in studies call
+              insertDate: subjects[i].dataValues.createdtime
+                ? fastify.getFormattedDate(subjects[i].dataValues.createdtime)
+                : '',
               uri: '', // no uri should remove
               displaySubjectID: fastify.replaceNull(subjects[i].dataValues.subjectuid),
               numberOfStudies: Object.keys(studyIds).length,
@@ -6372,6 +6374,13 @@ async function epaddb(fastify, options, done) {
             // alter study to remove the createdtime change on every update
             await fastify.orm.query(
               `ALTER TABLE study 
+                MODIFY COLUMN createdtime timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+              { transaction: t }
+            );
+
+            // alter subject to remove the createdtime change on every update
+            await fastify.orm.query(
+              `ALTER TABLE subject 
                 MODIFY COLUMN createdtime timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP`,
               { transaction: t }
             );
