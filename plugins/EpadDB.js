@@ -1777,6 +1777,7 @@ async function epaddb(fastify, options, done) {
     try {
       if (request.params.project === config.unassignedProjectID) {
         const dbStudyUIDs = await fastify.getDBStudies();
+        // TODO How to get dates for unassigned??
         // eslint-disable-next-line no-await-in-loop
         let results = await fastify.getPatientsInternal(
           request.params,
