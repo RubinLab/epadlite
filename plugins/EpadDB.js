@@ -1777,6 +1777,7 @@ async function epaddb(fastify, options, done) {
     try {
       if (request.params.project === config.unassignedProjectID) {
         const dbStudyUIDs = await fastify.getDBStudies();
+        // TODO How to get dates for unassigned??
         // eslint-disable-next-line no-await-in-loop
         let results = await fastify.getPatientsInternal(
           request.params,
@@ -1815,7 +1816,7 @@ async function epaddb(fastify, options, done) {
                 include: [{ model: models.study, attributes: ['exam_types', 'id'] }],
               },
             ],
-            attributes: ['name', 'subjectuid'],
+            attributes: ['name', 'subjectuid', 'creator', 'createdtime'],
           });
           let results = [];
           let aimsCountMap = {};
@@ -1858,9 +1859,11 @@ async function epaddb(fastify, options, done) {
               subjectName: subjects[i].dataValues.name,
               subjectID: fastify.replaceNull(subjects[i].dataValues.subjectuid),
               projectID: request.params.project,
-              insertUser: '', // no user in studies call
+              insertUser: subjects[i].dataValues.creator ? subjects[i].dataValues.creator : '',
               xnatID: '', // no xnatID should remove
-              insertDate: '', // no date in studies call
+              insertDate: subjects[i].dataValues.createdtime
+                ? fastify.getFormattedDate(subjects[i].dataValues.createdtime)
+                : '',
               uri: '', // no uri should remove
               displaySubjectID: fastify.replaceNull(subjects[i].dataValues.subjectuid),
               numberOfStudies: Object.keys(studyIds).length,
@@ -3093,6 +3096,17 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate('add0s', val => {
+    return val > 9 ? val : `0${val}`;
+  });
+
+  fastify.decorate('getFormattedDate', dateFromDB => {
+    const dbDate = new Date(dateFromDB);
+    const month = dbDate.getMonth() + 1;
+    const date = dbDate.getDate();
+    return `${dbDate.getFullYear()}${fastify.add0s(month)}${fastify.add0s(date)}`;
+  });
+
   // whereJSON should include project_id, can also include subject_id
   fastify.decorate(
     'getStudiesInternal',
@@ -3119,6 +3133,7 @@ async function epaddb(fastify, options, done) {
               )
             );
           } else {
+            const createdTimes = {};
             for (let j = 0; j < projectSubjects.length; j += 1) {
               for (let i = 0; i < projectSubjects[j].dataValues.studies.length; i += 1) {
                 studyUids.push(projectSubjects[j].dataValues.studies[i].dataValues.studyuid);
@@ -3126,6 +3141,12 @@ async function epaddb(fastify, options, done) {
                   study: projectSubjects[j].dataValues.studies[i].dataValues.studyuid,
                   subject: projectSubjects[j].dataValues.subject.dataValues.subjectuid,
                 });
+                const dbDate = new Date(
+                  projectSubjects[j].dataValues.studies[i].dataValues.createdtime
+                );
+                createdTimes[
+                  projectSubjects[j].dataValues.studies[i].dataValues.studyuid
+                ] = fastify.getFormattedDate(dbDate);
                 // ASSUMPTION: nondicoms have no studydate
                 if (!projectSubjects[j].dataValues.studies[i].dataValues.studydate)
                   nondicoms.push({
@@ -3144,7 +3165,8 @@ async function epaddb(fastify, options, done) {
                   false,
                   '0020000D',
                   'studyUID',
-                  true
+                  true,
+                  createdTimes
                 );
                 resolve(result);
               } else {
@@ -3153,7 +3175,11 @@ async function epaddb(fastify, options, done) {
                   studyUids,
                   epadAuth,
                   query,
-                  true
+                  true,
+                  '0020000D',
+                  'studyUID',
+                  false,
+                  createdTimes
                 );
                 let aimsCountMap = {};
                 if (params.project !== config.XNATUploadProjectID) {
@@ -3191,7 +3217,7 @@ async function epaddb(fastify, options, done) {
                         numberOfImages: 0, // TODO
                         numberOfSeries: 0, // TODO
                         numberOfAnnotations: 0,
-                        createdTime: '',
+                        createdTime: createdTimes[nondicoms[i].study.dataValues.studyuid],
                         // extra for flexview
                         studyID: '',
                         studyDate: '',
@@ -6343,6 +6369,20 @@ async function epaddb(fastify, options, done) {
             await fastify.orm.query(
               `ALTER TABLE nondicom_series 
                 ADD FOREIGN KEY IF NOT EXISTS FK_series_study (study_id) REFERENCES study (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
+              { transaction: t }
+            );
+
+            // alter study to remove the createdtime change on every update
+            await fastify.orm.query(
+              `ALTER TABLE study 
+                MODIFY COLUMN createdtime timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+              { transaction: t }
+            );
+
+            // alter subject to remove the createdtime change on every update
+            await fastify.orm.query(
+              `ALTER TABLE subject 
+                MODIFY COLUMN createdtime timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP`,
               { transaction: t }
             );
           });
