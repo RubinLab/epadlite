@@ -815,7 +815,6 @@ async function dicomwebserver(fastify) {
             )
             .then(async response => {
               const metadata = response.data;
-
               const obj = {};
               obj.aim = {};
               obj.study = {};

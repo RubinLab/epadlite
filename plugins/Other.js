@@ -570,7 +570,15 @@ async function other(fastify) {
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
               const osirixObj = fastify.parseOsirix(`${dir}/${filename}`);
-              const imageData = await fastify.getImageMetaDataforOsirix(osirixObj);
+              const { metadata, aimNames } = await fastify.getImageMetaDataforOsirix(osirixObj);
+              const answers = fastify.getTemplateAnswers(Object.values(metadata), aimNames, '');
+              const { username } = epadAuth;
+              metadata.forEach((el, i) => {
+                const merged = { ...el.aim, ...answers[i] };
+                metadata[i].aim = merged;
+                metadata[i].user = { loginName: username, name: username };
+              });
+              const imageRefrenceUID = osirixObj.SOPInstanceUID;
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
@@ -610,6 +618,31 @@ async function other(fastify) {
         }
       })
   );
+  fastify.decorate('getTemplateAnswers', (arr, namesArr, tempModality) => {
+    try {
+      const result = [];
+      arr.forEach((el, i) => {
+        const { number, description, instanceNumber } = el.series;
+        const seriesModality = el.series.modality;
+        const comment = {
+          value: `${seriesModality} / ${description} / ${instanceNumber} / ${number}`,
+        };
+        const modality = { value: tempModality };
+        const name = { value: namesArr[i] };
+        const typeCode = [
+          {
+            code: 'ROI',
+            codeSystemName: '99EPAD',
+            'iso:displayName': { 'xmlns:iso': 'uri:iso.org:21090', value: 'ROI Only' },
+          },
+        ];
+        result.push({ comment, modality, name, typeCode });
+      });
+      return result;
+    } catch (err) {
+      console.log(err);
+    }
+  });
 
   fastify.decorate('parseOsirix', docPath => {
     const osirixObj = plist.parse(fs.readFileSync(docPath, 'utf8'));
@@ -619,6 +652,7 @@ async function other(fastify) {
   fastify.decorate('getImageMetaDataforOsirix', async osirixObj => {
     try {
       const metadataArr = [];
+      const aimNames = [];
       const images = osirixObj.Images;
       // handle no SOPInstanceUID means no image in the system
       images.forEach(obj => {
@@ -629,9 +663,11 @@ async function other(fastify) {
             study: annotation.StudyInstanceUID,
           };
           metadataArr.push(fastify.getImageMetadata(parameters));
+          aimNames.push(annotation.Name);
         });
       });
-      return await Promise.all(metadataArr);
+      const metadata = await Promise.all(metadataArr);
+      return { metadata, aimNames };
     } catch (err) {
       return err;
     }
