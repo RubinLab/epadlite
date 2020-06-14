@@ -11,7 +11,7 @@ const atob = require('atob');
 const axios = require('axios');
 const plist = require('plist');
 const { createOfflineAimSegmentation } = require('aimapi');
-// const Aim = require('aimapi');
+const Aim = require('aimapi');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -570,6 +570,7 @@ async function other(fastify) {
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
               const osirixObj = fastify.parseOsirix(`${dir}/${filename}`);
+              // gro
               const { metadata, aimNames } = await fastify.getImageMetaDataforOsirix(osirixObj);
               const answers = fastify.getTemplateAnswers(Object.values(metadata), aimNames, '');
               const { username } = epadAuth;
@@ -578,7 +579,22 @@ async function other(fastify) {
                 metadata[i].aim = merged;
                 metadata[i].user = { loginName: username, name: username };
               });
-              const imageRefrenceUID = osirixObj.SOPInstanceUID;
+              // const imageRefrenceUID = osirixObj.SOPInstanceUID;
+              // iterate over the aim osirix obj and and separate them based on the annotation name
+              // const aim = new Aim(
+              //   metadata,
+              //   fastify.enumAimType.imageAnnotation,
+              //   '2.25.212338900934301642512835658465618367778'
+              // );
+
+              console.log('---> aim');
+              console.log(Aim);
+              console.log('---> ROIs');
+              console.log(osirixObj.Images[0].ROIs);
+              console.log(osirixObj.Images[1].ROIs);
+              const points = fastify.createPointsArrForOsirix(osirixObj.Images[1].ROIs[0].Point_px);
+              console.log('---> pointss');
+              console.log(points);
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
@@ -618,6 +634,34 @@ async function other(fastify) {
         }
       })
   );
+
+  fastify.decorate('enumAimType', {
+    imageAnnotation: 1,
+    seriesAnnotation: 2,
+    studyAnnotation: 3,
+  });
+
+  fastify.decorate('createAimMarkups', (aim, type, markup, shapeIndex, imageReferenceUid) => {
+    // eslint-disable-next-line default-case
+    switch (type) {
+      // case 'point':
+      //   this.addPointToAim(aim, markup, shapeIndex, imageReferenceUid);
+      //   break;
+      // case 'line':
+      //   this.addLineToAim(aim, markup, shapeIndex, imageReferenceUid);
+      //   break;
+      // case 'circle':
+      //   this.addCircleToAim(aim, markup, shapeIndex, imageReferenceUid);
+      //   break;
+      case 'polygon':
+        this.addPolygonToAim(aim, markup, shapeIndex, imageReferenceUid);
+        break;
+      // case 'bidirectional':
+      //   this.addBidirectionalToAim(aim, markup, shapeIndex, imageReferenceUid);
+      //   break;
+    }
+  });
+
   fastify.decorate('getTemplateAnswers', (arr, namesArr, tempModality) => {
     try {
       const result = [];
@@ -644,6 +688,54 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('addPolygonToAim', (aim, polygon, shapeIndex, imageReferenceUid) => {
+    const { points } = polygon.handles;
+    const markupId = aim.addMarkupEntity(
+      'TwoDimensionPolyline',
+      shapeIndex,
+      points,
+      imageReferenceUid
+    );
+    // find out the unit about statistics to write to aim
+    // let unit, mean, stdDev, min, max;
+    // if (polygon.meanStdDev) {
+    //   ({ mean, stdDev, min, max } = polygon.meanStdDev);
+    //   unit = 'hu';
+    // } else if (polygon.meanStdDevSUV) {
+    //   ({ mean, stdDev, min, max } = polygon.meanStdDev);
+    //   unit = 'suv';
+    // }
+
+    // const meanId = aim.createMeanCalcEntity({ mean, unit });
+    // aim.createImageAnnotationStatement(1, markupId, meanId);
+
+    // const stdDevId = aim.createStdDevCalcEntity({ stdDev, unit });
+    // aim.createImageAnnotationStatement(1, markupId, stdDevId);
+
+    // const minId = aim.createMinCalcEntity({ min, unit });
+    // aim.createImageAnnotationStatement(1, markupId, minId);
+
+    // const maxId = aim.createMaxCalcEntity({ max, unit });
+    // aim.createImageAnnotationStatement(1, markupId, maxId);
+  });
+
+  // getMArkupValuesOsirixROI () {unit, mean, stdDev, min, max, points. modality}
+
+  fastify.decorate('getMarkupValuesOsirixROI', ROI => {
+    // unit, mean, stdDev, min, max, points, modality
+  });
+
+  fastify.decorate('createPointsArrForOsirix', osirixCoordinates => {
+    // unit, mean, stdDev, min, max, points, modality
+    const arr = osirixCoordinates.map(el => {
+      const coors = el.split(',');
+      const x = coors[0].trim().substr(1);
+      let y = coors[1].trim();
+      y = y.substr(0, y.length - 1);
+      return { x: parseFloat(x), y: parseFloat(y) };
+    });
+    return arr;
+  });
   fastify.decorate('parseOsirix', docPath => {
     const osirixObj = plist.parse(fs.readFileSync(docPath, 'utf8'));
     return osirixObj;
