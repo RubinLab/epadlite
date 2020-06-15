@@ -52,4 +52,5 @@ config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
 config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;
 config.unassignedProjectID = config.unassignedProjectID || 'nonassigned';
 config.XNATUploadProjectID = config.XNATUploadProjectID || 'all';
+config.corsOrigin = config.corsOrigin || false;
 module.exports = config;
