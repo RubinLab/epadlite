@@ -6539,6 +6539,126 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'addProcessing',
+    (params, query, folderPath, filesOnly, attemptNumber, zipSource, epadAuth) => {
+      console.log(
+        'adding',
+        params,
+        query,
+        folderPath,
+        filesOnly,
+        attemptNumber,
+        zipSource,
+        epadAuth
+      );
+      fastify
+        .upsert(
+          models.upload_processing,
+          {
+            params: JSON.stringify(params),
+            query: JSON.stringify(query),
+            path: folderPath,
+            files_only: filesOnly,
+            attempt_number: attemptNumber,
+            zip_source: zipSource,
+          },
+          {
+            params: JSON.stringify(params),
+            query: JSON.stringify(query),
+            path: folderPath,
+          },
+          epadAuth.username
+        )
+        .then(() => fastify.log.info(`Added processing for ${folderPath}`))
+        .catch(err => {
+          throw new InternalError('addProcessing', err);
+        });
+    }
+  );
+
+  fastify.decorate(
+    'updateProcessing',
+    (params, query, folderPath, filesOnly, attemptNumber, epadAuth) => {
+      console.log('updating', params, query, folderPath, filesOnly, attemptNumber, epadAuth);
+      let updates = { updatetime: Date.now() };
+      if (filesOnly !== undefined) updates = { ...updates, files_only: filesOnly };
+      if (attemptNumber !== undefined) updates = { ...updates, attempt_number: attemptNumber };
+
+      fastify
+        .upsert(
+          models.upload_processing,
+          updates,
+          {
+            params: JSON.stringify(params),
+            query: JSON.stringify(query),
+            path: folderPath,
+          },
+          epadAuth.username
+        )
+        .then(() => fastify.log.info(`Updated processing for ${folderPath}`))
+        .catch(err => {
+          throw new InternalError('updateProcessing', err);
+        });
+    }
+  );
+
+  fastify.decorate('removeProcessing', (params, query, folderPath, epadAuth) => {
+    console.log('removing', params, query, folderPath, epadAuth);
+    models.upload_processing
+      .destroy({
+        where: {
+          params: JSON.stringify(params),
+          query: JSON.stringify(query),
+          path: folderPath,
+        },
+      })
+      .then(() => fastify.log.info(`Removed processing for ${folderPath}`))
+      .catch(err => {
+        throw new InternalError('removeProcessing', err);
+      });
+  });
+
+  fastify.decorate(
+    'resumeProcessing',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const remaining = await models.upload_processing.findAll({
+            order: [['zip_source', 'DESC']],
+            raw: true,
+          });
+
+          const zipFiles = [];
+          for (let i = 0; i < remaining.length; i += 1) {
+            // TODO sending just username, it has no project role, can it fail?
+            const epadAuth = { username: remaining[i].creator };
+            if (remaining[i].zip_source !== '') zipFiles.push(remaining[i].zip_source);
+            fastify.updateProcessing(
+              JSON.parse(remaining[i].params),
+              JSON.parse(remaining[i].query),
+              remaining[i].path,
+              undefined,
+              remaining[i].attemptNumber + 1,
+              epadAuth
+            );
+
+            fastify.processFolder(
+              remaining[i].path,
+              JSON.parse(remaining[i].params),
+              JSON.parse(remaining[i].query),
+              epadAuth,
+              remaining[i].files_only === true,
+              zipFiles
+            );
+          }
+          resolve();
+        } catch (err) {
+          reject(new InternalError('resumeProcessing', err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'afterDBReady',
     () =>
       new Promise(async (resolve, reject) => {

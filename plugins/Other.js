@@ -194,6 +194,7 @@ async function other(fastify) {
           let success = false;
           let datasets = [];
           let studies = new Set();
+          fastify.addProcessing(params, query, dir, false, 1, '', epadAuth);
           for (let i = 0; i < filenames.length; i += 1) {
             try {
               // eslint-disable-next-line no-await-in-loop
@@ -225,6 +226,7 @@ async function other(fastify) {
             datasets = [];
             studies = new Set();
           }
+          fastify.removeProcessing(params, query, dir, epadAuth);
           resolve({ success, errors });
         } catch (err) {
           reject(err);
@@ -394,6 +396,16 @@ async function other(fastify) {
             .pipe(unzip.Extract({ path: `${zipDir}` }))
             .on('close', () => {
               fastify.log.info(`Extracted zip ${zipDir}`);
+              // add extracted zip so we can skip
+              fastify.addProcessing(
+                params,
+                query,
+                zipDir,
+                false,
+                1,
+                path.join(dir, filename),
+                epadAuth
+              );
               fastify
                 .processFolder(`${zipDir}`, params, query, epadAuth)
                 .then(result => {
@@ -428,6 +440,15 @@ async function other(fastify) {
     else {
       fastify.log.info(`Started scanning folder ${dataFolder}`);
       reply.send(`Started scanning ${dataFolder}`);
+      fastify.addProcessing(
+        request.params,
+        request.query,
+        dataFolder,
+        false,
+        1,
+        '',
+        request.epadAuth
+      );
       fastify
         .processFolder(dataFolder, request.params, {}, request.epadAuth)
         .then(result => {
@@ -447,7 +468,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'processFolder',
-    (zipDir, params, query, epadAuth) =>
+    (zipDir, params, query, epadAuth, filesOnly = false, zipFilesToIgnore = []) =>
       new Promise((resolve, reject) => {
         fastify.log.info(`Processing folder ${zipDir}`);
         const datasets = [];
@@ -459,23 +480,43 @@ async function other(fastify) {
             reject(new InternalError(`Reading directory ${zipDir}`, err));
           } else {
             try {
+              if (!filesOnly) {
+                // keep track of processing
+                for (let i = 0; i < files.length; i += 1) {
+                  if (files[i] !== '__MACOSX')
+                    if (fs.statSync(path.join(zipDir, files[i])).isDirectory() === true)
+                      fastify.addProcessing(
+                        params,
+                        query,
+                        path.join(zipDir, files[i]),
+                        false,
+                        1,
+                        '',
+                        epadAuth
+                      );
+                }
+
+                fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
+              }
               const promisses = [];
               for (let i = 0; i < files.length; i += 1) {
                 if (files[i] !== '__MACOSX')
                   if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
                     try {
-                      // eslint-disable-next-line no-await-in-loop
-                      const subdirResult = await fastify.processFolder(
-                        `${zipDir}/${files[i]}`,
-                        params,
-                        query,
-                        epadAuth
-                      );
-                      if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
-                        result.errors = result.errors.concat(subdirResult.errors);
-                      }
-                      if (subdirResult && subdirResult.success) {
-                        result.success = result.success || subdirResult.success;
+                      if (!filesOnly) {
+                        // eslint-disable-next-line no-await-in-loop
+                        const subdirResult = await fastify.processFolder(
+                          path.join(zipDir, files[i]),
+                          params,
+                          query,
+                          epadAuth
+                        );
+                        if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
+                          result.errors = result.errors.concat(subdirResult.errors);
+                        }
+                        if (subdirResult && subdirResult.success) {
+                          result.success = result.success || subdirResult.success;
+                        }
                       }
                     } catch (folderErr) {
                       reject(folderErr);
@@ -483,7 +524,16 @@ async function other(fastify) {
                   else
                     promisses.push(() => {
                       return fastify
-                        .processFile(zipDir, files[i], datasets, params, query, studies, epadAuth)
+                        .processFile(
+                          zipDir,
+                          files[i],
+                          datasets,
+                          params,
+                          query,
+                          studies,
+                          epadAuth,
+                          zipFilesToIgnore
+                        )
                         .catch(error => {
                           result.errors.push(error);
                         });
@@ -504,9 +554,13 @@ async function other(fastify) {
                   if (datasets.length > 0) {
                     pqDicoms
                       .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
-                      .then(() => resolve(result))
+                      .then(() => {
+                        fastify.removeProcessing(params, query, zipDir, epadAuth);
+                        resolve(result);
+                      })
                       .catch(error => reject(error));
                   } else {
+                    fastify.removeProcessing(params, query, zipDir, epadAuth);
                     resolve(result);
                   }
                 } catch (saveDicomErr) {
@@ -523,7 +577,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'processFile',
-    (dir, filename, datasets, params, query, studies, epadAuth) =>
+    (dir, filename, datasets, params, query, studies, epadAuth, zipFilesToIgnore = []) =>
       new Promise((resolve, reject) => {
         try {
           let buffer = [];
@@ -598,7 +652,11 @@ async function other(fastify) {
                     reject(err);
                   });
               }
-            } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
+            } else if (
+              filename.endsWith('zip') &&
+              !filename.startsWith('__MACOSX') &&
+              !zipFilesToIgnore.includes(filename)
+            ) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
                 .then(result => resolve(result))
