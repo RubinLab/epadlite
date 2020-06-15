@@ -970,64 +970,126 @@ async function epaddb(fastify, options, done) {
     //
   });
 
-  fastify.decorate('deletePlugin', (request, reply) => {
+  fastify.decorate('deletePlugin', async (request, reply) => {
     const { selectedRowPluginId, pluginIdsToDelete } = request.body;
-    let pluginid = -1;
+    const existInQueue = [];
+    const ableToDelete = [];
+    let pluginid = [];
     if (typeof selectedRowPluginId !== 'undefined') {
-      pluginid = selectedRowPluginId;
+      //pluginid = selectedRowPluginId;
+      pluginid.push(selectedRowPluginId);
     } else {
-      pluginid = pluginIdsToDelete;
+      pluginid = [...pluginIdsToDelete];
     }
-
-    models.plugin_template
-      .destroy({
-        where: {
-          plugin_id: pluginid,
-        },
-      })
-      .then(() => {
-        return models.project_plugin
-          .destroy({
+    console.log('delete or multi delete check for plgin :', pluginid);
+    try {
+      for (let cnt = 0; cnt < pluginid.length; cnt += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const resultQueueExist = await models.plugin_queue.findAll({
+          where: {
+            plugin_id: pluginid[cnt],
+          },
+        });
+        console.log('checking if queue has te plugin : ', resultQueueExist.length);
+        if (resultQueueExist.length === 0) {
+          // eslint-disable-next-line no-await-in-loop
+          await models.plugin_parameters.destroy({
             where: {
-              plugin_id: pluginid,
+              plugin_id: pluginid[cnt],
             },
-          })
-          .then(() => {
-            return models.plugin
-              .destroy({
-                where: {
-                  id: pluginid,
-                },
-              })
-              .then(() => {
-                reply.code(200).send('Plugin deleted seccessfully');
-              })
-              .catch(err => {
-                reply
-                  .code(500)
-                  .send(
-                    new InternalError('Something went wrong when deleting from plugin table', err)
-                  );
-              });
-          })
-          .catch(err => {
-            reply
-              .code(500)
-              .send(
-                new InternalError(
-                  'Something went wrong when deleting from project_plugin table',
-                  err
-                )
-              );
           });
-      })
-      .catch(err => {
-        reply
-          .code(500)
-          .send(
-            new InternalError('Something went wrong when deleting from plugin_template table', err)
-          );
-      });
+          // eslint-disable-next-line no-await-in-loop
+          await models.plugin_projectparameters.destroy({
+            where: {
+              plugin_id: pluginid[cnt],
+            },
+          });
+          // eslint-disable-next-line no-await-in-loop
+          await models.plugin_template.destroy({
+            where: {
+              plugin_id: pluginid[cnt],
+            },
+          });
+          // eslint-disable-next-line no-await-in-loop
+          await models.plugin_templateparameters.destroy({
+            where: {
+              plugin_id: pluginid[cnt],
+            },
+          });
+          // eslint-disable-next-line no-await-in-loop
+          await models.project_plugin.destroy({
+            where: {
+              plugin_id: pluginid[cnt],
+            },
+          });
+          // eslint-disable-next-line no-await-in-loop
+          await models.plugin.destroy({
+            where: {
+              id: pluginid[cnt],
+            },
+          });
+          ableToDelete.push(pluginid[cnt]);
+        } else {
+          existInQueue.push(pluginid[cnt]);
+        }
+      }
+      if (existInQueue.length > 0) {
+        reply.code(200).send(ableToDelete);
+      } else {
+        reply.code(200).send('Plugin deleted seccessfully');
+      }
+    } catch (err) {
+      reply.code(500).send(new InternalError('Something went wrong when deleting plugin', err));
+    }
+    // models.plugin_template
+    //   .destroy({
+    //     where: {
+    //       plugin_id: pluginid,
+    //     },
+    //   })
+    //   .then(() => {
+    //     return models.project_plugin
+    //       .destroy({
+    //         where: {
+    //           plugin_id: pluginid,
+    //         },
+    //       })
+    //       .then(() => {
+    //         return models.plugin
+    //           .destroy({
+    //             where: {
+    //               id: pluginid,
+    //             },
+    //           })
+    //           .then(() => {
+    //             reply.code(200).send('Plugin deleted seccessfully');
+    //           })
+    //           .catch(err => {
+    //             reply
+    //               .code(500)
+    //               .send(
+    //                 new InternalError('Something went wrong when deleting from plugin table', err)
+    //               );
+    //           });
+    //       })
+    //       .catch(err => {
+    //         reply
+    //           .code(500)
+    //           .send(
+    //             new InternalError(
+    //               'Something went wrong when deleting from project_plugin table',
+    //               err
+    //             )
+    //           );
+    //       });
+    //   })
+    //   .catch(err => {
+    //     reply
+    //       .code(500)
+    //       .send(
+    //         new InternalError('Something went wrong when deleting from plugin_template table', err)
+    //       );
+    //   });
 
     //  reply.code(200).send('Plugin deleted seccessfully');
   });
@@ -1682,25 +1744,86 @@ async function epaddb(fastify, options, done) {
       });
   });
   fastify.decorate('deleteFromPluginQueue', (request, reply) => {
-    console.log('request body ids ', request.body);
-    const parameterIdToDelete = request.body;
+    console.log('deleteFromPluginQueue request body ids ', request.body);
+    const pluginIdToDelete = [...request.body];
+    const idsToDelete = [];
+    const dock = new DockerService();
+    const promisesArray = [];
+    const pluginsDataFolder = path.join(__dirname, `../pluginsDataFolder`);
 
-    models.plugin_queue
-      .destroy({
-        where: {
-          id: parameterIdToDelete,
-        },
-      })
-      .then(() => {
-        reply.code(200).send('one process deleted seccessfully from the queue');
-      })
-      .catch(err => {
-        reply
-          .code(500)
-          .send(
-            new InternalError('Something went wrong while deleting the process from queue', err)
+    for (let cnt = 0; cnt < pluginIdToDelete.length; cnt += 1) {
+      const containerName = `epadplugin_${pluginIdToDelete[cnt]}`;
+      promisesArray.push(
+        dock
+          .checkContainerExistance(containerName)
+          .then(resInspect => {
+            console.log('deleteFromPluginQueue inspect element result', resInspect.State.Status);
+            if (resInspect.State.Status !== 'running') {
+              idsToDelete.push(pluginIdToDelete[cnt]);
+              console.log('deleteFromPluginQueue not running but container found');
+              dock.deleteContainer(containerName).then(deleteReturn => {
+                console.log('deleteFromPluginQueue delete container result :', deleteReturn);
+              });
+            }
+          })
+          .catch(err => {
+            console.log('inspect element err', err.statusCode);
+            if (err.statusCode === 404) {
+              idsToDelete.push(pluginIdToDelete[cnt]);
+            }
+          })
+      );
+    }
+    Promise.all(promisesArray).then(() => {
+      console.log('now we can delete :', idsToDelete);
+      models.plugin_queue
+        .findAll({
+          where: {
+            id: idsToDelete,
+          },
+        })
+        .then(tableData => {
+          tableData.forEach(eachRow => {
+            console.log('deleteing data getting table ', eachRow.id);
+            console.log('deleteing data getting table ', eachRow.creator);
+            const folderToDelete = path.join(
+              __dirname,
+              `../pluginsDataFolder/${eachRow.creator}/${eachRow.id}`
+            );
+            if (fs.existsSync(folderToDelete)) {
+              fs.remove(folderToDelete, { recursive: true });
+            }
+            console.log('fodler to delete :', folderToDelete);
+          });
+        })
+        .then(() => {
+          models.plugin_queue
+            .destroy({
+              where: {
+                id: idsToDelete,
+              },
+            })
+            .then(() => {
+              reply.code(200).send(idsToDelete);
+            })
+            .catch(err => {
+              reply
+                .code(500)
+                .send(
+                  new InternalError(
+                    'Something went wrong while deleting the process from queue',
+                    err
+                  )
+                );
+            });
+        })
+        .catch(err => {
+          return new InternalError(
+            'Something went wrong while getting all process to delete from queue',
+            err
           );
-      });
+        });
+    });
 
     //  reply.code(200).send('Plugin deleted seccessfully');
   });
@@ -2579,7 +2702,12 @@ async function epaddb(fastify, options, done) {
       console.log('set waiting ');
       // eslint-disable-next-line no-await-in-loop
       await fastify.updateStatusQueueProcessInternal(queueId, 'waiting');
-      new EpadNotification(request, 'set to waiting', 'success', true).notify(fastify);
+      new EpadNotification(
+        request,
+        `plugin image ${imageRepo} set to waiting`,
+        'success',
+        true
+      ).notify(fastify);
       console.log('running plugin on this object', pluginQueueList[i]);
 
       // eslint-disable-next-line no-await-in-loop
@@ -2639,7 +2767,12 @@ async function epaddb(fastify, options, done) {
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'running');
           opreationresult = ` plugin image : ${imageRepo} is runing`;
-          new EpadNotification(request, 'set to runnning', 'success', true).notify(fastify);
+          new EpadNotification(
+            request,
+            `plugin image ${imageRepo} set to runnning`,
+            'success',
+            true
+          ).notify(fastify);
           // eslint-disable-next-line no-await-in-loop
           await dock.createContainer(imageRepo, `epadplugin_${queueId}`, sortedParams);
 
@@ -2659,29 +2792,31 @@ async function epaddb(fastify, options, done) {
           };
 
           //  upload the result from container to the series
-          const fileArray = fs
-            .readdirSync(`${pluginParameters.serverfolder}output`)
-            // eslint-disable-next-line no-loop-func
-            .map(fileName => {
-              console.log('filename : ', fileName);
-              //  return path.join(`${pluginParameters.serverfolder}output`, fileName);
-              return fileName;
-            })
-            .filter(isFile);
-          console.log('file array : ', fileArray);
-          //  eslint-disable-next-line no-await-in-loop
-          const { success, errors } = await fastify.saveFiles(
-            `${pluginParameters.serverfolder}output`,
-            fileArray,
-            { project: pluginParameters.projectid },
-            {},
-            request.epadAuth
-          );
-          console.log('project id :', pluginParameters.projectid);
-          console.log('projectdb id :', pluginParameters.projectdbid);
-          console.log('upload dir back error: ', errors);
-          console.log('upload dir back success: ', success);
-          //  end
+          if (fs.existsSync(`${pluginParameters.serverfolder}output`)) {
+            const fileArray = fs
+              .readdirSync(`${pluginParameters.serverfolder}output`)
+              // eslint-disable-next-line no-loop-func
+              .map(fileName => {
+                console.log('filename : ', fileName);
+                //  return path.join(`${pluginParameters.serverfolder}output`, fileName);
+                return fileName;
+              })
+              .filter(isFile);
+            console.log('file array : ', fileArray);
+            //  eslint-disable-next-line no-await-in-loop
+            const { success, errors } = await fastify.saveFiles(
+              `${pluginParameters.serverfolder}output`,
+              fileArray,
+              { project: pluginParameters.projectid },
+              {},
+              request.epadAuth
+            );
+            console.log('project id :', pluginParameters.projectid);
+            console.log('projectdb id :', pluginParameters.projectdbid);
+            console.log('upload dir back error: ', errors);
+            console.log('upload dir back success: ', success);
+            //  end
+          }
           return 'completed';
         } catch (err) {
           const operationresult = ` plugin image : ${imageRepo} terminated with error`;
