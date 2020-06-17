@@ -837,11 +837,14 @@ async function other(fastify) {
 
   fastify.decorate('getNotifications', (request, reply) => {
     try {
+      // if there is corsorigin in config and it is not false then reflect request origin
       reply.res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Access-Control-Allow-Origin': '*',
-        'X-Accel-Buffering': 'no',
+        ...{
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'X-Accel-Buffering': 'no',
+        },
+        ...(config.corsOrigin ? { 'Access-Control-Allow-Origin': request.headers.origin } : {}),
       });
       const padding = new Array(2049);
       reply.res.write(`:${padding.join(' ')}\n`); // 2kB padding for IE
