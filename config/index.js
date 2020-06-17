@@ -53,4 +53,11 @@ config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;
 config.unassignedProjectID = config.unassignedProjectID || 'nonassigned';
 config.XNATUploadProjectID = config.XNATUploadProjectID || 'all';
 config.corsOrigin = config.corsOrigin || false;
+// env variables comes as string if it is true or false we need to convert to boolean
+if (process.env.CORS_ORIGIN) {
+  if (process.env.CORS_ORIGIN === 'true') config.corsOrigin = true;
+  else if (process.env.CORS_ORIGIN === 'false') config.corsOrigin = false;
+  else config.corsOrigin = JSON.parse(process.env.CORS_ORIGIN);
+}
+
 module.exports = config;

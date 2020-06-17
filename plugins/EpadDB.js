@@ -3492,7 +3492,13 @@ async function epaddb(fastify, options, done) {
     // TODO project filtering
     if (request.query.format === 'stream' && request.params.series) {
       fastify
-        .prepDownload(request.params, request.query, request.epadAuth, reply)
+        .prepDownload(
+          request.headers.origin,
+          request.params,
+          request.query,
+          request.epadAuth,
+          reply
+        )
         .then(() => fastify.log.info(`Series ${request.params.series} download completed`))
         .catch(downloadErr => reply.send(new InternalError('Downloading series', downloadErr)));
     } else {
@@ -3726,9 +3732,16 @@ async function epaddb(fastify, options, done) {
       if (project === null)
         reply.send(new ResourceNotFoundError('Project', request.params.project));
       else if (request.query.format === 'stream') {
-        await fastify.prepDownload(request.params, request.query, request.epadAuth, reply, {
-          project_id: project.id,
-        });
+        await fastify.prepDownload(
+          request.headers.origin,
+          request.params,
+          request.query,
+          request.epadAuth,
+          reply,
+          {
+            project_id: project.id,
+          }
+        );
       } else reply.code(200).send(project);
     } catch (err) {
       reply.send(new InternalError(`Getting project ${request.params.project}`, err));
@@ -4145,18 +4158,21 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('writeHead', (dirName, res) => {
+  fastify.decorate('writeHead', (dirName, res, reqOrigin) => {
+    // if there is corsorigin in config and it is not false then reflect request origin
     res.writeHead(200, {
-      'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename=${dirName}.zip`,
-      'Access-Control-Allow-Origin': '*',
+      ...{
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename=${dirName}.zip`,
+      },
+      ...(config.corsOrigin ? { 'Access-Control-Allow-Origin': reqOrigin } : {}),
     });
   });
 
   // it needs the node response object
   fastify.decorate(
     'prepDownload',
-    async (params, query, epadAuth, output, whereJSON, studyInfos, seriesInfos) =>
+    async (reqOrigin, params, query, epadAuth, output, whereJSON, studyInfos, seriesInfos) =>
       new Promise(async (resolve, reject) => {
         try {
           // if it has res, it is fastify reply
@@ -4231,7 +4247,7 @@ async function epaddb(fastify, options, done) {
                   if (!headWritten) {
                     if (!isResponseJustStream) {
                       // start writing the head so that long requests do not fail
-                      fastify.writeHead(dirName, res);
+                      fastify.writeHead(dirName, res, reqOrigin);
                     }
                     // create the archive
                     archive
@@ -4269,7 +4285,7 @@ async function epaddb(fastify, options, done) {
 
             if (isThereDataToWrite) {
               if (!headWritten) {
-                if (!isResponseJustStream) fastify.writeHead(dirName, res);
+                if (!isResponseJustStream) fastify.writeHead(dirName, res, reqOrigin);
                 // create the archive
                 archive.on('error', err => reject(new InternalError('Archiving ', err))).pipe(res);
               }
@@ -4314,7 +4330,13 @@ async function epaddb(fastify, options, done) {
       // TODO check if it is in the project
 
       if (request.query.format === 'stream') {
-        await fastify.prepDownload(request.params, request.query, request.epadAuth, reply);
+        await fastify.prepDownload(
+          request.headers.origin,
+          request.params,
+          request.query,
+          request.epadAuth,
+          reply
+        );
       } else {
         const studyUids = [request.params.study];
         const result = await fastify.getPatientStudiesInternal(
@@ -4381,10 +4403,17 @@ async function epaddb(fastify, options, done) {
       else if (subject === null)
         reply.send(new ResourceNotFoundError('Subject', request.params.subject));
       else if (request.query.format === 'stream') {
-        await fastify.prepDownload(request.params, request.query, request.epadAuth, reply, {
-          project_id: project.id,
-          subject_id: subject.id,
-        });
+        await fastify.prepDownload(
+          request.headers.origin,
+          request.params,
+          request.query,
+          request.epadAuth,
+          reply,
+          {
+            project_id: project.id,
+            subject_id: subject.id,
+          }
+        );
       } else {
         const subjectUids = [request.params.subject];
         const result = await fastify.getPatientsInternal(
@@ -4434,10 +4463,17 @@ async function epaddb(fastify, options, done) {
           );
         }
         const subjectIds = await Promise.all(subjectPromises);
-        await fastify.prepDownload(request.params, request.query, request.epadAuth, reply, {
-          project_id: project.id,
-          subject_id: { $in: subjectIds },
-        });
+        await fastify.prepDownload(
+          request.headers.origin,
+          request.params,
+          request.query,
+          request.epadAuth,
+          reply,
+          {
+            project_id: project.id,
+            subject_id: { $in: subjectIds },
+          }
+        );
       }
     } catch (err) {
       reply.send(new InternalError(`Download subjects ${JSON.stringify(request.body)}`, err));
@@ -4460,6 +4496,7 @@ async function epaddb(fastify, options, done) {
         );
       else {
         await fastify.prepDownload(
+          request.headers.origin,
           request.params,
           request.query,
           request.epadAuth,
@@ -4489,6 +4526,7 @@ async function epaddb(fastify, options, done) {
         );
       else {
         await fastify.prepDownload(
+          request.headers.origin,
           request.params,
           request.query,
           request.epadAuth,
