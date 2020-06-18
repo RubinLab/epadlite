@@ -1901,7 +1901,7 @@ async function epaddb(fastify, options, done) {
           ) {
             reject(
               new BadRequestError(
-                `Deleting subject from ${config.XNATUploadProjectID} project`,
+                `Deleting subject from ${params.project} project`,
                 new Error(`Not supported without system delete`)
               )
             );
