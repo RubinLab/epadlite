@@ -1894,6 +1894,18 @@ async function epaddb(fastify, options, done) {
     (params, query, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
+          if (
+            (params.project === config.XNATUploadProjectID ||
+              params.project === config.unassignedProjectID) &&
+            query.all !== 'true'
+          ) {
+            reject(
+              new BadRequestError(
+                `Deleting subject from ${config.XNATUploadProjectID} project`,
+                new Error(`Not supported without system delete`)
+              )
+            );
+          }
           const project = await models.project.findOne({
             where: { projectid: params.project },
           });
@@ -1913,7 +1925,7 @@ async function epaddb(fastify, options, done) {
             const projectSubject = await models.project_subject.findOne({
               where: { project_id: project.id, subject_id: subject.id },
             });
-            if (projectSubject === null)
+            if (projectSubject === null && query.all !== 'true')
               reject(
                 new BadRequestError(
                   'Deleting subject from project',
@@ -1921,12 +1933,15 @@ async function epaddb(fastify, options, done) {
                 )
               );
             else {
-              await models.project_subject_study.destroy({
-                where: { proj_subj_id: projectSubject.id },
-              });
-              await models.project_subject.destroy({
-                where: { project_id: project.id, subject_id: subject.id },
-              });
+              // all project doesn't have project_subject and project_subject_study entities
+              if (params.project !== config.XNATUploadProjectID) {
+                await models.project_subject_study.destroy({
+                  where: { proj_subj_id: projectSubject.id },
+                });
+                await models.project_subject.destroy({
+                  where: { project_id: project.id, subject_id: subject.id },
+                });
+              }
               await models.worklist_study.destroy({
                 where: { project_id: project.id, subject_id: subject.id },
               });
