@@ -799,6 +799,9 @@ async function other(fastify) {
         });
       });
       promisses.push(() => {
+        return fastify.deleteSeriesAimProjectRels(request.params);
+      });
+      promisses.push(() => {
         return fastify.deleteAimsInternal(request.params, request.epadAuth);
       });
       if (config.env !== 'test') {
