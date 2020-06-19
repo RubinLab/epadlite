@@ -1569,6 +1569,104 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it(`${config.unassignedProjectID} should have one subject`, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(`/projects/${config.unassignedProjectID}/subjects`)
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it(`project study deletion of patient 3 study 0023.2015.09.28.3 from ${
+      config.unassignedProjectID
+    } project without all=true should fail `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(`/projects/${config.unassignedProjectID}/subjects/3/studies/0023.2015.09.28.3`)
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it(`project study deletion of patient 3 study 0023.2015.09.28.3 from ${
+      config.unassignedProjectID
+    } project using all=true should be successful `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(
+          `/projects/${config.unassignedProjectID}/subjects/3/studies/0023.2015.09.28.3?all=true`
+        )
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project study add of study 0023.2015.09.28.3 to project teststudy3 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/teststudy3/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it(`project study deletion of patient 3 study 0023.2015.09.28.3 from ${
+      config.XNATUploadProjectID
+    } project without all=true should fail `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(
+          `/projects/${config.XNATUploadProjectID}/subjects/3/studies/0023.2015.09.28.3?all=true`
+        )
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it(`project study deletion of patient 3 study 0023.2015.09.28.3 from ${
+      config.XNATUploadProjectID
+    } project using all=true should be successful `, done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(
+          `/projects/${config.XNATUploadProjectID}/subjects/3/studies/0023.2015.09.28.3?all=true`
+        )
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
 
     it('project teststudy should have no subject', done => {
       chai

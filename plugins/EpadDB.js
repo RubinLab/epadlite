@@ -3339,136 +3339,113 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('deletePatientStudyFromProject', async (request, reply) => {
     try {
-      const project = await models.project.findOne({
-        where: { projectid: request.params.project },
-      });
-      const subject = await models.subject.findOne({
-        where: { subjectuid: request.params.subject },
-      });
-      if (project === null)
+      if (
+        (request.params.project === config.XNATUploadProjectID ||
+          request.params.project === config.unassignedProjectID) &&
+        request.query.all !== 'true'
+      ) {
         reply.send(
           new BadRequestError(
-            'Delete study from project',
-            new ResourceNotFoundError('Project', request.params.project)
+            `Deleting study from ${request.params.project} project`,
+            new Error(`Not supported without system delete`)
           )
         );
-      else if (subject === null)
-        reply.send(
-          new BadRequestError(
-            'Delete study from project',
-            new ResourceNotFoundError('Subject', request.params.subject)
-          )
-        );
-      else {
-        const projectSubject = await models.project_subject.findOne({
-          where: { project_id: project.id, subject_id: subject.id },
+      } else {
+        const project = await models.project.findOne({
+          where: { projectid: request.params.project },
         });
-        if (projectSubject === null) {
+        const subject = await models.subject.findOne({
+          where: { subjectuid: request.params.subject },
+        });
+        if (project === null)
           reply.send(
             new BadRequestError(
               'Delete study from project',
-              new ResourceNotFoundError('Project subject association', request.params.subject)
+              new ResourceNotFoundError('Project', request.params.project)
             )
           );
-        } else if (
-          request.query.all &&
-          request.query.all === 'true' &&
-          request.epadAuth.admin === false
-        )
-          reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
+        else if (subject === null)
+          reply.send(
+            new BadRequestError(
+              'Delete study from project',
+              new ResourceNotFoundError('Subject', request.params.subject)
+            )
+          );
         else {
-          // find the study
-          const study = await models.study.findOne({
-            where: { studyuid: request.params.study },
+          const projectSubject = await models.project_subject.findOne({
+            where: { project_id: project.id, subject_id: subject.id },
           });
-          let numDeleted = await models.project_subject_study.destroy({
-            where: { proj_subj_id: projectSubject.id, study_id: study.id },
-          });
-          // see if there is any other study refering to this subject in this project
-          const studyCount = await models.project_subject_study.count({
-            where: { proj_subj_id: projectSubject.id },
-          });
-          if (studyCount === 0)
-            await models.project_subject.destroy({
-              where: { id: projectSubject.id },
+          if (projectSubject === null) {
+            reply.send(
+              new BadRequestError(
+                'Delete study from project',
+                new ResourceNotFoundError('Project subject association', request.params.subject)
+              )
+            );
+          } else if (
+            request.query.all &&
+            request.query.all === 'true' &&
+            request.epadAuth.admin === false
+          )
+            reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
+          else {
+            // find the study
+            const study = await models.study.findOne({
+              where: { studyuid: request.params.study },
             });
-
-          // if delete from all or it doesn't exist in any other project, delete from system
-          try {
-            if (request.query.all && request.query.all === 'true') {
-              const projectSubjectStudies = await models.project_subject_study.findAll({
-                where: { study_id: study.id },
+            let numDeleted = await models.project_subject_study.destroy({
+              where: { proj_subj_id: projectSubject.id, study_id: study.id },
+            });
+            // see if there is any other study refering to this subject in this project
+            const studyCount = await models.project_subject_study.count({
+              where: { proj_subj_id: projectSubject.id },
+            });
+            if (studyCount === 0)
+              await models.project_subject.destroy({
+                where: { id: projectSubject.id },
               });
-              const projSubjIds = [];
-              const projectSubjectStudyIds = [];
-              let deletedNonDicomSeries = 0;
-              if (projectSubjectStudies) {
-                for (let i = 0; i < projectSubjectStudies.length; i += 1) {
-                  // eslint-disable-next-line no-await-in-loop
-                  const existingStudyCount = await models.project_subject_study.count({
-                    where: { proj_subj_id: projectSubjectStudies[i].proj_subj_id },
+
+            // if delete from all or it doesn't exist in any other project, delete from system
+            try {
+              if (request.query.all && request.query.all === 'true') {
+                const projectSubjectStudies = await models.project_subject_study.findAll({
+                  where: { study_id: study.id },
+                });
+                const projSubjIds = [];
+                const projectSubjectStudyIds = [];
+                let deletedNonDicomSeries = 0;
+                if (projectSubjectStudies) {
+                  for (let i = 0; i < projectSubjectStudies.length; i += 1) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const existingStudyCount = await models.project_subject_study.count({
+                      where: { proj_subj_id: projectSubjectStudies[i].proj_subj_id },
+                    });
+                    if (existingStudyCount === 1)
+                      projSubjIds.push(projectSubjectStudies[i].proj_subj_id);
+                    projectSubjectStudyIds.push(projectSubjectStudies[i].id);
+                  }
+                  numDeleted += await models.project_subject_study.destroy({
+                    where: { id: projectSubjectStudyIds },
                   });
-                  if (existingStudyCount === 1)
-                    projSubjIds.push(projectSubjectStudies[i].proj_subj_id);
-                  projectSubjectStudyIds.push(projectSubjectStudies[i].id);
-                }
-                numDeleted += await models.project_subject_study.destroy({
-                  where: { id: projectSubjectStudyIds },
-                });
-                await models.project_subject.destroy({
-                  where: { id: projSubjIds },
-                });
-                // delete non dicom series if any
-                deletedNonDicomSeries = await models.nondicom_series.destroy({
-                  where: { study_id: study.id },
-                });
+                  await models.project_subject.destroy({
+                    where: { id: projSubjIds },
+                  });
+                  // delete non dicom series if any
+                  deletedNonDicomSeries = await models.nondicom_series.destroy({
+                    where: { study_id: study.id },
+                  });
 
-                await models.worklist_study.destroy({
-                  where: {
-                    project_id: project.id,
-                    subject_id: subject.id,
-                    study_id: study.id,
-                  },
-                });
-                await models.study.destroy({
-                  where: { id: study.id },
-                });
-              }
-              try {
-                await fastify.deleteStudyInternal(request.params, request.epadAuth);
-              } catch (err) {
-                // ignore the error if the study has nondicom series
-                if (deletedNonDicomSeries === 0) {
-                  fastify.log.warn(
-                    `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${
-                      err.message
-                    }`
-                  );
+                  await models.worklist_study.destroy({
+                    where: {
+                      project_id: project.id,
+                      subject_id: subject.id,
+                      study_id: study.id,
+                    },
+                  });
+                  await models.study.destroy({
+                    where: { id: study.id },
+                  });
                 }
-              }
-              reply
-                .code(200)
-                .send(`Study deleted from system and removed from ${numDeleted} projects`);
-            } else {
-              // see if this study is referenced by any other project
-              const count = await models.project_subject_study.count({
-                where: { study_id: study.id },
-              });
-              if (count === 0) {
-                // delete non dicom series if any
-                const deletedNonDicomSeries = await models.nondicom_series.destroy({
-                  where: { study_id: study.id },
-                });
-                await models.worklist_study.destroy({
-                  where: {
-                    project_id: project.id,
-                    subject_id: subject.id,
-                    study_id: study.id,
-                  },
-                });
-                await models.study.destroy({
-                  where: { id: study.id },
-                });
                 try {
                   await fastify.deleteStudyInternal(request.params, request.epadAuth);
                 } catch (err) {
@@ -3483,14 +3460,52 @@ async function epaddb(fastify, options, done) {
                 }
                 reply
                   .code(200)
-                  .send(`Study deleted from system as it didn't exist in any other project`);
-              } else
-                reply.code(200).send(`Study not deleted from system as it exists in other project`);
+                  .send(`Study deleted from system and removed from ${numDeleted} projects`);
+              } else {
+                // see if this study is referenced by any other project
+                const count = await models.project_subject_study.count({
+                  where: { study_id: study.id },
+                });
+                if (count === 0) {
+                  // delete non dicom series if any
+                  const deletedNonDicomSeries = await models.nondicom_series.destroy({
+                    where: { study_id: study.id },
+                  });
+                  await models.worklist_study.destroy({
+                    where: {
+                      project_id: project.id,
+                      subject_id: subject.id,
+                      study_id: study.id,
+                    },
+                  });
+                  await models.study.destroy({
+                    where: { id: study.id },
+                  });
+                  try {
+                    await fastify.deleteStudyInternal(request.params, request.epadAuth);
+                  } catch (err) {
+                    // ignore the error if the study has nondicom series
+                    if (deletedNonDicomSeries === 0) {
+                      fastify.log.warn(
+                        `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${
+                          err.message
+                        }`
+                      );
+                    }
+                  }
+                  reply
+                    .code(200)
+                    .send(`Study deleted from system as it didn't exist in any other project`);
+                } else
+                  reply
+                    .code(200)
+                    .send(`Study not deleted from system as it exists in other project`);
+              }
+            } catch (deleteErr) {
+              reply.send(
+                new InternalError(`Study ${request.params.study} deletion from system`, deleteErr)
+              );
             }
-          } catch (deleteErr) {
-            reply.send(
-              new InternalError(`Study ${request.params.study} deletion from system`, deleteErr)
-            );
           }
         }
       }
