@@ -22,11 +22,17 @@ module.exports.views = {
 
   templates_json: {
     map:
-      " function(doc) { if (doc.template) { type='image'; if (doc.template.TemplateContainer.Template[0].templateType) type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase(); emit([type, doc.template.TemplateContainer.Template[0].codeValue, doc.template], 1)}} ",
+      " function(doc) { if (doc.template) { type='image'; if (doc.template.TemplateContainer.Template[0].templateType) type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase(); emit([type, doc.template.TemplateContainer.Template[0].codeValue, doc.template], 1); emit([doc.template.TemplateContainer.Template[0].codeValue, '', doc.template], 1)}} ",
     reduce: '_count()',
   },
 
   templates_summary: {
+    map:
+      " function(doc){if(doc.template){key={};key.containerUID=doc.template.TemplateContainer.uid;key.containerName=doc.template.TemplateContainer.name;key.containerDescription=doc.template.TemplateContainer.description;key.containerVersion=doc.template.TemplateContainer.version;key.containerAuthors=doc.template.TemplateContainer.authors;key.containerCreationDate=doc.template.TemplateContainer.creationDate;template={'type':'image'};if(doc.template.TemplateContainer.Template[0].templateType)template.type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase();template.templateName=doc.template.TemplateContainer.Template[0].name;template.templateDescription=doc.template.TemplateContainer.Template[0].description;template.templateUID=doc.template.TemplateContainer.uid;template.templateCodeValue=doc.template.TemplateContainer.Template[0].codeValue;template.templateCodeMeaning=doc.template.TemplateContainer.Template[0].codeMeaning;template.templateVersion=doc.template.TemplateContainer.Template[0].version;template.templateAuthors=doc.template.TemplateContainer.Template[0].authors;template.templateCreationDate=doc.template.TemplateContainer.Template[0].creationDate;key.Template=[template];emit([key.Template[0].type,key.Template[0].templateUID,key],1); emit([key.Template[0].templateCodeValue,'',key],1)}} ",
+    reduce: '_count()',
+  },
+
+  templates_bycode: {
     map:
       " function(doc){if(doc.template){key={};key.containerUID=doc.template.TemplateContainer.uid;key.containerName=doc.template.TemplateContainer.name;key.containerDescription=doc.template.TemplateContainer.description;key.containerVersion=doc.template.TemplateContainer.version;key.containerAuthors=doc.template.TemplateContainer.authors;key.containerCreationDate=doc.template.TemplateContainer.creationDate;template={'type':'image'};if(doc.template.TemplateContainer.Template[0].templateType)template.type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase();template.templateName=doc.template.TemplateContainer.Template[0].name;template.templateDescription=doc.template.TemplateContainer.Template[0].description;template.templateUID=doc.template.TemplateContainer.uid;template.templateCodeValue=doc.template.TemplateContainer.Template[0].codeValue;template.templateCodeMeaning=doc.template.TemplateContainer.Template[0].codeMeaning;template.templateVersion=doc.template.TemplateContainer.Template[0].version;template.templateAuthors=doc.template.TemplateContainer.Template[0].authors;template.templateCreationDate=doc.template.TemplateContainer.Template[0].creationDate;key.Template=[template];emit([key.Template[0].type,key.Template[0].templateUID,key],1)}} ",
     reduce: '_count()',

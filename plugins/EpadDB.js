@@ -243,6 +243,13 @@ async function epaddb(fastify, options, done) {
               creator: request.epadAuth.username,
             };
             await models.project_user.create(entry);
+            // if there is default template add that template to project
+            await fastify.tryAddDefaultTemplateToProject(
+              defaultTemplate,
+              project,
+              request.epadAuth
+            );
+
             fastify.log.info(`Project with id ${project.id} is created successfully`);
             reply.code(200).send(`Project with id ${project.id} is created successfully`);
           } catch (errPU) {
@@ -260,6 +267,32 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate(
+    'tryAddDefaultTemplateToProject',
+    (defaultTemplate, project, epadAuth) =>
+      new Promise(async resolve => {
+        if (defaultTemplate && defaultTemplate !== '') {
+          try {
+            // check if template exists in system
+            const template = await fastify.getTemplateInternal(defaultTemplate, 'summary');
+            await fastify.addProjectTemplateRelInternal(
+              template.containerUID,
+              project,
+              {},
+              epadAuth
+            );
+
+            resolve(true);
+          } catch (errTemplate) {
+            fastify.log.warn(
+              `Could not add template ${defaultTemplate} to project ${JSON.stringify(project)}`
+            );
+          }
+        }
+        resolve(false);
+      })
+  );
+
   fastify.decorate('updateProject', (request, reply) => {
     if (request.params.project === 'lite') {
       reply.send(
@@ -275,6 +308,8 @@ async function epaddb(fastify, options, done) {
       for (let i = 0; i < keys.length; i += 1) {
         if (keys[i] === 'projectName') {
           query.name = values[i];
+        } else if (keys[i] === 'defaultTemplate') {
+          query.defaulttemplate = values[i];
         } else {
           query[keys[i]] = values[i];
         }
@@ -287,7 +322,14 @@ async function epaddb(fastify, options, done) {
             projectid: request.params.project,
           },
         })
-        .then(() => {
+        .then(async () => {
+          // if there is default template add that template to project
+          await fastify.tryAddDefaultTemplateToProject(
+            query.defaultTemplate || query.defaulttemplate,
+            request.params.project,
+            request.epadAuth
+          );
+
           fastify.log.info(`Project ${request.params.project} is updated`);
           reply.code(200).send(`Project ${request.params.project} is updated successfully`);
         })
