@@ -62,7 +62,7 @@ beforeEach(() => {
     .query(query => {
       return (
         query.numOfUsers === '1' &&
-        query.numOfProjects === '2' &&
+        query.numOfProjects === '3' &&
         query.numOfPatients === '1' &&
         query.numOfStudies === '1' &&
         query.numOfSeries === '1' &&
@@ -308,6 +308,17 @@ describe('Project Tests', () => {
           defaultTemplate: 'ROI',
           type: 'private',
         });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'testtemplate3',
+          projectName: 'testtemplate3',
+          projectDescription: 'test3desc',
+          defaultTemplate: '',
+          type: 'private',
+        });
     });
     after(async () => {
       await chai
@@ -317,6 +328,10 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testtemplate2')
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testtemplate3')
         .query({ username: 'admin' });
     });
 
@@ -373,7 +388,7 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.eql({
             numOfUsers: 1,
-            numOfProjects: 2,
+            numOfProjects: 3,
             numOfPatients: 1,
             numOfStudies: 1,
             numOfSeries: 1,
@@ -386,6 +401,89 @@ describe('Project Tests', () => {
             numOfTemplates: 1,
             numOfPlugins: 0,
           });
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should create new project with ROI template ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'testtemplatedefault',
+          projectName: 'testtemplatedefault',
+          projectDescription: 'testtemplatedefaultdesc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project testtemplatedefault should have ROI template ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testtemplatedefault/templates')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
+          expect(res.body[0].TemplateContainer.Template[0].codeValue).to.be.eql('ROI');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project testtemplate3 should have no templates ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testtemplate3/templates')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project update of testtemplate3 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testtemplate3?defaultTemplate=ROI')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('project testtemplate3 should have ROI template ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testtemplate3/templates')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only');
+          expect(res.body[0].TemplateContainer.Template[0].codeValue).to.be.eql('ROI');
           done();
         })
         .catch(e => {
@@ -580,10 +678,10 @@ describe('Project Tests', () => {
         });
     });
 
-    it('template delete with uid 2.25.121060836007636801627558943005335 should be successful ', done => {
+    it('template delete with uid 2.25.121060836007636801627558943005335 from system should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testtemplate2/templates/2.25.121060836007636801627558943005335')
+        .delete('/projects/testtemplate2/templates/2.25.121060836007636801627558943005335?all=true')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
