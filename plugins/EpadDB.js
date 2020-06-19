@@ -1931,6 +1931,20 @@ async function epaddb(fastify, options, done) {
       .then(result => reply.code(200).send(result))
       .catch(err => reply.send(err));
   });
+  fastify.decorate(
+    'deleteSeriesAimProjectRels',
+    params =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await models.project_aim.destroy({
+            where: { series_uid: params.series },
+          });
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Deletion of aim project relation from ${params.series}`, err));
+        }
+      })
+  );
 
   fastify.decorate(
     'deleteSubjectFromProjectInternal',
@@ -1973,6 +1987,9 @@ async function epaddb(fastify, options, done) {
               await models.worklist_study.destroy({
                 where: { project_id: project.id, subject_id: subject.id },
               });
+              await models.project_aim.destroy({
+                where: { project_id: project.id, subject_uid: subject.subjectuid },
+              });
               // if delete from all or it doesn't exist in any other project, delete from system
               try {
                 const projectSubjects = await models.project_subject.findAll({
@@ -1993,6 +2010,9 @@ async function epaddb(fastify, options, done) {
                     });
                   }
 
+                  await models.project_aim.destroy({
+                    where: { subject_uid: subject.subjectuid },
+                  });
                   // delete the subject
                   await models.subject.destroy({
                     where: { id: subject.id },
@@ -2009,6 +2029,9 @@ async function epaddb(fastify, options, done) {
                   });
                   await models.worklist_study.destroy({
                     where: { project_id: project.id, subject_id: subject.id },
+                  });
+                  await models.project_aim.destroy({
+                    where: { subject_uid: subject.subjectuid },
                   });
                   // delete the subject
                   await models.subject.destroy({
@@ -3460,6 +3483,9 @@ async function epaddb(fastify, options, done) {
           let numDeleted = await models.project_subject_study.destroy({
             where: { proj_subj_id: projectSubject.id, study_id: study.id },
           });
+          await models.project_aim.destroy({
+            where: { project_id: project.id, study_uid: study.studyuid },
+          });
           // see if there is any other study refering to this subject in this project
           const studyCount = await models.project_subject_study.count({
             where: { proj_subj_id: projectSubject.id },
@@ -3506,6 +3532,9 @@ async function epaddb(fastify, options, done) {
                     study_id: study.id,
                   },
                 });
+                await models.project_aim.destroy({
+                  where: { study_uid: study.studyuid },
+                });
                 await models.study.destroy({
                   where: { id: study.id },
                 });
@@ -3541,6 +3570,9 @@ async function epaddb(fastify, options, done) {
                     subject_id: subject.id,
                     study_id: study.id,
                   },
+                });
+                await models.project_aim.destroy({
+                  where: { study_uid: study.studyuid },
                 });
                 await models.study.destroy({
                   where: { id: study.id },
