@@ -4873,30 +4873,25 @@ async function epaddb(fastify, options, done) {
             })
           );
         });
-        Promise.all(userPromise)
-          .then(data => {
-            data.forEach((user, index) => {
-              const permissions = user.permissions ? user.permissions.split(',') : '';
-              const obj = {
-                displayname: `${user.firstname} ${user.lastname}`,
-                username: user.username,
-                firstname: user.firstname,
-                lastname: user.lastname,
-                email: user.email,
-                permissions,
-                enabled: user.enabled,
-                admin: user.admin,
-                passwordexpired: user.passwordexpired,
-                creator: user.creator,
-                role: projectUsers[index].role,
-              };
-              result.push(obj);
-            });
-            reply.code(200).send(result);
-          })
-          .catch(errUser => {
-            reply.send(new InternalError(`Getting users for project`, errUser));
-          });
+        const data = await Promise.all(userPromise);
+        data.forEach((user, index) => {
+          const permissions = user.permissions ? user.permissions.split(',') : '';
+          const obj = {
+            displayname: `${user.firstname} ${user.lastname}`,
+            username: user.username,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            email: user.email,
+            permissions,
+            enabled: user.enabled,
+            admin: user.admin,
+            passwordexpired: user.passwordexpired,
+            creator: user.creator,
+            role: projectUsers[index].role,
+          };
+          result.push(obj);
+        });
+        reply.code(200).send(result);
       }
     } catch (err) {
       reply.send(new InternalError(`Getting users for project ${request.params.project}`, err));
