@@ -789,13 +789,12 @@ async function other(fastify) {
       // delete study in dicomweb and annotations
       const promisses = [];
       promisses.push(() => {
-        return fastify.deleteSeriesDicomsInternal(request.params).catch(err => {
-          fastify.log.warn(
-            `Could not delete series from dicomweb with error: ${
-              err.message
-            }. Trying nondicom series delete`
-          );
-          return fastify.deleteNonDicomSeriesInternal(request.params.series);
+        return fastify.deleteNonDicomSeriesInternal(request.params.series).catch(err => {
+          if (err.message !== 'No nondicom entity')
+            fastify.log.warn(
+              `Could not delete nondicom series. Error: ${err.message}. Trying dicom series delete`
+            );
+          return fastify.deleteSeriesDicomsInternal(request.params);
         });
       });
       promisses.push(() => {
