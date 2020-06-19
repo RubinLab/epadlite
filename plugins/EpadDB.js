@@ -3669,10 +3669,11 @@ async function epaddb(fastify, options, done) {
     seriesUid =>
       new Promise(async (resolve, reject) => {
         try {
-          await models.nondicom_series.destroy({
+          const count = await models.nondicom_series.destroy({
             where: { seriesuid: seriesUid },
           });
-          resolve();
+          if (count > 0) resolve();
+          else reject(new Error('No nondicom entity'));
         } catch (err) {
           reject(new InternalError(`Deleting nondicom series ${seriesUid}`, err));
         }
