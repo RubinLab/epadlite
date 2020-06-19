@@ -562,16 +562,22 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('getAims', (request, reply) => {
-    fastify
-      .getAimsInternal(request.query.format, request.params, undefined, request.epadAuth)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.send(err));
+  fastify.decorate('getAims', async (request, reply) => {
+    try {
+      const filter = await fastify.getUserAccessibleAimUids(request.epadAuth);
+      const result = await fastify.getAimsInternal(
+        request.query.format,
+        request.params,
+        filter,
+        request.epadAuth
+      );
+      if (request.query.format === 'stream') {
+        reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+      }
+      reply.code(200).send(result);
+    } catch (err) {
+      reply.send(err);
+    }
   });
 
   fastify.decorate('getAimsFromUIDs', (request, reply) => {

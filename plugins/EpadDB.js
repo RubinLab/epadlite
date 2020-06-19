@@ -1,7 +1,7 @@
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
-const Sequelize = require('sequelize');
+const { Sequelize, QueryTypes } = require('sequelize');
 const _ = require('lodash');
 const Axios = require('axios');
 const os = require('os');
@@ -2081,8 +2081,43 @@ async function epaddb(fastify, options, done) {
   // });
 
   fastify.decorate(
-    'filterProjectAims',
-    (params, query, epadAuth) =>
+    'getUserAccessibleAimUids',
+    epadAuth =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // if in thick mode
+          if (config.mode === 'thick') {
+            // if admin no filter
+            if (epadAuth.admin) resolve(undefined);
+            else {
+              // get other peoples aims from projects user is member or owner, or public project
+              // union with user's annotations
+              const result = await fastify.orm.query(
+                `SELECT a.aim_uid 
+                  FROM project_aim a, project_user pu, user u 
+                  WHERE u.id = pu.user_id AND a.project_id = pu.project_id 
+                  AND u.username = '${epadAuth.username}' 
+                  AND (pu.role <> 'Collaborator' or a.user = '${epadAuth.username}')
+                `,
+                { raw: true, type: QueryTypes.SELECT }
+              );
+              const aimUids = result.map(val => val.aim_uid);
+              resolve(aimUids);
+            }
+          } else if (config.mode === 'lite') {
+            // if mode is like just return lite projects aims
+            const aimUids = await fastify.getAimUidsForProject({ project: 'lite' });
+            resolve(aimUids);
+          }
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getAimUidsForProject',
+    params =>
       new Promise(async (resolve, reject) => {
         try {
           const project = await models.project.findOne(
@@ -2109,9 +2144,22 @@ async function epaddb(fastify, options, done) {
               aimUids.push(projectAims[i].aim_uid);
             }
 
-            const result = await fastify.getAimsInternal(query.format, params, aimUids, epadAuth);
-            resolve(result);
+            resolve(aimUids);
           }
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'filterProjectAims',
+    (params, query, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const aimUids = await fastify.getAimUidsForProject(params);
+          const result = await fastify.getAimsInternal(query.format, params, aimUids, epadAuth);
+          resolve(result);
         } catch (err) {
           reject(err);
         }
