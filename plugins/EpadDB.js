@@ -3375,7 +3375,7 @@ async function epaddb(fastify, options, done) {
           const projectSubject = await models.project_subject.findOne({
             where: { project_id: project.id, subject_id: subject.id },
           });
-          if (projectSubject === null) {
+          if (projectSubject === null && request.query.all !== 'true') {
             reply.send(
               new BadRequestError(
                 'Delete study from project',
@@ -3393,17 +3393,21 @@ async function epaddb(fastify, options, done) {
             const study = await models.study.findOne({
               where: { studyuid: request.params.study },
             });
-            let numDeleted = await models.project_subject_study.destroy({
-              where: { proj_subj_id: projectSubject.id, study_id: study.id },
-            });
-            // see if there is any other study refering to this subject in this project
-            const studyCount = await models.project_subject_study.count({
-              where: { proj_subj_id: projectSubject.id },
-            });
-            if (studyCount === 0)
-              await models.project_subject.destroy({
-                where: { id: projectSubject.id },
+            let numDeleted = 0;
+            // all project doesn't have project_subject and project_subject_study entities
+            if (request.params.project !== config.XNATUploadProjectID) {
+              numDeleted += await models.project_subject_study.destroy({
+                where: { proj_subj_id: projectSubject.id, study_id: study.id },
               });
+              // see if there is any other study refering to this subject in this project
+              const studyCount = await models.project_subject_study.count({
+                where: { proj_subj_id: projectSubject.id },
+              });
+              if (studyCount === 0)
+                await models.project_subject.destroy({
+                  where: { id: projectSubject.id },
+                });
+            }
 
             // if delete from all or it doesn't exist in any other project, delete from system
             try {

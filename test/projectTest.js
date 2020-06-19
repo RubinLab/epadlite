@@ -1637,9 +1637,7 @@ describe('Project Tests', () => {
     } project without all=true should fail `, done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete(
-          `/projects/${config.XNATUploadProjectID}/subjects/3/studies/0023.2015.09.28.3?all=true`
-        )
+        .delete(`/projects/${config.XNATUploadProjectID}/subjects/3/studies/0023.2015.09.28.3`)
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(400);
