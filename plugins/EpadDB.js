@@ -482,6 +482,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getProjects', (request, reply) => {
     models.project
       .findAll({
+        where: config.mode === 'lite' ? { projectid: 'lite' } : {},
         order: [['name', 'ASC']],
         include: ['users'],
       })
