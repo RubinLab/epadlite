@@ -5237,16 +5237,16 @@ async function epaddb(fastify, options, done) {
     (dataset, tagValues, studyUid, seriesUid, applyPatient, applyStudy) => {
       // define this to make sure they don't send funny stuff
       const queryKeysPatient = {
-        PatientID: '00100020',
-        PatientName: '00100010',
+        PatientID: { tag: '00100020', vr: 'LO' },
+        PatientName: { tag: '00100010', vr: 'PN' },
       };
       const queryKeysStudy = {
-        StudyInstanceUID: '0020000D',
-        StudyDescription: '00081030',
+        StudyInstanceUID: { tag: '0020000D', vr: 'UI' },
+        StudyDescription: { tag: '00081030', vr: 'LO' },
       };
       const queryKeysSeries = {
-        SeriesInstanceUID: '0020000E',
-        SeriesDescription: '0008103E',
+        SeriesInstanceUID: { tag: '0020000E', vr: 'UI' },
+        SeriesDescription: { tag: '0008103E', vr: 'LO' },
       };
       let queryKeys = {};
       if (
@@ -5270,9 +5270,13 @@ async function epaddb(fastify, options, done) {
       const editedDataset = dataset;
       for (let i = 0; i < keysInQuery.length; i += 1) {
         if (queryKeys[keysInQuery[i]]) {
-          switch (editedDataset[queryKeys[keysInQuery[i]]].vr) {
+          // if dicom doesn't have that tag, add it
+          if (!editedDataset[queryKeys[keysInQuery[i]].tag]) {
+            editedDataset[queryKeys[keysInQuery[i]].tag] = { vr: queryKeys[keysInQuery[i]].vr };
+          }
+          switch (queryKeys[keysInQuery[i]].vr) {
             case 'PN':
-              editedDataset[queryKeys[keysInQuery[i]]].Value = [
+              editedDataset[queryKeys[keysInQuery[i]].tag].Value = [
                 // {
                 //   Alphabetic: tagValues[keysInQuery[i]],
                 // },
@@ -5280,17 +5284,17 @@ async function epaddb(fastify, options, done) {
               ];
               break;
             case 'DS':
-              editedDataset[queryKeys[keysInQuery[i]]].Value = [
+              editedDataset[queryKeys[keysInQuery[i]].tag].Value = [
                 parseFloat(tagValues[keysInQuery[i]]),
               ];
               break;
             case 'IS':
-              editedDataset[queryKeys[keysInQuery[i]]].Value = [
+              editedDataset[queryKeys[keysInQuery[i]].tag].Value = [
                 parseInt(tagValues[keysInQuery[i]], 10),
               ];
               break;
             default:
-              editedDataset[queryKeys[keysInQuery[i]]].Value = [tagValues[keysInQuery[i]]];
+              editedDataset[queryKeys[keysInQuery[i]].tag].Value = [tagValues[keysInQuery[i]]];
           }
         }
       }
@@ -5331,7 +5335,10 @@ async function epaddb(fastify, options, done) {
           resolve();
         } catch (err) {
           reject(
-            new InternalError(`Updating ${JSON.stringify(params)} dicoms with ${tagValues}`, err)
+            new InternalError(
+              `Updating ${JSON.stringify(params)} dicoms with ${JSON.stringify(tagValues)}`,
+              err
+            )
           );
         }
       })
@@ -5350,20 +5357,18 @@ async function epaddb(fastify, options, done) {
             epadAuth,
             true
           );
-          const seriesPromises = [];
           for (let i = 0; i < studySeries.length; i += 1) {
-            seriesPromises.push(() => {
-              return fastify.updateSeriesBuffers(
-                params,
-                tagValues,
-                studyUid,
-                studySeries[i].seriesUID,
-                applyPatient,
-                applyStudy
-              );
-            });
+            // causes dicomwebserver to crash when done in parallel
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateSeriesBuffers(
+              params,
+              tagValues,
+              studyUid,
+              studySeries[i].seriesUID,
+              applyPatient,
+              applyStudy
+            );
           }
-          await fastify.pq.addAll(seriesPromises);
           resolve();
         } catch (err) {
           reject(err);
@@ -6104,7 +6109,7 @@ async function epaddb(fastify, options, done) {
               seriesUID: request.params.series,
               aimID: request.params.aimuid,
               username: request.epadAuth.username,
-              function: notification.function,
+              function: notification.function.slice(0, 127),
               params,
               error: notification.error,
               notified,
