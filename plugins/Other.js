@@ -118,10 +118,9 @@ async function other(fastify) {
                 } else if (config.env === 'test') reply.code(200).send();
                 else {
                   fastify.log.info(`Upload Completed ${filenames}`);
-                  if (!(filenames.length === 1 && filenames[0] === 'blob.dcm'))
-                    new EpadNotification(request, 'Upload Completed', filenames, true).notify(
-                      fastify
-                    );
+                  new EpadNotification(request, 'Upload Completed', filenames, true).notify(
+                    fastify
+                  );
                 }
               } else if (config.env === 'test') {
                 reply.send(
@@ -874,14 +873,16 @@ async function other(fastify) {
       // delete study in dicomweb and annotations
       const promisses = [];
       promisses.push(() => {
-        return fastify.deleteSeriesDicomsInternal(request.params).catch(err => {
-          fastify.log.warn(
-            `Could not delete series from dicomweb with error: ${
-              err.message
-            }. Trying nondicom series delete`
-          );
-          return fastify.deleteNonDicomSeriesInternal(request.params.series);
+        return fastify.deleteNonDicomSeriesInternal(request.params.series).catch(err => {
+          if (err.message !== 'No nondicom entity')
+            fastify.log.warn(
+              `Could not delete nondicom series. Error: ${err.message}. Trying dicom series delete`
+            );
+          return fastify.deleteSeriesDicomsInternal(request.params);
         });
+      });
+      promisses.push(() => {
+        return fastify.deleteSeriesAimProjectRels(request.params);
       });
       promisses.push(() => {
         return fastify.deleteAimsInternal(request.params, request.epadAuth);
@@ -922,11 +923,14 @@ async function other(fastify) {
 
   fastify.decorate('getNotifications', (request, reply) => {
     try {
+      // if there is corsorigin in config and it is not false then reflect request origin
       reply.res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Access-Control-Allow-Origin': '*',
-        'X-Accel-Buffering': 'no',
+        ...{
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'X-Accel-Buffering': 'no',
+        },
+        ...(config.corsOrigin ? { 'Access-Control-Allow-Origin': request.headers.origin } : {}),
       });
       const padding = new Array(2049);
       reply.res.write(`:${padding.join(' ')}\n`); // 2kB padding for IE

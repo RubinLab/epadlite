@@ -44,7 +44,7 @@ fastify.addSchema(epadliteImagesSchema);
 fastify.addSchema(epadUsersSchema);
 // enable cors
 fastify.register(require('fastify-cors'), {
-  origin: '*',
+  origin: config.corsOrigin,
 });
 
 // register CouchDB plugin we created

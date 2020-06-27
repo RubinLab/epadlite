@@ -18,4 +18,5 @@ module.exports = {
     logger: false,
   },
   limitStudies: 100,
+  pollDW: 0,
 };
