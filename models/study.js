@@ -53,6 +53,30 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(1000),
         allowNull: true,
       },
+      referring_physician: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      accession_number: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+      },
+      num_of_images: {
+        type: DataTypes.INTEGER(10),
+        allowNull: true,
+      },
+      num_of_series: {
+        type: DataTypes.INTEGER(10),
+        allowNull: true,
+      },
+      study_id: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+      },
+      study_time: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+      },
     },
     {
       tableName: 'study',
