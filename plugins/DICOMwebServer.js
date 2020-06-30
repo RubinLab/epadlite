@@ -371,11 +371,20 @@ async function dicomwebserver(fastify) {
       })
   );
 
+  fastify.decorate('triggerPollDW', (request, reply) => {
+    fastify.log.info(`Polling initiated by ${request.epadAuth.username}`);
+    fastify
+      .pollDWStudies()
+      .then(() => reply.code(200).send('Polled dicomweb successfully'))
+      .catch(err => reply.send(err));
+  });
+
   fastify.decorate(
     'pollDWStudies',
     () =>
       new Promise(async (resolve, reject) => {
         try {
+          fastify.log.info(`Polling dicomweb ${new Date()}`);
           // use admin username
           const epadAuth = { username: 'admin', admin: true };
           const updateStudyPromises = [];
@@ -439,9 +448,9 @@ async function dicomwebserver(fastify) {
                   referring_physician: value['00080090'].Value
                     ? value['00080090'].Value[0].Alphabetic
                     : '',
-                  accession_number: value['00080050'].Value ? value['00080050'].Value[0] : '',
-                  study_id: value['00200010'].Value ? value['00200010'].Value[0] : '',
-                  study_time: value['00080030'].Value ? value['00080030'].Value[0] : '',
+                  accession_number: value['00080050'].Value ? value['00080050'].Value[0] : null,
+                  study_id: value['00200010'].Value ? value['00200010'].Value[0] : null,
+                  study_time: value['00080030'].Value ? value['00080030'].Value[0] : null,
                   subject_id: subject.id,
                 };
                 updateStudyPromises.push(() => {
@@ -455,9 +464,10 @@ async function dicomwebserver(fastify) {
             }
           }
           await fastify.pq.addAll(updateStudyPromises);
+          fastify.log.info(`Finished Polling dicomweb ${new Date()}`);
           resolve();
         } catch (err) {
-          reject(new InternalError('Populating patient studies', err));
+          reject(new InternalError('Polling patient studies', err));
         }
       })
   );

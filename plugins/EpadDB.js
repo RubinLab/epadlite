@@ -3136,6 +3136,7 @@ async function epaddb(fastify, options, done) {
     (studyInfo, projectSubject, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
+          console.log(studyInfo.studyID, studyInfo);
           // update with latest value
           const study = await fastify.upsert(
             models.study,
@@ -7056,9 +7057,7 @@ async function epaddb(fastify, options, done) {
         });
         if (config.pollDW) {
           setInterval(async () => {
-            fastify.log.info(`Polling dicomweb ${new Date()}`);
             await fastify.pollDWStudies();
-            fastify.log.info(`Finished Polling dicomweb ${new Date()}`);
           }, config.pollDW * 60000);
         }
         if (!config.noResume) fastify.resumeProcessing();
