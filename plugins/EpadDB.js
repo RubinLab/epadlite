@@ -3428,26 +3428,32 @@ async function epaddb(fastify, options, done) {
               for (let j = 0; j < projectSubjects.length; j += 1) {
                 if (projectSubjects[j].dataValues.studies) {
                   for (let i = 0; i < projectSubjects[j].dataValues.studies.length; i += 1) {
-                    studyUids.push(projectSubjects[j].dataValues.studies[i].dataValues.studyuid);
-                    studyInfos.push({
-                      study: projectSubjects[j].dataValues.studies[i].dataValues.studyuid,
-                      subject: projectSubjects[j].dataValues.subject.dataValues.subjectuid,
-                    });
-                    const dbDate = new Date(
-                      projectSubjects[j].dataValues.studies[i].dataValues.createdtime
-                    );
-                    createdTimes[
-                      projectSubjects[j].dataValues.studies[i].dataValues.studyuid
-                    ] = fastify.getFormattedDate(dbDate);
-                    // ASSUMPTION: nondicoms have no studydate
                     if (
-                      !projectSubjects[j].dataValues.studies[i].dataValues.studydate ||
-                      config.pollDW
-                    )
-                      nondicoms.push({
-                        subject: projectSubjects[j].dataValues.subject,
-                        study: projectSubjects[j].dataValues.studies[i],
+                      !studyUids.includes(
+                        projectSubjects[j].dataValues.studies[i].dataValues.studyuid
+                      )
+                    ) {
+                      studyUids.push(projectSubjects[j].dataValues.studies[i].dataValues.studyuid);
+                      studyInfos.push({
+                        study: projectSubjects[j].dataValues.studies[i].dataValues.studyuid,
+                        subject: projectSubjects[j].dataValues.subject.dataValues.subjectuid,
                       });
+                      const dbDate = new Date(
+                        projectSubjects[j].dataValues.studies[i].dataValues.createdtime
+                      );
+                      createdTimes[
+                        projectSubjects[j].dataValues.studies[i].dataValues.studyuid
+                      ] = fastify.getFormattedDate(dbDate);
+                      // ASSUMPTION: nondicoms have no studydate
+                      if (
+                        !projectSubjects[j].dataValues.studies[i].dataValues.studydate ||
+                        config.pollDW
+                      )
+                        nondicoms.push({
+                          subject: projectSubjects[j].dataValues.subject,
+                          study: projectSubjects[j].dataValues.studies[i],
+                        });
+                    }
                   }
                 }
               }
