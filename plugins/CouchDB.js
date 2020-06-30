@@ -562,16 +562,22 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('getAims', (request, reply) => {
-    fastify
-      .getAimsInternal(request.query.format, request.params, undefined, request.epadAuth)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.send(err));
+  fastify.decorate('getAims', async (request, reply) => {
+    try {
+      const filter = await fastify.getUserAccessibleAimUids(request.epadAuth);
+      const result = await fastify.getAimsInternal(
+        request.query.format,
+        request.params,
+        filter,
+        request.epadAuth
+      );
+      if (request.query.format === 'stream') {
+        reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+      }
+      reply.code(200).send(result);
+    } catch (err) {
+      reply.send(err);
+    }
   });
 
   fastify.decorate('getAimsFromUIDs', (request, reply) => {
@@ -767,6 +773,64 @@ async function couchdb(fastify, options) {
   //     })
   //     .catch(err => reply.send(err));
   // });
+
+  fastify.decorate(
+    'getTemplateInternal',
+    (codeValue, format = 'json') =>
+      new Promise((resolve, reject) => {
+        try {
+          let view = 'templates_json';
+          if (format) {
+            if (format === 'json') view = 'templates_json';
+            else if (format === 'summary') view = 'templates_summary';
+          }
+          const db = fastify.couch.db.use(config.db);
+          db.view(
+            'instances',
+            view,
+            {
+              startkey: [codeValue, '', ''],
+              endkey: [`${codeValue}\u9999`, '{}', '{}'],
+              reduce: true,
+              group_level: 3,
+            },
+            (error, body) => {
+              if (!error) {
+                const res = [];
+                if (body.rows.length > 1)
+                  fastify.log.warn(
+                    `Expecting one value but got ${body.rows.length}. Returning first`
+                  );
+                if (format === 'summary') {
+                  body.rows.forEach(template => {
+                    res.push(template.key[2]);
+                  });
+                  resolve(res[0]);
+                } else if (format === 'stream') {
+                  body.rows.forEach(template => {
+                    res.push(template.key[2]);
+                  });
+                  fastify
+                    .downloadTemplates(res)
+                    .then(result => resolve(result[0]))
+                    .catch(err => reject(err));
+                } else {
+                  // the default is json! The old APIs were XML, no XML in epadlite
+                  body.rows.forEach(template => {
+                    res.push(template.key[2]);
+                  });
+                  resolve(res[0]);
+                }
+              } else {
+                reject(new InternalError('Getting templates from couchdb', error));
+              }
+            }
+          );
+        } catch (err) {
+          reject(new InternalError('Getting templates', err));
+        }
+      })
+  );
 
   fastify.decorate(
     'getTemplatesInternal',

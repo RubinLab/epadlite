@@ -1,7 +1,7 @@
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
-const Sequelize = require('sequelize');
+const { Sequelize, QueryTypes } = require('sequelize');
 const _ = require('lodash');
 const Axios = require('axios');
 const os = require('os');
@@ -133,6 +133,14 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'subject_id',
           });
 
+          models.subject.hasMany(models.study, {
+            foreignKey: 'subject_id',
+          });
+
+          models.study.belongsTo(models.subject, {
+            foreignKey: 'subject_id',
+          });
+
           models.project_subject.belongsTo(models.subject, {
             foreignKey: 'subject_id',
           });
@@ -145,6 +153,10 @@ async function epaddb(fastify, options, done) {
             through: 'project_subject_study',
             foreignKey: 'proj_subj_id',
             otherKey: 'study_id',
+          });
+
+          models.study.hasMany(models.project_subject_study, {
+            foreignKey: 'study_id',
           });
 
           models.project.hasMany(models.project_aim, {
@@ -243,6 +255,13 @@ async function epaddb(fastify, options, done) {
               creator: request.epadAuth.username,
             };
             await models.project_user.create(entry);
+            // if there is default template add that template to project
+            await fastify.tryAddDefaultTemplateToProject(
+              defaultTemplate,
+              project,
+              request.epadAuth
+            );
+
             fastify.log.info(`Project with id ${project.id} is created successfully`);
             reply.code(200).send(`Project with id ${project.id} is created successfully`);
           } catch (errPU) {
@@ -260,6 +279,32 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate(
+    'tryAddDefaultTemplateToProject',
+    (defaultTemplate, project, epadAuth) =>
+      new Promise(async resolve => {
+        if (defaultTemplate && defaultTemplate !== '') {
+          try {
+            // check if template exists in system
+            const template = await fastify.getTemplateInternal(defaultTemplate, 'summary');
+            await fastify.addProjectTemplateRelInternal(
+              template.containerUID,
+              project,
+              {},
+              epadAuth
+            );
+
+            resolve(true);
+          } catch (errTemplate) {
+            fastify.log.warn(
+              `Could not add template ${defaultTemplate} to project ${JSON.stringify(project)}`
+            );
+          }
+        }
+        resolve(false);
+      })
+  );
+
   fastify.decorate('updateProject', (request, reply) => {
     if (request.params.project === 'lite') {
       reply.send(
@@ -275,6 +320,8 @@ async function epaddb(fastify, options, done) {
       for (let i = 0; i < keys.length; i += 1) {
         if (keys[i] === 'projectName') {
           query.name = values[i];
+        } else if (keys[i] === 'defaultTemplate') {
+          query.defaulttemplate = values[i];
         } else {
           query[keys[i]] = values[i];
         }
@@ -287,7 +334,14 @@ async function epaddb(fastify, options, done) {
             projectid: request.params.project,
           },
         })
-        .then(() => {
+        .then(async () => {
+          // if there is default template add that template to project
+          await fastify.tryAddDefaultTemplateToProject(
+            query.defaultTemplate || query.defaulttemplate,
+            request.params.project,
+            request.epadAuth
+          );
+
           fastify.log.info(`Project ${request.params.project} is updated`);
           reply.code(200).send(`Project ${request.params.project} is updated successfully`);
         })
@@ -440,6 +494,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getProjects', (request, reply) => {
     models.project
       .findAll({
+        where: config.mode === 'lite' ? { projectid: 'lite' } : {},
         order: [['name', 'ASC']],
         include: ['users'],
       })
@@ -1029,6 +1084,7 @@ async function epaddb(fastify, options, done) {
           reply.send(new InternalError('Creating worklist subject association in db', err));
         }
         try {
+          // TODO get it from db instead
           // get studyDescriptions
           const studyDetails = await fastify.getPatientStudiesInternal(
             request.params,
@@ -1718,6 +1774,32 @@ async function epaddb(fastify, options, done) {
       );
     }
   });
+  fastify.decorate(
+    'addSubjectToDBIfNotExistInternal',
+    (subjectInfo, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // see if subject exists
+          let subject = await models.subject.findOne({
+            where: { subjectuid: subjectInfo.subjectuid.replace('\u0000', '').trim() },
+          });
+          if (subject === null) {
+            subject = await models.subject.create({
+              subjectuid: subjectInfo.subjectuid.replace('\u0000', '').trim(),
+              name: subjectInfo.name.replace('\u0000', '').trim(),
+              gender: subjectInfo.gender,
+              dob: subjectInfo.dob,
+              creator: epadAuth.username,
+              updatetime: Date.now(),
+              createdtime: Date.now(),
+            });
+          }
+          resolve(subject);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate('arrayUnique', (array, idField) => {
     const a = array.concat();
@@ -1775,9 +1857,8 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
-      if (request.params.project === config.unassignedProjectID) {
+      if (request.params.project === config.unassignedProjectID && config.pollDW === 0) {
         const dbStudyUIDs = await fastify.getDBStudies();
-        // TODO How to get dates for unassigned??
         // eslint-disable-next-line no-await-in-loop
         let results = await fastify.getPatientsInternal(
           request.params,
@@ -1808,20 +1889,35 @@ async function epaddb(fastify, options, done) {
             request.params.project && request.params.project !== config.XNATUploadProjectID
               ? { project_id: project.id }
               : {};
-          const subjects = await models.subject.findAll({
-            include: [
-              {
-                model: models.project_subject,
-                where: projectSubjectsWhereJSON,
-                include: [{ model: models.study, attributes: ['exam_types', 'id'] }],
-              },
-            ],
-            attributes: ['name', 'subjectuid', 'creator', 'createdtime'],
-          });
+          let subjects = [];
+          if (request.params.project === config.unassignedProjectID) {
+            subjects = await models.subject.findAll({
+              where: { '$project_subjects.project_id$': null },
+              include: [
+                {
+                  model: models.project_subject,
+                },
+                { model: models.study, attributes: ['exam_types', 'id'] },
+              ],
+            });
+          } else {
+            subjects = await models.subject.findAll({
+              include: [
+                {
+                  model: models.project_subject,
+                  where: projectSubjectsWhereJSON,
+                  include: [{ model: models.study, attributes: ['exam_types', 'id'] }],
+                },
+              ],
+            });
+          }
           let results = [];
           let aimsCountMap = {};
           // if all or undefined no aim counts
-          if (request.params.project !== config.XNATUploadProjectID) {
+          if (
+            request.params.project !== config.XNATUploadProjectID &&
+            request.params.project !== config.unassignedProjectID
+          ) {
             aimsCountMap = fastify.getAimCountMap(
               project.dataValues.project_aims,
               request.params.project,
@@ -1833,23 +1929,36 @@ async function epaddb(fastify, options, done) {
           for (let i = 0; i < subjects.length; i += 1) {
             let examTypes = [];
             const studyIds = {};
-            for (let j = 0; j < subjects[i].dataValues.project_subjects.length; j += 1) {
-              for (
-                let k = 0;
-                k < subjects[i].dataValues.project_subjects[j].dataValues.studies.length;
-                k += 1
-              ) {
-                if (
-                  !studyIds[
-                    subjects[i].dataValues.project_subjects[j].dataValues.studies[k].dataValues.id
-                  ]
+            if (subjects[i].dataValues.project_subjects.length > 0) {
+              for (let j = 0; j < subjects[i].dataValues.project_subjects.length; j += 1) {
+                for (
+                  let k = 0;
+                  k < subjects[i].dataValues.project_subjects[j].dataValues.studies.length;
+                  k += 1
                 ) {
-                  studyIds[
-                    subjects[i].dataValues.project_subjects[j].dataValues.studies[k].dataValues.id
-                  ] = true;
+                  if (
+                    !studyIds[
+                      subjects[i].dataValues.project_subjects[j].dataValues.studies[k].dataValues.id
+                    ]
+                  ) {
+                    studyIds[
+                      subjects[i].dataValues.project_subjects[j].dataValues.studies[k].dataValues.id
+                    ] = true;
+                    const studyExamTypes = JSON.parse(
+                      subjects[i].dataValues.project_subjects[j].dataValues.studies[k].dataValues
+                        .exam_types
+                    );
+                    examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
+                  }
+                }
+              }
+            } else if (subjects[i].dataValues.studies.length > 0) {
+              // if it is for nonassigned it is coming directly as studies
+              for (let k = 0; k < subjects[i].dataValues.studies.length; k += 1) {
+                if (!studyIds[subjects[i].dataValues.studies[k].dataValues.id]) {
+                  studyIds[subjects[i].dataValues.studies[k].dataValues.id] = true;
                   const studyExamTypes = JSON.parse(
-                    subjects[i].dataValues.project_subjects[j].dataValues.studies[k].dataValues
-                      .exam_types
+                    subjects[i].dataValues.studies[k].dataValues.exam_types
                   );
                   examTypes = fastify.arrayUnique(examTypes.concat(studyExamTypes));
                 }
@@ -1888,6 +1997,20 @@ async function epaddb(fastify, options, done) {
       .then(result => reply.code(200).send(result))
       .catch(err => reply.send(err));
   });
+  fastify.decorate(
+    'deleteSeriesAimProjectRels',
+    params =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await models.project_aim.destroy({
+            where: { series_uid: params.series },
+          });
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Deletion of aim project relation from ${params.series}`, err));
+        }
+      })
+  );
 
   fastify.decorate(
     'deleteSubjectFromProjectInternal',
@@ -1945,6 +2068,9 @@ async function epaddb(fastify, options, done) {
               await models.worklist_study.destroy({
                 where: { project_id: project.id, subject_id: subject.id },
               });
+              await models.project_aim.destroy({
+                where: { project_id: project.id, subject_uid: subject.subjectuid },
+              });
               // if delete from all or it doesn't exist in any other project, delete from system
               try {
                 const projectSubjects = await models.project_subject.findAll({
@@ -1965,6 +2091,9 @@ async function epaddb(fastify, options, done) {
                     });
                   }
 
+                  await models.project_aim.destroy({
+                    where: { subject_uid: subject.subjectuid },
+                  });
                   // delete the subject
                   await models.subject.destroy({
                     where: { id: subject.id },
@@ -1981,6 +2110,9 @@ async function epaddb(fastify, options, done) {
                   });
                   await models.worklist_study.destroy({
                     where: { project_id: project.id, subject_id: subject.id },
+                  });
+                  await models.project_aim.destroy({
+                    where: { subject_uid: subject.subjectuid },
                   });
                   // delete the subject
                   await models.subject.destroy({
@@ -2053,8 +2185,43 @@ async function epaddb(fastify, options, done) {
   // });
 
   fastify.decorate(
-    'filterProjectAims',
-    (params, query, epadAuth) =>
+    'getUserAccessibleAimUids',
+    epadAuth =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // if in thick mode
+          if (config.mode === 'thick') {
+            // if admin no filter
+            if (epadAuth.admin) resolve(undefined);
+            else {
+              // get other peoples aims from projects user is member or owner, or public project
+              // union with user's annotations
+              const result = await fastify.orm.query(
+                `SELECT a.aim_uid 
+                  FROM project_aim a, project_user pu, user u 
+                  WHERE u.id = pu.user_id AND a.project_id = pu.project_id 
+                  AND u.username = '${epadAuth.username}' 
+                  AND (pu.role <> 'Collaborator' or a.user = '${epadAuth.username}')
+                `,
+                { raw: true, type: QueryTypes.SELECT }
+              );
+              const aimUids = result.map(val => val.aim_uid);
+              resolve(aimUids);
+            }
+          } else if (config.mode === 'lite') {
+            // if mode is like just return lite projects aims
+            const aimUids = await fastify.getAimUidsForProject({ project: 'lite' });
+            resolve(aimUids);
+          }
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getAimUidsForProject',
+    params =>
       new Promise(async (resolve, reject) => {
         try {
           const project = await models.project.findOne(
@@ -2081,9 +2248,22 @@ async function epaddb(fastify, options, done) {
               aimUids.push(projectAims[i].aim_uid);
             }
 
-            const result = await fastify.getAimsInternal(query.format, params, aimUids, epadAuth);
-            resolve(result);
+            resolve(aimUids);
           }
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'filterProjectAims',
+    (params, query, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const aimUids = await fastify.getAimUidsForProject(params);
+          const result = await fastify.getAimsInternal(query.format, params, aimUids, epadAuth);
+          resolve(result);
         } catch (err) {
           reject(err);
         }
@@ -2941,10 +3121,37 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'updateStudyDBRecord',
+    (studyUid, studyRecord, epadAuth, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // update with latest value
+          await fastify.upsert(
+            models.study,
+            {
+              studyuid: studyUid,
+              ...studyRecord,
+              updatetime: Date.now(),
+            },
+            {
+              studyuid: studyUid,
+            },
+            epadAuth.username,
+            transaction
+          );
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Adding study ${studyUid} DB`, err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'addPatientStudyToProjectDBInternal',
     (studyInfo, projectSubject, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
+          console.log(studyInfo.studyID, studyInfo);
           // update with latest value
           const study = await fastify.upsert(
             models.study,
@@ -2954,6 +3161,16 @@ async function epaddb(fastify, options, done) {
               description: studyInfo.studyDescription,
               subject_id: projectSubject.subject_id,
               exam_types: studyInfo.examTypes ? JSON.stringify(studyInfo.examTypes) : null,
+              referring_physician: studyInfo.referringPhysicianName
+                ? studyInfo.referringPhysicianName
+                : null,
+              accession_number: studyInfo.studyAccessionNumber
+                ? studyInfo.studyAccessionNumber
+                : null,
+              study_id: studyInfo.studyID ? studyInfo.studyID : null,
+              study_time: studyInfo.studyTime ? studyInfo.studyTime : null,
+              num_of_images: studyInfo.numberOfImages ? studyInfo.numberOfImages : 0,
+              num_of_series: studyInfo.numberOfSeries ? studyInfo.numberOfSeries : 0,
               updatetime: Date.now(),
             },
             {
@@ -3136,7 +3353,6 @@ async function epaddb(fastify, options, done) {
           const studyUids = [];
           const studyInfos = [];
           const nondicoms = [];
-
           if (projectSubjects === null) {
             reject(
               new BadRequestError(
@@ -3149,29 +3365,62 @@ async function epaddb(fastify, options, done) {
             );
           } else {
             const createdTimes = {};
-            for (let j = 0; j < projectSubjects.length; j += 1) {
-              for (let i = 0; i < projectSubjects[j].dataValues.studies.length; i += 1) {
-                studyUids.push(projectSubjects[j].dataValues.studies[i].dataValues.studyuid);
-                studyInfos.push({
-                  study: projectSubjects[j].dataValues.studies[i].dataValues.studyuid,
-                  subject: projectSubjects[j].dataValues.subject.dataValues.subjectuid,
-                });
-                const dbDate = new Date(
-                  projectSubjects[j].dataValues.studies[i].dataValues.createdtime
-                );
-                createdTimes[
-                  projectSubjects[j].dataValues.studies[i].dataValues.studyuid
-                ] = fastify.getFormattedDate(dbDate);
-                // ASSUMPTION: nondicoms have no studydate
-                if (!projectSubjects[j].dataValues.studies[i].dataValues.studydate)
-                  nondicoms.push({
-                    subject: projectSubjects[j].dataValues.subject,
-                    study: projectSubjects[j].dataValues.studies[i],
+            if (
+              params.project === config.unassignedProjectID &&
+              config.pollDW &&
+              whereJSON.subject_id &&
+              projectSubjects.length === 0
+            ) {
+              const studies = await models.study.findAll({
+                where: {
+                  subject_id: whereJSON.subject_id,
+                  '$project_subject_studies.study_id$': null,
+                },
+                include: [{ model: models.project_subject_study }, { model: models.subject }],
+              });
+              if (studies !== null) {
+                for (let i = 0; i < studies.length; i += 1) {
+                  studyUids.push(studies[i].dataValues.studyuid);
+                  studyInfos.push({
+                    study: studies[i].dataValues.studyuid,
+                    subject: studies[i].dataValues.subject.dataValues.subjectuid,
                   });
+                  nondicoms.push({
+                    subject: studies[i].dataValues.subject,
+                    study: studies[i],
+                  });
+                }
+              }
+            } else {
+              for (let j = 0; j < projectSubjects.length; j += 1) {
+                if (projectSubjects[j].dataValues.studies) {
+                  for (let i = 0; i < projectSubjects[j].dataValues.studies.length; i += 1) {
+                    studyUids.push(projectSubjects[j].dataValues.studies[i].dataValues.studyuid);
+                    studyInfos.push({
+                      study: projectSubjects[j].dataValues.studies[i].dataValues.studyuid,
+                      subject: projectSubjects[j].dataValues.subject.dataValues.subjectuid,
+                    });
+                    const dbDate = new Date(
+                      projectSubjects[j].dataValues.studies[i].dataValues.createdtime
+                    );
+                    createdTimes[
+                      projectSubjects[j].dataValues.studies[i].dataValues.studyuid
+                    ] = fastify.getFormattedDate(dbDate);
+                    // ASSUMPTION: nondicoms have no studydate
+                    if (
+                      !projectSubjects[j].dataValues.studies[i].dataValues.studydate ||
+                      config.pollDW
+                    )
+                      nondicoms.push({
+                        subject: projectSubjects[j].dataValues.subject,
+                        study: projectSubjects[j].dataValues.studies[i],
+                      });
+                  }
+                }
               }
             }
             if (!justIds) {
-              if (params.project === config.unassignedProjectID) {
+              if (params.project === config.unassignedProjectID && config.pollDW === 0) {
                 const result = await fastify.getPatientStudiesInternal(
                   params,
                   studyUids,
@@ -3185,19 +3434,24 @@ async function epaddb(fastify, options, done) {
                 );
                 resolve(result);
               } else {
-                const result = await fastify.getPatientStudiesInternal(
-                  params,
-                  studyUids,
-                  epadAuth,
-                  query,
-                  true,
-                  '0020000D',
-                  'studyUID',
-                  false,
-                  createdTimes
-                );
+                let result = [];
+                if (config.pollDW === 0)
+                  result = await fastify.getPatientStudiesInternal(
+                    params,
+                    studyUids,
+                    epadAuth,
+                    query,
+                    true,
+                    '0020000D',
+                    'studyUID',
+                    false,
+                    createdTimes
+                  );
                 let aimsCountMap = {};
-                if (params.project !== config.XNATUploadProjectID) {
+                if (
+                  params.project !== config.XNATUploadProjectID &&
+                  params.project !== config.unassignedProjectID
+                ) {
                   const projectAims = await models.project_aim.findAll({
                     where: {
                       project_id: whereJSON.project_id,
@@ -3223,20 +3477,24 @@ async function epaddb(fastify, options, done) {
                         firstSeriesUID: '',
                         firstSeriesDateAcquired: '',
                         physicianName: '',
-                        referringPhysicianName: '',
+                        referringPhysicianName: nondicoms[i].study.dataValues.referring_physician,
                         birthdate: nondicoms[i].subject.dataValues.dob,
                         sex: nondicoms[i].subject.dataValues.gender,
                         studyDescription: nondicoms[i].study.dataValues.description,
-                        studyAccessionNumber: '',
-                        examTypes: [],
-                        numberOfImages: 0, // TODO
-                        numberOfSeries: 0, // TODO
+                        studyAccessionNumber: nondicoms[i].study.dataValues.accession_number,
+                        examTypes: nondicoms[i].study.dataValues.exam_types
+                          ? JSON.parse(nondicoms[i].study.dataValues.exam_types)
+                          : [],
+                        numberOfImages: nondicoms[i].study.dataValues.num_of_images,
+                        numberOfSeries: nondicoms[i].study.dataValues.num_of_series,
                         numberOfAnnotations: 0,
-                        createdTime: createdTimes[nondicoms[i].study.dataValues.studyuid],
+                        createdTime: fastify.getFormattedDate(
+                          new Date(nondicoms[i].study.dataValues.createdtime)
+                        ),
                         // extra for flexview
-                        studyID: '',
-                        studyDate: '',
-                        studyTime: '',
+                        studyID: nondicoms[i].study.dataValues.study_id,
+                        studyDate: nondicoms[i].study.dataValues.studydate,
+                        studyTime: nondicoms[i].study.dataValues.study_time,
                       });
                     }
                   } else
@@ -3285,7 +3543,7 @@ async function epaddb(fastify, options, done) {
         });
         if (subject === null) {
           // handle unassigned project
-          if (request.params.project === config.unassignedProjectID) {
+          if (request.params.project === config.unassignedProjectID && config.pollDW === 0) {
             const result = await fastify.getPatientStudiesInternal(
               request.params,
               [],
@@ -3580,10 +3838,11 @@ async function epaddb(fastify, options, done) {
     seriesUid =>
       new Promise(async (resolve, reject) => {
         try {
-          await models.nondicom_series.destroy({
+          const count = await models.nondicom_series.destroy({
             where: { seriesuid: seriesUid },
           });
-          resolve();
+          if (count > 0) resolve();
+          else reject(new Error('No nondicom entity'));
         } catch (err) {
           reject(new InternalError(`Deleting nondicom series ${seriesUid}`, err));
         }
@@ -4784,30 +5043,25 @@ async function epaddb(fastify, options, done) {
             })
           );
         });
-        Promise.all(userPromise)
-          .then(data => {
-            data.forEach((user, index) => {
-              const permissions = user.permissions ? user.permissions.split(',') : '';
-              const obj = {
-                displayname: `${user.firstname} ${user.lastname}`,
-                username: user.username,
-                firstname: user.firstname,
-                lastname: user.lastname,
-                email: user.email,
-                permissions,
-                enabled: user.enabled,
-                admin: user.admin,
-                passwordexpired: user.passwordexpired,
-                creator: user.creator,
-                role: projectUsers[index].role,
-              };
-              result.push(obj);
-            });
-            reply.code(200).send(result);
-          })
-          .catch(errUser => {
-            reply.send(new InternalError(`Getting users for project`, errUser));
-          });
+        const data = await Promise.all(userPromise);
+        data.forEach((user, index) => {
+          const permissions = user.permissions ? user.permissions.split(',') : '';
+          const obj = {
+            displayname: `${user.firstname} ${user.lastname}`,
+            username: user.username,
+            firstname: user.firstname,
+            lastname: user.lastname,
+            email: user.email,
+            permissions,
+            enabled: user.enabled,
+            admin: user.admin,
+            passwordexpired: user.passwordexpired,
+            creator: user.creator,
+            role: projectUsers[index].role,
+          };
+          result.push(obj);
+        });
+        reply.code(200).send(result);
       }
     } catch (err) {
       reply.send(new InternalError(`Getting users for project ${request.params.project}`, err));
@@ -5152,16 +5406,16 @@ async function epaddb(fastify, options, done) {
     (dataset, tagValues, studyUid, seriesUid, applyPatient, applyStudy) => {
       // define this to make sure they don't send funny stuff
       const queryKeysPatient = {
-        PatientID: '00100020',
-        PatientName: '00100010',
+        PatientID: { tag: '00100020', vr: 'LO' },
+        PatientName: { tag: '00100010', vr: 'PN' },
       };
       const queryKeysStudy = {
-        StudyInstanceUID: '0020000D',
-        StudyDescription: '00081030',
+        StudyInstanceUID: { tag: '0020000D', vr: 'UI' },
+        StudyDescription: { tag: '00081030', vr: 'LO' },
       };
       const queryKeysSeries = {
-        SeriesInstanceUID: '0020000E',
-        SeriesDescription: '0008103E',
+        SeriesInstanceUID: { tag: '0020000E', vr: 'UI' },
+        SeriesDescription: { tag: '0008103E', vr: 'LO' },
       };
       let queryKeys = {};
       if (
@@ -5185,9 +5439,13 @@ async function epaddb(fastify, options, done) {
       const editedDataset = dataset;
       for (let i = 0; i < keysInQuery.length; i += 1) {
         if (queryKeys[keysInQuery[i]]) {
-          switch (editedDataset[queryKeys[keysInQuery[i]]].vr) {
+          // if dicom doesn't have that tag, add it
+          if (!editedDataset[queryKeys[keysInQuery[i]].tag]) {
+            editedDataset[queryKeys[keysInQuery[i]].tag] = { vr: queryKeys[keysInQuery[i]].vr };
+          }
+          switch (queryKeys[keysInQuery[i]].vr) {
             case 'PN':
-              editedDataset[queryKeys[keysInQuery[i]]].Value = [
+              editedDataset[queryKeys[keysInQuery[i]].tag].Value = [
                 // {
                 //   Alphabetic: tagValues[keysInQuery[i]],
                 // },
@@ -5195,17 +5453,17 @@ async function epaddb(fastify, options, done) {
               ];
               break;
             case 'DS':
-              editedDataset[queryKeys[keysInQuery[i]]].Value = [
+              editedDataset[queryKeys[keysInQuery[i]].tag].Value = [
                 parseFloat(tagValues[keysInQuery[i]]),
               ];
               break;
             case 'IS':
-              editedDataset[queryKeys[keysInQuery[i]]].Value = [
+              editedDataset[queryKeys[keysInQuery[i]].tag].Value = [
                 parseInt(tagValues[keysInQuery[i]], 10),
               ];
               break;
             default:
-              editedDataset[queryKeys[keysInQuery[i]]].Value = [tagValues[keysInQuery[i]]];
+              editedDataset[queryKeys[keysInQuery[i]].tag].Value = [tagValues[keysInQuery[i]]];
           }
         }
       }
@@ -5246,7 +5504,10 @@ async function epaddb(fastify, options, done) {
           resolve();
         } catch (err) {
           reject(
-            new InternalError(`Updating ${JSON.stringify(params)} dicoms with ${tagValues}`, err)
+            new InternalError(
+              `Updating ${JSON.stringify(params)} dicoms with ${JSON.stringify(tagValues)}`,
+              err
+            )
           );
         }
       })
@@ -5265,20 +5526,18 @@ async function epaddb(fastify, options, done) {
             epadAuth,
             true
           );
-          const seriesPromises = [];
           for (let i = 0; i < studySeries.length; i += 1) {
-            seriesPromises.push(() => {
-              return fastify.updateSeriesBuffers(
-                params,
-                tagValues,
-                studyUid,
-                studySeries[i].seriesUID,
-                applyPatient,
-                applyStudy
-              );
-            });
+            // causes dicomwebserver to crash when done in parallel
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateSeriesBuffers(
+              params,
+              tagValues,
+              studyUid,
+              studySeries[i].seriesUID,
+              applyPatient,
+              applyStudy
+            );
           }
-          await fastify.pq.addAll(seriesPromises);
           resolve();
         } catch (err) {
           reject(err);
@@ -6019,7 +6278,7 @@ async function epaddb(fastify, options, done) {
               seriesUID: request.params.series,
               aimID: request.params.aimuid,
               username: request.epadAuth.username,
-              function: notification.function,
+              function: notification.function.slice(0, 127),
               params,
               error: notification.error,
               notified,
@@ -6457,6 +6716,18 @@ async function epaddb(fastify, options, done) {
                 MODIFY COLUMN createdtime timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP`,
               { transaction: t }
             );
+
+            // alter study to add additional view
+            await fastify.orm.query(
+              `ALTER TABLE study 
+                ADD COLUMN IF NOT EXISTS referring_physician varchar(128) DEFAULT NULL AFTER description,
+                ADD COLUMN IF NOT EXISTS accession_number varchar(64) DEFAULT NULL AFTER referring_physician,
+                ADD COLUMN IF NOT EXISTS num_of_images int(10) DEFAULT NULL AFTER accession_number,
+                ADD COLUMN IF NOT EXISTS num_of_series int(10) DEFAULT NULL AFTER num_of_images,
+                ADD COLUMN IF NOT EXISTS study_id varchar(32) DEFAULT NULL AFTER num_of_series,
+                ADD COLUMN IF NOT EXISTS study_time varchar(32) DEFAULT NULL AFTER study_id;`,
+              { transaction: t }
+            );
           });
 
           // the db schema is updated successfully lets copy the files
@@ -6657,6 +6928,131 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'addProcessing',
+    async (params, query, folderPath, filesOnly, attemptNumber, zipSource, epadAuth) => {
+      try {
+        await fastify.upsert(
+          models.upload_processing,
+          {
+            params: JSON.stringify(params),
+            query: JSON.stringify(query),
+            path: folderPath,
+            files_only: filesOnly,
+            attempt_number: attemptNumber,
+            zip_source: zipSource,
+            updatetime: Date.now(),
+          },
+          {
+            params: JSON.stringify(params),
+            query: JSON.stringify(query),
+            path: folderPath,
+          },
+          epadAuth.username
+        );
+        fastify.log.info(`Added processing for ${folderPath}`);
+      } catch (err) {
+        throw new InternalError('addProcessing', err);
+      }
+    }
+  );
+
+  fastify.decorate(
+    'updateProcessing',
+    async (params, query, folderPath, filesOnly, attemptNumber, epadAuth) => {
+      try {
+        let updates = { updatetime: Date.now(), updated_by: epadAuth.username };
+        if (filesOnly !== undefined) updates = { ...updates, files_only: filesOnly };
+        if (attemptNumber !== undefined) updates = { ...updates, attempt_number: attemptNumber };
+        await models.upload_processing.update(updates, {
+          where: {
+            params: JSON.stringify(params),
+            query: JSON.stringify(query),
+            path: folderPath,
+          },
+        });
+        fastify.log.info(`Updated processing for ${folderPath}`);
+      } catch (err) {
+        throw new InternalError('updateProcessing', err);
+      }
+    }
+  );
+
+  fastify.decorate('removeProcessing', async (params, query, folderPath) => {
+    try {
+      await models.upload_processing.destroy({
+        where: {
+          params: JSON.stringify(params),
+          query: JSON.stringify(query),
+          path: folderPath,
+        },
+      });
+      fastify.log.info(`Removed processing for ${folderPath}`);
+    } catch (err) {
+      throw new InternalError('removeProcessing', err);
+    }
+  });
+
+  fastify.decorate(
+    'resumeProcessing',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const remaining = await models.upload_processing.findAll({
+            order: [['zip_source', 'DESC']],
+            raw: true,
+          });
+          const resumeTimestamp = new Date().getTime();
+          if (remaining && remaining.length && remaining.length > 0) {
+            fastify.log.info(`Resuming unfinished Processing at ${resumeTimestamp}`);
+
+            const tmpFolders = [];
+            const zipFiles = [];
+            // populate zip files to ignore
+            for (let i = 0; i < remaining.length; i += 1) {
+              if (remaining[i].zip_source !== '') zipFiles.push(remaining[i].zip_source);
+            }
+            for (let i = 0; i < remaining.length; i += 1) {
+              // TODO sending just username, it has no project role, can it fail?
+              const epadAuth = { username: remaining[i].creator };
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.updateProcessing(
+                JSON.parse(remaining[i].params),
+                JSON.parse(remaining[i].query),
+                remaining[i].path,
+                remaining[i].files_only,
+                remaining[i].attempt_number + 1,
+                epadAuth
+              );
+              const tmpFolder = remaining[i].path.split('/')[2];
+              if (!tmpFolders.includes(tmpFolder)) tmpFolders.push(tmpFolder);
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.processFolder(
+                remaining[i].path,
+                JSON.parse(remaining[i].params),
+                JSON.parse(remaining[i].query),
+                epadAuth,
+                remaining[i].files_only,
+                zipFiles
+              );
+            }
+            for (let i = 0; i < tmpFolders.length; i += 1)
+              fs.remove(path.join('/tmp', tmpFolders[i]), error => {
+                if (error) fastify.log.warn(`Remove processing deletion error ${error.message}`);
+                fastify.log.info(`${tmpFolders[i]} deleted`);
+              });
+            await fastify.pollDWStudies();
+            fastify.log.info(
+              `Finished resuming Processing at ${new Date().getTime()} started at ${resumeTimestamp}`
+            );
+          }
+          resolve();
+        } catch (err) {
+          reject(new InternalError('resumeProcessing', err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'afterDBReady',
     () =>
       new Promise(async (resolve, reject) => {
@@ -6684,6 +7080,12 @@ async function epaddb(fastify, options, done) {
             fastify.calcStats();
           }, random * 1000);
         });
+        if (config.pollDW) {
+          setInterval(async () => {
+            await fastify.pollDWStudies();
+          }, config.pollDW * 60000);
+        }
+        if (!config.noResume) fastify.resumeProcessing();
       }
       done();
     } catch (err) {

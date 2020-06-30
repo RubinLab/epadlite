@@ -294,5 +294,11 @@ async function otherRoutes(fastify) {
     url: '/wado/',
     handler: fastify.getWado,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/polldw',
+    handler: fastify.triggerPollDW,
+  });
 }
 module.exports = otherRoutes;
