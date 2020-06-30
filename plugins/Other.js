@@ -42,24 +42,25 @@ async function other(fastify) {
   const pqDicoms = new PQueue({ concurrency: 1 });
   fastify.decorate('pq', pq);
   fastify.decorate('pqDicoms', pqDicoms);
-  let count = 0;
-  pq.on('active', () => {
-    count += 1;
-    // eslint-disable-next-line no-plusplus
-    fastify.log.info(
-      `P-queue working on item #${count}.  Size: ${pq.size}  Pending: ${pq.pending}`
-    );
-  });
-  let countDicoms = 0;
-  pqDicoms.on('active', () => {
-    countDicoms += 1;
-    // eslint-disable-next-line no-plusplus
-    fastify.log.info(
-      `P-queue dicom working on item #${countDicoms}.  Size: ${pqDicoms.size}  Pending: ${
-        pqDicoms.pending
-      }`
-    );
-  });
+  // disable logs for now
+  // let count = 0;
+  // pq.on('active', () => {
+  //   count += 1;
+  //   // eslint-disable-next-line no-plusplus
+  //   fastify.log.info(
+  //     `P-queue working on item #${count}.  Size: ${pq.size}  Pending: ${pq.pending}`
+  //   );
+  // });
+  // let countDicoms = 0;
+  // pqDicoms.on('active', () => {
+  //   countDicoms += 1;
+  //   // eslint-disable-next-line no-plusplus
+  //   fastify.log.info(
+  //     `P-queue dicom working on item #${countDicoms}.  Size: ${pqDicoms.size}  Pending: ${
+  //       pqDicoms.pending
+  //     }`
+  //   );
+  // });
   // eslint-disable-next-line global-require
   fastify.register(require('fastify-multipart'));
   fastify.decorate('saveFile', (request, reply) => {
@@ -193,7 +194,7 @@ async function other(fastify) {
           let success = false;
           let datasets = [];
           let studies = new Set();
-          fastify.addProcessing(params, query, dir, false, 1, '', epadAuth);
+          await fastify.addProcessing(params, query, dir, true, 1, '', epadAuth);
           for (let i = 0; i < filenames.length; i += 1) {
             try {
               // eslint-disable-next-line no-await-in-loop
@@ -219,13 +220,13 @@ async function other(fastify) {
           }
           // see if it was a dicom
           if (datasets.length > 0) {
-            await pqDicoms.add(() =>
-              fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
-            );
+            await pqDicoms.add(() => {
+              return fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
+            });
             datasets = [];
             studies = new Set();
           }
-          fastify.removeProcessing(params, query, dir, epadAuth);
+          await fastify.removeProcessing(params, query, dir);
           resolve({ success, errors });
         } catch (err) {
           reject(err);
@@ -246,9 +247,7 @@ async function other(fastify) {
           fastify.log.info(
             `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
           );
-          // eslint-disable-next-line no-await-in-loop
           await fastify.saveDicomsInternal(data, boundary);
-          // }
           resolve();
         } catch (err) {
           reject(err);
@@ -396,29 +395,25 @@ async function other(fastify) {
             .on('close', () => {
               fastify.log.info(`Extracted zip ${zipDir}`);
               // add extracted zip so we can skip
-              fastify.addProcessing(
-                params,
-                query,
-                zipDir,
-                false,
-                1,
-                path.join(dir, filename),
-                epadAuth
-              );
               fastify
-                .processFolder(`${zipDir}`, params, query, epadAuth)
-                .then(result => {
-                  fastify.log.info(
-                    `Finished processing ${filename} at ${new Date().getTime()} started at ${zipTimestamp}`
-                  );
-                  fs.remove(zipDir, error => {
-                    if (error)
-                      fastify.log.info(`Zip temp directory deletion error ${error.message}`);
-                    else fastify.log.info(`${zipDir} deleted`);
-                  });
-                  resolve(result);
+                .addProcessing(params, query, zipDir, false, 1, path.join(dir, filename), epadAuth)
+                .then(() => {
+                  fastify
+                    .processFolder(`${zipDir}`, params, query, epadAuth)
+                    .then(result => {
+                      fastify.log.info(
+                        `Finished processing ${filename} at ${new Date().getTime()} started at ${zipTimestamp}`
+                      );
+                      fs.remove(zipDir, error => {
+                        if (error)
+                          fastify.log.info(`Zip temp directory deletion error ${error.message}`);
+                        else fastify.log.info(`${zipDir} deleted`);
+                      });
+                      resolve(result);
+                    })
+                    .catch(err => reject(err));
                 })
-                .catch(err => reject(err));
+                .catch(errPrc => reject(errPrc));
             })
             .on('error', error => {
               reject(new InternalError(`Extracting zip ${filename}`, error));
@@ -439,28 +434,29 @@ async function other(fastify) {
     else {
       fastify.log.info(`Started scanning folder ${dataFolder}`);
       reply.send(`Started scanning ${dataFolder}`);
-      fastify.addProcessing(
-        request.params,
-        request.query,
-        dataFolder,
-        false,
-        1,
-        '',
-        request.epadAuth
-      );
       fastify
-        .processFolder(dataFolder, request.params, {}, request.epadAuth)
-        .then(result => {
-          fastify.log.info(
-            `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
-              result.success
-            } started at ${scanTimestamp}`
-          );
-          new EpadNotification(request, 'Folder scan completed', dataFolder, true).notify(fastify);
+        .addProcessing(request.params, request.query, dataFolder, false, 1, '', request.epadAuth)
+        .then(() => {
+          fastify
+            .processFolder(dataFolder, request.params, {}, request.epadAuth)
+            .then(result => {
+              fastify.log.info(
+                `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
+                  result.success
+                } started at ${scanTimestamp}`
+              );
+              new EpadNotification(request, 'Folder scan completed', dataFolder, true).notify(
+                fastify
+              );
+            })
+            .catch(err => {
+              fastify.log.warn(`Error processing ${dataFolder} Error: ${err.message}`);
+              new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
+            });
         })
-        .catch(err => {
-          fastify.log.warn(`Error processing ${dataFolder} Error: ${err.message}`);
-          new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
+        .catch(errPrc => {
+          fastify.log.warn(`Error processing ${dataFolder} Error: ${errPrc.message}`);
+          new EpadNotification(request, 'Folder scan failed', errPrc, true).notify(fastify);
         });
     }
   });
@@ -469,7 +465,7 @@ async function other(fastify) {
     'processFolder',
     (zipDir, params, query, epadAuth, filesOnly = false, zipFilesToIgnore = []) =>
       new Promise((resolve, reject) => {
-        fastify.log.info(`Processing folder ${zipDir}`);
+        fastify.log.info(`Processing folder ${zipDir} filesonly: ${filesOnly}`);
         const datasets = [];
         // success variable is to check if there was at least one successful processing
         const result = { success: false, errors: [] };
@@ -484,7 +480,8 @@ async function other(fastify) {
                 for (let i = 0; i < files.length; i += 1) {
                   if (files[i] !== '__MACOSX')
                     if (fs.statSync(path.join(zipDir, files[i])).isDirectory() === true)
-                      fastify.addProcessing(
+                      // eslint-disable-next-line no-await-in-loop
+                      await fastify.addProcessing(
                         params,
                         query,
                         path.join(zipDir, files[i]),
@@ -494,8 +491,7 @@ async function other(fastify) {
                         epadAuth
                       );
                 }
-
-                fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
+                await fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
               }
               const promisses = [];
               for (let i = 0; i < files.length; i += 1) {
@@ -553,13 +549,13 @@ async function other(fastify) {
                   if (datasets.length > 0) {
                     pqDicoms
                       .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
-                      .then(() => {
-                        fastify.removeProcessing(params, query, zipDir, epadAuth);
+                      .then(async () => {
+                        await fastify.removeProcessing(params, query, zipDir);
                         resolve(result);
                       })
                       .catch(error => reject(error));
                   } else {
-                    fastify.removeProcessing(params, query, zipDir, epadAuth);
+                    await fastify.removeProcessing(params, query, zipDir);
                     resolve(result);
                   }
                 } catch (saveDicomErr) {
@@ -600,15 +596,16 @@ async function other(fastify) {
                 const dicomInfo = await fastify.getDicomInfo(arrayBuffer, params, epadAuth);
                 studies.add(dicomInfo);
                 datasets.push(arrayBuffer);
-                if (datasets.length >= fastify.chunk) {
-                  await pqDicoms.add(() =>
-                    fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
-                  );
-                  // eslint-disable-next-line no-param-reassign
-                  datasets = [];
-                  // eslint-disable-next-line no-param-reassign
-                  studies = new Set();
-                }
+                // TODO this doesn't work, should we chunk it during send again?
+                // if (datasets.length >= fastify.chunkSize) {
+                //   await pqDicoms.add(() => {
+                //     return fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
+                //   });
+                //   // eslint-disable-next-line no-param-reassign
+                //   datasets = [];
+                //   // eslint-disable-next-line no-param-reassign
+                //   studies = new Set();
+                // }
                 resolve({ success: true, errors: [] });
               } catch (err) {
                 reject(new InternalError(`Reading dicom file ${filename}`, err));
@@ -654,7 +651,7 @@ async function other(fastify) {
             } else if (
               filename.endsWith('zip') &&
               !filename.startsWith('__MACOSX') &&
-              !zipFilesToIgnore.includes(filename)
+              !zipFilesToIgnore.includes(path.join(dir, filename))
             ) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
@@ -681,15 +678,16 @@ async function other(fastify) {
                   const dicomInfo = await fastify.getDicomInfo(arrayBuffer, params, epadAuth);
                   studies.add(dicomInfo);
                   datasets.push(arrayBuffer);
-                  if (datasets.length >= fastify.chunk) {
-                    await pqDicoms.add(() =>
-                      fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
-                    );
-                    // eslint-disable-next-line no-param-reassign
-                    datasets = [];
-                    // eslint-disable-next-line no-param-reassign
-                    studies = new Set();
-                  }
+                  // TODO this doesn't work, should we chunk it during send again?
+                  // if (datasets.length >= fastify.chunkSize) {
+                  //   await pqDicoms.add(() => {
+                  //     return fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
+                  //   });
+                  //   // eslint-disable-next-line no-param-reassign
+                  //   datasets = [];
+                  //   // eslint-disable-next-line no-param-reassign
+                  //   studies = new Set();
+                  // }
                   resolve({ success: true, errors: [] });
                 } catch (err) {
                   reject(

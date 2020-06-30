@@ -6908,19 +6908,9 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'addProcessing',
-    (params, query, folderPath, filesOnly, attemptNumber, zipSource, epadAuth) => {
-      console.log(
-        'adding',
-        params,
-        query,
-        folderPath,
-        filesOnly,
-        attemptNumber,
-        zipSource,
-        epadAuth
-      );
-      fastify
-        .upsert(
+    async (params, query, folderPath, filesOnly, attemptNumber, zipSource, epadAuth) => {
+      try {
+        await fastify.upsert(
           models.upload_processing,
           {
             params: JSON.stringify(params),
@@ -6937,54 +6927,48 @@ async function epaddb(fastify, options, done) {
             path: folderPath,
           },
           epadAuth.username
-        )
-        .then(() => fastify.log.info(`Added processing for ${folderPath}`))
-        .catch(err => {
-          throw new InternalError('addProcessing', err);
-        });
+        );
+        fastify.log.info(`Added processing for ${folderPath}`);
+      } catch (err) {
+        throw new InternalError('addProcessing', err);
+      }
     }
   );
 
   fastify.decorate(
     'updateProcessing',
-    (params, query, folderPath, filesOnly, attemptNumber, epadAuth) => {
-      console.log('updating', params, query, folderPath, filesOnly, attemptNumber, epadAuth);
-      let updates = { updatetime: Date.now() };
-      if (filesOnly !== undefined) updates = { ...updates, files_only: filesOnly };
-      if (attemptNumber !== undefined) updates = { ...updates, attempt_number: attemptNumber };
-
-      fastify
-        .upsert(
-          models.upload_processing,
-          updates,
-          {
+    async (params, query, folderPath, filesOnly, attemptNumber, epadAuth) => {
+      try {
+        let updates = { updatetime: Date.now(), updated_by: epadAuth.username };
+        if (filesOnly !== undefined) updates = { ...updates, files_only: filesOnly };
+        if (attemptNumber !== undefined) updates = { ...updates, attempt_number: attemptNumber };
+        await models.upload_processing.update(updates, {
+          where: {
             params: JSON.stringify(params),
             query: JSON.stringify(query),
             path: folderPath,
           },
-          epadAuth.username
-        )
-        .then(() => fastify.log.info(`Updated processing for ${folderPath}`))
-        .catch(err => {
-          throw new InternalError('updateProcessing', err);
         });
+        fastify.log.info(`Updated processing for ${folderPath}`);
+      } catch (err) {
+        throw new InternalError('updateProcessing', err);
+      }
     }
   );
 
-  fastify.decorate('removeProcessing', (params, query, folderPath, epadAuth) => {
-    console.log('removing', params, query, folderPath, epadAuth);
-    models.upload_processing
-      .destroy({
+  fastify.decorate('removeProcessing', async (params, query, folderPath) => {
+    try {
+      await models.upload_processing.destroy({
         where: {
           params: JSON.stringify(params),
           query: JSON.stringify(query),
           path: folderPath,
         },
-      })
-      .then(() => fastify.log.info(`Removed processing for ${folderPath}`))
-      .catch(err => {
-        throw new InternalError('removeProcessing', err);
       });
+      fastify.log.info(`Removed processing for ${folderPath}`);
+    } catch (err) {
+      throw new InternalError('removeProcessing', err);
+    }
   });
 
   fastify.decorate(
@@ -6996,28 +6980,48 @@ async function epaddb(fastify, options, done) {
             order: [['zip_source', 'DESC']],
             raw: true,
           });
+          const resumeTimestamp = new Date().getTime();
+          if (remaining && remaining.length && remaining.length > 0) {
+            fastify.log.info(`Resuming unfinished Processing at ${resumeTimestamp}`);
 
-          const zipFiles = [];
-          for (let i = 0; i < remaining.length; i += 1) {
-            // TODO sending just username, it has no project role, can it fail?
-            const epadAuth = { username: remaining[i].creator };
-            if (remaining[i].zip_source !== '') zipFiles.push(remaining[i].zip_source);
-            fastify.updateProcessing(
-              JSON.parse(remaining[i].params),
-              JSON.parse(remaining[i].query),
-              remaining[i].path,
-              undefined,
-              remaining[i].attemptNumber + 1,
-              epadAuth
-            );
-
-            fastify.processFolder(
-              remaining[i].path,
-              JSON.parse(remaining[i].params),
-              JSON.parse(remaining[i].query),
-              epadAuth,
-              remaining[i].files_only === true,
-              zipFiles
+            const tmpFolders = [];
+            const zipFiles = [];
+            // populate zip files to ignore
+            for (let i = 0; i < remaining.length; i += 1) {
+              if (remaining[i].zip_source !== '') zipFiles.push(remaining[i].zip_source);
+            }
+            for (let i = 0; i < remaining.length; i += 1) {
+              // TODO sending just username, it has no project role, can it fail?
+              const epadAuth = { username: remaining[i].creator };
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.updateProcessing(
+                JSON.parse(remaining[i].params),
+                JSON.parse(remaining[i].query),
+                remaining[i].path,
+                remaining[i].files_only,
+                remaining[i].attempt_number + 1,
+                epadAuth
+              );
+              const tmpFolder = remaining[i].path.split('/')[2];
+              if (!tmpFolders.includes(tmpFolder)) tmpFolders.push(tmpFolder);
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.processFolder(
+                remaining[i].path,
+                JSON.parse(remaining[i].params),
+                JSON.parse(remaining[i].query),
+                epadAuth,
+                remaining[i].files_only,
+                zipFiles
+              );
+            }
+            for (let i = 0; i < tmpFolders.length; i += 1)
+              fs.remove(path.join('/tmp', tmpFolders[i]), error => {
+                if (error) fastify.log.warn(`Remove processing deletion error ${error.message}`);
+                fastify.log.info(`${tmpFolders[i]} deleted`);
+              });
+            await fastify.pollDWStudies();
+            fastify.log.info(
+              `Finished resuming Processing at ${new Date().getTime()} started at ${resumeTimestamp}`
             );
           }
           resolve();
@@ -7062,6 +7066,7 @@ async function epaddb(fastify, options, done) {
             fastify.log.info(`Finished Polling dicomweb ${new Date()}`);
           }, config.pollDW * 60000);
         }
+        fastify.resumeProcessing();
       }
       done();
     } catch (err) {
