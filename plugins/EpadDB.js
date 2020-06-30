@@ -7066,7 +7066,7 @@ async function epaddb(fastify, options, done) {
             fastify.log.info(`Finished Polling dicomweb ${new Date()}`);
           }, config.pollDW * 60000);
         }
-        fastify.resumeProcessing();
+        if (!config.noResume) fastify.resumeProcessing();
       }
       done();
     } catch (err) {

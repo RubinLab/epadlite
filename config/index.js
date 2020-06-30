@@ -66,5 +66,5 @@ if (process.env.CORS_ORIGIN) {
   else if (process.env.CORS_ORIGIN === 'false') config.corsOrigin = false;
   else config.corsOrigin = JSON.parse(process.env.CORS_ORIGIN);
 }
-
+config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
 module.exports = config;
