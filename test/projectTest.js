@@ -1138,7 +1138,7 @@ describe('Project Tests', () => {
         });
     });
 
-    it('project subject deletion of patient 3 of system using should be successful ', done => {
+    it('project subject deletion of patient 3 of system using testsubject3 project should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testsubject3/subjects/3?all=true')

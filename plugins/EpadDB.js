@@ -2126,8 +2126,7 @@ async function epaddb(fastify, options, done) {
 
               // if delete from all or it doesn't exist in any other project, delete from system
               try {
-                let projectSubjects = null;
-                projectSubjects = await models.project_subject.findAll({
+                const projectSubjects = await models.project_subject.findAll({
                   where: { subject_id: subject.id },
                 });
                 if (query.all && query.all === 'true') {
