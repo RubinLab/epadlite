@@ -2011,6 +2011,42 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
+  fastify.decorate(
+    'deleteSubjectFromAllInternal',
+    (params, projectSubjects, subject, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const projSubjIds = [];
+          if (projectSubjects) {
+            for (let i = 0; i < projectSubjects.length; i += 1) {
+              projSubjIds.push(projectSubjects[i].id);
+              // eslint-disable-next-line no-await-in-loop
+              await models.project_subject_study.destroy({
+                where: { proj_subj_id: projectSubjects[i].id },
+              });
+            }
+            await models.project_subject.destroy({
+              where: { id: projSubjIds },
+            });
+          }
+          if (subject !== null) {
+            await models.project_aim.destroy({
+              where: { subject_uid: subject.subjectuid },
+            });
+            // delete the subject
+            await models.subject.destroy({
+              where: { id: subject.id },
+            });
+          }
+          await fastify.deleteSubjectInternal(params, epadAuth);
+          resolve(
+            `Subject deleted from system and removed from ${projectSubjects.length} projects`
+          );
+        } catch (err) {
+          reject(new InternalError(`Subject deletion from system ${params.subject}`, err));
+        }
+      })
+  );
 
   fastify.decorate(
     'deleteSubjectFromProjectInternal',
@@ -2045,65 +2081,63 @@ async function epaddb(fastify, options, done) {
           else if (query.all && query.all === 'true' && epadAuth.admin === false)
             reject(new UnauthorizedError('User is not admin, cannot delete from system'));
           else {
-            const projectSubject = await models.project_subject.findOne({
-              where: { project_id: project.id, subject_id: subject.id },
-            });
-            if (projectSubject === null && query.all !== 'true')
-              reject(
-                new BadRequestError(
-                  'Deleting subject from project',
-                  new ResourceNotFoundError('Project subject association', params.project)
-                )
-              );
-            else {
-              // all project doesn't have project_subject and project_subject_study entities
-              if (params.project !== config.XNATUploadProjectID) {
-                await models.project_subject_study.destroy({
-                  where: { proj_subj_id: projectSubject.id },
-                });
-                await models.project_subject.destroy({
-                  where: { project_id: project.id, subject_id: subject.id },
-                });
+            let projectSubject = null;
+            if (subject !== null) {
+              projectSubject = await models.project_subject.findOne({
+                where: { project_id: project.id, subject_id: subject.id },
+              });
+            }
+            if (projectSubject === null) {
+              if (query.all !== 'true') {
+                reject(
+                  new BadRequestError(
+                    'Deleting subject from project',
+                    new ResourceNotFoundError('Project subject association', params.project)
+                  )
+                );
+              } else {
+                let projectSubjects = [];
+                if (subject !== null) {
+                  projectSubjects = await models.project_subject.findAll({
+                    where: { subject_id: subject.id },
+                  });
+                }
+                const result = await fastify.deleteSubjectFromAllInternal(
+                  params,
+                  projectSubjects,
+                  subject,
+                  epadAuth
+                );
+                resolve(result);
               }
+            } else {
+              await models.project_subject_study.destroy({
+                where: { proj_subj_id: projectSubject.id },
+              });
+              await models.project_subject.destroy({
+                where: { project_id: project.id, subject_id: subject.id },
+              });
               await models.worklist_study.destroy({
                 where: { project_id: project.id, subject_id: subject.id },
               });
               await models.project_aim.destroy({
                 where: { project_id: project.id, subject_uid: subject.subjectuid },
               });
+
               // if delete from all or it doesn't exist in any other project, delete from system
               try {
-                const projectSubjects = await models.project_subject.findAll({
+                let projectSubjects = null;
+                projectSubjects = await models.project_subject.findAll({
                   where: { subject_id: subject.id },
                 });
                 if (query.all && query.all === 'true') {
-                  const projSubjIds = [];
-                  if (projectSubjects) {
-                    for (let i = 0; i < projectSubjects.length; i += 1) {
-                      projSubjIds.push(projectSubjects[i].id);
-                      // eslint-disable-next-line no-await-in-loop
-                      await models.project_subject_study.destroy({
-                        where: { proj_subj_id: projectSubjects[i].id },
-                      });
-                    }
-                    await models.project_subject.destroy({
-                      where: { id: projSubjIds },
-                    });
-                  }
-
-                  await models.project_aim.destroy({
-                    where: { subject_uid: subject.subjectuid },
-                  });
-                  // delete the subject
-                  await models.subject.destroy({
-                    where: { id: subject.id },
-                  });
-                  await fastify.deleteSubjectInternal(params, epadAuth);
-                  resolve(
-                    `Subject deleted from system and removed from ${
-                      projectSubjects.length
-                    } projects`
+                  const result = await fastify.deleteSubjectFromAllInternal(
+                    params,
+                    projectSubjects,
+                    subject,
+                    epadAuth
                   );
+                  resolve(result);
                 } else if (projectSubjects.length === 0) {
                   await models.project_subject_study.destroy({
                     where: { proj_subj_id: projectSubject.id },
@@ -3151,7 +3185,6 @@ async function epaddb(fastify, options, done) {
     (studyInfo, projectSubject, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
-          console.log(studyInfo.studyID, studyInfo);
           // update with latest value
           const study = await fastify.upsert(
             models.study,
@@ -3595,6 +3628,78 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate(
+    'deletePatientStudyFromAllInternal',
+    (params, study, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let deletedNonDicomSeries = 0;
+          let numDeleted = 0;
+          if (study !== null) {
+            const projectSubjectStudies = await models.project_subject_study.findAll({
+              where: { study_id: study.id },
+            });
+            const projSubjIds = [];
+            const projectSubjectStudyIds = [];
+
+            if (projectSubjectStudies) {
+              for (let i = 0; i < projectSubjectStudies.length; i += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                const existingStudyCount = await models.project_subject_study.count({
+                  where: { proj_subj_id: projectSubjectStudies[i].proj_subj_id },
+                });
+                if (existingStudyCount === 1)
+                  projSubjIds.push(projectSubjectStudies[i].proj_subj_id);
+                projectSubjectStudyIds.push(projectSubjectStudies[i].id);
+              }
+              numDeleted += await models.project_subject_study.destroy({
+                where: { id: projectSubjectStudyIds },
+              });
+              await models.project_subject.destroy({
+                where: { id: projSubjIds },
+              });
+              // delete non dicom series if any
+              deletedNonDicomSeries = await models.nondicom_series.destroy({
+                where: { study_id: study.id },
+              });
+
+              await models.worklist_study.destroy({
+                where: {
+                  study_id: study.id,
+                },
+              });
+              await models.study.destroy({
+                where: { id: study.id },
+              });
+              const siblingCount = await models.study.count({
+                where: { subject_id: study.subject_id },
+              });
+              if (siblingCount === 0) {
+                await models.subject.destroy({
+                  where: { id: study.subject_id },
+                });
+              }
+            }
+          }
+          try {
+            await fastify.deleteStudyInternal(params, epadAuth);
+          } catch (err) {
+            // ignore the error if the study has nondicom series
+            if (deletedNonDicomSeries === 0) {
+              fastify.log.warn(
+                `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${
+                  err.message
+                }`
+              );
+            }
+          }
+          resolve(numDeleted);
+        } catch (err) {
+          reject(new InternalError(`Study deletion from system ${params.study}`, err));
+        }
+      })
+  );
+
   fastify.decorate('deletePatientStudyFromProject', async (request, reply) => {
     try {
       if (
@@ -3622,7 +3727,11 @@ async function epaddb(fastify, options, done) {
               new ResourceNotFoundError('Project', request.params.project)
             )
           );
-        else if (subject === null)
+        else if (
+          subject === null &&
+          request.params.project !== config.XNATUploadProjectID &&
+          request.params.project !== config.unassignedProjectID
+        )
           reply.send(
             new BadRequestError(
               'Delete study from project',
@@ -3630,16 +3739,34 @@ async function epaddb(fastify, options, done) {
             )
           );
         else {
-          const projectSubject = await models.project_subject.findOne({
-            where: { project_id: project.id, subject_id: subject.id },
-          });
-          if (projectSubject === null && request.query.all !== 'true') {
-            reply.send(
-              new BadRequestError(
-                'Delete study from project',
-                new ResourceNotFoundError('Project subject association', request.params.subject)
-              )
-            );
+          let numDeleted = 0;
+          let projectSubject = null;
+          if (subject != null) {
+            projectSubject = await models.project_subject.findOne({
+              where: { project_id: project.id, subject_id: subject.id },
+            });
+          }
+          if (projectSubject === null) {
+            if (request.query.all !== 'true') {
+              reply.send(
+                new BadRequestError(
+                  'Delete study from project',
+                  new ResourceNotFoundError('Project subject association', request.params.subject)
+                )
+              );
+            } else {
+              const study = await models.study.findOne({
+                where: { studyuid: request.params.study },
+              });
+              numDeleted += await fastify.deletePatientStudyFromAllInternal(
+                request.params,
+                study,
+                request.epadAuth
+              );
+              reply
+                .code(200)
+                .send(`Study deleted from system and removed from ${numDeleted} projects`);
+            }
           } else if (
             request.query.all &&
             request.query.all === 'true' &&
@@ -3651,75 +3778,27 @@ async function epaddb(fastify, options, done) {
             const study = await models.study.findOne({
               where: { studyuid: request.params.study },
             });
-            let numDeleted = 0;
-            // all project doesn't have project_subject and project_subject_study entities
-            if (request.params.project !== config.XNATUploadProjectID) {
-              numDeleted += await models.project_subject_study.destroy({
-                where: { proj_subj_id: projectSubject.id, study_id: study.id },
+
+            numDeleted += await models.project_subject_study.destroy({
+              where: { proj_subj_id: projectSubject.id, study_id: study.id },
+            });
+            // see if there is any other study refering to this subject in this project
+            const studyCount = await models.project_subject_study.count({
+              where: { proj_subj_id: projectSubject.id },
+            });
+            if (studyCount === 0)
+              await models.project_subject.destroy({
+                where: { id: projectSubject.id },
               });
-              // see if there is any other study refering to this subject in this project
-              const studyCount = await models.project_subject_study.count({
-                where: { proj_subj_id: projectSubject.id },
-              });
-              if (studyCount === 0)
-                await models.project_subject.destroy({
-                  where: { id: projectSubject.id },
-                });
-            }
 
             // if delete from all or it doesn't exist in any other project, delete from system
             try {
               if (request.query.all && request.query.all === 'true') {
-                const projectSubjectStudies = await models.project_subject_study.findAll({
-                  where: { study_id: study.id },
-                });
-                const projSubjIds = [];
-                const projectSubjectStudyIds = [];
-                let deletedNonDicomSeries = 0;
-                if (projectSubjectStudies) {
-                  for (let i = 0; i < projectSubjectStudies.length; i += 1) {
-                    // eslint-disable-next-line no-await-in-loop
-                    const existingStudyCount = await models.project_subject_study.count({
-                      where: { proj_subj_id: projectSubjectStudies[i].proj_subj_id },
-                    });
-                    if (existingStudyCount === 1)
-                      projSubjIds.push(projectSubjectStudies[i].proj_subj_id);
-                    projectSubjectStudyIds.push(projectSubjectStudies[i].id);
-                  }
-                  numDeleted += await models.project_subject_study.destroy({
-                    where: { id: projectSubjectStudyIds },
-                  });
-                  await models.project_subject.destroy({
-                    where: { id: projSubjIds },
-                  });
-                  // delete non dicom series if any
-                  deletedNonDicomSeries = await models.nondicom_series.destroy({
-                    where: { study_id: study.id },
-                  });
-
-                  await models.worklist_study.destroy({
-                    where: {
-                      project_id: project.id,
-                      subject_id: subject.id,
-                      study_id: study.id,
-                    },
-                  });
-                  await models.study.destroy({
-                    where: { id: study.id },
-                  });
-                }
-                try {
-                  await fastify.deleteStudyInternal(request.params, request.epadAuth);
-                } catch (err) {
-                  // ignore the error if the study has nondicom series
-                  if (deletedNonDicomSeries === 0) {
-                    fastify.log.warn(
-                      `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${
-                        err.message
-                      }`
-                    );
-                  }
-                }
+                numDeleted += await fastify.deletePatientStudyFromAllInternal(
+                  request.params,
+                  study,
+                  request.epadAuth
+                );
                 reply
                   .code(200)
                   .send(`Study deleted from system and removed from ${numDeleted} projects`);
@@ -3729,8 +3808,9 @@ async function epaddb(fastify, options, done) {
                   where: { study_id: study.id },
                 });
                 if (count === 0) {
+                  let deletedNonDicomSeries = 0;
                   // delete non dicom series if any
-                  const deletedNonDicomSeries = await models.nondicom_series.destroy({
+                  deletedNonDicomSeries = await models.nondicom_series.destroy({
                     where: { study_id: study.id },
                   });
                   await models.worklist_study.destroy({
@@ -3743,6 +3823,14 @@ async function epaddb(fastify, options, done) {
                   await models.study.destroy({
                     where: { id: study.id },
                   });
+                  const siblingCount = await models.study.count({
+                    where: { subject_id: study.subject_id },
+                  });
+                  if (siblingCount === 0) {
+                    await models.subject.destroy({
+                      where: { id: study.subject_id },
+                    });
+                  }
                   try {
                     await fastify.deleteStudyInternal(request.params, request.epadAuth);
                   } catch (err) {
