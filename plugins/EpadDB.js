@@ -1776,30 +1776,25 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate(
     'addSubjectToDBIfNotExistInternal',
-    (subjectInfo, projectId, epadAuth) =>
+    (subjectInfo, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const project = await models.project.findOne({
-            where: { projectid: projectId },
+          // see if subject exists
+          let subject = await models.subject.findOne({
+            where: { subjectuid: subjectInfo.subjectuid.replace('\u0000', '').trim() },
           });
-          if (project !== null) {
-            // see if subject exists
-            let subject = await models.subject.findOne({
-              where: { subjectuid: subjectInfo.subjectuid.replace('\u0000', '').trim() },
+          if (subject === null) {
+            subject = await models.subject.create({
+              subjectuid: subjectInfo.subjectuid.replace('\u0000', '').trim(),
+              name: subjectInfo.name.replace('\u0000', '').trim(),
+              gender: subjectInfo.gender,
+              dob: subjectInfo.dob,
+              creator: epadAuth.username,
+              updatetime: Date.now(),
+              createdtime: Date.now(),
             });
-            if (subject === null) {
-              subject = await models.subject.create({
-                subjectuid: subjectInfo.subjectuid.replace('\u0000', '').trim(),
-                name: subjectInfo.name.replace('\u0000', '').trim(),
-                gender: subjectInfo.gender,
-                dob: subjectInfo.dob,
-                creator: epadAuth.username,
-                updatetime: Date.now(),
-                createdtime: Date.now(),
-              });
-            }
-            resolve(subject);
           }
+          resolve(subject);
         } catch (err) {
           reject(err);
         }
@@ -3154,9 +3149,9 @@ async function epaddb(fastify, options, done) {
                 ? studyInfo.referringPhysicianName
                 : null,
               accession_number: studyInfo.studyAccessionNumber
-                ? studyInfo.referringPhysicianName
+                ? studyInfo.studyAccessionNumber
                 : null,
-              study_id: studyInfo.studyID ? studyInfo.referringPhysicianName : null,
+              study_id: studyInfo.studyID ? studyInfo.studyID : null,
               study_time: studyInfo.studyTime ? studyInfo.studyTime : null,
               num_of_images: studyInfo.numberOfImages ? studyInfo.numberOfImages : 0,
               num_of_series: studyInfo.numberOfSeries ? studyInfo.numberOfSeries : 0,

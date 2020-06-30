@@ -424,7 +424,6 @@ async function dicomwebserver(fastify) {
                 // eslint-disable-next-line no-await-in-loop
                 const subject = await fastify.addSubjectToDBIfNotExistInternal(
                   subjectInfo,
-                  config.unassignedProjectID,
                   epadAuth
                 );
                 studyRec = {
@@ -582,7 +581,7 @@ async function dicomwebserver(fastify) {
                         physicianName: '', // TODO
                         referringPhysicianName: value['00080090'].Value
                           ? value['00080090'].Value[0].Alphabetic
-                          : '', // not in db
+                          : '',
                         birthdate: value['00100030'].Value ? value['00100030'].Value[0] : '',
                         sex: value['00100040'].Value ? value['00100040'].Value[0] : '',
                         studyDescription:
@@ -591,10 +590,10 @@ async function dicomwebserver(fastify) {
                             : '',
                         studyAccessionNumber: value['00080050'].Value
                           ? value['00080050'].Value[0]
-                          : '', // not in db (req)
+                          : '',
                         examTypes: value['00080061'].Value ? value['00080061'].Value : [],
-                        numberOfImages, // not in db (req)
-                        numberOfSeries, // not in db (req)
+                        numberOfImages,
+                        numberOfSeries,
                         numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
                           ? aimsCountMap[value['0020000D'].Value[0]]
                           : 0,
@@ -603,9 +602,9 @@ async function dicomwebserver(fastify) {
                             ? createdTimes[value['0020000D'].Value[0]]
                             : '',
                         // extra for flexview
-                        studyID: value['00200010'].Value ? value['00200010'].Value[0] : '', // not in db
+                        studyID: value['00200010'].Value ? value['00200010'].Value[0] : '',
                         studyDate: value['00080020'].Value ? value['00080020'].Value[0] : '',
-                        studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '', // not in db
+                        studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '',
                       };
                     })
                     .sortBy('studyDescription')
