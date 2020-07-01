@@ -497,14 +497,6 @@ async function epaddb(fastify, options, done) {
         where: config.mode === 'lite' ? { projectid: 'lite' } : {},
         order: [['name', 'ASC']],
         include: ['users', { model: models.project_subject, required: false }],
-        attributes: [
-          'projectid',
-          'name',
-          'description',
-          'type',
-          'defaulttemplate',
-          // [fastify.orm.fn('COUNT', 'project_subject.subject_id'), 'subjectCount'],
-        ],
       });
 
       // projects will be an array of all Project instances
