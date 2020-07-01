@@ -551,7 +551,8 @@ async function dicomwebserver(fastify) {
                   _.chain(filteredStudies)
                     .map(async value => {
                       // update examptypes in db
-                      if (value['0020000D'].Value)
+                      // TODO we need to make sure it doesn't come there on pollDW
+                      if (value['0020000D'].Value && !config.pollDW)
                         await fastify.updateStudyExamType(
                           value['0020000D'].Value[0],
                           value['00080061'] && value['00080061'].Value

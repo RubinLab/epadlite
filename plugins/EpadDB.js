@@ -5751,6 +5751,20 @@ async function epaddb(fastify, options, done) {
                 )
               )
             );
+          else if (
+            ((body.PatientID && subject.subjectuid !== body.PatientID) ||
+              (body.PatientName && subject.name !== body.PatientName)) &&
+            (!body.StudyInstanceUID || study.studyuid === body.StudyInstanceUID) &&
+            !applyStudy
+          )
+            reject(
+              new BadRequestError(
+                'Edit Tags',
+                new Error(
+                  'Cannot change Patient information without changing Study Instance UID or with applyStudy query parameter true'
+                )
+              )
+            );
           else {
             reply
               .code(202)
@@ -5851,7 +5865,8 @@ async function epaddb(fastify, options, done) {
             // if not we need to create another one!
             if (
               (body.StudyInstanceUID && study.studyuid !== body.StudyInstanceUID) ||
-              (body.StudyDescription && study.description !== body.StudyDescription)
+              (body.StudyDescription && study.description !== body.StudyDescription) ||
+              applyStudy
             ) {
               if (applyStudy) {
                 await models.study.update(
@@ -5881,17 +5896,17 @@ async function epaddb(fastify, options, done) {
                     epadAuth.username
                   );
               } else if (body.StudyInstanceUID && study.studyuid !== body.StudyInstanceUID) {
-                study = await models.study.findOne({
+                let newStudy = await models.study.findOne({
                   where: { studyuid: body.StudyInstanceUID },
                   raw: true,
                 });
-                if (subject) {
-                  // patient already exist add to it
+                if (newStudy) {
+                  // study already exist add to it
                   fastify.log.warn(`Study ${body.StudyInstanceUID} already exist adding to it`);
                 } else {
-                  study = await models.study.create({
+                  newStudy = await models.study.create({
                     studyuid: body.StudyInstanceUID,
-                    description: body.StudyDescription,
+                    description: body.StudyDescription || study.description,
                     studydate: study.studydate,
                     subject_id: subject.id,
                     exam_types: study.examTypes,
@@ -5903,10 +5918,10 @@ async function epaddb(fastify, options, done) {
                   models.project_subject_study,
                   {
                     proj_subj_id: projectSubject.id,
-                    study_id: study.id,
+                    study_id: newStudy.id,
                     updatetime: Date.now(),
                   },
-                  { proj_subj_id: projectSubjectStudy.proj_subj_id, study_id: study.id },
+                  { proj_subj_id: projectSubjectStudy.proj_subj_id, study_id: newStudy.id },
                   epadAuth.username
                 );
               }
