@@ -3427,7 +3427,7 @@ async function epaddb(fastify, options, done) {
 
           const studyUids = [];
           const studyInfos = [];
-          const nondicoms = [];
+          let nondicoms = [];
           if (projectSubjects === null) {
             reject(
               new BadRequestError(
@@ -3546,6 +3546,7 @@ async function epaddb(fastify, options, done) {
                     'study_uid'
                   );
                 }
+                nondicoms = _.sortBy(nondicoms, 'study.dataValues.description');
                 if (studyUids.length !== result.length)
                   if (studyUids.length === result.length + nondicoms.length) {
                     for (let i = 0; i < nondicoms.length; i += 1) {
