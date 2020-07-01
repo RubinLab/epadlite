@@ -491,52 +491,88 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('getProjects', (request, reply) => {
-    models.project
-      .findAll({
+  fastify.decorate('getProjects', async (request, reply) => {
+    try {
+      const projects = await models.project.findAll({
         where: config.mode === 'lite' ? { projectid: 'lite' } : {},
         order: [['name', 'ASC']],
-        include: ['users'],
-      })
-      .then(projects => {
-        // projects will be an array of all Project instances
-        const result = [];
-        projects.forEach(project => {
-          const obj = {
-            id: project.projectid,
-            name: project.name,
-            // numberOfAnnotations:
-            // numberOfStudies:
-            // numberOfSubjects:
-            // subjectIDs:
-            description: project.description,
-            loginNames: [],
-            type: project.type,
-            defaultTemplate: project.defaulttemplate,
-          };
-
-          project.users.forEach(user => {
-            obj.loginNames.push(user.username);
-          });
-          if (
-            request.epadAuth.admin ||
-            obj.loginNames.includes(request.epadAuth.username) ||
-            obj.type.toLowerCase() === 'public'
-          )
-            result.push(obj);
-        });
-        reply.code(200).send(result);
-      })
-      .catch(err => {
-        reply.send(
-          new InternalError(
-            `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
-              request.epadAuth.admin
-            }`,
-            err
-          )
-        );
+        include: ['users', { model: models.project_subject, required: false }],
+        attributes: [
+          'projectid',
+          'name',
+          'description',
+          'type',
+          'defaulttemplate',
+          // [fastify.orm.fn('COUNT', 'project_subject.subject_id'), 'subjectCount'],
+        ],
       });
+
+      // projects will be an array of all Project instances
+      const result = [];
+      for (let i = 0; i < projects.length; i += 1) {
+        const project = projects[i];
+        let numberOfSubjects = project.dataValues.project_subjects.length;
+        if (project.projectid === config.XNATUploadProjectID) {
+          // eslint-disable-next-line no-await-in-loop
+          const allSubjects = await fastify.orm.query(
+            `SELECT count(distinct subject_id) subjCount from project_subject;`,
+            { raw: true, type: QueryTypes.SELECT }
+          );
+          numberOfSubjects = allSubjects && allSubjects[0] ? allSubjects[0].subjCount : 0;
+        } else if (project.projectid === config.unassignedProjectID) {
+          if (config.pollDW) {
+            // eslint-disable-next-line no-await-in-loop
+            const unassingedSubjects = await fastify.orm.query(
+              `SELECT count(id) subjCount from subject where id not in (select subject_id from project_subject);`,
+              { raw: true, type: QueryTypes.SELECT }
+            );
+            numberOfSubjects =
+              unassingedSubjects && unassingedSubjects[0] ? unassingedSubjects[0].subjCount : 0;
+          } else {
+            // I need t grab it from dicomweb server
+            // eslint-disable-next-line no-await-in-loop
+            const results = await fastify.getUnassignedSubjectsfromDicomweb(
+              request.params,
+              request.epadAuth,
+              true
+            );
+            numberOfSubjects = results.length;
+          }
+        }
+        const obj = {
+          id: project.dataValues.projectid,
+          name: project.dataValues.name,
+          // numberOfAnnotations:
+          // numberOfStudies:
+          numberOfSubjects,
+          // subjectIDs:
+          description: project.dataValues.description,
+          loginNames: [],
+          type: project.dataValues.type,
+          defaultTemplate: project.dataValues.defaulttemplate,
+        };
+
+        project.dataValues.users.forEach(user => {
+          obj.loginNames.push(user.username);
+        });
+        if (
+          request.epadAuth.admin ||
+          obj.loginNames.includes(request.epadAuth.username) ||
+          obj.type.toLowerCase() === 'public'
+        )
+          result.push(obj);
+      }
+      reply.code(200).send(result);
+    } catch (err) {
+      reply.send(
+        new InternalError(
+          `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+            request.epadAuth.admin
+          }`,
+          err
+        )
+      );
+    }
   });
 
   fastify.decorate('validateRequestBodyFields', (name, id) => {
@@ -1855,21 +1891,36 @@ async function epaddb(fastify, options, done) {
     return aimsCountMap;
   });
 
+  fastify.decorate(
+    'getUnassignedSubjectsfromDicomweb',
+    (params, epadAuth, noSort = false) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const dbStudyUIDs = await fastify.getDBStudies();
+          let results = await fastify.getPatientsInternal(
+            params,
+            dbStudyUIDs,
+            epadAuth,
+            true,
+            '0020000D',
+            'studyUID',
+            true
+          );
+          if (!noSort) results = _.sortBy(results, 'subjectName');
+          resolve(results);
+        } catch (err) {
+          reject(new InternalError(`Getting DB StudyUIDs`, err));
+        }
+      })
+  );
+
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
       if (request.params.project === config.unassignedProjectID && config.pollDW === 0) {
-        const dbStudyUIDs = await fastify.getDBStudies();
-        // eslint-disable-next-line no-await-in-loop
-        let results = await fastify.getPatientsInternal(
+        const results = await fastify.getUnassignedSubjectsfromDicomweb(
           request.params,
-          dbStudyUIDs,
-          request.epadAuth,
-          true,
-          '0020000D',
-          'studyUID',
-          true
+          request.epadAuth
         );
-        results = _.sortBy(results, 'subjectName');
         reply.code(200).send(results);
       } else {
         const project = await models.project.findOne({
