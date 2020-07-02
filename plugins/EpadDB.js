@@ -1767,7 +1767,7 @@ async function epaddb(fastify, options, done) {
             reply.send(
               new ResourceAlreadyExistsError(
                 'Subject',
-                request.params.subject | request.body.subjectUid
+                request.params.subject ? request.params.subject : request.body.subjectUid
               )
             );
             return;
