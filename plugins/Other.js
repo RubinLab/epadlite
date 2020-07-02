@@ -9,6 +9,7 @@ window = {};
 const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
+const crypto = require('crypto');
 const { createOfflineAimSegmentation } = require('aimapi');
 const config = require('../config/index');
 
@@ -1444,6 +1445,46 @@ async function other(fastify) {
       }
     } catch (err) {
       reply.send(err);
+    }
+  });
+
+  fastify.decorate('decrypt', (request, reply) => {
+    try {
+      if (!config.secret) {
+        reply.send(new InternalError('Decrypt', new Error('No secret defined')));
+      } else {
+        const encodeKey = crypto
+          .createHash('sha256')
+          .update(config.secret, 'utf-8')
+          .digest();
+
+        const binary = Buffer.from(request.query.arg, 'base64');
+        const ivlen = binary.readInt32BE();
+        const iv = binary.subarray(4, 4 + ivlen);
+        const encoded = binary.subarray(4 + ivlen);
+        const cipher = crypto.createDecipheriv('aes-256-cbc', encodeKey, iv);
+        const decrypted = cipher.update(encoded, 'base64') + cipher.final();
+        const items = decrypted.split('&');
+        const obj = {};
+        for (let i = 0; i < items.length; i += 1) {
+          const keyValue = items[i].split('=');
+          // eslint-disable-next-line prefer-destructuring
+          obj[keyValue[0]] = keyValue[1];
+        }
+        if (obj.expiry) {
+          const expiryDate = new Date(obj.expiry * 1000);
+          const now = new Date();
+          if (now <= expiryDate) {
+            reply.code(200).send(obj);
+          } else {
+            reply.send(new InternalError('Decrypt', new Error('Time expired')));
+          }
+        } else {
+          reply.code(200).send(obj);
+        }
+      }
+    } catch (err) {
+      reply.send(new InternalError('Decrypt', err));
     }
   });
 
