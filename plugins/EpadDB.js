@@ -3383,20 +3383,20 @@ async function epaddb(fastify, options, done) {
                 if (body && body.insertDate) studyInfo.insertDate = body.insertDate;
                 // if there is body, it is nondicom. you cannot create a nondicom if it is already in system
                 // it doesn't have subject info (not upload)
-                if (body && body.subjectName === undefined) {
-                  const studyExists = await models.study.findOne({
-                    where: { studyuid: studyInfo.studyUID },
-                  });
-                  if (studyExists)
-                    reject(new ResourceAlreadyExistsError('Study', studyInfo.studyUID));
-                } else if (studies.length === 1) [studyInfo] = studies;
-
-                await fastify.addPatientStudyToProjectDBInternal(
-                  studyInfo,
-                  projectSubject,
-                  epadAuth
-                );
-                resolve();
+                const studyExists = await models.study.findOne({
+                  where: { studyuid: studyInfo.studyUID },
+                });
+                if (body && body.subjectName === undefined && studyExists) {
+                  reject(new ResourceAlreadyExistsError('Study', studyInfo.studyUID));
+                } else {
+                  if (studies.length === 1) [studyInfo] = studies;
+                  await fastify.addPatientStudyToProjectDBInternal(
+                    studyInfo,
+                    projectSubject,
+                    epadAuth
+                  );
+                  resolve();
+                }
               } else
                 reject(
                   new BadRequestError(
