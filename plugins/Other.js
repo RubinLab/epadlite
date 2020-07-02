@@ -298,7 +298,6 @@ async function other(fastify) {
             .catch(err => {
               reject(err);
             });
-          resolve();
         } catch (err) {
           reject(err);
         }
