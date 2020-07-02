@@ -2037,7 +2037,13 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('deleteSubjectFromProject', (request, reply) => {
     fastify
       .deleteSubjectFromProjectInternal(request.params, request.query, request.epadAuth)
-      .then(result => reply.code(200).send(result))
+      .then(result => {
+        reply.code(200).send(result);
+        if (config.env !== 'test')
+          new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
+            fastify
+          );
+      })
       .catch(err => reply.send(err));
   });
   fastify.decorate(
@@ -3812,6 +3818,13 @@ async function epaddb(fastify, options, done) {
                 study,
                 request.epadAuth
               );
+              if (config.env !== 'test')
+                new EpadNotification(
+                  request,
+                  'Deleted study from system',
+                  request.params.study,
+                  true
+                ).notify(fastify);
               reply
                 .code(200)
                 .send(`Study deleted from system and removed from ${numDeleted} projects`);
@@ -3848,6 +3861,13 @@ async function epaddb(fastify, options, done) {
                   study,
                   request.epadAuth
                 );
+                if (config.env !== 'test')
+                  new EpadNotification(
+                    request,
+                    'Deleted study from system',
+                    request.params.study,
+                    true
+                  ).notify(fastify);
                 reply
                   .code(200)
                   .send(`Study deleted from system and removed from ${numDeleted} projects`);
@@ -3892,13 +3912,28 @@ async function epaddb(fastify, options, done) {
                       );
                     }
                   }
+                  if (config.env !== 'test')
+                    new EpadNotification(
+                      request,
+                      `Deleted study from system as it didn't exist in any other project`,
+                      request.params.study,
+                      true
+                    ).notify(fastify);
                   reply
                     .code(200)
                     .send(`Study deleted from system as it didn't exist in any other project`);
-                } else
+                } else {
+                  if (config.env !== 'test')
+                    new EpadNotification(
+                      request,
+                      'Deleted study',
+                      request.params.study,
+                      true
+                    ).notify(fastify);
                   reply
                     .code(200)
                     .send(`Study not deleted from system as it exists in other project`);
+                }
               }
             } catch (deleteErr) {
               reply.send(
