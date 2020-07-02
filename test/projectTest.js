@@ -1074,14 +1074,25 @@ describe('Project Tests', () => {
         });
     });
 
-    it('aim save to project testtestsubject3 aim should be successful ', done => {
-      // this is just fake data, I took the sample aim and changed patient
-      // TODO put meaningful data
-      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim_fake.json'));
+    it('aim save to project testtestsubject3 aim via aimfiles interface should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/projects/testsubject3/aims')
-        .send(jsonBuffer)
+        .post('/projects/testsubject3/aimfiles')
+        .attach('files', 'test/data/roi_sample_aim_fake.json', 'roi_sample_aim_fake.json')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aim update to project testtestsubject3 aim via aimfiles interface should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testsubject3/aimfiles/2.25.211702350959705566747388843359605362')
+        .attach('files', 'test/data/roi_sample_aim_fake.json', 'roi_sample_aim_fake.json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
