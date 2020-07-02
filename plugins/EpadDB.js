@@ -1764,7 +1764,12 @@ async function epaddb(fastify, options, done) {
               createdtime: Date.now(),
             });
           } else if (request.body) {
-            reply.send(new ResourceAlreadyExistsError('Subject', request.body.subjectUid));
+            reply.send(
+              new ResourceAlreadyExistsError(
+                'Subject',
+                request.params.subject | request.body.subjectUid
+              )
+            );
             return;
           }
 
