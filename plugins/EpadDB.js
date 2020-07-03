@@ -5728,7 +5728,7 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           const { params, body, query, epadAuth } = request;
-          const applyPatient = query.applyPatient === 'true';
+          let applyPatient = query.applyPatient === 'true';
           const applyStudy = query.applyStudy === 'true';
           const promises = [];
           promises.push(
@@ -5851,6 +5851,8 @@ async function epaddb(fastify, options, done) {
               (body.PatientID && subject.subjectuid !== body.PatientID) ||
               (body.PatientName && subject.name !== body.PatientName)
             ) {
+              // if there is only one study under patient and applystudy it is applypatient too
+              if (studyUids.length === 1 && applyStudy) applyPatient = true;
               if (applyPatient) {
                 await models.subject.update(
                   {
@@ -5878,7 +5880,7 @@ async function epaddb(fastify, options, done) {
                 } else {
                   subject = await models.subject.create({
                     subjectuid: body.PatientID,
-                    name: body.PatientName,
+                    name: body.PatientName ? body.PatientName : subject.name,
                     gender: subject.gender,
                     dob: subject.dob,
                     creator: epadAuth.username,
