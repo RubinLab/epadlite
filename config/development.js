@@ -1,5 +1,6 @@
 module.exports = {
   env: 'development',
+  corsOrigin: true,
   dbServer: process.env.NOSQL_DB_HOST || 'http://localhost',
   db: process.env.NOSQL_DB_NAME || 'epadlite',
   dbPort: process.env.NOSQL_DB_PORT || 5984,
@@ -7,5 +8,5 @@ module.exports = {
   dicomweb: 'dicomweb_none',
   logger: process.env.LOGGER || true,
   https: process.env.HTTPS || false,
-  mode: process.env.MODE || 'thick',
+  mode: process.env.MODE || 'lite',
 };

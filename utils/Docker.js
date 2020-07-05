@@ -76,7 +76,7 @@ class DockerService {
   }
 
   createContainer(imageId, containerNameToGive, params) {
-    let auxContainer;
+    let tmpContainer;
     const paramsDocker = [...params.paramsDocker];
     const dockerFoldersToBind = [...params.dockerFoldersToBind];
     console.log('params from docker container side', paramsDocker);
@@ -99,18 +99,23 @@ class DockerService {
         })
         // eslint-disable-next-line func-names
         .then(function(container) {
-          auxContainer = container;
-          return auxContainer.start();
+          tmpContainer = container;
+          return tmpContainer.start();
         })
         // eslint-disable-next-line func-names
         .then(function() {
           console.log('waitin for plugin container to finish processing');
-          return auxContainer.wait();
+          // eslint-disable-next-line func-names
+          tmpContainer.attach({ stream: true, stdout: true, stderr: true }, function(err, stream) {
+            stream.pipe(process.stdout);
+          });
+
+          return tmpContainer.wait();
         })
         // eslint-disable-next-line func-names
         .then(function() {
           console.log('plugin container is done processing. Removing the container');
-          return auxContainer.remove();
+          return tmpContainer.remove();
         })
         // eslint-disable-next-line func-names
         .catch(function(err) {
@@ -189,7 +194,30 @@ class DockerService {
           if (err) {
             reject(err);
           } else {
-            stream.on('data', info => console.log(info));
+            let counter = 0;
+            const infoWord = ` image: ${img} pulling `;
+            let showInfo = '';
+            stream.on('data', () => {
+              if (counter === 0) {
+                process.stdout.write(`${infoWord}\r`);
+                counter += 1;
+              } else if (counter >= 1 && counter < 10) {
+                // eslint-disable-next-line operator-assignment
+                showInfo = `${showInfo}.`;
+                // eslint-disable-next-line prefer-template
+                process.stdout.write(infoWord + showInfo + '\r');
+                //  process.stdout.write('\r');
+                counter += 1;
+              } else {
+                counter = 0;
+                // eslint-disable-next-line prettier/prettier
+                process.stdout.write(
+                  // eslint-disable-next-line prefer-template
+                  infoWord + '               \r'
+                );
+                showInfo = '';
+              }
+            });
             stream.on('end', () => {
               resolve('finished pulling');
             });
@@ -208,11 +236,11 @@ class DockerService {
       // eslint-disable-next-line func-names
       container.inspect(function(err, data) {
         if (err) {
-          //console.log(err);
+          //  console.log(err);
           reject(err);
         }
         if (data) {
-          //console.log(data);
+          //  console.log(data);
           resolve(data);
         }
       });

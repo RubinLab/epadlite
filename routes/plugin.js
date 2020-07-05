@@ -1,382 +1,249 @@
 // defines routes for templates
 async function routes(fastify) {
-  // GET {s}/templates
   fastify.route({
     method: 'GET',
-    url: '/plugins',
+    url: '/pluginsprojects', // pluginswithproject ok
     schema: {
       tags: ['plugins'],
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getPlugins,
-  });
-  fastify.route({
-    method: 'GET',
-    url: '/plugins/:plugindbid',
-    schema: {
-      tags: ['plugins'],
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getOnePlugin,
-  });
-  fastify.route({
-    method: 'GET',
-    url: '/plugins/project/:projectid',
-    schema: {
-      tags: ['plugins'],
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getPluginsForProject,
-  });
-  fastify.route({
-    method: 'GET',
-    url: '/pluginswithproject',
-    schema: {
-      tags: ['plugins'],
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.getPluginsWithProject,
   });
   fastify.route({
-    method: 'POST',
-    url: '/plugins/queue/add',
+    method: 'GET',
+    url: '/projects/:projectid/plugins', // /plugins/project/:projectid ok
     schema: {
       tags: ['plugins'],
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
-    handler: fastify.addPluginsToQueue,
+    handler: fastify.getPluginsForProject,
   });
+
   fastify.route({
     method: 'GET',
-    url: '/plugins/queue/',
+    url: '/pluginsannotationstemplates', // /plugins/annotation/templates ok
     schema: {
       tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getPluginsQueue,
-  });
-  fastify.route({
-    method: 'GET',
-    url: '/plugins/parameters/default/:plugindbid',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getDefaultParameter,
-  });
-  fastify.route({
-    method: 'GET',
-    url: '/plugins/parameters/project/:plugindbid/:projectdbid',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getProjectParameter,
-  });
-  fastify.route({
-    method: 'GET',
-    url: '/plugins/parameters/template/:plugindbid/:templatedbid',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getTemplateParameter,
-  });
-  fastify.route({
-    method: 'GET',
-    url: '/plugins/docker/images',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.getDockerImages,
-  });
-  fastify.route({
-    method: 'GET',
-    url: '/plugins/annotation/templates',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.getAnnotationTemplates,
   });
 
   fastify.route({
     method: 'GET',
-    url: '/plugins/annotation/projects',
+    url: '/pluginsannotationsprojects', // /plugins/annotation/projects ok
     schema: {
       tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.getAnnotationProjects,
   });
+
   fastify.route({
-    method: 'PUT',
-    url: '/plugins/:pluginid/projects/:projectids',
+    method: 'POST',
+    url: '/plugindefaultparameters', // /plugins/parameters/default/addnew ok
     schema: {
       tags: ['plugins'],
+    },
+    handler: fastify.saveDefaultParameter,
+  });
 
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
+  fastify.route({
+    method: 'POST',
+    url: '/plugindefaultparameters/edit', // /plugins/parameters/default/edit/ ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.editDefaultparameter,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/pluginprojectparameters', //  /plugins/parameters/project/addnew ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.saveProjectParameter,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/pluginprojectparameters/edit', // /plugins/parameters/project/edit/ ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.editProjectParameter,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/plugintemplateparameters', // /plugins/parameters/template/addnew ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.saveTemplateParameter,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/plugintemplateparameters/edit', //  /plugins/parameters/template/edit/ ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.editTemplateParameter,
+  });
+
+  // GET {s}/templates
+  // fastify.route({
+  //   // ok
+  //   method: 'GET',
+  //   url: '/plugins',
+  //   schema: {
+  //     tags: ['plugins'],
+  //   },
+  //   handler: fastify.getPlugins,
+  // });
+  fastify.route({
+    method: 'POST',
+    url: '/plugins', // /plugins/addnew ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.savePlugin,
+  });
+  fastify.route({
+    // ok
+    method: 'POST',
+    url: '/plugins/edit',
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.editPlugin,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/plugins/delete', // /plugins ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.deletePlugin,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/:plugindbid', // ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.getOnePlugin,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/:plugindbid/defaultparameters', // /plugins/parameters/default/:plugindbid ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.getDefaultParameter,
+  });
+  fastify.route({
+    method: 'PUT',
+    url: '/plugins/:pluginid/projects/:projectids', // ok
+    schema: {
+      tags: ['plugins'],
     },
     handler: fastify.updateProjectsForPlugin,
   });
 
   fastify.route({
     method: 'PUT',
-    url: '/plugins/:pluginid/templates/:templateids',
+    url: '/plugins/:pluginid/templates/:templateids', // ok
     schema: {
       tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.updateTemplatesForPlugin,
   });
-  // fastify.route({
-  //   method: 'PUT',
-  //   url: '/plugins/queue/update/:queueid/status/:tostatus',
-  //   schema: {
-  //     tags: ['plugins'],
-
-  //     //   response: {
-  //     //     200: 'templates_schema#',
-  //     //   },
-  //   },
-  //   handler: fastify.updateStatusQueueProcess,
-  // });
   fastify.route({
-    method: 'POST',
-    url: '/plugins/queue/run',
+    method: 'GET',
+    url: '/plugins/:plugindbid/project/:projectdbid/projectparameters', // /plugins/parameters/project/:plugindbid/:projectdbid ok
     schema: {
       tags: ['plugins'],
+    },
+    handler: fastify.getProjectParameter,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/plugins/:plugindbid/template/:templatedbid/templateparameters', // /plugins/parameters/template/:plugindbid/:templatedbid ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.getTemplateParameter,
+  });
 
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
+  fastify.route({
+    method: 'GET',
+    url: '/pluginqueue', // /plugins/queue/ ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.getPluginsQueue,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/pluginqueue', // /plugins/queue/add ok
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.addPluginsToQueue,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/pluginqueue/run', //  /plugins/queue/run ok
+    schema: {
+      tags: ['plugins'],
     },
     handler: fastify.runPluginsQueue,
   });
   fastify.route({
     method: 'POST',
-    url: '/plugins/queue/stop',
+    url: '/pluginqueue/stop', // /plugins/queue/stop ok
     schema: {
       tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.stopPluginsQueue,
   });
   fastify.route({
     method: 'POST',
-    url: '/plugins',
+    url: '/pluginqueue/delete', // /plugins/queue/delete ok
     schema: {
       tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.deletePlugin,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/addnew',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.savePlugin,
-  });
-
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/parameters/default/addnew',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.saveDefaultParameter,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/parameters/project/addnew',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.saveProjectParameter,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/parameters/template/addnew',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.saveTemplateParameter,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/parameters/default/edit/',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.editDefaultparameter,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/parameters/project/edit/',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.editProjectParameter,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/parameters/template/edit/',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.editTemplateParameter,
-  });
-
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/edit',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
-    },
-    handler: fastify.editPlugin,
-  });
-  fastify.route({
-    method: 'POST',
-    url: '/plugins/queue/delete',
-    schema: {
-      tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.deleteFromPluginQueue,
   });
   fastify.route({
     method: 'POST',
-    url: '/plugins/download/queue/result',
+    url: '/pluginqueue/download', //  /plugins/download/queue/result ok
     schema: {
       tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.downloadPluginResult,
   });
 
   fastify.route({
     method: 'DELETE',
-    url: '/plugins/parameters/default/:parameterdbid',
+    url: '/pluginparameters/:parameterdbid/default', // /plugins/parameters/default/:parameterdbid ok
     schema: {
       tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.deleteOneDefaultParameter,
   });
   fastify.route({
     method: 'DELETE',
-    url: '/plugins/parameters/project/:parameterdbid',
+    url: '/pluginparameters/:parameterdbid/project', //  /plugins/parameters/project/:parameterdbid ok
     schema: {
       tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.deleteOneProjectParameter,
   });
   fastify.route({
     method: 'DELETE',
-    url: '/plugins/parameters/template/:parameterdbid',
+    url: '/pluginparameters/:parameterdbid/template', // /plugins/parameters/template/:parameterdbid ok
     schema: {
       tags: ['plugins'],
-
-      //   response: {
-      //     200: 'templates_schema#',
-      //   },
     },
     handler: fastify.deleteOneTemplateParameter,
   });
-
-  //  trigger
-
-  //  trigger section ends
-  //  docker section below
 }
 module.exports = routes;

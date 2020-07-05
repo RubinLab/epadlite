@@ -139,7 +139,7 @@ async function routes(fastify) {
     handler: fastify.getProjects,
   });
 
-  //cavit
+  //  cavit
   fastify.route({
     method: 'GET',
     url: '/projectswithpkasid',
@@ -164,7 +164,7 @@ async function routes(fastify) {
   //   },
   //   handler: fastify.getProjectsWithPlugins,
   // });
-  //cavit
+  //  cavit
 
   fastify.route({
     method: 'GET',

@@ -5,7 +5,7 @@
 // if processmultipleaims === 1 then multiple annotation will be sent to the plugin and there will be only one plugin process
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'plugin',
+    'plugin_docker',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -115,7 +115,7 @@ module.exports = function(sequelize, DataTypes) {
       },
     },
     {
-      tableName: 'plugin',
+      tableName: 'plugin_docker',
     }
   );
 };

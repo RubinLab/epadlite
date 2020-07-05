@@ -1379,7 +1379,7 @@ async function other(fastify) {
     // we have a successful request, lets get the hostname
     // getting the first one, is it better to get the last all the time?
     // TODO fails in cavit, why?
-    // if (!fastify.hasDecorator('hostname')) fastify.decorate('hostname', request.req.hostname);
+    if (!fastify.hasDecorator('hostname')) fastify.decorate('hostname', request.req.hostname);
 
     done(null, payload);
   });
