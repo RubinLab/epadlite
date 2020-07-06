@@ -10,8 +10,7 @@ const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
 const plist = require('plist');
-const { createOfflineAimSegmentation } = require('aimapi');
-const Aim = require('aimapi');
+const { createOfflineAimSegmentation, Aim } = require('aimapi');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -570,7 +569,12 @@ async function other(fastify) {
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
               const osirixObj = fastify.parseOsirix(`${dir}/${filename}`);
-              // gro
+              console.log('osirixObj');
+              console.log(osirixObj);
+              console.log(' ------>osirixObj.Images[1]');
+              console.log(osirixObj.Images[0]);
+              console.log(' ------> ROIs[0]');
+              console.log(osirixObj.Images[0].ROIs[0]);
               const { metadata, aimNames } = await fastify.getImageMetaDataforOsirix(osirixObj);
               const answers = fastify.getTemplateAnswers(Object.values(metadata), aimNames, '');
               const { username } = epadAuth;
@@ -581,20 +585,14 @@ async function other(fastify) {
               });
               // const imageRefrenceUID = osirixObj.SOPInstanceUID;
               // iterate over the aim osirix obj and and separate them based on the annotation name
-              // const aim = new Aim(
-              //   metadata,
-              //   fastify.enumAimType.imageAnnotation,
-              //   '2.25.212338900934301642512835658465618367778'
-              // );
+              // TODO generate random aimID
+              const aim = new Aim(metadata[0], fastify.enumAimType.imageAnnotation);
+              // create markup array
 
-              console.log('---> aim');
-              console.log(Aim);
-              console.log('---> ROIs');
-              console.log(osirixObj.Images[0].ROIs);
-              console.log(osirixObj.Images[1].ROIs);
-              const points = fastify.createPointsArrForOsirix(osirixObj.Images[1].ROIs[0].Point_px);
-              console.log('---> pointss');
-              console.log(points);
+              const markupsToSave = fastify.formMarupksToSave(osirixObj.Images[0].ROIs[0]);
+              fastify.createAimMarkups(aim, markupsToSave);
+              const aimJson = aim.getAim();
+              console.log(aimJson);
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
@@ -641,27 +639,60 @@ async function other(fastify) {
     studyAnnotation: 3,
   });
 
-  fastify.decorate('createAimMarkups', (aim, type, markup, shapeIndex, imageReferenceUid) => {
-    // eslint-disable-next-line default-case
-    switch (type) {
-      // case 'point':
-      //   this.addPointToAim(aim, markup, shapeIndex, imageReferenceUid);
-      //   break;
-      // case 'line':
-      //   this.addLineToAim(aim, markup, shapeIndex, imageReferenceUid);
-      //   break;
-      // case 'circle':
-      //   this.addCircleToAim(aim, markup, shapeIndex, imageReferenceUid);
-      //   break;
-      case 'polygon':
-        this.addPolygonToAim(aim, markup, shapeIndex, imageReferenceUid);
-        break;
-      // case 'bidirectional':
-      //   this.addBidirectionalToAim(aim, markup, shapeIndex, imageReferenceUid);
-      //   break;
-    }
+  fastify.decorate('formMarupksToSave', roi => {
+    // eslint-disable-next-line camelcase
+    const { SOPInstanceUID, Type, IndexInImage, Max, Mean, Min, Dev, Point_px, LengthCm } = roi;
+    const points = fastify.createPointsArrForOsirix(Point_px);
+    return {
+      imageReferenceUid: SOPInstanceUID,
+      markup: {
+        max: Max,
+        mean: Mean,
+        min: Min,
+        stdDev: Dev,
+        points,
+        LengthCm,
+      },
+      shapeIndex: IndexInImage,
+      type: Type,
+    };
   });
 
+  fastify.decorate('createAimMarkups', (aim, markupsToSave) => {
+    // eslint-disable-next-line no-unused-vars
+    console.log('createAimMarkups => markupsToSave =>');
+    console.log(markupsToSave);
+    markupsToSave.forEach(value => {
+      const { type, markup, shapeIndex, imageReferenceUid } = value;
+      // eslint-disable-next-line default-case
+      switch (type) {
+        case 19:
+          fastify.addPointToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        case 5:
+        case 14:
+          this.addLineToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        // case 'circle':
+        //   this.addCircleToAim(aim, markup, shapeIndex, imageReferenceUid);
+        //   break;
+        case 15:
+        case 10:
+        case 9:
+        case 28:
+        case 20:
+        case 11:
+        case 6:
+          console.log('passed the case 15');
+          fastify.addPolygonToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        // case 'bidirectional':
+        //   this.addBidirectionalToAim(aim, markup, shapeIndex, imageReferenceUid);
+      }
+    });
+  });
+
+  // eslint-disable-next-line consistent-return
   fastify.decorate('getTemplateAnswers', (arr, namesArr, tempModality) => {
     try {
       const result = [];
@@ -689,7 +720,8 @@ async function other(fastify) {
   });
 
   fastify.decorate('addPolygonToAim', (aim, polygon, shapeIndex, imageReferenceUid) => {
-    const { points } = polygon.handles;
+    const { points } = polygon;
+    // eslint-disable-next-line no-unused-vars
     const markupId = aim.addMarkupEntity(
       'TwoDimensionPolyline',
       shapeIndex,
@@ -697,32 +729,47 @@ async function other(fastify) {
       imageReferenceUid
     );
     // find out the unit about statistics to write to aim
-    // let unit, mean, stdDev, min, max;
-    // if (polygon.meanStdDev) {
-    //   ({ mean, stdDev, min, max } = polygon.meanStdDev);
-    //   unit = 'hu';
-    // } else if (polygon.meanStdDevSUV) {
-    //   ({ mean, stdDev, min, max } = polygon.meanStdDev);
-    //   unit = 'suv';
-    // }
+    let unit;
+    let mean;
+    let stdDev;
+    let min;
+    let max;
 
-    // const meanId = aim.createMeanCalcEntity({ mean, unit });
-    // aim.createImageAnnotationStatement(1, markupId, meanId);
+    // TODO: instantiate unit
+    // TODO: checkout modality
 
-    // const stdDevId = aim.createStdDevCalcEntity({ stdDev, unit });
-    // aim.createImageAnnotationStatement(1, markupId, stdDevId);
+    const meanId = aim.createMeanCalcEntity({ mean, unit });
+    aim.createImageAnnotationStatement(1, markupId, meanId);
 
-    // const minId = aim.createMinCalcEntity({ min, unit });
-    // aim.createImageAnnotationStatement(1, markupId, minId);
+    const stdDevId = aim.createStdDevCalcEntity({ stdDev, unit });
+    aim.createImageAnnotationStatement(1, markupId, stdDevId);
 
-    // const maxId = aim.createMaxCalcEntity({ max, unit });
-    // aim.createImageAnnotationStatement(1, markupId, maxId);
+    const minId = aim.createMinCalcEntity({ min, unit });
+    aim.createImageAnnotationStatement(1, markupId, minId);
+
+    const maxId = aim.createMaxCalcEntity({ max, unit });
+    aim.createImageAnnotationStatement(1, markupId, maxId);
   });
 
-  // getMArkupValuesOsirixROI () {unit, mean, stdDev, min, max, points. modality}
+  fastify.decorate('addPointToAim', (aim, point, shapeIndex, imageReferenceUid) => {
+    const { points } = point;
+    aim.addMarkupEntity('TwoDimensionPoint', shapeIndex, points, imageReferenceUid);
+  });
 
-  fastify.decorate('getMarkupValuesOsirixROI', ROI => {
-    // unit, mean, stdDev, min, max, points, modality
+  fastify.decorate('addLineToAim', (aim, line, shapeIndex, imageReferenceUid) => {
+    const { points, LengthCm } = line;
+    const markupId = aim.addMarkupEntity(
+      'TwoDimensionMultiPoint',
+      shapeIndex,
+      points,
+      imageReferenceUid
+    );
+    const lengthMm = LengthCm * 10;
+    const lengthId = aim.createLengthCalcEntity({
+      value: lengthMm,
+      unit: 'mm',
+    });
+    aim.createImageAnnotationStatement(1, markupId, lengthId);
   });
 
   fastify.decorate('createPointsArrForOsirix', osirixCoordinates => {
@@ -764,9 +811,6 @@ async function other(fastify) {
       return err;
     }
   });
-
-  // gets data fields from dicom for an image
-  fastify.decorate('getFieldsFromImageMetaData', () => {});
 
   fastify.decorate(
     'saveOtherFileToProjectInternal',
