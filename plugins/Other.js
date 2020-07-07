@@ -248,7 +248,15 @@ async function other(fastify) {
           fastify.log.info(
             `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
           );
-          await fastify.saveDicomsInternal(data, boundary);
+          try {
+            await fastify.saveDicomsInternal(data, boundary);
+          } catch (err) {
+            // if socket hang up wait a sec and try once more
+            if (err.message.includes('socket hang up')) {
+              fastify.log.warn('DICOMweb hang up the socker trying again');
+              setTimeout(await fastify.saveDicomsInternal(data, boundary), 1000);
+            }
+          }
           resolve();
         } catch (err) {
           reject(err);
