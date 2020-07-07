@@ -720,10 +720,11 @@ async function other(fastify) {
           const timestamp = new Date().getTime();
           // create fileInfo
           const fileInfo = {
-            subject_uid: params.subject ? params.subject : '',
-            study_uid: params.study ? params.study : '',
-            series_uid: params.series ? params.series : '',
-            name: `${filename}_${timestamp}`,
+            project_uid: params.project ? params.project : 'NA',
+            subject_uid: params.subject ? params.subject : 'NA',
+            study_uid: params.study ? params.study : 'NA',
+            series_uid: params.series ? params.series : 'NA',
+            name: `${filename}__ePad__${timestamp}`,
             filepath: 'couchdb',
             filetype: query.filetype ? query.filetype : '',
             length,
