@@ -657,7 +657,8 @@ async function other(fastify) {
                 .processZip(dir, filename, params, query, epadAuth)
                 .then(result => resolve(result))
                 .catch(err => reject(err));
-            } else if (fastify.checkFileType(filename))
+            } else if (fastify.checkFileType(filename) && filename !== '.DS_Store')
+              // check .DS_Store just in case
               fastify
                 .saveOtherFileToProjectInternal(
                   filename,
