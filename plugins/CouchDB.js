@@ -730,7 +730,9 @@ async function couchdb(fastify, options) {
               const updateWorklistPromises = [];
               const { project, subject, study } = params;
               const aimUsersArr = Object.keys(aimUsers);
-              if (project) {
+              // TODO this is system delete only, which means subject/study is deleted from system
+              // do we need to update completeness at all?
+              if (project && study) {
                 fastify
                   .findProjectIdInternal(project)
                   .then(res => {

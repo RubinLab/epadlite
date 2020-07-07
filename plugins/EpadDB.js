@@ -7284,8 +7284,9 @@ async function epaddb(fastify, options, done) {
     () =>
       new Promise(async (resolve, reject) => {
         try {
+          // get the folder of the zip last, to make sure the folder containing the zip finished processing
           const remaining = await models.upload_processing.findAll({
-            order: [['zip_source', 'DESC']],
+            order: [['zip_source', 'ASC']],
             raw: true,
           });
           const resumeTimestamp = new Date().getTime();
@@ -7295,8 +7296,24 @@ async function epaddb(fastify, options, done) {
             const tmpFolders = [];
             const zipFiles = [];
             // populate zip files to ignore
+            const reqs = [];
+            const users = [];
             for (let i = 0; i < remaining.length; i += 1) {
               if (remaining[i].zip_source !== '') zipFiles.push(remaining[i].zip_source);
+              if (!users.includes(remaining[i].creator)) {
+                const fakeReq = {
+                  epadAuth: { username: remaining[i].creator },
+                  params: JSON.parse(remaining[i].params),
+                };
+                reqs.push(fakeReq);
+                users.push(remaining[i].creator);
+                new EpadNotification(
+                  fakeReq,
+                  'Resuming unfinished upload/scan folder processing',
+                  `Project ${fakeReq.params.project}`,
+                  false
+                ).notify(fastify);
+              }
             }
             for (let i = 0; i < remaining.length; i += 1) {
               // TODO sending just username, it has no project role, can it fail?
@@ -7328,6 +7345,14 @@ async function epaddb(fastify, options, done) {
                 fastify.log.info(`${tmpFolders[i]} deleted`);
               });
             await fastify.pollDWStudies();
+            for (let i = 0; i < reqs.length; i += 1) {
+              new EpadNotification(
+                reqs[i],
+                'Finished upload/scan folder processing',
+                `Project ${reqs[i].params.project}`,
+                true
+              ).notify(fastify);
+            }
             fastify.log.info(
               `Finished resuming Processing at ${new Date().getTime()} started at ${resumeTimestamp}`
             );
