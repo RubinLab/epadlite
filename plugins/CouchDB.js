@@ -1179,7 +1179,8 @@ async function couchdb(fastify, options) {
           db.fetch({ keys: ids }).then(data => {
             data.rows.forEach(item => {
               if (
-                'doc' in item &&
+                item &&
+                item.doc &&
                 item.doc.fileInfo &&
                 (filter.subject === undefined ||
                   item.doc.fileInfo.subject_uid === filter.subject) &&
@@ -1198,7 +1199,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'getFilesFromUIDsInternal',
-    (query, ids, filter) =>
+    (query, ids, filter, subDir) =>
       new Promise(async (resolve, reject) => {
         try {
           let format = 'json';
@@ -1216,7 +1217,7 @@ async function couchdb(fastify, options) {
             });
           } else if (format === 'stream') {
             fastify
-              .downloadFiles(filteredIds)
+              .downloadFiles(filteredIds, subDir)
               .then(result => resolve(result))
               .catch(err => reject(err));
           }
@@ -1227,41 +1228,31 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate('getFilter', params => {
-    // make sure there is value in all three
-    // only the last ove should have \u9999 at the end
-    const myParams = params;
+    const startKey = [];
+    const endKey = [];
     let isFiltered = false;
-    if (!params.series) {
-      myParams.series = '';
-      myParams.seriesEnd = '{}';
-      if (!params.study) {
-        myParams.study = '';
-        myParams.studyEnd = '{}';
-        if (!params.subject) {
-          myParams.subject = '';
-          myParams.subjectEnd = '{}';
-        } else {
-          myParams.subject = params.subject;
-          myParams.subjectEnd = `${params.subject}\u9999`;
-          isFiltered = true;
+    if (params.subject) {
+      startKey.push(params.subject);
+      endKey.push(params.subject);
+      if (params.study) {
+        startKey.push(params.study);
+        endKey.push(params.study);
+        if (params.series) {
+          startKey.push(params.series);
+          endKey.push(params.series);
         }
-      } else {
-        myParams.studyEnd = `${params.study}\u9999`;
-        myParams.subjectEnd = params.subject;
-        isFiltered = true;
       }
-    } else {
-      myParams.seriesEnd = `${params.series}\u9999`;
-      myParams.studyEnd = params.study;
-      myParams.subjectEnd = params.subject;
       isFiltered = true;
     }
+
+    for (let i = endKey.length; i < 5; i += 1) endKey.push({});
     if (isFiltered) {
       return {
-        startkey: [myParams.subject, myParams.study, myParams.series, ''],
-        endkey: [myParams.subjectEnd, myParams.studyEnd, myParams.seriesEnd, '{}'],
+        startkey: startKey,
+        endkey: endKey,
       };
     }
+
     return {};
   });
 
@@ -1350,11 +1341,11 @@ async function couchdb(fastify, options) {
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
 
-          fs.mkdirSync(`${dir}/files`);
+          if (!fs.existsSync(`${dir}/files`)) fs.mkdirSync(`${dir}/files`);
 
           const db = fastify.couch.db.use(config.db);
           for (let i = 0; i < ids.length; i += 1) {
-            const filename = ids[i].split('_')[0];
+            const filename = ids[i].split('__ePad__')[0];
             db.attachment
               .getAsStream(ids[i], filename)
               .pipe(fs.createWriteStream(`${dir}/files/${filename}`));

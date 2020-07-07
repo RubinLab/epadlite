@@ -2357,6 +2357,43 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate(
+    'getFileUidsForProject',
+    params =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const project = await models.project.findOne(
+            params.project
+              ? {
+                  where: { projectid: params.project },
+                }
+              : {}
+          );
+          if (project === null)
+            reject(
+              new BadRequestError(
+                'Getting files from project',
+                new ResourceNotFoundError('Project', params.project)
+              )
+            );
+          else {
+            const fileUids = [];
+            const projectFiles = await models.project_file.findAll({
+              where: { project_id: project.id },
+            });
+            // projects will be an array of Project instances with the specified name
+            for (let i = 0; i < projectFiles.length; i += 1) {
+              fileUids.push(projectFiles[i].file_uid);
+            }
+
+            resolve(fileUids);
+          }
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
       let result = await fastify.filterProjectAims(request.params, request.query, request.epadAuth);
@@ -4524,7 +4561,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'prepSeriesDownloadDir',
-    (dataDir, params, query, epadAuth, retrieveSegs) =>
+    (dataDir, params, query, epadAuth, retrieveSegs, fileUids) =>
       new Promise(async (resolve, reject) => {
         try {
           // have a boolean just to avoid filesystem check for empty annotations directory
@@ -4586,6 +4623,13 @@ async function epaddb(fastify, options, done) {
               }
               await fastify.pq.addAll(segWritePromises);
             }
+            const files = await fastify.getFilesFromUIDsInternal(
+              { format: 'stream' },
+              fileUids,
+              params,
+              dataDir
+            );
+            isThereDataToWrite = isThereDataToWrite || files;
           }
           resolve(isThereDataToWrite);
         } catch (err) {
@@ -4596,7 +4640,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'prepStudyDownloadDir',
-    (dataDir, params, query, epadAuth) =>
+    (dataDir, params, query, epadAuth, fileUids) =>
       new Promise(async (resolve, reject) => {
         try {
           let isThereDataToWrite = false;
@@ -4617,10 +4661,18 @@ async function epaddb(fastify, options, done) {
               { ...params, series: studySeries[i].seriesUID },
               query,
               epadAuth,
-              false
+              false,
+              fileUids
             );
             isThereDataToWrite = isThereDataToWrite || isThereData;
           }
+          const files = await fastify.getFilesFromUIDsInternal(
+            { format: 'stream' },
+            fileUids,
+            { ...params, series: 'NA' },
+            dataDir
+          );
+          isThereDataToWrite = isThereDataToWrite || files;
           resolve(isThereDataToWrite);
         } catch (err) {
           reject(err);
@@ -4645,6 +4697,7 @@ async function epaddb(fastify, options, done) {
     async (reqOrigin, params, query, epadAuth, output, whereJSON, studyInfos, seriesInfos) =>
       new Promise(async (resolve, reject) => {
         try {
+          const fileUids = await fastify.getFileUidsForProject({ project: params.project });
           // if it has res, it is fastify reply
           const isResponseJustStream = !output.res;
           const res = isResponseJustStream ? output : output.res;
@@ -4678,7 +4731,8 @@ async function epaddb(fastify, options, done) {
                 params,
                 query,
                 epadAuth,
-                true
+                true,
+                fileUids
               );
               if (!isThereData) fs.rmdirSync(dataDir);
               isThereDataToWrite = isThereDataToWrite || isThereData;
@@ -4688,7 +4742,8 @@ async function epaddb(fastify, options, done) {
                 dataDir,
                 params,
                 query,
-                epadAuth
+                epadAuth,
+                fileUids
               );
               if (!isThereData) fs.rmdirSync(dataDir);
               isThereDataToWrite = isThereDataToWrite || isThereData;
@@ -4701,6 +4756,23 @@ async function epaddb(fastify, options, done) {
                 if (subjectUid) {
                   if (!fs.existsSync(`${dataDir}/Patient-${subjectUid}`))
                     fs.mkdirSync(`${dataDir}/Patient-${subjectUid}`);
+                  // if there is wherejson, it can be project or subject(s) download
+                  // if it is project download, one subject or multiple subjects I need to get files for that subjects
+                  if (
+                    params.subject ||
+                    (whereJSON &&
+                      (!whereJSON.subject_id || (whereJSON.subject_id && whereJSON.subject_id.$in)))
+                  ) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const files = await fastify.getFilesFromUIDsInternal(
+                      { format: 'stream' },
+                      fileUids,
+                      { subject: subjectUid, study: 'NA', series: 'NA' },
+                      `${dataDir}/Patient-${subjectUid}`
+                    );
+
+                    isThereDataToWrite = isThereDataToWrite || files;
+                  }
                   studySubDir = `Patient-${subjectUid}/Study-${studyUid}`;
                 }
                 const studyDir = `${dataDir}/${studySubDir}`;
@@ -4725,7 +4797,13 @@ async function epaddb(fastify, options, done) {
                       .pipe(res);
                     headWritten = true;
                   }
-                  archive.directory(`${studyDir}`, studySubDir);
+                  if (
+                    params.subject ||
+                    (whereJSON &&
+                      (!whereJSON.subject_id || (whereJSON.subject_id && whereJSON.subject_id.$in)))
+                  )
+                    archive.directory(`${dataDir}/Patient-${subjectUid}`, `Patient-${subjectUid}`);
+                  else archive.directory(`${studyDir}`, studySubDir);
                 }
                 isThereDataToWrite = isThereDataToWrite || isThereData;
               }
@@ -4750,8 +4828,18 @@ async function epaddb(fastify, options, done) {
               }
             }
             // check files
-            const files = await fastify.getFilesInternal({ format: 'stream' }, params, dataDir);
-            isThereDataToWrite = isThereDataToWrite || files;
+            // if it is study or series level it is already handled
+            // only project files
+            if (!params.study && !params.series && whereJSON && !whereJSON.subject_id) {
+              const files = await fastify.getFilesFromUIDsInternal(
+                { format: 'stream' },
+                fileUids,
+                { subject: 'NA', study: 'NA', series: 'NA' },
+                dataDir
+              );
+              isThereDataToWrite = isThereDataToWrite || files;
+              archive.directory(`${dataDir}/files`, 'files');
+            }
 
             if (isThereDataToWrite) {
               if (!headWritten) {
@@ -4873,16 +4961,17 @@ async function epaddb(fastify, options, done) {
       else if (subject === null)
         reply.send(new ResourceNotFoundError('Subject', request.params.subject));
       else if (request.query.format === 'stream') {
+        let whereJSON = {
+          subject_id: subject.id,
+        };
+        if (!config.XNATUploadProjectID) whereJSON = { ...whereJSON, project_id: project.id };
         await fastify.prepDownload(
           request.headers.origin,
           request.params,
           request.query,
           request.epadAuth,
           reply,
-          {
-            project_id: project.id,
-            subject_id: subject.id,
-          }
+          whereJSON
         );
       } else {
         const subjectUids = [request.params.subject];
@@ -4933,16 +5022,18 @@ async function epaddb(fastify, options, done) {
           );
         }
         const subjectIds = await Promise.all(subjectPromises);
+        let whereJSON = {
+          subject_id: { $in: subjectIds },
+        };
+        if (!config.XNATUploadProjectID) whereJSON = { ...whereJSON, project_id: project.id };
+
         await fastify.prepDownload(
           request.headers.origin,
           request.params,
           request.query,
           request.epadAuth,
           reply,
-          {
-            project_id: project.id,
-            subject_id: { $in: subjectIds },
-          }
+          whereJSON
         );
       }
     } catch (err) {

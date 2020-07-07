@@ -155,6 +155,22 @@ async function routes(fastify) {
     },
     handler: fastify.getProject,
   });
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/download',
+    schema: {
+      tags: ['project'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getProject,
+  });
 
   fastify.route({
     method: 'GET',
