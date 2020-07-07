@@ -3598,12 +3598,14 @@ async function epaddb(fastify, options, done) {
                 if (studyUids.length !== result.length)
                   if (studyUids.length === result.length + nondicoms.length) {
                     for (let i = 0; i < nondicoms.length; i += 1) {
+                      const dbDate = new Date(nondicoms[i].study.dataValues.studydate);
+
                       result.push({
                         projectID: params.project,
                         patientID: nondicoms[i].subject.dataValues.subjectuid,
                         patientName: nondicoms[i].subject.dataValues.name,
                         studyUID: nondicoms[i].study.dataValues.studyuid,
-                        insertDate: '',
+                        insertDate: fastify.getFormattedDate(dbDate),
                         firstSeriesUID: '',
                         firstSeriesDateAcquired: '',
                         physicianName: '',
