@@ -573,26 +573,33 @@ async function other(fastify) {
               console.log(osirixObj);
               console.log(' ------>osirixObj.Images[1]');
               console.log(osirixObj.Images[0]);
-              console.log(' ------> ROIs[0]');
-              console.log(osirixObj.Images[0].ROIs[0]);
-              const { metadata, aimNames } = await fastify.getImageMetaDataforOsirix(osirixObj);
-              const answers = fastify.getTemplateAnswers(Object.values(metadata), aimNames, '');
+              // get filtered ROI object
+              const filteredOsirixObjects = fastify.filterOsirixAnnotations(osirixObj.Images);
+              const keys = Object.keys(filteredOsirixObjects);
+              const values = Object.values(filteredOsirixObjects);
               const { username } = epadAuth;
-              metadata.forEach((el, i) => {
-                const merged = { ...el.aim, ...answers[i] };
-                metadata[i].aim = merged;
-                metadata[i].user = { loginName: username, name: username };
+              const promiseArr = [];
+              values.forEach(annotation => {
+                promiseArr.push(fastify.getImageMetaDataforOsirix(annotation, username));
               });
+
+              const seedDataArr = await Promise.all(promiseArr);
+              seedDataArr.forEach((seedData, i) => {
+                filteredOsirixObjects[keys[i]] = { ...values[i], seedData };
+              });
+
+              console.log(" ----> filteredOsirixObjects")
+              console.log(filteredOsirixObjects);
+
               // const imageRefrenceUID = osirixObj.SOPInstanceUID;
               // iterate over the aim osirix obj and and separate them based on the annotation name
-              // TODO generate random aimID
-              const aim = new Aim(metadata[0], fastify.enumAimType.imageAnnotation);
-              // create markup array
+              // const aim = new Aim(metadata[0], fastify.enumAimType.imageAnnotation);
+              // // create markup array
 
-              const markupsToSave = fastify.formMarupksToSave(osirixObj.Images[0].ROIs[0]);
-              fastify.createAimMarkups(aim, markupsToSave);
-              const aimJson = aim.getAim();
-              console.log(aimJson);
+              // const markupsToSave = fastify.formMarupksToSave(osirixObj.Images[0].ROIs[0]);
+              // fastify.createAimMarkups(aim, markupsToSave);
+              // const aimJson = aim.getAim();
+              // console.log(aimJson);
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
@@ -641,8 +648,8 @@ async function other(fastify) {
 
   fastify.decorate('formMarupksToSave', roi => {
     // eslint-disable-next-line camelcase
-    const { SOPInstanceUID, Type, IndexInImage, Max, Mean, Min, Dev, Point_px, LengthCm } = roi;
-    const points = fastify.createPointsArrForOsirix(Point_px);
+    const { SOPInstanceUID, Type, IndexInImage, Max, Mean, Min, Dev, LengthCm, AreaCm2 } = roi;
+    const points = fastify.createPointsArrForOsirix(roi.Point_px);
     return {
       imageReferenceUid: SOPInstanceUID,
       markup: {
@@ -652,6 +659,7 @@ async function other(fastify) {
         stdDev: Dev,
         points,
         LengthCm,
+        AreaCm2,
       },
       shapeIndex: IndexInImage,
       type: Type,
@@ -690,33 +698,6 @@ async function other(fastify) {
         //   this.addBidirectionalToAim(aim, markup, shapeIndex, imageReferenceUid);
       }
     });
-  });
-
-  // eslint-disable-next-line consistent-return
-  fastify.decorate('getTemplateAnswers', (arr, namesArr, tempModality) => {
-    try {
-      const result = [];
-      arr.forEach((el, i) => {
-        const { number, description, instanceNumber } = el.series;
-        const seriesModality = el.series.modality;
-        const comment = {
-          value: `${seriesModality} / ${description} / ${instanceNumber} / ${number}`,
-        };
-        const modality = { value: tempModality };
-        const name = { value: namesArr[i] };
-        const typeCode = [
-          {
-            code: 'ROI',
-            codeSystemName: '99EPAD',
-            'iso:displayName': { 'xmlns:iso': 'uri:iso.org:21090', value: 'ROI Only' },
-          },
-        ];
-        result.push({ comment, modality, name, typeCode });
-      });
-      return result;
-    } catch (err) {
-      console.log(err);
-    }
   });
 
   fastify.decorate('addPolygonToAim', (aim, polygon, shapeIndex, imageReferenceUid) => {
@@ -788,28 +769,66 @@ async function other(fastify) {
     return osirixObj;
   });
 
-  fastify.decorate('getImageMetaDataforOsirix', async osirixObj => {
+  // call getImageMetaDataforOsirix for obj
+  fastify.decorate('getImageMetaDataforOsirix', async (annotation, username) => {
     try {
-      const metadataArr = [];
-      const aimNames = [];
-      const images = osirixObj.Images;
-      // handle no SOPInstanceUID means no image in the system
-      images.forEach(obj => {
-        obj.ROIs.forEach(annotation => {
-          const parameters = {
-            instance: annotation.SOPInstanceUID,
-            series: annotation.SeriesInstanceUID,
-            study: annotation.StudyInstanceUID,
-          };
-          metadataArr.push(fastify.getImageMetadata(parameters));
-          aimNames.push(annotation.Name);
-        });
-      });
-      const metadata = await Promise.all(metadataArr);
-      return { metadata, aimNames };
+      const { SOPInstanceUID, SeriesInstanceUID, StudyInstanceUID } = annotation.rois[0];
+      const parameters = {
+        instance: SOPInstanceUID,
+        series: SeriesInstanceUID,
+        study: StudyInstanceUID,
+      };
+      const seedData = await fastify.getImageMetadata(parameters);
+      const answers = fastify.getTemplateAnswers(seedData, annotation.name, '');
+      const merged = { ...seedData.aim, ...answers };
+      seedData.aim = merged;
+      seedData.user = { loginName: username, name: username };
+      return seedData;
     } catch (err) {
       return err;
     }
+  });
+
+  // eslint-disable-next-line consistent-return
+  fastify.decorate('getTemplateAnswers', (metadata, annotationName, tempModality) => {
+    try {
+      const { number, description, instanceNumber } = metadata.series;
+      const seriesModality = metadata.series.modality;
+      const comment = {
+        value: `${seriesModality} / ${description} / ${instanceNumber} / ${number}`,
+      };
+      // TODO: handle modality and suv hu
+      const modality = { value: tempModality };
+      const name = { value: annotationName };
+      const typeCode = [
+        {
+          code: 'ROI',
+          codeSystemName: '99EPAD',
+          'iso:displayName': { 'xmlns:iso': 'uri:iso.org:21090', value: 'ROI Only' },
+        },
+      ];
+
+      return { comment, modality, name, typeCode };
+    } catch (err) {
+      console.log(err);
+    }
+  });
+
+  fastify.decorate('filterOsirixAnnotations', imagesArr => {
+    const result = {};
+    imagesArr.forEach(img => {
+      img.ROIs.reduce((all, item) => {
+        const key = `${item.Name}${item.SeriesInstanceUID}`;
+        if (all[key]) {
+          all[key].rois.push(item);
+        } else {
+          // eslint-disable-next-line no-param-reassign
+          all[key] = { name: item.Name, rois: [item] };
+        }
+        return all;
+      }, result);
+    });
+    return result;
   });
 
   fastify.decorate(
