@@ -829,9 +829,7 @@ async function dicomwebserver(fastify) {
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
                     numberOfFrames:
-                      value['00280008'] && value['00280008'].Value
-                        ? value['00280008'].Value[0]
-                        : '',
+                      value['00280008'] && value['00280008'].Value ? value['00280008'].Value[0] : 1,
                     isDSO:
                       value['00080060'] && value['00080060'].Value
                         ? value['00080060'].Value[0] === 'SEG'
