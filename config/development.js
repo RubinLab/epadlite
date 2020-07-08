@@ -1,6 +1,5 @@
 module.exports = {
   env: 'development',
-  corsOrigin: true,
   dbServer: process.env.NOSQL_DB_HOST || 'http://localhost',
   db: process.env.NOSQL_DB_NAME || 'epadlite',
   dbPort: process.env.NOSQL_DB_PORT || 5984,

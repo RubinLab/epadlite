@@ -2,7 +2,7 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'plugin_projectparameters',
+    'plugin',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -11,43 +11,32 @@ module.exports = function(sequelize, DataTypes) {
         autoIncrement: true,
       },
       plugin_id: {
-        type: DataTypes.INTEGER(10).UNSIGNED,
+        type: DataTypes.STRING(64),
         allowNull: true,
-        references: {
-          model: 'plugin_docker',
-          key: 'id',
-        },
-      },
-      project_id: {
-        type: DataTypes.INTEGER(10).UNSIGNED,
-        allowNull: true,
-        references: {
-          model: 'project',
-          key: 'id',
-        },
-      },
-      paramid: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
+        unique: true,
       },
       name: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
-      format: {
+      description: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
-      prefix: {
-        type: DataTypes.STRING(128),
+      javaclass: {
+        type: DataTypes.STRING(256),
         allowNull: true,
       },
-      inputBinding: {
-        type: DataTypes.STRING(128),
+      enabled: {
+        type: DataTypes.INTEGER(1),
         allowNull: true,
       },
-      default_value: {
-        type: DataTypes.STRING(128),
+      status: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+      },
+      modality: {
+        type: DataTypes.STRING(64),
         allowNull: true,
       },
       creator: {
@@ -68,17 +57,30 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(64),
         allowNull: true,
       },
-      type: {
-        type: DataTypes.STRING(20),
+      developer: {
+        type: DataTypes.STRING(128),
         allowNull: true,
       },
-      description: {
-        type: DataTypes.STRING(150),
+      documentation: {
+        type: DataTypes.STRING(2000),
         allowNull: true,
+      },
+      rateTotal: {
+        type: DataTypes.INTEGER(11),
+        allowNull: true,
+      },
+      rateCount: {
+        type: DataTypes.INTEGER(11),
+        allowNull: true,
+      },
+      processmultipleaims: {
+        type: DataTypes.INTEGER(1),
+        allowNull: true,
+        defaultValue: '0',
       },
     },
     {
-      tableName: 'plugin_projectparameters',
+      tableName: 'plugin',
     }
   );
 };
