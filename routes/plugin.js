@@ -16,24 +16,24 @@ async function routes(fastify) {
     },
     handler: fastify.getPluginsForProject,
   });
+  // not used for now
+  // fastify.route({
+  //   method: 'GET',
+  //   url: '/pluginsannotationstemplates', // /plugins/annotation/templates ok
+  //   schema: {
+  //     tags: ['plugins'],
+  //   },
+  //   handler: fastify.getAnnotationTemplates,
+  // });
 
-  fastify.route({
-    method: 'GET',
-    url: '/pluginsannotationstemplates', // /plugins/annotation/templates ok
-    schema: {
-      tags: ['plugins'],
-    },
-    handler: fastify.getAnnotationTemplates,
-  });
-
-  fastify.route({
-    method: 'GET',
-    url: '/pluginsannotationsprojects', // /plugins/annotation/projects ok
-    schema: {
-      tags: ['plugins'],
-    },
-    handler: fastify.getAnnotationProjects,
-  });
+  // fastify.route({
+  //   method: 'GET',
+  //   url: '/pluginsannotationsprojects', // /plugins/annotation/projects ok
+  //   schema: {
+  //     tags: ['plugins'],
+  //   },
+  //   handler: fastify.getUniqueProjectsIfAnnotationExist,
+  // });
 
   fastify.route({
     method: 'POST',

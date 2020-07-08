@@ -1065,110 +1065,112 @@ async function epaddb(fastify, options, done) {
           );
       });
   });
+  // not used for now
+  // fastify.decorate('getAnnotationTemplates', (request, reply) => {
+  //   const templateCodes = [];
+  //   const templates = [];
+  //   models.project_aim
+  //     .findAll({
+  //       attributes: ['template'],
+  //       distinct: ['template'],
+  //     })
+  //     .then(results => {
+  //       results.forEach(template => {
+  //         templateCodes.push(template.dataValues.template);
+  //       });
+  //       return models.template
+  //         .findAll({
+  //           where: { templateCode: templateCodes },
+  //         })
+  //         .then(result => {
+  //           result.forEach(template => {
+  //             const templateObj = {
+  //               id: template.dataValues.id,
+  //               templateName: template.dataValues.templateName,
+  //               templateCode: template.dataValues.templateCode,
+  //               modality: template.dataValues.modality,
+  //             };
 
-  fastify.decorate('getAnnotationTemplates', (request, reply) => {
-    const templateCodes = [];
-    const templates = [];
-    models.project_aim
-      .findAll({
-        attributes: ['template'],
-        distinct: ['template'],
-      })
-      .then(results => {
-        results.forEach(template => {
-          templateCodes.push(template.dataValues.template);
-        });
-        return models.template
-          .findAll({
-            where: { templateCode: templateCodes },
-          })
-          .then(result => {
-            result.forEach(template => {
-              const templateObj = {
-                id: template.dataValues.id,
-                templateName: template.dataValues.templateName,
-                templateCode: template.dataValues.templateCode,
-                modality: template.dataValues.modality,
-              };
+  //             templates.push(templateObj);
+  //           });
+  //           reply.code(200).send(templates);
+  //         })
+  //         .catch(err => {
+  //           reply
+  //             .code(500)
+  //             .send(
+  //               new InternalError(
+  //                 'Something went wrong while getting template list from Template table',
+  //                 err
+  //               )
+  //             );
+  //         });
+  //     })
+  //     .catch(err => {
+  //       reply
+  //         .code(500)
+  //         .send(
+  //           new InternalError(
+  //             'Something went wrong while getting template codes from annotations table',
+  //             err
+  //           )
+  //         );
+  //     });
+  // });
 
-              templates.push(templateObj);
-            });
-            reply.code(200).send(templates);
-          })
-          .catch(err => {
-            reply
-              .code(500)
-              .send(
-                new InternalError(
-                  'Something went wrong while getting template list from Template table',
-                  err
-                )
-              );
-          });
-      })
-      .catch(err => {
-        reply
-          .code(500)
-          .send(
-            new InternalError(
-              'Something went wrong while getting template codes from annotations table',
-              err
-            )
-          );
-      });
-  });
-  fastify.decorate('getAnnotationProjects', (request, reply) => {
-    const projectUids = [];
-    const projects = [];
-    models.project_aim
-      .findAll({
-        attributes: ['project_id'],
-        distinct: ['project_id'],
-      })
-      .then(results => {
-        results.forEach(project => {
-          projectUids.push(project.dataValues.project_id);
-        });
-        return models.project
-          .findAll({
-            where: { id: projectUids },
-          })
-          .then(result => {
-            result.forEach(project => {
-              const projectObj = {
-                id: project.dataValues.id,
-                name: project.dataValues.name,
-                projectid: project.dataValues.projectid,
-                type: project.dataValues.type,
-                creator: project.dataValues.creator,
-              };
+  // fastify.decorate('getUniqueProjectsIfAnnotationExist', (request, reply) => {
+  //   //  getting unique projects which have annotations under
+  //   const projectUids = [];
+  //   const projects = [];
+  //   models.project_aim
+  //     .findAll({
+  //       attributes: ['project_id'],
+  //       distinct: ['project_id'],
+  //     })
+  //     .then(results => {
+  //       results.forEach(project => {
+  //         projectUids.push(project.dataValues.project_id);
+  //       });
+  //       return models.project
+  //         .findAll({
+  //           where: { id: projectUids },
+  //         })
+  //         .then(result => {
+  //           result.forEach(project => {
+  //             const projectObj = {
+  //               id: project.dataValues.id,
+  //               name: project.dataValues.name,
+  //               projectid: project.dataValues.projectid,
+  //               type: project.dataValues.type,
+  //               creator: project.dataValues.creator,
+  //             };
 
-              projects.push(projectObj);
-            });
-            reply.code(200).send(projects);
-          })
-          .catch(err => {
-            reply
-              .code(500)
-              .send(
-                new InternalError(
-                  'Something went wrong while getting project list from Project table',
-                  err
-                )
-              );
-          });
-      })
-      .catch(err => {
-        reply
-          .code(500)
-          .send(
-            new InternalError(
-              'Something went wrong while getting project uids from annotations table',
-              err
-            )
-          );
-      });
-  });
+  //             projects.push(projectObj);
+  //           });
+  //           reply.code(200).send(projects);
+  //         })
+  //         .catch(err => {
+  //           reply
+  //             .code(500)
+  //             .send(
+  //               new InternalError(
+  //                 'Something went wrong while getting project list from Project table',
+  //                 err
+  //               )
+  //             );
+  //         });
+  //     })
+  //     .catch(err => {
+  //       reply
+  //         .code(500)
+  //         .send(
+  //           new InternalError(
+  //             'Something went wrong while getting project uids from annotations table',
+  //             err
+  //           )
+  //         );
+  //     });
+  // });
 
   fastify.decorate('saveDefaultParameter', (request, reply) => {
     const parameterform = request.body;
@@ -2285,7 +2287,7 @@ async function epaddb(fastify, options, done) {
       tempTime = Date.now();
       dateIbj.starttime = tempTime;
     }
-    if (status === 'ended') {
+    if (status === 'ended' || status === 'error') {
       tempTime = Date.now();
       dateIbj.endtime = tempTime;
     }
@@ -2307,7 +2309,7 @@ async function epaddb(fastify, options, done) {
           return data;
         })
         .catch(err => {
-          return new InternalError('error while getting plugin runtime paraeters', err);
+          return new InternalError('error while updating queue process status for waiting', err);
         });
     }
     if (status === 'running') {
@@ -2326,10 +2328,10 @@ async function epaddb(fastify, options, done) {
           return data;
         })
         .catch(err => {
-          return new InternalError('error while getting plugin runtime paraeters', err);
+          return new InternalError('error while updating queue process status for running', err);
         });
     }
-    if (status === 'ended') {
+    if (status === 'ended' || status === 'error') {
       models.plugin_queue
         .update(
           {
@@ -2346,7 +2348,10 @@ async function epaddb(fastify, options, done) {
           return data;
         })
         .catch(err => {
-          return new InternalError('error while getting plugin runtime paraeters', err);
+          return new InternalError(
+            'error while updating queue process status for ended or error',
+            err
+          );
         });
     }
   });

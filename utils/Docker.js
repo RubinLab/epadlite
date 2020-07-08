@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 //  const { Docker } = require('node-docker-api');
 //  const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 //  const { Docker } = require('dockerode');
@@ -7,7 +8,6 @@ class DockerService {
     // eslint-disable-next-line global-require
     const Docker = require('dockerode');
     this.counter = 0;
-    //  this.tar = require('tar-fs');
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
   }
 
@@ -49,16 +49,16 @@ class DockerService {
   }
 
   // eslint-disable-next-line no-unused-vars
-  createVolume(_name) {
-    this.docker
-      .createVolume({ Name: 'testvolume' })
-      .then(() => {
-        //  console.log('volume created');
-      })
-      .catch(() => {
-        //  console.log('error happened while creating volume');
-      });
-  }
+  // createVolume(_name) {
+  //   this.docker
+  //     .createVolume({ Name: 'testvolume' })
+  //     .then(() => {
+  //       //  console.log('volume created');
+  //     })
+  //     .catch(() => {
+  //       //  console.log('error happened while creating volume');
+  //     });
+  // }
 
   stopContainer(containerId) {
     return new Promise((resolve, reject) => {
@@ -66,10 +66,11 @@ class DockerService {
         console.log('docker is working on stopping container', containerId);
         // eslint-disable-next-line func-names
         this.docker.getContainer(containerId).stop(() => {
-          console.log('stopped returning : ');
+          console.log('container stopped  : ', containerId);
           resolve('stopped');
         });
       } catch (err) {
+        console.log('error happened while stopping container  : ', containerId);
         reject(err);
       }
     });
@@ -79,7 +80,7 @@ class DockerService {
     let tmpContainer;
     const paramsDocker = [...params.paramsDocker];
     const dockerFoldersToBind = [...params.dockerFoldersToBind];
-    console.log('params from docker container side', paramsDocker);
+    console.log('params list used in container : ', paramsDocker);
     return (
       this.docker
         .createContainer({
@@ -104,7 +105,7 @@ class DockerService {
         })
         // eslint-disable-next-line func-names
         .then(function() {
-          console.log('waitin for plugin container to finish processing');
+          console.log('waiting for plugin to finish processing for container :', tmpContainer);
           // eslint-disable-next-line func-names
           tmpContainer.attach({ stream: true, stdout: true, stderr: true }, function(err, stream) {
             stream.pipe(process.stdout);
@@ -114,12 +115,12 @@ class DockerService {
         })
         // eslint-disable-next-line func-names
         .then(function() {
-          console.log('plugin container is done processing. Removing the container');
+          console.log('plugin container is done processing. Removing the container', tmpContainer);
           return tmpContainer.remove();
         })
         // eslint-disable-next-line func-names
         .catch(function(err) {
-          console.log('start container error : ', err);
+          console.log('error while creating container : ', err);
           return err;
         })
     );
@@ -144,7 +145,7 @@ class DockerService {
         return contianerList;
       })
       .catch(error => {
-        return new Error(error);
+        return new Error('Something went wrong while getting docker container list', error);
       });
   }
 
@@ -154,24 +155,18 @@ class DockerService {
       .listImages({ all: true })
       .then(images => {
         images.forEach(image => {
-          //  console.log('each image', image);
           const imageObject = {
             id: image.Id,
             RepoTags: image.RepoTags,
           };
-          // const imageObject = {
-          //   id: image.Id,
-          //   names: image.Names,
-          //   imagename: image.Image,
-          //   imageid: image.ImageID,
-          //   command: image.Command,
-          //   state: image.State,
-          // };
           imageList.push(imageObject);
         });
         return imageList;
       })
-      .catch(error => console.log(error));
+      .catch(error => {
+        console.log('Something went wrong while getting docker image list');
+        return new Error('Something went wrong while getting docker image list', error);
+      });
   }
 
   //  does not follow image pulling process
@@ -179,10 +174,10 @@ class DockerService {
     return this.docker
       .pull(img)
       .then(() => {
-        console.log('image pulled');
+        console.log('pulling image succeed : ', img);
       })
       .catch(() => {
-        console.log('error happened while pulling image');
+        console.log('error happened while pulling the image', img);
       });
   }
 
@@ -219,6 +214,7 @@ class DockerService {
               }
             });
             stream.on('end', () => {
+              console.log('pulling image succeed : ', img);
               resolve('finished pulling');
             });
           }
@@ -232,15 +228,18 @@ class DockerService {
   checkContainerExistance(containerName) {
     return new Promise((resolve, reject) => {
       const container = this.docker.getContainer(containerName);
+      console.log('error happened while checking container presence : ');
+      // eslint-disable-next-line prefer-destructuring
       // query API for container info
       // eslint-disable-next-line func-names
       container.inspect(function(err, data) {
         if (err) {
           //  console.log(err);
+          console.log('error happened while checking container presence : ');
           reject(err);
         }
         if (data) {
-          //  console.log(data);
+          console.log('checking container presence succeed: ', containerName);
           resolve(data);
         }
       });
@@ -251,11 +250,11 @@ class DockerService {
     return new Promise((resolve, reject) => {
       try {
         const container = this.docker.getContainer(containerName);
-        // query API for container info
-        // eslint-disable-next-line func-names
         container.remove();
+        console.log('deleting container succeed : ', containerName);
         resolve('success');
       } catch (err) {
+        console.log('error happened while deleting container  : ', containerName);
         reject(err);
       }
     });
