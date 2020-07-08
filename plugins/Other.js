@@ -569,16 +569,11 @@ async function other(fastify) {
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
               const osirixObj = fastify.parseOsirix(`${dir}/${filename}`);
-              console.log('osirixObj');
-              console.log(osirixObj);
-              console.log(' ------>osirixObj.Images[1]');
-              console.log(osirixObj.Images[0]);
-              // get filtered ROI object
               const filteredOsirixObjects = fastify.filterOsirixAnnotations(osirixObj.Images);
               const keys = Object.keys(filteredOsirixObjects);
               const values = Object.values(filteredOsirixObjects);
               const { username } = epadAuth;
-              const promiseArr = [];
+              let promiseArr = [];
               values.forEach(annotation => {
                 promiseArr.push(fastify.getImageMetaDataforOsirix(annotation, username));
               });
@@ -587,19 +582,29 @@ async function other(fastify) {
               seedDataArr.forEach((seedData, i) => {
                 filteredOsirixObjects[keys[i]] = { ...values[i], seedData };
               });
-
-              console.log(" ----> filteredOsirixObjects")
-              console.log(filteredOsirixObjects);
-
-              // const imageRefrenceUID = osirixObj.SOPInstanceUID;
-              // iterate over the aim osirix obj and and separate them based on the annotation name
-              // const aim = new Aim(metadata[0], fastify.enumAimType.imageAnnotation);
-              // // create markup array
-
-              // const markupsToSave = fastify.formMarupksToSave(osirixObj.Images[0].ROIs[0]);
-              // fastify.createAimMarkups(aim, markupsToSave);
-              // const aimJson = aim.getAim();
-              // console.log(aimJson);
+              const aimJsons = fastify.createAimJsons(Object.values(filteredOsirixObjects));
+              console.log('----> aimJsons');
+              console.log(aimJsons);
+              promiseArr = [];
+              aimJsons.forEach(jsonBuffer => {
+                console.log(jsonBuffer.ImageAnnotationCollection.imageAnnotations);
+                promiseArr.push(
+                  fastify.saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
+                );
+              });
+              Promise.all(promiseArr)
+                .then(res => {
+                  console.log('in resolve', res);
+                  try {
+                    fastify.log.info(`Saving successful for ${filename}`);
+                    resolve(res);
+                  } catch (errProject) {
+                    reject(errProject);
+                  }
+                })
+                .catch(err => {
+                  reject(err);
+                });
             } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
@@ -640,6 +645,19 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate('createAimJsons', filteredOsirixArr => {
+    const aimJsons = [];
+    filteredOsirixArr.forEach(el => {
+      const aim = new Aim(el.seedData, fastify.enumAimType.imageAnnotation);
+      const markupsToSave = el.rois.map(roi => fastify.formMarupksToSave(roi));
+      fastify.createAimMarkups(aim, markupsToSave);
+      console.log(aim.getAim());
+      const aimJson = JSON.parse(aim.getAim());
+      aimJsons.push(aimJson);
+    });
+    return aimJsons;
+  });
+
   fastify.decorate('enumAimType', {
     imageAnnotation: 1,
     seriesAnnotation: 2,
@@ -668,18 +686,19 @@ async function other(fastify) {
 
   fastify.decorate('createAimMarkups', (aim, markupsToSave) => {
     // eslint-disable-next-line no-unused-vars
-    console.log('createAimMarkups => markupsToSave =>');
-    console.log(markupsToSave);
+
     markupsToSave.forEach(value => {
       const { type, markup, shapeIndex, imageReferenceUid } = value;
       // eslint-disable-next-line default-case
       switch (type) {
         case 19:
+          console.log(`type: ${type} point markup`, markup);
           fastify.addPointToAim(aim, markup, shapeIndex, imageReferenceUid);
           break;
         case 5:
         case 14:
-          this.addLineToAim(aim, markup, shapeIndex, imageReferenceUid);
+          console.log(`type: ${type} line markup`, markup);
+          fastify.addLineToAim(aim, markup, shapeIndex, imageReferenceUid);
           break;
         // case 'circle':
         //   this.addCircleToAim(aim, markup, shapeIndex, imageReferenceUid);
@@ -691,7 +710,7 @@ async function other(fastify) {
         case 20:
         case 11:
         case 6:
-          console.log('passed the case 15');
+          console.log(` type: ${type} poly markup`, markup);
           fastify.addPolygonToAim(aim, markup, shapeIndex, imageReferenceUid);
           break;
         // case 'bidirectional':
@@ -711,10 +730,7 @@ async function other(fastify) {
     );
     // find out the unit about statistics to write to aim
     let unit;
-    let mean;
-    let stdDev;
-    let min;
-    let max;
+    const { mean, stdDev, min, max } = polygon;
 
     // TODO: instantiate unit
     // TODO: checkout modality
