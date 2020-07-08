@@ -5541,8 +5541,15 @@ async function epaddb(fastify, options, done) {
                   });
                 let studyInfo = {};
                 studyInfo.studyUID = studyUid;
+                // anything added here needs to be added to getDicomInfo in Other to make the uploaded dicoms to fill in
                 if (body && body.studyDesc) studyInfo.studyDescription = body.studyDesc;
                 if (body && body.insertDate) studyInfo.insertDate = body.insertDate;
+                if (body && body.studyAccessionNumber)
+                  studyInfo.studyAccessionNumber = body.studyAccessionNumber;
+                if (body && body.referringPhysicianName)
+                  studyInfo.referringPhysicianName = body.referringPhysicianName;
+                if (body && body.studyID) studyInfo.studyID = body.studyID;
+                if (body && body.studyTime) studyInfo.studyTime = body.studyTime;
                 // if there is body, it is nondicom. you cannot create a nondicom if it is already in system
                 // it doesn't have subject info (not upload)
                 const studyExists = await models.study.findOne({

@@ -373,6 +373,22 @@ async function other(fastify) {
                 dicomTags.dict['00100040'] && dicomTags.dict['00100040'].Value
                   ? dicomTags.dict['00100040'].Value[0]
                   : '',
+              studyAccessionNumber:
+                dicomTags.dict['00080050'] && dicomTags.dict['00080050'].Value
+                  ? dicomTags.dict['00080050'].Value[0]
+                  : '',
+              referringPhysicianName:
+                dicomTags.dict['00080090'] && dicomTags.dict['00080090'].Value
+                  ? dicomTags.dict['00080090'].Value[0]
+                  : '',
+              studyID:
+                dicomTags.dict['00200010'] && dicomTags.dict['00200010'].Value
+                  ? dicomTags.dict['00200010'].Value[0]
+                  : '',
+              studyTime:
+                dicomTags.dict['00080030'] && dicomTags.dict['00080030'].Value
+                  ? dicomTags.dict['00080030'].Value[0]
+                  : '',
               // seriesUID:
               //   dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
               //     ? dicomTags.dict['0020000E'].Value[0]
