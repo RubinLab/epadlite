@@ -8,11 +8,12 @@ const os = require('os');
 const schedule = require('node-schedule-tz');
 const archiver = require('archiver');
 const toArrayBuffer = require('to-array-buffer');
+const unzip = require('unzip-stream');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
-const EpadNotification = require('../utils/EpadNotification');
+const DockerService = require('../utils/Docker');
 const {
   InternalError,
   ResourceNotFoundError,
@@ -21,6 +22,7 @@ const {
   UnauthorizedError,
   EpadError,
 } = require('../utils/EpadErrors');
+const EpadNotification = require('../utils/EpadNotification');
 
 async function epaddb(fastify, options, done) {
   const models = {};
@@ -79,6 +81,7 @@ async function epaddb(fastify, options, done) {
               path.join(__dirname, '/../models', filenames[i])
             );
           }
+
           models.user.belongsToMany(models.project, {
             through: 'project_user',
             as: 'projects',
@@ -124,6 +127,48 @@ async function epaddb(fastify, options, done) {
             as: 'worklists',
             foreignKey: 'user_id',
           });
+          //  for plugins
+
+          models.plugin_docker.belongsToMany(models.project, {
+            through: 'project_plugin',
+            as: 'pluginproject',
+            foreignKey: 'plugin_id',
+          });
+          models.project.belongsToMany(models.plugin_docker, {
+            through: 'project_plugin',
+            as: 'projectplugin',
+            foreignKey: 'project_id',
+          });
+
+          models.plugin_docker.belongsToMany(models.template, {
+            through: 'plugin_template',
+            as: 'plugintemplate',
+            foreignKey: 'plugin_id',
+          });
+          models.template.belongsToMany(models.plugin_docker, {
+            through: 'plugin_template',
+            as: 'templateplugin',
+            foreignKey: 'template_id',
+          });
+
+          models.plugin_docker.hasMany(models.plugin_parameters, {
+            as: 'defaultparameters',
+            foreignKey: 'plugin_id',
+          });
+          models.plugin_parameters.belongsTo(models.plugin_docker, { foreignKey: 'plugin_id' });
+          models.project_plugin.belongsTo(models.project, {
+            as: 'projectpluginrowbyrow',
+            foreignKey: 'project_id',
+          });
+          models.plugin_queue.belongsTo(models.plugin_docker, {
+            as: 'queueplugin',
+            foreignKey: 'plugin_id',
+          });
+          models.plugin_queue.belongsTo(models.project, {
+            as: 'queueproject',
+            foreignKey: 'project_id',
+          });
+          //  for plugins end
 
           models.project.hasMany(models.project_subject, {
             foreignKey: 'project_id',
@@ -566,6 +611,2086 @@ async function epaddb(fastify, options, done) {
       );
     }
   });
+
+  //  Plugin section
+
+  fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
+    models.project
+      .findAll({
+        include: ['users'],
+      })
+      .then(projects => {
+        const result = [];
+        projects.forEach(project => {
+          const obj = {
+            id: project.id,
+            name: project.name,
+            projectid: project.projectid,
+            description: project.description,
+            loginNames: [],
+            type: project.type,
+          };
+
+          project.users.forEach(user => {
+            obj.loginNames.push(user.username);
+          });
+          if (request.epadAuth.admin || obj.loginNames.includes(request.epadAuth.username))
+            result.push(obj);
+        });
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
+                request.epadAuth.admin
+              }`,
+              err
+            )
+          );
+      });
+  });
+  // not used for now
+  // fastify.decorate('getPlugins', async (request, reply) => {
+  //   models.plugin_docker
+  //     .findAll()
+  //     .then(plugins => {
+  //       reply.code(200).send(plugins);
+  //     })
+  //     .catch(err => {
+  //       reply.code(500).send(new InternalError('Getting plugin list', err));
+  //     });
+  // });
+
+  fastify.decorate('getPluginsForProject', async (request, reply) => {
+    const paramProjectId = request.params.projectid;
+    models.project
+      .findOne({
+        include: ['projectplugin'],
+        where: { projectid: paramProjectId },
+      })
+      .then(plugins => {
+        reply.code(200).send(plugins);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError('Getting plugin list for the project', err));
+      });
+  });
+  fastify.decorate('getTemplatesDataFromDb', (request, reply) => {
+    models.template
+      .findAll()
+      .then(templates => {
+        reply.code(200).send(templates);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError('Getting templates from db', err));
+      });
+  });
+
+  fastify.decorate('getPluginsWithProject', (request, reply) => {
+    models.plugin_docker
+      .findAll({
+        include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
+        required: false,
+      })
+      .then(plugins => {
+        const result = [];
+        plugins.forEach(data => {
+          const pluginObj = {
+            description: data.dataValues.description,
+            developer: data.dataValues.developer,
+            documentation: data.dataValues.documentation,
+            enabled: data.dataValues.enabled,
+            id: data.dataValues.id,
+            image_repo: data.dataValues.image_repo,
+            image_tag: data.dataValues.image_tag,
+            image_name: data.dataValues.image_name,
+            image_id: data.dataValues.image_id,
+            modality: data.dataValues.modality,
+            name: data.dataValues.name,
+            plugin_id: data.dataValues.plugin_id,
+            processmultipleaims: data.dataValues.processmultipleaims,
+            projects: [],
+            status: data.dataValues.status,
+            templates: [],
+            parameters: [],
+          };
+
+          data.dataValues.pluginproject.forEach(project => {
+            const projectObj = {
+              id: project.id,
+              projectid: project.projectid,
+              projectname: project.name,
+            };
+
+            pluginObj.projects.push(projectObj);
+          });
+
+          data.dataValues.plugintemplate.forEach(template => {
+            const templateObj = {
+              id: template.id,
+              templateName: template.templateName,
+            };
+
+            pluginObj.templates.push(templateObj);
+          });
+
+          data.dataValues.defaultparameters.forEach(parameter => {
+            const parameterObj = {
+              id: parameter.id,
+              plugin_id: parameter.plugin_id,
+              name: parameter.name,
+              format: parameter.format,
+              prefix: parameter.prefix,
+              inputbinding: parameter.inputBinding,
+              default_value: parameter.default_value,
+              type: parameter.type,
+              description: parameter.description,
+            };
+
+            pluginObj.parameters.push(parameterObj);
+          });
+          //  if (request.epadAuth.admin || obj.loginNames.includes(request.epadAuth.username))
+          // if (request.epadAuth.admin) {
+          //   result.push(pluginObj);
+          // }
+          result.push(pluginObj);
+        });
+
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getPluginsWithProject error `, err));
+      });
+  });
+  fastify.decorate('getOnePlugin', (request, reply) => {
+    const { plugindbid } = request.params;
+    models.plugin_docker
+      .findOne({
+        include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
+        where: { id: plugindbid },
+        required: false,
+      })
+      .then(pluginone => {
+        const pluginObj = {
+          description: pluginone.dataValues.description,
+          developer: pluginone.dataValues.developer,
+          documentation: pluginone.dataValues.documentation,
+          enabled: pluginone.dataValues.enabled,
+          id: pluginone.dataValues.id,
+          image_repo: pluginone.dataValues.image_repo,
+          image_tag: pluginone.dataValues.image_tag,
+          image_name: pluginone.dataValues.image_name,
+          image_id: pluginone.dataValues.image_id,
+          modality: pluginone.dataValues.modality,
+          name: pluginone.dataValues.name,
+          plugin_id: pluginone.dataValues.plugin_id,
+          processmultipleaims: pluginone.dataValues.processmultipleaims,
+          projects: [],
+          status: pluginone.dataValues.status,
+          templates: [],
+          parameters: [],
+        };
+
+        pluginone.dataValues.pluginproject.forEach(project => {
+          const projectObj = {
+            id: project.id,
+            projectid: project.projectid,
+            projectname: project.name,
+          };
+
+          pluginObj.projects.push(projectObj);
+        });
+
+        pluginone.dataValues.plugintemplate.forEach(template => {
+          const templateObj = {
+            id: template.id,
+            templateName: template.templateName,
+          };
+
+          pluginObj.templates.push(templateObj);
+        });
+
+        pluginone.dataValues.defaultparameters.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.id,
+            plugin_id: parameter.plugin_id,
+            name: parameter.name,
+            format: parameter.format,
+            prefix: parameter.prefix,
+            inputbinding: parameter.inputBinding,
+            default_value: parameter.default_value,
+            type: parameter.type,
+            description: parameter.description,
+          };
+
+          pluginObj.parameters.push(parameterObj);
+        });
+
+        reply.code(200).send(pluginone);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getOnePlugin error `, err));
+      });
+  });
+
+  fastify.decorate('updateProjectsForPlugin', (request, reply) => {
+    const { pluginid } = request.params;
+    const { projectsToRemove, projectsToAdd } = request.body;
+    const dbPromisesForCreate = [];
+    const formattedProjects = [];
+
+    if (projectsToRemove && projectsToAdd) {
+      models.project_plugin
+        .destroy({
+          where: {
+            plugin_id: pluginid,
+            project_id: projectsToRemove,
+          },
+        })
+        .then(() => {
+          projectsToAdd.forEach(projectid => {
+            dbPromisesForCreate.push(
+              models.project_plugin.create({
+                project_id: projectid,
+                plugin_id: pluginid,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+                enabled: 1,
+                creator: request.epadAuth.username,
+                updated_by: request.epadAuth.username,
+              })
+            );
+          });
+
+          return Promise.all(dbPromisesForCreate).then(() => {
+            models.plugin_docker
+              .findOne({
+                include: ['pluginproject'],
+                required: false,
+                where: {
+                  id: pluginid,
+                },
+              })
+              .then(allTProjectsForPlugin => {
+                allTProjectsForPlugin.dataValues.pluginproject.forEach(project => {
+                  const projectObj = {
+                    id: project.id,
+                    projectid: project.projectid,
+                    projectname: project.name,
+                  };
+                  formattedProjects.push(projectObj);
+                });
+                reply.code(200).send(formattedProjects);
+              })
+              .catch(err => {
+                reply
+                  .code(500)
+                  .send(
+                    new InternalError(
+                      'something went wrong while assigning project to plugin ',
+                      err
+                    )
+                  );
+              });
+          });
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError('something went wrong while unassigning project from plugin ', err)
+            );
+        });
+    } else {
+      reply
+        .code(500)
+        .send(
+          new InternalError(
+            'Editing projects for plugin failed. ',
+            new Error('Necessary parameters {projectsToRemove, projectsToAdd} are not in the body ')
+          )
+        );
+    }
+  });
+
+  fastify.decorate('updateTemplatesForPlugin', (request, reply) => {
+    const { pluginid } = request.params.pluginid;
+    const { templatesToRemove, templatesToAdd } = request.body;
+    const dbPromisesForCreate = [];
+    const formattedTemplates = [];
+    if (templatesToRemove && templatesToAdd) {
+      models.plugin_template
+        .destroy({
+          where: {
+            plugin_id: pluginid,
+            template_id: templatesToRemove,
+          },
+        })
+        .then(() => {
+          templatesToAdd.forEach(templateid => {
+            dbPromisesForCreate.push(
+              models.plugin_template.create({
+                template_id: templateid,
+                plugin_id: pluginid,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+                enabled: 1,
+                creator: request.epadAuth.username,
+                updated_by: request.epadAuth.username,
+              })
+            );
+          });
+
+          return Promise.all(dbPromisesForCreate).then(() => {
+            models.plugin_docker
+              .findOne({
+                include: ['plugintemplate'],
+                required: false,
+                where: {
+                  id: pluginid,
+                },
+              })
+              .then(allTemplatesForPlugin => {
+                allTemplatesForPlugin.dataValues.plugintemplate.forEach(template => {
+                  const templateObj = {
+                    id: template.id,
+                    templateName: template.templateName,
+                  };
+                  formattedTemplates.push(templateObj);
+                });
+                reply.send(formattedTemplates);
+              })
+              .catch(err => {
+                reply
+                  .code(500)
+                  .send(
+                    new InternalError(
+                      'something went wrong while assigning template to plugin ',
+                      err
+                    )
+                  );
+              });
+          });
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError('something went wrong while unassigning template from plugin ', err)
+            );
+        });
+    } else {
+      reply
+        .code(500)
+        .send(
+          new InternalError(
+            'Editing templates for plugin failed.',
+            new Error('Necessary parameters { templatesToAdd,templatesToAdd} are not in the body ')
+          )
+        );
+    }
+
+    //
+  });
+
+  fastify.decorate('deletePlugin', async (request, reply) => {
+    const { selectedRowPluginId, pluginIdsToDelete } = request.body;
+    const existInQueue = [];
+    const ableToDelete = [];
+    let pluginid = [];
+    if (typeof selectedRowPluginId !== 'undefined') {
+      pluginid.push(selectedRowPluginId);
+    } else {
+      pluginid = [...pluginIdsToDelete];
+    }
+    if (request.epadAuth.admin === false) {
+      //  new UnauthorizedError('User has no access to project')
+      reply.send(new UnauthorizedError('User has no right to delete plugin'));
+    } else {
+      try {
+        for (let cnt = 0; cnt < pluginid.length; cnt += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          const resultQueueExist = await models.plugin_queue.findAll({
+            where: {
+              plugin_id: pluginid[cnt],
+            },
+          });
+          fastify.log.info('checking if queue has the plugin : ', resultQueueExist.length);
+          if (resultQueueExist.length === 0) {
+            // eslint-disable-next-line no-await-in-loop
+            await models.plugin_parameters.destroy({
+              where: {
+                plugin_id: pluginid[cnt],
+              },
+            });
+            // eslint-disable-next-line no-await-in-loop
+            await models.plugin_projectparameters.destroy({
+              where: {
+                plugin_id: pluginid[cnt],
+              },
+            });
+            // eslint-disable-next-line no-await-in-loop
+            await models.plugin_template.destroy({
+              where: {
+                plugin_id: pluginid[cnt],
+              },
+            });
+            // eslint-disable-next-line no-await-in-loop
+            await models.plugin_templateparameters.destroy({
+              where: {
+                plugin_id: pluginid[cnt],
+              },
+            });
+            // eslint-disable-next-line no-await-in-loop
+            await models.project_plugin.destroy({
+              where: {
+                plugin_id: pluginid[cnt],
+              },
+            });
+            // eslint-disable-next-line no-await-in-loop
+            await models.plugin_docker.destroy({
+              where: {
+                id: pluginid[cnt],
+              },
+            });
+            ableToDelete.push(pluginid[cnt]);
+          } else {
+            existInQueue.push(pluginid[cnt]);
+          }
+        }
+        if (existInQueue.length > 0) {
+          reply.code(200).send(ableToDelete);
+        } else {
+          reply.code(200).send('Plugin deleted seccessfully');
+        }
+      } catch (err) {
+        reply.code(500).send(new InternalError('Something went wrong when deleting plugin', err));
+      }
+    }
+  });
+
+  fastify.decorate('savePlugin', (request, reply) => {
+    let tempprocessmultipleaims = null;
+
+    const { pluginform } = request.body;
+    if (pluginform.processmultipleaims !== '') {
+      tempprocessmultipleaims = pluginform.processmultipleaims;
+    }
+    if (request.epadAuth.admin === false) {
+      //  new UnauthorizedError('User has no access to project')
+      reply.send(new UnauthorizedError('User has no right to create plugin'));
+    } else {
+      models.plugin_docker
+        .create({
+          plugin_id: pluginform.plugin_id,
+          name: pluginform.name,
+          description: pluginform.description,
+          image_repo: pluginform.image_repo,
+          image_tag: pluginform.image_tag,
+          image_name: pluginform.image_name,
+          image_id: pluginform.image_id,
+          enabled: pluginform.enabled,
+          modality: pluginform.modality,
+          creator: request.epadAuth.username,
+          createdtime: Date.now(),
+          updatetime: '1970-01-01 00:00:01',
+          developer: pluginform.developer,
+          documentation: pluginform.documentation,
+          processmultipleaims: tempprocessmultipleaims,
+        })
+        .then(() => {
+          //  new UnauthorizedError('User has no access to project')
+          reply.code(200).send('Plugin saved seccessfully');
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError(
+                'Something went wrong while creating a new plugin in plugin table',
+                err
+              )
+            );
+        });
+    }
+  });
+
+  fastify.decorate('editPlugin', (request, reply) => {
+    const { pluginform } = request.body;
+    let tempprocessmultipleaims = null;
+    if (pluginform.processmultipleaims !== '') {
+      tempprocessmultipleaims = pluginform.processmultipleaims;
+    }
+    models.plugin_docker
+      .update(
+        {
+          ...pluginform,
+          updatetime: Date.now(),
+          updated_by: request.epadAuth.username,
+          processmultipleaims: tempprocessmultipleaims,
+        },
+        {
+          where: {
+            id: pluginform.dbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(pluginform);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError('Something went wrong while updating plugin in plugin table', err)
+          );
+      });
+  });
+  // not used for now
+  // fastify.decorate('getAnnotationTemplates', (request, reply) => {
+  //   const templateCodes = [];
+  //   const templates = [];
+  //   models.project_aim
+  //     .findAll({
+  //       attributes: ['template'],
+  //       distinct: ['template'],
+  //     })
+  //     .then(results => {
+  //       results.forEach(template => {
+  //         templateCodes.push(template.dataValues.template);
+  //       });
+  //       return models.template
+  //         .findAll({
+  //           where: { templateCode: templateCodes },
+  //         })
+  //         .then(result => {
+  //           result.forEach(template => {
+  //             const templateObj = {
+  //               id: template.dataValues.id,
+  //               templateName: template.dataValues.templateName,
+  //               templateCode: template.dataValues.templateCode,
+  //               modality: template.dataValues.modality,
+  //             };
+
+  //             templates.push(templateObj);
+  //           });
+  //           reply.code(200).send(templates);
+  //         })
+  //         .catch(err => {
+  //           reply
+  //             .code(500)
+  //             .send(
+  //               new InternalError(
+  //                 'Something went wrong while getting template list from Template table',
+  //                 err
+  //               )
+  //             );
+  //         });
+  //     })
+  //     .catch(err => {
+  //       reply
+  //         .code(500)
+  //         .send(
+  //           new InternalError(
+  //             'Something went wrong while getting template codes from annotations table',
+  //             err
+  //           )
+  //         );
+  //     });
+  // });
+
+  // fastify.decorate('getUniqueProjectsIfAnnotationExist', (request, reply) => {
+  //   //  getting unique projects which have annotations under
+  //   const projectUids = [];
+  //   const projects = [];
+  //   models.project_aim
+  //     .findAll({
+  //       attributes: ['project_id'],
+  //       distinct: ['project_id'],
+  //     })
+  //     .then(results => {
+  //       results.forEach(project => {
+  //         projectUids.push(project.dataValues.project_id);
+  //       });
+  //       return models.project
+  //         .findAll({
+  //           where: { id: projectUids },
+  //         })
+  //         .then(result => {
+  //           result.forEach(project => {
+  //             const projectObj = {
+  //               id: project.dataValues.id,
+  //               name: project.dataValues.name,
+  //               projectid: project.dataValues.projectid,
+  //               type: project.dataValues.type,
+  //               creator: project.dataValues.creator,
+  //             };
+
+  //             projects.push(projectObj);
+  //           });
+  //           reply.code(200).send(projects);
+  //         })
+  //         .catch(err => {
+  //           reply
+  //             .code(500)
+  //             .send(
+  //               new InternalError(
+  //                 'Something went wrong while getting project list from Project table',
+  //                 err
+  //               )
+  //             );
+  //         });
+  //     })
+  //     .catch(err => {
+  //       reply
+  //         .code(500)
+  //         .send(
+  //           new InternalError(
+  //             'Something went wrong while getting project uids from annotations table',
+  //             err
+  //           )
+  //         );
+  //     });
+  // });
+
+  fastify.decorate('saveDefaultParameter', (request, reply) => {
+    const parameterform = request.body;
+    if (request.epadAuth.admin === false) {
+      //  new UnauthorizedError('User has no access to project')
+      reply.send(new UnauthorizedError('User has no right to add plugin default parameters'));
+    } else {
+      models.plugin_parameters
+        .create({
+          plugin_id: parameterform.plugindbid,
+          paramid: parameterform.paramid,
+          name: parameterform.name,
+          format: parameterform.format,
+          prefix: parameterform.prefix,
+          inputBinding: parameterform.inputBinding,
+          default_value: parameterform.default_value,
+          creator: request.epadAuth.username,
+          createdtime: Date.now(),
+          type: parameterform.type,
+          description: parameterform.description,
+          updatetime: '1970-01-01 00:00:01',
+          //  developer: parameterform.developer,
+          //  documentation: parameterform.documentation,
+        })
+        .then(() => {
+          reply.code(200).send('default parameters saved seccessfully');
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError(
+                'Something went wrong while saving default paramters in plugin_parameters table',
+                err
+              )
+            );
+        });
+    }
+  });
+  fastify.decorate('getDefaultParameter', (request, reply) => {
+    //  returns all paramters for a given plugin with the dbid not plugin_id
+
+    const { plugindbid } = request.params;
+    const parameters = [];
+    models.plugin_parameters
+      .findAll({
+        where: { plugin_id: plugindbid, creator: request.epadAuth.username },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            paramid: parameter.dataValues.paramid,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        reply.code(200).send(parameters);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting parameters list from plugin_paramters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteOneDefaultParameter', (request, reply) => {
+    const parameterIdToDelete = request.params.parameterdbid;
+    if (request.epadAuth.admin === false) {
+      //  new UnauthorizedError('User has no access to project')
+      reply.send(new UnauthorizedError('User has no right to delete plugin default parameters'));
+    } else {
+      models.plugin_parameters
+        .destroy({
+          where: {
+            id: parameterIdToDelete,
+          },
+        })
+        .then(() => {
+          reply.code(200).send('parameter deleted seccessfully');
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError(
+                'Something went wrong while deleting from plugin_parameters table',
+                err
+              )
+            );
+        });
+    }
+  });
+
+  fastify.decorate('editDefaultparameter', (request, reply) => {
+    const paramsForm = request.body;
+    if (request.epadAuth.admin === false) {
+      //  new UnauthorizedError('User has no access to project')
+      reply.send(new UnauthorizedError('User has no right to edit plugin default parameters'));
+    } else {
+      models.plugin_parameters
+        .update(
+          {
+            paramid: paramsForm.paramid,
+            name: paramsForm.name,
+            format: paramsForm.format,
+            prefix: paramsForm.prefix,
+            inputBinding: paramsForm.inputBinding,
+            default_value: paramsForm.default_value,
+            updatetime: Date.now(),
+            updated_by: request.epadAuth.username,
+            type: paramsForm.type,
+            description: paramsForm.description,
+          },
+          {
+            where: {
+              id: paramsForm.paramdbid,
+            },
+          }
+        )
+        .then(() => {
+          reply.code(200).send(paramsForm);
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError(
+                'Something went wrong while updating parameters in plugin_parameters table',
+                err
+              )
+            );
+        });
+    }
+  });
+
+  fastify.decorate('getProjectParameter', (request, reply) => {
+    const { plugindbid, projectdbid } = request.params;
+    const parameters = [];
+    models.plugin_projectparameters
+      .findAll({
+        where: {
+          plugin_id: plugindbid,
+          project_id: projectdbid,
+          creator: request.epadAuth.username,
+        },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            project_id: parameter.dataValues.project_id,
+            paramid: parameter.dataValues.paramid,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        reply.code(200).send(parameters);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting project parameters list from plugin_projectparamters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('saveProjectParameter', (request, reply) => {
+    const parameterform = request.body;
+    models.plugin_projectparameters
+      .create({
+        plugin_id: parameterform.plugindbid,
+        project_id: parameterform.projectdbid,
+        paramid: parameterform.paramid,
+        name: parameterform.name,
+        format: parameterform.format,
+        prefix: parameterform.prefix,
+        inputBinding: parameterform.inputBinding,
+        default_value: parameterform.default_value,
+        creator: request.epadAuth.username,
+        createdtime: Date.now(),
+        type: parameterform.type,
+        description: parameterform.description,
+        updatetime: '1970-01-01 00:00:01',
+        //  developer: parameterform.developer,
+        //  documentation: parameterform.documentation,
+      })
+      .then(inserteddata => {
+        reply.code(200).send(inserteddata);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while saving project paramters in plugin_projectparameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteOneProjectParameter', (request, reply) => {
+    const parameterIdToDelete = request.params.parameterdbid;
+    models.plugin_projectparameters
+      .destroy({
+        where: {
+          id: parameterIdToDelete,
+        },
+      })
+      .then(() => {
+        reply.code(200).send('parameter deleted seccessfully from plugin_projectparamaters');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while deleting from plugin_projectparameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('editProjectParameter', (request, reply) => {
+    const paramsForm = request.body;
+    models.plugin_projectparameters
+      .update(
+        {
+          paramid: paramsForm.id,
+          name: paramsForm.name,
+          format: paramsForm.format,
+          prefix: paramsForm.prefix,
+          inputBinding: paramsForm.inputBinding,
+          default_value: paramsForm.default_value,
+          updatetime: Date.now(),
+          updated_by: request.epadAuth.username,
+          type: paramsForm.type,
+          description: paramsForm.description,
+        },
+        {
+          where: {
+            id: paramsForm.paramdbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(paramsForm);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while updating project parameters in plugin_projectparameters table',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('getTemplateParameter', (request, reply) => {
+    const { plugindbid, templatedbid } = request.params;
+    const parameters = [];
+    models.plugin_templateparameters
+      .findAll({
+        where: {
+          plugin_id: plugindbid,
+          template_id: templatedbid,
+          creator: request.epadAuth.username,
+        },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            template_id: parameter.dataValues.template_id,
+            paramid: parameter.dataValues.paramid,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+
+        reply.code(200).send(parameters);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while getting template parameters list from plugin_templateparamters table',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('saveTemplateParameter', (request, reply) => {
+    const parameterform = request.body;
+    models.plugin_templateparameters
+      .create({
+        plugin_id: parameterform.plugindbid,
+        template_id: parameterform.templatedbid,
+        paramid: parameterform.paramid,
+        name: parameterform.name,
+        format: parameterform.format,
+        prefix: parameterform.prefix,
+        inputBinding: parameterform.inputBinding,
+        default_value: parameterform.default_value,
+        creator: request.epadAuth.username,
+        createdtime: Date.now(),
+        type: parameterform.type,
+        description: parameterform.description,
+        updatetime: '1970-01-01 00:00:01',
+        //  developer: parameterform.developer,
+        //  documentation: parameterform.documentation,
+      })
+      .then(inserteddata => {
+        reply.code(200).send(inserteddata);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while saving template paramters in plugin_templateparameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteOneTemplateParameter', (request, reply) => {
+    const parameterIdToDelete = request.params.parameterdbid;
+
+    models.plugin_templateparameters
+      .destroy({
+        where: {
+          id: parameterIdToDelete,
+        },
+      })
+      .then(() => {
+        reply
+          .code(200)
+          .send('template parameter deleted seccessfully from plugin_templateparamaters');
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while deleting template parameter from plugin_templateparameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('editTemplateParameter', (request, reply) => {
+    const paramsForm = request.body;
+    models.plugin_templateparameters
+      .update(
+        {
+          paramid: paramsForm.paramid,
+          name: paramsForm.name,
+          format: paramsForm.format,
+          prefix: paramsForm.prefix,
+          inputBinding: paramsForm.inputBinding,
+          default_value: paramsForm.default_value,
+          updatetime: Date.now(),
+          updated_by: request.epadAuth.username,
+          type: paramsForm.type,
+          description: paramsForm.description,
+        },
+        {
+          where: {
+            id: paramsForm.paramdbid,
+          },
+        }
+      )
+      .then(() => {
+        reply.code(200).send(paramsForm);
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while updating template parameters in plugin_templateparameters table',
+              err
+            )
+          );
+      });
+  });
+  fastify.decorate('deleteFromPluginQueue', (request, reply) => {
+    const pluginIdToDelete = [...request.body];
+    const idsToDelete = [];
+    const dock = new DockerService();
+    const promisesArray = [];
+
+    for (let cnt = 0; cnt < pluginIdToDelete.length; cnt += 1) {
+      const containerName = `epadplugin_${pluginIdToDelete[cnt]}`;
+      promisesArray.push(
+        dock
+          .checkContainerExistance(containerName)
+          .then(resInspect => {
+            fastify.log.info(
+              'deleteFromPluginQueue inspect element result',
+              resInspect.State.Status
+            );
+            if (resInspect.State.Status !== 'running') {
+              idsToDelete.push(pluginIdToDelete[cnt]);
+              fastify.log.info('deleteFromPluginQueue not running but container found');
+              dock.deleteContainer(containerName).then(deleteReturn => {
+                fastify.log.info('deleteFromPluginQueue delete container result :', deleteReturn);
+              });
+            }
+          })
+          .catch(err => {
+            fastify.log.info('inspect element err', err.statusCode);
+            if (err.statusCode === 404) {
+              idsToDelete.push(pluginIdToDelete[cnt]);
+            }
+          })
+      );
+    }
+    Promise.all(promisesArray).then(() => {
+      models.plugin_queue
+        .findAll({
+          where: {
+            id: idsToDelete,
+          },
+        })
+        .then(tableData => {
+          tableData.forEach(eachRow => {
+            const folderToDelete = path.join(
+              __dirname,
+              `../pluginsDataFolder/${eachRow.creator}/${eachRow.id}`
+            );
+            if (fs.existsSync(folderToDelete)) {
+              fs.remove(folderToDelete, { recursive: true });
+            }
+            fastify.log.info('folder to delete :', folderToDelete);
+          });
+        })
+        .then(() => {
+          models.plugin_queue
+            .destroy({
+              where: {
+                id: idsToDelete,
+              },
+            })
+            .then(() => {
+              reply.code(200).send(idsToDelete);
+            })
+            .catch(err => {
+              reply
+                .code(500)
+                .send(
+                  new InternalError(
+                    'Something went wrong while deleting the process from queue',
+                    err
+                  )
+                );
+            });
+        })
+        .catch(err => {
+          return new InternalError(
+            'Something went wrong while getting all process to delete from queue',
+            err
+          );
+        });
+    });
+  });
+  fastify.decorate('addPluginsToQueue', (request, reply) => {
+    // plugin queue table, column status can have these string values: waiting, running, ended,error, added
+    // plugin queue table column plugin_parametertype  can have these string values: default, project, template, runtime
+
+    const promisesCreateForEachAnnotation = [];
+
+    const queueObjects = request.body;
+
+    // if each aim is a plugin process
+    if (queueObjects.processMultipleAims === 0) {
+      const tempAims = { ...queueObjects.aims };
+      // eslint-disable-next-line no-restricted-syntax
+      for (const [key, value] of Object.entries(tempAims)) {
+        const newAimObject = {};
+        newAimObject[key] = value;
+
+        promisesCreateForEachAnnotation.push(
+          models.plugin_queue.create({
+            plugin_id: queueObjects.pluginDbId,
+            project_id: queueObjects.projectDbId,
+            template_id: -1,
+            plugin_parametertype: queueObjects.parameterType,
+            creator: request.epadAuth.username,
+            status: 'added',
+            runtime_params: queueObjects.runtimeParams,
+            aim_uid: newAimObject,
+            starttime: '1970-01-01 00:00:01', //  added this
+            endtime: '1970-01-01 00:00:01',
+          })
+        );
+      }
+
+      Promise.all(promisesCreateForEachAnnotation)
+        .then(() => {
+          reply
+            .code(200)
+            .send('plugin process added to the plugin queue for each selected annotation');
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError(
+                'Something went wrong while adding each selected annotation to the plugin queue',
+                err
+              )
+            );
+        });
+    } else {
+      // if all aims are sent to same plugin process
+      models.plugin_queue
+        .create({
+          plugin_id: queueObjects.pluginDbId,
+          project_id: queueObjects.projectDbId,
+          template_id: -1,
+          plugin_parametertype: queueObjects.parameterType,
+          creator: request.epadAuth.username,
+          status: 'added',
+          runtime_params: queueObjects.runtimeParams,
+          aim_uid: queueObjects.aims,
+          starttime: '1970-01-01 00:00:01',
+          endtime: '1970-01-01 00:00:01',
+        })
+        .then(() => {
+          reply.code(200).send('plugin process added to the plugin queue');
+        })
+        .catch(err => {
+          reply
+            .code(500)
+            .send(
+              new InternalError(
+                'Something went wrong while adding plugin process to the queue',
+                err
+              )
+            );
+        });
+    }
+  });
+
+  fastify.decorate('getPluginsQueue', (request, reply) => {
+    const result = [];
+    models.plugin_queue
+      .findAll({
+        include: ['queueplugin', 'queueproject'],
+        required: false,
+      })
+      .then(eachRowObj => {
+        eachRowObj.forEach(data => {
+          const pluginObj = {
+            id: data.dataValues.id,
+            plugin_id: data.dataValues.plugin_id,
+            project_id: data.dataValues.project_id,
+            plugin_parametertype: data.dataValues.plugin_parametertype,
+            aim_uid: data.dataValues.aim_uid,
+            runtime_params: data.dataValues.runtime_params,
+            max_memory: data.dataValues.max_memory,
+            status: data.dataValues.status,
+            creator: data.dataValues.creator,
+            starttime: data.dataValues.starttime,
+            endtime: data.dataValues.endtime,
+          };
+          if (data.dataValues.queueplugin !== null) {
+            pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+          }
+          if (data.dataValues.queueproject !== null) {
+            pluginObj.project = { ...data.dataValues.queueproject.dataValues };
+          }
+          if (request.epadAuth.admin === true || request.epadAuth.username === pluginObj.creator) {
+            result.push(pluginObj);
+          }
+        });
+
+        reply.code(200).send(result);
+      })
+      .catch(err => {
+        reply.code(500).send(new InternalError(`getPluginsQueue error `, err));
+      });
+  });
+  fastify.decorate('stopPluginsQueue', async (request, reply) => {
+    const queueIds = [...request.body];
+    const dock = new DockerService();
+    const containerLists = await dock.listContainers();
+    for (let cnt = 0; cnt < queueIds.length; cnt += 1) {
+      const containerName = `/epadplugin_${queueIds[cnt]}`;
+      let containerId = null;
+      let containerFound = false;
+
+      for (let i = 0; i < containerLists.length; i += 1) {
+        if (containerLists[i].names.includes(containerName)) {
+          if (containerLists[i].state === 'running') {
+            containerFound = true;
+            containerId = containerLists[i].id;
+
+            break;
+          }
+        }
+      }
+      if (containerFound === true) {
+        containerFound = false;
+        fastify.log.info('container name found  stopping : ', containerName);
+        // eslint-disable-next-line no-await-in-loop
+        const returnContainerStop = await dock.stopContainer(containerId);
+        fastify.log.info('stop container returned : ', returnContainerStop);
+      }
+    }
+    reply.code(200).send('plugin stopped');
+  });
+  fastify.decorate('runPluginsQueue', async (request, reply) => {
+    //  will receive a queue object which contains plugin id
+
+    const queueIdsArrayToStart = request.body;
+    const allStatus = ['added', 'ended', 'error', 'running'];
+    try {
+      reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
+
+      await models.plugin_queue
+        .findAll({
+          include: ['queueplugin', 'queueproject'],
+          where: { id: queueIdsArrayToStart, status: allStatus },
+        })
+        .then(tableData => {
+          tableData.forEach(data => {
+            const result = [];
+            const pluginObj = {
+              id: data.dataValues.id,
+              plugin_id: data.dataValues.plugin_id,
+              project_id: data.dataValues.project_id,
+              plugin_parametertype: data.dataValues.plugin_parametertype,
+              aim_uid: data.dataValues.aim_uid,
+              runtime_params: data.dataValues.runtime_params,
+              max_memory: data.dataValues.max_memory,
+              status: data.dataValues.status,
+              creator: data.dataValues.creator,
+              starttime: data.dataValues.starttime,
+              endtime: data.dataValues.endtime,
+            };
+            if (data.dataValues.queueplugin !== null) {
+              pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+            }
+            if (data.dataValues.queueproject !== null) {
+              pluginObj.project = { ...data.dataValues.queueproject.dataValues };
+            }
+
+            const dock = new DockerService();
+            const containerName = `epadplugin_${pluginObj.id}`;
+            dock
+              .checkContainerExistance(containerName)
+              .then(resInspect => {
+                fastify.log.info('inspect element result', resInspect.State.Status);
+                if (resInspect.State.Status !== 'running') {
+                  fastify.log.info('container is not running : ', containerName);
+                  dock.deleteContainer(containerName).then(deleteReturn => {
+                    fastify.log.info('delete container result :', deleteReturn);
+                    result.push(pluginObj);
+                    fastify.runPluginsQueueInternal(result, request);
+                  });
+                }
+              })
+              .catch(err => {
+                fastify.log.info('inspect element err', err.statusCode);
+                if (err.statusCode === 404) {
+                  result.push(pluginObj);
+                  fastify.runPluginsQueueInternal(result, request);
+                }
+              });
+          });
+        });
+    } catch (err) {
+      reply.send(new InternalError(' plugin queue error while starting', err));
+    }
+  });
+  //  internal functions
+  fastify.decorate('getPluginProjectParametersInternal', (pluginid, projectid) => {
+    const parameters = [];
+    return models.plugin_projectparameters
+      .findAll({
+        where: { plugin_id: pluginid, project_id: projectid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            project_id: parameter.dataValues.project_id,
+            paramid: parameter.dataValues.paramid,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        return parameters;
+      })
+      .catch(err => {
+        return new InternalError('error while getPluginProjectParametersInternal', err);
+      });
+  });
+  fastify.decorate('getPluginDeafultParametersInternal', pluginid => {
+    const parameters = [];
+    return models.plugin_parameters
+      .findAll({
+        where: { plugin_id: pluginid },
+      })
+      .then(result => {
+        result.forEach(parameter => {
+          const parameterObj = {
+            id: parameter.dataValues.id,
+            plugin_id: parameter.dataValues.plugin_id,
+            paramid: parameter.dataValues.paramid,
+            name: parameter.dataValues.name,
+            format: parameter.dataValues.format,
+            prefix: parameter.dataValues.prefix,
+            inputBinding: parameter.dataValues.inputBinding,
+            default_value: parameter.dataValues.default_value,
+            creator: parameter.dataValues.creator,
+            createdtime: parameter.dataValues.createdtime,
+            updatetime: parameter.dataValues.updatetime,
+            updated_by: parameter.dataValues.updated_by,
+            type: parameter.dataValues.type,
+            description: parameter.dataValues.description,
+          };
+
+          parameters.push(parameterObj);
+        });
+        return parameters;
+      })
+      .catch(err => {
+        return new InternalError('error while getPluginDeafultParametersInternal', err);
+      });
+  });
+  fastify.decorate(
+    'createPluginfoldersInternal',
+    (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) => {
+      return new Promise(async (resolve, reject) => {
+        //  let aimsParamsProcessed = false;
+        //  let dicomsParamsProcessed = false;
+        let tempPluginparams = null;
+        if (Array.isArray(pluginparams)) {
+          tempPluginparams = [...pluginparams];
+        } else {
+          const tempKeyArray = Object.keys(pluginparams);
+          const temValuesArray = [];
+
+          for (let i = 0; i < tempKeyArray.length; i += 1) {
+            temValuesArray.push(pluginparams[tempKeyArray[i]]);
+          }
+          tempPluginparams = [...temValuesArray];
+        }
+
+        for (let i = 0; i < tempPluginparams.length; i += 1) {
+          fastify.log.info(tempPluginparams[i].format);
+          // output folder
+          if (tempPluginparams[i].format === 'OutputFolder') {
+            try {
+              const outputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
+              fastify.log.info(outputfolder);
+              if (!fs.existsSync(outputfolder)) {
+                fs.mkdirSync(outputfolder, { recursive: true });
+              }
+            } catch (err) {
+              reject(err);
+            }
+          }
+          // outputfolder end
+          if (tempPluginparams[i].format === 'InputFolder') {
+            // get selected aims
+            if (
+              tempPluginparams[i].paramid === 'aims' &&
+              Object.keys(aims).length > 0 &&
+              typeof processmultipleaims !== 'object'
+            ) {
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                const source = await fastify.getAimsInternal(
+                  'stream',
+                  {},
+                  Object.keys(aims),
+                  request.epadAuth
+                );
+
+                const inputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
+                if (!fs.existsSync(inputfolder)) {
+                  fs.mkdirSync(inputfolder, { recursive: true });
+                }
+
+                const writeStream = fs.createWriteStream(`${inputfolder}annotations.zip`);
+
+                source
+                  .pipe(writeStream)
+                  // eslint-disable-next-line no-loop-func
+                  .on('close', () => {
+                    fastify.log.info(
+                      `Aims zip copied to aims folder ${inputfolder}annotations.zip`
+                    );
+
+                    fs.createReadStream(`${inputfolder}annotations.zip`)
+                      .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                      .on('close', () => {
+                        fastify.log.info(`${inputfolder}annotations.zip extracted`);
+                        fs.remove(`${inputfolder}annotations.zip`, error => {
+                          if (error) {
+                            fastify.log.info(
+                              `Zip annotations.zip file deletion error ${error.message}`
+                            );
+                            reject(error);
+                          } else {
+                            fastify.log.info(`${inputfolder}annotations.zip deleted`);
+                          }
+                        });
+                      })
+                      .on('error', error => {
+                        reject(
+                          new InternalError(`Extracting zip ${inputfolder}annotations.zip`, error)
+                        );
+                      });
+                  })
+                  // eslint-disable-next-line no-loop-func
+                  .on('error', error => {
+                    reject(new InternalError(`Copying zip ${inputfolder}annotations.zip`, error));
+                  });
+              } catch (err) {
+                reject(err);
+              }
+            }
+            // get dicoms
+            if (tempPluginparams[i].paramid === 'dicoms') {
+              const inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
+              fastify.log.info('creating dicoms in this folder', inputfolder);
+              try {
+                if (!fs.existsSync(inputfolder)) {
+                  fs.mkdirSync(inputfolder, { recursive: true });
+                }
+                // eslint-disable-next-line no-case-declarations
+
+                if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
+                  // aim level dicoms
+                  const aimsKeysLength = Object.keys(aims).length;
+                  const aimsKeys = Object.keys(aims);
+                  for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
+                    const writeStream = fs
+                      .createWriteStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
+                      // eslint-disable-next-line func-names
+                      .on('finish', function() {
+                        fastify.log.info('dicom copy finished');
+                        // unzip part
+                        fs.createReadStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
+                          .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                          .on('close', () => {
+                            fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip extracted`);
+                            fs.remove(`${inputfolder}/dicoms${aimsCnt}.zip`, error => {
+                              if (error) {
+                                fastify.log.info(
+                                  `${inputfolder}/dicoms${aimsCnt}.zip file deletion error ${
+                                    error.message
+                                  }`
+                                );
+                                reject(error);
+                              } else {
+                                fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip deleted`);
+                              }
+                            });
+                          })
+                          .on('error', error => {
+                            reject(
+                              new InternalError(
+                                `Extracting zip ${inputfolder}/dicoms${aimsCnt}.zip`,
+                                error
+                              )
+                            );
+                          });
+                        // un zip part over
+                      });
+                    const eacAimhObj = aims[aimsKeys[aimsCnt]];
+                    fastify.log.info('getting dicoms for aim ', eacAimhObj);
+                    // eslint-disable-next-line no-await-in-loop
+                    await fastify.prepDownload(
+                      request.headers.origin,
+                      {
+                        project: projectid,
+                        subject: eacAimhObj.subjectID,
+                        study: eacAimhObj.studyUID,
+                        series: eacAimhObj.seriesUID,
+                      },
+                      { format: 'stream', includeAims: 'false' },
+                      request.epadAuth,
+                      writeStream
+                    );
+                  }
+                } else {
+                  // project level dicoms
+                  fastify.log.info('getting projects dicoms.........');
+                  const writeStream = fs
+                    .createWriteStream(`${inputfolder}/dicoms.zip`)
+                    // eslint-disable-next-line func-names
+                    .on('finish', function() {
+                      fastify.log.info('dicom copy finished');
+                      // unzip part
+                      fs.createReadStream(`${inputfolder}/dicoms.zip`)
+                        .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                        .on('close', () => {
+                          fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
+                          fs.remove(`${inputfolder}/dicoms.zip`, error => {
+                            if (error) {
+                              fastify.log.info(
+                                `${inputfolder}/dicoms.zip file deletion error ${error.message}`
+                              );
+                              reject(error);
+                            } else {
+                              fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
+                            }
+                          });
+                        })
+                        .on('error', error => {
+                          reject(
+                            new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
+                          );
+                        });
+                      // un zip part over
+                    });
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.prepDownload(
+                    request.headers.origin,
+                    { project: projectid },
+                    { format: 'stream', includeAims: 'true' },
+                    request.epadAuth,
+                    writeStream,
+                    {
+                      project_id: projectdbid,
+                    }
+                  );
+                }
+              } catch (err) {
+                reject(err);
+              }
+            }
+          }
+        }
+        resolve(1);
+      });
+    }
+  );
+  fastify.decorate('extractPluginParamtersInternal', (queueObject, request) => {
+    return new Promise(async (resolve, reject) => {
+      const parametertype = queueObject.plugin_parametertype;
+      const pluginid = queueObject.plugin_id;
+      const projectdbid = queueObject.project_id;
+      const { projectid } = queueObject.project;
+      // eslint-disable-next-line prefer-destructuring
+      const processmultipleaims = queueObject.plugin.processmultipleaims;
+      const runtimeParams = queueObject.runtime_params;
+      const aims = queueObject.aim_uid;
+      let paramsToSendToContainer = null;
+
+      const pluginsDataFolder = path.join(
+        __dirname,
+        `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/`
+      );
+      if (!fs.existsSync(pluginsDataFolder)) {
+        fs.mkdirSync(pluginsDataFolder, { recursive: true });
+      }
+
+      if (parametertype === 'default') {
+        try {
+          paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
+
+          await fastify.createPluginfoldersInternal(
+            paramsToSendToContainer,
+            pluginsDataFolder,
+            aims,
+            projectid,
+            projectdbid,
+            processmultipleaims,
+            request
+          );
+          const returnObject = {
+            params: paramsToSendToContainer,
+            serverfolder: pluginsDataFolder,
+            projectid,
+            projectdbid,
+          };
+          resolve(returnObject);
+        } catch (err) {
+          reject(new InternalError('error while getting plugin default paraeters', err));
+          //  reject(err);
+        }
+      }
+
+      if (parametertype === 'project') {
+        try {
+          paramsToSendToContainer = await fastify.getPluginProjectParametersInternal(
+            pluginid,
+            projectdbid
+          );
+
+          await fastify.createPluginfoldersInternal(
+            paramsToSendToContainer,
+            pluginsDataFolder,
+            aims,
+            projectid,
+            projectdbid,
+            processmultipleaims,
+            request
+          );
+          const returnObject = {
+            params: paramsToSendToContainer,
+            serverfolder: pluginsDataFolder,
+            projectid,
+            projectdbid,
+          };
+          resolve(returnObject);
+        } catch (err) {
+          reject(new InternalError('error while getting plugin project paraeters', err));
+          //  reject(err);
+        }
+      }
+
+      if (parametertype === 'runtime') {
+        if (processmultipleaims === null || processmultipleaims === 1) {
+          paramsToSendToContainer = runtimeParams;
+        } else {
+          paramsToSendToContainer = aims[Object.keys(aims)[0]].pluginparamters;
+        }
+        try {
+          await fastify.createPluginfoldersInternal(
+            paramsToSendToContainer,
+            pluginsDataFolder,
+            aims,
+            projectid,
+            projectdbid,
+            processmultipleaims,
+            request
+          );
+          const returnObject = {
+            params: paramsToSendToContainer,
+            serverfolder: pluginsDataFolder,
+            projectid,
+            projectdbid,
+          };
+          resolve(returnObject);
+        } catch (err) {
+          reject(new InternalError('error while getting plugin runtime paraeters', err));
+        }
+      }
+    });
+  });
+
+  fastify.decorate('updateStatusQueueProcessInternal', (queuid, status) => {
+    let tempTime = '1970-01-01 00:00:01';
+    const dateIbj = {};
+    if (status === 'running') {
+      tempTime = Date.now();
+      dateIbj.starttime = tempTime;
+    }
+    if (status === 'ended' || status === 'error') {
+      tempTime = Date.now();
+      dateIbj.endtime = tempTime;
+    }
+    if (status === 'waiting') {
+      models.plugin_queue
+        .update(
+          {
+            status,
+            starttime: Date.now(),
+            endtime: tempTime,
+          },
+          {
+            where: {
+              id: queuid,
+            },
+          }
+        )
+        .then(data => {
+          return data;
+        })
+        .catch(err => {
+          return new InternalError('error while updating queue process status for waiting', err);
+        });
+    }
+    if (status === 'running') {
+      models.plugin_queue
+        .update(
+          {
+            status,
+          },
+          {
+            where: {
+              id: queuid,
+            },
+          }
+        )
+        .then(data => {
+          return data;
+        })
+        .catch(err => {
+          return new InternalError('error while updating queue process status for running', err);
+        });
+    }
+    if (status === 'ended' || status === 'error') {
+      models.plugin_queue
+        .update(
+          {
+            status,
+            endtime: Date.now(),
+          },
+          {
+            where: {
+              id: queuid,
+            },
+          }
+        )
+        .then(data => {
+          return data;
+        })
+        .catch(err => {
+          return new InternalError(
+            'error while updating queue process status for ended or error',
+            err
+          );
+        });
+    }
+  });
+
+  fastify.decorate('sortPluginParamsAndExtractWhatToMapInternal', async pluginParamsObj => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        let tempPluginParams = null;
+        if (Array.isArray(pluginParamsObj.params)) {
+          tempPluginParams = [...pluginParamsObj.params];
+        } else {
+          const tempKeyArray = Object.keys(pluginParamsObj.params);
+          const temValuesArray = [];
+
+          for (let i = 0; i < tempKeyArray.length; i += 1) {
+            temValuesArray.push(pluginParamsObj.params[tempKeyArray[i]]);
+          }
+          tempPluginParams = [...temValuesArray];
+        }
+
+        const tempLocalFolder = pluginParamsObj.serverfolder;
+
+        // eslint-disable-next-line func-names
+        tempPluginParams.sort((first, second) => {
+          if (first.inputBinding === '' && second.inputBinding === '') {
+            return -1;
+          }
+          if (first.inputBinding !== '' && second.inputBinding !== '') {
+            if (parseInt(first.inputBinding, 10) < parseInt(second.inputBinding, 10)) {
+              return -1;
+            }
+
+            return 1;
+          }
+          if (first.inputBinding === '' && second.inputBinding !== '') {
+            return -1;
+          }
+          if (first.inputBinding !== '' && second.inputBinding === '') {
+            return 1;
+          }
+
+          return 0;
+        });
+        const onlyNameValues = [];
+        const foldersToBind = [];
+        for (let i = 0; i < tempPluginParams.length; i += 1) {
+          if (tempPluginParams[i].prefix !== '') {
+            onlyNameValues.push(tempPluginParams[i].prefix);
+          }
+          if (
+            tempPluginParams[i].format === 'InputFolder' ||
+            tempPluginParams[i].format === 'OutputFolder'
+          ) {
+            if (tempPluginParams[i].default_value !== '') {
+              foldersToBind.push(
+                `${tempLocalFolder}/${tempPluginParams[i].paramid}:${
+                  tempPluginParams[i].default_value
+                }`
+              );
+            }
+          }
+          if (tempPluginParams[i].name !== '') {
+            onlyNameValues.push(tempPluginParams[i].name);
+          }
+          if (tempPluginParams[i].default_value !== '') {
+            onlyNameValues.push(tempPluginParams[i].default_value);
+          }
+        }
+        const returnObj = {
+          paramsDocker: onlyNameValues,
+          dockerFoldersToBind: foldersToBind,
+        };
+
+        return resolve(returnObj);
+      } catch (err) {
+        return reject(new InternalError('error sortPluginParamsAndExtractWhatToMapInternal', err));
+        //  reject(err);
+      }
+    });
+  });
+
+  fastify.decorate('downloadPluginResult', (request, reply) => {
+    const queueObject = request.body;
+    const outputPath = `${queueObject.creator}/${queueObject.id}/output/`;
+    const dest = path.join(__dirname, `../pluginsDataFolder/${outputPath}`);
+    fastify.writeHead(`${queueObject.name}.output.zip`, reply.res, request.headers.origin);
+    // reply.res.writeHead(200, {
+    //   'Content-Type': 'application/zip',
+    //   'Content-disposition': `attachment; filename=${queueObject.name}.output.zip`,
+    //   'Access-Control-Allow-Origin': '*',
+    // });
+    const archive = archiver('zip', {
+      zlib: { level: 9 }, // Sets the compression level.
+    });
+
+    // eslint-disable-next-line func-names
+    // check if commenting out this affects
+    // archive.on('warning', function(err) {
+    //   if (err.code === 'ENOENT') {
+    //     // log warning
+    //   } else {
+    //     throw err;
+    //   }
+    // });
+
+    // eslint-disable-next-line func-names
+    archive.on('error', function(err) {
+      throw err;
+    });
+
+    archive.directory(dest, false);
+    archive.finalize();
+    archive.pipe(reply.res);
+  });
+
+  fastify.decorate('runPluginsQueueInternal', async (result, request) => {
+    const pluginQueueList = [...result];
+
+    for (let i = 0; i < pluginQueueList.length; i += 1) {
+      const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${
+        pluginQueueList[i].plugin.image_tag
+      }`;
+      const queueId = pluginQueueList[i].id;
+      // eslint-disable-next-line no-await-in-loop
+      await fastify.updateStatusQueueProcessInternal(queueId, 'waiting');
+      new EpadNotification(
+        request,
+        `plugin image ${imageRepo} set to waiting`,
+        'success',
+        true
+      ).notify(fastify);
+      fastify.log.info('running plugin for :', pluginQueueList[i]);
+
+      // eslint-disable-next-line no-await-in-loop
+      const pluginParameters = await fastify.extractPluginParamtersInternal(
+        pluginQueueList[i],
+        request
+      );
+      fastify.log.info('first process is ready to send to docker ', pluginParameters);
+      fastify.log.info('called image : ', imageRepo);
+      const dock = new DockerService();
+      let checkImageExistOnHub = false;
+      let checkImageExistLocal = false;
+      try {
+        fastify.log.info(' tryitn to pull first ', imageRepo);
+        // eslint-disable-next-line no-await-in-loop
+        await dock.pullImageA(imageRepo);
+        checkImageExistOnHub = true;
+      } catch (err) {
+        fastify.log.info(
+          `${imageRepo} is not reachable , does not exist on the hub or requires login`
+        );
+      }
+      if (checkImageExistOnHub === false) {
+        // check local image existance
+
+        // eslint-disable-next-line no-await-in-loop
+        const imageList = await dock.listImages();
+        const litSize = imageList.length;
+
+        for (let cnt = 0; cnt < litSize; cnt += 1) {
+          if (imageRepo !== ':' && imageRepo !== '') {
+            if (imageList[cnt].RepoTags.includes(imageRepo)) {
+              checkImageExistLocal = true;
+              fastify.log.info('image found locally');
+              break;
+            }
+          }
+        }
+      }
+      if (checkImageExistOnHub === true || checkImageExistLocal === true) {
+        try {
+          let opreationresult = '';
+          // eslint-disable-next-line no-await-in-loop
+          const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
+            pluginParameters
+          );
+          fastify.log.info('sorted params : ', sortedParams);
+          fastify.log.info('plugin parameters', pluginParameters);
+
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'running');
+          opreationresult = ` plugin image : ${imageRepo} is runing`;
+          new EpadNotification(
+            request,
+            `plugin image ${imageRepo} set to runnning`,
+            'success',
+            true
+          ).notify(fastify);
+          // eslint-disable-next-line no-await-in-loop
+          await dock.createContainer(imageRepo, `epadplugin_${queueId}`, sortedParams);
+
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
+          opreationresult = ` plugin image : ${imageRepo} terminated with success`;
+          new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
+          fastify.log.info('plugin finished working', imageRepo);
+          fastify.log.info('we will upload back files ,,,,,,,,, ', pluginParameters);
+          const checkFileExtension = fileName => {
+            const nameArry = fileName.split('.');
+            const ext = nameArry[nameArry.length - 1];
+            if (ext === 'dcm') {
+              return true;
+            }
+            return false;
+          };
+
+          //  upload the result from container to the series
+          if (fs.existsSync(`${pluginParameters.serverfolder}output`)) {
+            const fileArray = fs
+              .readdirSync(`${pluginParameters.serverfolder}output`)
+              // eslint-disable-next-line no-loop-func
+              .map(fileName => {
+                fastify.log.info('filename : ', fileName);
+                return fileName;
+              })
+              .filter(checkFileExtension);
+            console.log('file array : ', fileArray);
+            //  eslint-disable-next-line no-await-in-loop
+            const { success, errors } = await fastify.saveFiles(
+              `${pluginParameters.serverfolder}output`,
+              fileArray,
+              { project: pluginParameters.projectid },
+              {},
+              request.epadAuth
+            );
+            fastify.log.info('project id :', pluginParameters.projectid);
+            fastify.log.info('projectdb id :', pluginParameters.projectdbid);
+            fastify.log.info('upload dir back error: ', errors);
+            fastify.log.info('upload dir back success: ', success);
+            //  end
+          }
+          return 'completed';
+        } catch (err) {
+          const operationresult = ` plugin image : ${imageRepo} terminated with error`;
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+          return new EpadNotification(request, operationresult, err, true).notify(fastify);
+        }
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+        fastify.log.info('image not found ', imageRepo);
+        return new EpadNotification(
+          request,
+          'error',
+          new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
+          true
+        ).notify(fastify);
+      }
+    }
+    return true;
+  });
+  //  internal functions end
+  //  plugins section end
 
   fastify.decorate('validateRequestBodyFields', (name, id) => {
     if (!name || !id) {
@@ -4333,6 +6458,9 @@ async function epaddb(fastify, options, done) {
       })
       .then(users => {
         const result = [];
+        //  cavit
+        //  console.log('users --------->', users);
+        //  cavit
         users.forEach(user => {
           const projects = [];
           const projectToRole = [];
@@ -4360,6 +6488,9 @@ async function epaddb(fastify, options, done) {
             username: user.username,
             role: user.role,
           };
+          //  cavit
+          //  console.log(' after adding project to each user --->>', obj);
+          //  cavit
           result.push(obj);
         });
         reply.code(200).send(result);
@@ -6296,7 +8427,7 @@ async function epaddb(fastify, options, done) {
           const templates = await fastify.getTemplatesInternal('summary');
           const numOfTemplates = templates.length;
 
-          const numOfPlugins = await models.plugin.count();
+          const numOfPlugins = await models.plugin_docker.count();
 
           // no plans to implement these yet
           // const numOfPacs = RemotePACService.getInstance().getRemotePACs().size();
