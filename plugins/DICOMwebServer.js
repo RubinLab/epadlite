@@ -417,6 +417,13 @@ async function dicomwebserver(fastify) {
                 exam_types: JSON.stringify(value['00080061'].Value ? value['00080061'].Value : []),
                 num_of_images: numberOfImages,
                 num_of_series: numberOfSeries,
+                // so that we fix the old ones with no value
+                referring_physician: value['00080090'].Value
+                  ? value['00080090'].Value[0].Alphabetic
+                  : '',
+                accession_number: value['00080050'].Value ? value['00080050'].Value[0] : null,
+                study_id: value['00200010'].Value ? value['00200010'].Value[0] : null,
+                study_time: value['00080030'].Value ? value['00080030'].Value[0] : null,
               };
               updateStudyPromises.push(() => {
                 return fastify.updateStudyDBRecord(studyUid, studyRec, epadAuth);

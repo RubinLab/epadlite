@@ -5541,8 +5541,15 @@ async function epaddb(fastify, options, done) {
                   });
                 let studyInfo = {};
                 studyInfo.studyUID = studyUid;
+                // anything added here needs to be added to getDicomInfo in Other to make the uploaded dicoms to fill in
                 if (body && body.studyDesc) studyInfo.studyDescription = body.studyDesc;
                 if (body && body.insertDate) studyInfo.insertDate = body.insertDate;
+                if (body && body.studyAccessionNumber)
+                  studyInfo.studyAccessionNumber = body.studyAccessionNumber;
+                if (body && body.referringPhysicianName)
+                  studyInfo.referringPhysicianName = body.referringPhysicianName;
+                if (body && body.studyID) studyInfo.studyID = body.studyID;
+                if (body && body.studyTime) studyInfo.studyTime = body.studyTime;
                 // if there is body, it is nondicom. you cannot create a nondicom if it is already in system
                 // it doesn't have subject info (not upload)
                 const studyExists = await models.study.findOne({
@@ -5616,12 +5623,12 @@ async function epaddb(fastify, options, done) {
             if (
               params.project === config.unassignedProjectID &&
               config.pollDW &&
-              whereJSON.subject_id &&
               projectSubjects.length === 0
             ) {
+              const studyWhere = whereJSON.subject_id ? { subject_id: whereJSON.subject_id } : {};
               const studies = await models.study.findAll({
                 where: {
-                  subject_id: whereJSON.subject_id,
+                  ...studyWhere,
                   '$project_subject_studies.study_id$': null,
                 },
                 include: [{ model: models.project_subject_study }, { model: models.subject }],
@@ -6830,6 +6837,7 @@ async function epaddb(fastify, options, done) {
     async (reqOrigin, params, query, epadAuth, output, whereJSON, studyInfos, seriesInfos) =>
       new Promise(async (resolve, reject) => {
         try {
+          // not handling all project intentionally. only download files for that project
           const fileUids = await fastify.getFileUidsForProject({ project: params.project });
           // if it has res, it is fastify reply
           const isResponseJustStream = !output.res;
@@ -6915,7 +6923,8 @@ async function epaddb(fastify, options, done) {
                   studyDir,
                   { ...params, subject: subjectUid, study: studyUid },
                   query,
-                  epadAuth
+                  epadAuth,
+                  fileUids
                 );
                 if (!isThereData) fs.rmdirSync(studyDir);
                 else {
@@ -7097,7 +7106,8 @@ async function epaddb(fastify, options, done) {
         let whereJSON = {
           subject_id: subject.id,
         };
-        if (!config.XNATUploadProjectID) whereJSON = { ...whereJSON, project_id: project.id };
+        if (request.params.project !== config.XNATUploadProjectID)
+          whereJSON = { ...whereJSON, project_id: project.id };
         await fastify.prepDownload(
           request.headers.origin,
           request.params,
@@ -7158,7 +7168,8 @@ async function epaddb(fastify, options, done) {
         let whereJSON = {
           subject_id: { $in: subjectIds },
         };
-        if (!config.XNATUploadProjectID) whereJSON = { ...whereJSON, project_id: project.id };
+        if (request.params.project !== config.XNATUploadProjectID)
+          whereJSON = { ...whereJSON, project_id: project.id };
 
         await fastify.prepDownload(
           request.headers.origin,
@@ -7704,15 +7715,33 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        const result = await fastify.getStudiesInternal(
-          {
-            project_id: project.id,
-          },
-          request.params,
-          request.epadAuth,
-          false,
-          request.query
-        );
+        let result = [];
+        if (request.params.project === config.unassignedProjectID && config.pollDW === 0) {
+          result = await fastify.getPatientStudiesInternal(
+            request.params,
+            [],
+            request.epadAuth,
+            request.query,
+            false,
+            '0020000D',
+            'studyUID',
+            true
+          );
+        } else {
+          const whereJSON =
+            request.params.project !== config.XNATUploadProjectID
+              ? {
+                  project_id: project.id,
+                }
+              : {};
+          result = await fastify.getStudiesInternal(
+            whereJSON,
+            request.params,
+            request.epadAuth,
+            false,
+            request.query
+          );
+        }
 
         reply.code(200).send(result);
       }
