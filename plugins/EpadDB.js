@@ -6837,6 +6837,7 @@ async function epaddb(fastify, options, done) {
     async (reqOrigin, params, query, epadAuth, output, whereJSON, studyInfos, seriesInfos) =>
       new Promise(async (resolve, reject) => {
         try {
+          // not handling all project intentionally. only download files for that project
           const fileUids = await fastify.getFileUidsForProject({ project: params.project });
           // if it has res, it is fastify reply
           const isResponseJustStream = !output.res;
@@ -6922,7 +6923,8 @@ async function epaddb(fastify, options, done) {
                   studyDir,
                   { ...params, subject: subjectUid, study: studyUid },
                   query,
-                  epadAuth
+                  epadAuth,
+                  fileUids
                 );
                 if (!isThereData) fs.rmdirSync(studyDir);
                 else {
