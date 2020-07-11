@@ -85,10 +85,10 @@ async function other(fastify) {
         Promise.all(fileSavePromises)
           .then(values => {
             let numOfSuccess = 0;
-            const errors = [];
+            let errors = [];
             for (let i = 0; i < values.length; i += 1) {
               if (values[i].success) numOfSuccess += 1;
-              errors.concat(values[i].errors);
+              errors = errors.concat(values[i].errors);
             }
             const errMessagesText = fastify.getCombinedErrorText(errors);
 
@@ -627,15 +627,19 @@ async function other(fastify) {
               }
               pq.addAll(promisses).then(async values => {
                 try {
+                  result.success = false;
                   for (let i = 0; values.length; i += 1) {
                     if (
                       values[i] === undefined ||
                       (values[i].errors && values[i].errors.length === 0)
                     ) {
                       // one success is enough
-                      result.success = result.success || true;
-                      break;
+                      result.success = result.success || values[i].success;
+                      // I cannot break because of errors accumulation, I am not sure about performance
+                      // break;
                     }
+                    if (values[i].errors && values[i].errors.length > 0)
+                      result.errors = result.errors.concat(values[i].errors);
                   }
                   if (datasets.length > 0) {
                     pqDicoms
