@@ -10,6 +10,7 @@ const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
 const crypto = require('crypto');
+const concat = require('concat-stream');
 const { createOfflineAimSegmentation } = require('aimapi');
 const config = require('../config/index');
 
@@ -64,6 +65,79 @@ async function other(fastify) {
   // });
   // eslint-disable-next-line global-require
   fastify.register(require('fastify-multipart'));
+  fastify.decorate('getCombinedErrorText', errors => {
+    let errMessagesText = null;
+    if (errors.length > 0) {
+      const errMessages = errors.reduce((all, item) => {
+        all.push(item.message);
+        return all;
+      }, []);
+      errMessagesText = errMessages.toString();
+    }
+    return errMessagesText;
+  });
+  fastify.decorate('saveAimFile', (request, reply) => {
+    const fileSavePromises = [];
+    function done(err) {
+      if (err) {
+        reply.send(new InternalError('Multipart aim file save', err));
+      } else {
+        Promise.all(fileSavePromises)
+          .then(values => {
+            let numOfSuccess = 0;
+            const errors = [];
+            for (let i = 0; i < values.length; i += 1) {
+              if (values[i].success) numOfSuccess += 1;
+              errors.concat(values[i].errors);
+            }
+            const errMessagesText = fastify.getCombinedErrorText(errors);
+
+            if (numOfSuccess) {
+              if (errMessagesText) {
+                reply.send(
+                  new InternalError('Aim file(s) saved with errors', new Error(errMessagesText))
+                );
+              } else reply.code(200).send('Aim file(s) saved');
+            } else
+              reply.send(
+                new InternalError('None of the aims is saved', new Error(`errMessagesText`))
+              );
+          })
+          .catch(fileSaveErr => {
+            reply.send(new InternalError('Aim file(s) save error', fileSaveErr));
+          });
+      }
+    }
+    function handler(field, file, filename) {
+      fileSavePromises.push(
+        new Promise(resolve => {
+          file.pipe(
+            concat(buf => {
+              const jsonBuffer = JSON.parse(buf);
+              fastify
+                .saveAimJsonWithProjectRef(jsonBuffer, request.params, request.epadAuth, filename)
+                .then(res => {
+                  resolve(res);
+                })
+                .catch(err => {
+                  // errors.push(new InternalError(`Saving aim ${filename}`, err));
+                  resolve({ success: false, errors: [err] });
+                });
+            }),
+            err => {
+              if (err) {
+                // errors.push(new InternalError(`Getting aim json from upload for ${filename}`, err));
+                resolve({ success: false, errors: [err] });
+              }
+            }
+          );
+        })
+      );
+    }
+
+    request.multipart(handler, done);
+  });
+
   fastify.decorate('saveFile', (request, reply) => {
     const timestamp = new Date().getTime();
     const dir = `/tmp/tmp_${timestamp}`;
@@ -92,14 +166,7 @@ async function other(fastify) {
                 fastify.log.info(`${dir} deleted`);
               });
 
-              let errMessagesText = null;
-              if (errors.length > 0) {
-                const errMessages = errors.reduce((all, item) => {
-                  all.push(item.message);
-                  return all;
-                }, []);
-                errMessagesText = errMessages.toString();
-              }
+              const errMessagesText = fastify.getCombinedErrorText(errors);
 
               if (success) {
                 if (errMessagesText) {
