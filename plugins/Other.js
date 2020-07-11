@@ -274,7 +274,6 @@ async function other(fastify) {
             .catch(err => {
               reject(err);
             });
-          resolve();
         } catch (err) {
           reject(err);
         }
@@ -558,6 +557,7 @@ async function other(fastify) {
                   .then(res => {
                     try {
                       fastify.log.info(`Saving successful for ${filename}`);
+                      console.log('-----------> json res', res);
                       resolve(res);
                     } catch (errProject) {
                       reject(errProject);
@@ -589,13 +589,15 @@ async function other(fastify) {
                   fastify.saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                 );
               });
+              console.log(' ----> promiseArr');
+              console.log(promiseArr);
 
               Promise.all(promiseArr)
                 .then(res => {
                   console.log('in resolve', res);
                   try {
                     fastify.log.info(`Saving successful for ${filename}`);
-                    resolve(res);
+                    resolve(res[0]);
                   } catch (errProject) {
                     reject(errProject);
                   }
@@ -649,7 +651,6 @@ async function other(fastify) {
       const aim = new Aim(el.seedData, fastify.enumAimType.imageAnnotation);
       const markupsToSave = el.rois.map(roi => fastify.formMarupksToSave(roi));
       fastify.createAimMarkups(aim, markupsToSave);
-      console.log(aim.getAim());
       const aimJson = JSON.parse(aim.getAim());
       aimJsons.push(aimJson);
     });
