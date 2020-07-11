@@ -44,7 +44,7 @@ fastify.addSchema(epadliteImagesSchema);
 fastify.addSchema(epadUsersSchema);
 // enable cors
 fastify.register(require('fastify-cors'), {
-  origin: '*',
+  origin: config.corsOrigin,
 });
 
 // register CouchDB plugin we created
@@ -118,6 +118,9 @@ fastify.register(require('./routes/projectTemplate'), { prefix: config.prefix })
 fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
 
+if (config.mode === 'thick') {
+  fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require
+}
 // Run the server!
 fastify.listen(port, host);
 

@@ -9,6 +9,9 @@ window = {};
 const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
+const crypto = require('crypto');
+const concat = require('concat-stream');
+const { createOfflineAimSegmentation } = require('aimapi');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -37,17 +40,104 @@ const {
 async function other(fastify) {
   fastify.log.info(`Starting a promise queue with ${config.maxConcurrent} concurrent promisses`);
   const pq = new PQueue({ concurrency: config.maxConcurrent });
+  // seperate promise queue for dicom sending to ensure sending one folder at a time
+  const pqDicoms = new PQueue({ concurrency: 1 });
   fastify.decorate('pq', pq);
-  let count = 0;
-  pq.on('active', () => {
-    count += 1;
-    // eslint-disable-next-line no-plusplus
-    fastify.log.info(
-      `P-queue working on item #${count}.  Size: ${pq.size}  Pending: ${pq.pending}`
-    );
-  });
+  fastify.decorate('pqDicoms', pqDicoms);
+  // disable logs for now
+  // let count = 0;
+  // pq.on('active', () => {
+  //   count += 1;
+  //   // eslint-disable-next-line no-plusplus
+  //   fastify.log.info(
+  //     `P-queue working on item #${count}.  Size: ${pq.size}  Pending: ${pq.pending}`
+  //   );
+  // });
+  // let countDicoms = 0;
+  // pqDicoms.on('active', () => {
+  //   countDicoms += 1;
+  //   // eslint-disable-next-line no-plusplus
+  //   fastify.log.info(
+  //     `P-queue dicom working on item #${countDicoms}.  Size: ${pqDicoms.size}  Pending: ${
+  //       pqDicoms.pending
+  //     }`
+  //   );
+  // });
   // eslint-disable-next-line global-require
   fastify.register(require('fastify-multipart'));
+  fastify.decorate('getCombinedErrorText', errors => {
+    let errMessagesText = null;
+    if (errors.length > 0) {
+      const errMessages = errors.reduce((all, item) => {
+        all.push(item.message);
+        return all;
+      }, []);
+      errMessagesText = errMessages.toString();
+    }
+    return errMessagesText;
+  });
+  fastify.decorate('saveAimFile', (request, reply) => {
+    const fileSavePromises = [];
+    function done(err) {
+      if (err) {
+        reply.send(new InternalError('Multipart aim file save', err));
+      } else {
+        Promise.all(fileSavePromises)
+          .then(values => {
+            let numOfSuccess = 0;
+            const errors = [];
+            for (let i = 0; i < values.length; i += 1) {
+              if (values[i].success) numOfSuccess += 1;
+              errors.concat(values[i].errors);
+            }
+            const errMessagesText = fastify.getCombinedErrorText(errors);
+
+            if (numOfSuccess) {
+              if (errMessagesText) {
+                reply.send(
+                  new InternalError('Aim file(s) saved with errors', new Error(errMessagesText))
+                );
+              } else reply.code(200).send('Aim file(s) saved');
+            } else
+              reply.send(
+                new InternalError('None of the aims is saved', new Error(`errMessagesText`))
+              );
+          })
+          .catch(fileSaveErr => {
+            reply.send(new InternalError('Aim file(s) save error', fileSaveErr));
+          });
+      }
+    }
+    function handler(field, file, filename) {
+      fileSavePromises.push(
+        new Promise(resolve => {
+          file.pipe(
+            concat(buf => {
+              const jsonBuffer = JSON.parse(buf);
+              fastify
+                .saveAimJsonWithProjectRef(jsonBuffer, request.params, request.epadAuth, filename)
+                .then(res => {
+                  resolve(res);
+                })
+                .catch(err => {
+                  // errors.push(new InternalError(`Saving aim ${filename}`, err));
+                  resolve({ success: false, errors: [err] });
+                });
+            }),
+            err => {
+              if (err) {
+                // errors.push(new InternalError(`Getting aim json from upload for ${filename}`, err));
+                resolve({ success: false, errors: [err] });
+              }
+            }
+          );
+        })
+      );
+    }
+
+    request.multipart(handler, done);
+  });
+
   fastify.decorate('saveFile', (request, reply) => {
     const timestamp = new Date().getTime();
     const dir = `/tmp/tmp_${timestamp}`;
@@ -59,62 +149,24 @@ async function other(fastify) {
       } else {
         Promise.all(fileSavePromisses)
           .then(async () => {
-            let errors = [];
-            let success = false;
-            let datasets = [];
-            let studies = new Set();
             if (config.env !== 'test') {
               fastify.log.info('Files copy completed. sending response');
               reply.code(202).send('Files received succesfully, saving..');
             }
             try {
-              for (let i = 0; i < filenames.length; i += 1) {
-                try {
-                  // eslint-disable-next-line no-await-in-loop
-                  const fileResult = await fastify.processFile(
-                    dir,
-                    filenames[i],
-                    datasets,
-                    request.params,
-                    request.query,
-                    studies,
-                    request.epadAuth
-                  );
-                  if (fileResult && fileResult.errors && fileResult.errors.length > 0)
-                    errors = errors.concat(fileResult.errors);
-                  if (
-                    (fileResult && fileResult.errors && fileResult.errors.length === 0) ||
-                    (fileResult && fileResult.success && fileResult.success === true)
-                  )
-                    success = success || true;
-                } catch (fileErr) {
-                  errors.push(fileErr);
-                }
-              }
-              // see if it was a dicom
-              if (datasets.length > 0) {
-                await fastify.sendDicomsInternal(
-                  request.params,
-                  request.epadAuth,
-                  studies,
-                  datasets
-                );
-                datasets = [];
-                studies = new Set();
-              }
+              const { success, errors } = await fastify.saveFiles(
+                dir,
+                filenames,
+                request.params,
+                request.query,
+                request.epadAuth
+              );
               fs.remove(dir, error => {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 fastify.log.info(`${dir} deleted`);
               });
 
-              let errMessagesText = null;
-              if (errors.length > 0) {
-                const errMessages = errors.reduce((all, item) => {
-                  all.push(item.message);
-                  return all;
-                }, []);
-                errMessagesText = errMessages.toString();
-              }
+              const errMessagesText = fastify.getCombinedErrorText(errors);
 
               if (success) {
                 if (errMessagesText) {
@@ -201,7 +253,56 @@ async function other(fastify) {
     request.multipart(handler, done);
   });
 
-  fastify.decorate('chunkSize', 500);
+  fastify.decorate(
+    'saveFiles',
+    (dir, filenames, params, query, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let errors = [];
+          let success = false;
+          let datasets = [];
+          let studies = new Set();
+          await fastify.addProcessing(params, query, dir, true, 1, '', epadAuth);
+          for (let i = 0; i < filenames.length; i += 1) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const fileResult = await fastify.processFile(
+                dir,
+                filenames[i],
+                datasets,
+                params,
+                query,
+                studies,
+                epadAuth
+              );
+              if (fileResult && fileResult.errors && fileResult.errors.length > 0)
+                errors = errors.concat(fileResult.errors);
+              if (
+                (fileResult && fileResult.errors && fileResult.errors.length === 0) ||
+                (fileResult && fileResult.success && fileResult.success === true)
+              )
+                success = success || true;
+            } catch (fileErr) {
+              errors.push(fileErr);
+            }
+          }
+          // see if it was a dicom
+          if (datasets.length > 0) {
+            await pqDicoms.add(() => {
+              return fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
+            });
+            datasets = [];
+            studies = new Set();
+          }
+          await fastify.removeProcessing(params, query, dir);
+          resolve({ success, errors });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate('chunkSize', 300);
 
   fastify.decorate(
     'sendDicomsInternal',
@@ -210,17 +311,18 @@ async function other(fastify) {
         try {
           await fastify.addProjectReferences(params, epadAuth, studies);
           fastify.log.info(`Writing ${datasets.length} dicoms`);
-          for (let i = 0; i < datasets.length; i += fastify.chunkSize) {
-            const dataSetPart = datasets.slice(
-              i,
-              i + fastify.chunkSize > datasets.length ? datasets.length : i + fastify.chunkSize
-            );
-            const { data, boundary } = dcmjs.utilities.message.multipartEncode(dataSetPart);
-            fastify.log.info(
-              `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
-            );
-            // eslint-disable-next-line no-await-in-loop
+          const { data, boundary } = dcmjs.utilities.message.multipartEncode(datasets);
+          fastify.log.info(
+            `Sending ${Buffer.byteLength(data)} bytes of data to dicom web server for saving`
+          );
+          try {
             await fastify.saveDicomsInternal(data, boundary);
+          } catch (err) {
+            // if socket hang up wait a sec and try once more
+            if (err.message.includes('socket hang up')) {
+              fastify.log.warn('DICOMweb hang up the socker trying again');
+              setTimeout(await fastify.saveDicomsInternal(data, boundary), 1000);
+            }
           }
           resolve();
         } catch (err) {
@@ -252,47 +354,123 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate('getDicomInfo', arrayBuffer => {
-    const dicomTags = dcmjs.data.DicomMessage.readFile(arrayBuffer);
-    return JSON.stringify({
-      subject:
-        dicomTags.dict['00100020'] && dicomTags.dict['00100020'].Value
-          ? dicomTags.dict['00100020'].Value[0]
-          : '',
-      study:
-        dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
-          ? dicomTags.dict['0020000D'].Value[0]
-          : '',
-      subjectName:
-        dicomTags.dict['00100010'] && dicomTags.dict['00100010'].Value
-          ? dicomTags.dict['00100010'].Value[0]
-          : '',
-      studyDesc:
-        dicomTags.dict['00081030'] && dicomTags.dict['00081030'].Value
-          ? dicomTags.dict['00081030'].Value[0]
-          : '',
-      insertDate:
-        dicomTags.dict['00080020'] && dicomTags.dict['00080020'].Value
-          ? dicomTags.dict['00080020'].Value[0]
-          : '',
-      birthdate:
-        dicomTags.dict['00100030'] && dicomTags.dict['00100030'].Value
-          ? dicomTags.dict['00100030'].Value[0]
-          : '',
-      sex:
-        dicomTags.dict['00100040'] && dicomTags.dict['00100040'].Value
-          ? dicomTags.dict['00100040'].Value[0]
-          : '',
-      // seriesUID:
-      //   dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
-      //     ? dicomTags.dict['0020000E'].Value[0]
-      //     : '',
-      // imageUID:
-      //   dicomTags.dict['00080018'] && dicomTags.dict['00080018'].Value
-      //     ? dicomTags.dict['00080018'].Value[0]
-      //     : '',
-    });
-  });
+  fastify.decorate(
+    'saveAimJsonWithProjectRef',
+    (aimJson, params, epadAuth, filename) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          fastify
+            .saveAimInternal(aimJson)
+            .then(async () => {
+              try {
+                await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
+                if (filename) fastify.log.info(`Saving successful for ${filename}`);
+                resolve({ success: true, errors: [] });
+              } catch (errProject) {
+                reject(errProject);
+              }
+            })
+            .catch(err => {
+              reject(err);
+            });
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getDicomInfo',
+    (arrayBuffer, params, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const dicomTags = dcmjs.data.DicomMessage.readFile(arrayBuffer);
+          const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(dicomTags.dict);
+          // eslint-disable-next-line no-underscore-dangle
+          dataset._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(dicomTags.meta);
+          if (dataset.Modality === 'SEG') {
+            const aimExist = await fastify.checkProjectSegAimExistence(
+              dataset.SeriesInstanceUID,
+              params.project
+            );
+            // create a segmentation aim if it doesn't exist
+            if (!aimExist) {
+              fastify.log.info(
+                `A segmentation is uploaded with series UID ${
+                  dataset.SeriesInstanceUID
+                } which doesn't have an aim, generating an aim with name ${
+                  dataset.SeriesDescription
+                } `
+              );
+              const { aim } = createOfflineAimSegmentation(dataset, {
+                loginName: 'admin', // TODO assuming admin user
+                name: 'Admin',
+              });
+              const aimJson = aim.getAimJSON();
+              await fastify.saveAimJsonWithProjectRef(aimJson, params, epadAuth);
+            }
+          }
+          resolve(
+            JSON.stringify({
+              subject:
+                dicomTags.dict['00100020'] && dicomTags.dict['00100020'].Value
+                  ? dicomTags.dict['00100020'].Value[0]
+                  : '',
+              study:
+                dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
+                  ? dicomTags.dict['0020000D'].Value[0]
+                  : '',
+              subjectName:
+                dicomTags.dict['00100010'] && dicomTags.dict['00100010'].Value
+                  ? dicomTags.dict['00100010'].Value[0]
+                  : '',
+              studyDesc:
+                dicomTags.dict['00081030'] && dicomTags.dict['00081030'].Value
+                  ? dicomTags.dict['00081030'].Value[0]
+                  : '',
+              insertDate:
+                dicomTags.dict['00080020'] && dicomTags.dict['00080020'].Value
+                  ? dicomTags.dict['00080020'].Value[0]
+                  : '',
+              birthdate:
+                dicomTags.dict['00100030'] && dicomTags.dict['00100030'].Value
+                  ? dicomTags.dict['00100030'].Value[0]
+                  : '',
+              sex:
+                dicomTags.dict['00100040'] && dicomTags.dict['00100040'].Value
+                  ? dicomTags.dict['00100040'].Value[0]
+                  : '',
+              studyAccessionNumber:
+                dicomTags.dict['00080050'] && dicomTags.dict['00080050'].Value
+                  ? dicomTags.dict['00080050'].Value[0]
+                  : '',
+              referringPhysicianName:
+                dicomTags.dict['00080090'] && dicomTags.dict['00080090'].Value
+                  ? dicomTags.dict['00080090'].Value[0]
+                  : '',
+              studyID:
+                dicomTags.dict['00200010'] && dicomTags.dict['00200010'].Value
+                  ? dicomTags.dict['00200010'].Value[0]
+                  : '',
+              studyTime:
+                dicomTags.dict['00080030'] && dicomTags.dict['00080030'].Value
+                  ? dicomTags.dict['00080030'].Value[0]
+                  : '',
+              // seriesUID:
+              //   dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
+              //     ? dicomTags.dict['0020000E'].Value[0]
+              //     : '',
+              // imageUID:
+              //   dicomTags.dict['00080018'] && dicomTags.dict['00080018'].Value
+              //     ? dicomTags.dict['00080018'].Value[0]
+              //     : '',
+            })
+          );
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate(
     'processZip',
@@ -307,20 +485,26 @@ async function other(fastify) {
             .pipe(unzip.Extract({ path: `${zipDir}` }))
             .on('close', () => {
               fastify.log.info(`Extracted zip ${zipDir}`);
+              // add extracted zip so we can skip
               fastify
-                .processFolder(`${zipDir}`, params, query, epadAuth)
-                .then(result => {
-                  fastify.log.info(
-                    `Finished processing ${filename} at ${new Date().getTime()} started at ${zipTimestamp}`
-                  );
-                  fs.remove(zipDir, error => {
-                    if (error)
-                      fastify.log.info(`Zip temp directory deletion error ${error.message}`);
-                    else fastify.log.info(`${zipDir} deleted`);
-                  });
-                  resolve(result);
+                .addProcessing(params, query, zipDir, false, 1, path.join(dir, filename), epadAuth)
+                .then(() => {
+                  fastify
+                    .processFolder(`${zipDir}`, params, query, epadAuth)
+                    .then(result => {
+                      fastify.log.info(
+                        `Finished processing ${filename} at ${new Date().getTime()} started at ${zipTimestamp}`
+                      );
+                      fs.remove(zipDir, error => {
+                        if (error)
+                          fastify.log.info(`Zip temp directory deletion error ${error.message}`);
+                        else fastify.log.info(`${zipDir} deleted`);
+                      });
+                      resolve(result);
+                    })
+                    .catch(err => reject(err));
                 })
-                .catch(err => reject(err));
+                .catch(errPrc => reject(errPrc));
             })
             .on('error', error => {
               reject(new InternalError(`Extracting zip ${filename}`, error));
@@ -342,27 +526,37 @@ async function other(fastify) {
       fastify.log.info(`Started scanning folder ${dataFolder}`);
       reply.send(`Started scanning ${dataFolder}`);
       fastify
-        .processFolder(dataFolder, request.params, {}, request.epadAuth)
-        .then(result => {
-          fastify.log.info(
-            `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
-              result.success
-            } started at ${scanTimestamp}`
-          );
-          new EpadNotification(request, 'Folder scan completed', dataFolder, true).notify(fastify);
+        .addProcessing(request.params, request.query, dataFolder, false, 1, '', request.epadAuth)
+        .then(() => {
+          fastify
+            .processFolder(dataFolder, request.params, {}, request.epadAuth)
+            .then(result => {
+              fastify.log.info(
+                `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
+                  result.success
+                } started at ${scanTimestamp}`
+              );
+              new EpadNotification(request, 'Folder scan completed', dataFolder, true).notify(
+                fastify
+              );
+            })
+            .catch(err => {
+              fastify.log.warn(`Error processing ${dataFolder} Error: ${err.message}`);
+              new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
+            });
         })
-        .catch(err => {
-          fastify.log.warn(`Error processing ${dataFolder} Error: ${err.message}`);
-          new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
+        .catch(errPrc => {
+          fastify.log.warn(`Error processing ${dataFolder} Error: ${errPrc.message}`);
+          new EpadNotification(request, 'Folder scan failed', errPrc, true).notify(fastify);
         });
     }
   });
 
   fastify.decorate(
     'processFolder',
-    (zipDir, params, query, epadAuth) =>
+    (zipDir, params, query, epadAuth, filesOnly = false, zipFilesToIgnore = []) =>
       new Promise((resolve, reject) => {
-        fastify.log.info(`Processing folder ${zipDir}`);
+        fastify.log.info(`Processing folder ${zipDir} filesonly: ${filesOnly}`);
         const datasets = [];
         // success variable is to check if there was at least one successful processing
         const result = { success: false, errors: [] };
@@ -372,38 +566,66 @@ async function other(fastify) {
             reject(new InternalError(`Reading directory ${zipDir}`, err));
           } else {
             try {
+              if (!filesOnly) {
+                // keep track of processing
+                for (let i = 0; i < files.length; i += 1) {
+                  if (files[i] !== '__MACOSX')
+                    if (fs.statSync(path.join(zipDir, files[i])).isDirectory() === true)
+                      // eslint-disable-next-line no-await-in-loop
+                      await fastify.addProcessing(
+                        params,
+                        query,
+                        path.join(zipDir, files[i]),
+                        false,
+                        1,
+                        '',
+                        epadAuth
+                      );
+                }
+                await fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
+              }
               const promisses = [];
               for (let i = 0; i < files.length; i += 1) {
                 if (files[i] !== '__MACOSX')
                   if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
                     try {
-                      // eslint-disable-next-line no-await-in-loop
-                      const subdirResult = await fastify.processFolder(
-                        `${zipDir}/${files[i]}`,
-                        params,
-                        query,
-                        epadAuth
-                      );
-                      if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
-                        result.errors = result.errors.concat(subdirResult.errors);
-                      }
-                      if (subdirResult && subdirResult.success) {
-                        result.success = result.success || subdirResult.success;
+                      if (!filesOnly) {
+                        // eslint-disable-next-line no-await-in-loop
+                        const subdirResult = await fastify.processFolder(
+                          path.join(zipDir, files[i]),
+                          params,
+                          query,
+                          epadAuth
+                        );
+                        if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
+                          result.errors = result.errors.concat(subdirResult.errors);
+                        }
+                        if (subdirResult && subdirResult.success) {
+                          result.success = result.success || subdirResult.success;
+                        }
                       }
                     } catch (folderErr) {
                       reject(folderErr);
                     }
                   else
-                    promisses.push(
-                      fastify
-                        .processFile(zipDir, files[i], datasets, params, query, studies, epadAuth)
-                        // eslint-disable-next-line no-loop-func
+                    promisses.push(() => {
+                      return fastify
+                        .processFile(
+                          zipDir,
+                          files[i],
+                          datasets,
+                          params,
+                          query,
+                          studies,
+                          epadAuth,
+                          zipFilesToIgnore
+                        )
                         .catch(error => {
                           result.errors.push(error);
-                        })
-                    );
+                        });
+                    });
               }
-              Promise.all(promisses).then(async values => {
+              pq.addAll(promisses).then(async values => {
                 try {
                   for (let i = 0; values.length; i += 1) {
                     if (
@@ -416,11 +638,15 @@ async function other(fastify) {
                     }
                   }
                   if (datasets.length > 0) {
-                    fastify
-                      .sendDicomsInternal(params, epadAuth, studies, datasets)
-                      .then(() => resolve(result))
+                    pqDicoms
+                      .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
+                      .then(async () => {
+                        await fastify.removeProcessing(params, query, zipDir);
+                        resolve(result);
+                      })
                       .catch(error => reject(error));
                   } else {
+                    await fastify.removeProcessing(params, query, zipDir);
                     resolve(result);
                   }
                 } catch (saveDicomErr) {
@@ -437,7 +663,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'processFile',
-    (dir, filename, datasets, params, query, studies, epadAuth) =>
+    (dir, filename, datasets, params, query, studies, epadAuth, zipFilesToIgnore = []) =>
       new Promise((resolve, reject) => {
         try {
           let buffer = [];
@@ -452,14 +678,25 @@ async function other(fastify) {
           readableStream.on('close', () => {
             readableStream.destroy();
           });
-          readableStream.on('end', () => {
+          readableStream.on('end', async () => {
             buffer = Buffer.concat(buffer);
             // fastify.log.info(`Finished reading ${dir}/${filename}. Buffer length ${buffer.length}`);
             if (filename.endsWith('dcm') && !filename.startsWith('__MACOSX')) {
               try {
                 const arrayBuffer = toArrayBuffer(buffer);
-                studies.add(fastify.getDicomInfo(arrayBuffer));
+                const dicomInfo = await fastify.getDicomInfo(arrayBuffer, params, epadAuth);
+                studies.add(dicomInfo);
                 datasets.push(arrayBuffer);
+                // TODO this doesn't work, should we chunk it during send again?
+                // if (datasets.length >= fastify.chunkSize) {
+                //   await pqDicoms.add(() => {
+                //     return fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
+                //   });
+                //   // eslint-disable-next-line no-param-reassign
+                //   datasets = [];
+                //   // eslint-disable-next-line no-param-reassign
+                //   studies = new Set();
+                // }
                 resolve({ success: true, errors: [] });
               } catch (err) {
                 reject(new InternalError(`Reading dicom file ${filename}`, err));
@@ -489,12 +726,11 @@ async function other(fastify) {
                   });
               } else {
                 fastify
-                  .saveAimInternal(jsonBuffer)
-                  .then(async () => {
+                  .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
+                  .then(res => {
                     try {
-                      await fastify.addProjectAimRelInternal(jsonBuffer, params.project, epadAuth);
                       fastify.log.info(`Saving successful for ${filename}`);
-                      resolve({ success: true, errors: [] });
+                      resolve(res);
                     } catch (errProject) {
                       reject(errProject);
                     }
@@ -503,12 +739,17 @@ async function other(fastify) {
                     reject(err);
                   });
               }
-            } else if (filename.endsWith('zip') && !filename.startsWith('__MACOSX')) {
+            } else if (
+              filename.endsWith('zip') &&
+              !filename.startsWith('__MACOSX') &&
+              !zipFilesToIgnore.includes(path.join(dir, filename))
+            ) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
                 .then(result => resolve(result))
                 .catch(err => reject(err));
-            } else if (fastify.checkFileType(filename))
+            } else if (fastify.checkFileType(filename) && filename !== '.DS_Store')
+              // check .DS_Store just in case
               fastify
                 .saveOtherFileToProjectInternal(
                   filename,
@@ -520,13 +761,42 @@ async function other(fastify) {
                 )
                 .then(() => resolve({ success: true, errors: [] }))
                 .catch(err => reject(err));
-            else
-              reject(
-                new BadRequestError(
-                  'Uploading files',
-                  new Error(`Unsupported filetype for file ${dir}/${filename}`)
-                )
-              );
+            else {
+              // check to see if it is a dicom file with no dcm extension
+              const ext = fastify.getExtension(filename);
+              if (ext === '' || /^\d+$/.test(ext)) {
+                try {
+                  const arrayBuffer = toArrayBuffer(buffer);
+                  const dicomInfo = await fastify.getDicomInfo(arrayBuffer, params, epadAuth);
+                  studies.add(dicomInfo);
+                  datasets.push(arrayBuffer);
+                  // TODO this doesn't work, should we chunk it during send again?
+                  // if (datasets.length >= fastify.chunkSize) {
+                  //   await pqDicoms.add(() => {
+                  //     return fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
+                  //   });
+                  //   // eslint-disable-next-line no-param-reassign
+                  //   datasets = [];
+                  //   // eslint-disable-next-line no-param-reassign
+                  //   studies = new Set();
+                  // }
+                  resolve({ success: true, errors: [] });
+                } catch (err) {
+                  reject(
+                    new BadRequestError(
+                      'Uploading files',
+                      new Error(`Unsupported filetype for file ${dir}/${filename}`)
+                    )
+                  );
+                }
+              } else
+                reject(
+                  new BadRequestError(
+                    'Uploading files',
+                    new Error(`Unsupported filetype for file ${dir}/${filename}`)
+                  )
+                );
+            }
           });
         } catch (err) {
           reject(new InternalError(`Processing file ${filename}`, err));
@@ -542,10 +812,11 @@ async function other(fastify) {
           const timestamp = new Date().getTime();
           // create fileInfo
           const fileInfo = {
-            subject_uid: params.subject ? params.subject : '',
-            study_uid: params.study ? params.study : '',
-            series_uid: params.series ? params.series : '',
-            name: `${filename}_${timestamp}`,
+            project_uid: params.project ? params.project : 'NA',
+            subject_uid: params.subject ? params.subject : 'NA',
+            study_uid: params.study ? params.study : 'NA',
+            series_uid: params.series ? params.series : 'NA',
+            name: `${filename}__ePad__${timestamp}`,
             filepath: 'couchdb',
             filetype: query.filetype ? query.filetype : '',
             length,
@@ -563,8 +834,9 @@ async function other(fastify) {
   );
 
   fastify.decorate('getExtension', filename => {
-    if (filename.lastIndexOf('.') === -1) return '';
-    return filename.substr(filename.lastIndexOf('.') + 1).toLowerCase();
+    const ext = path.extname(filename).replace('.', '');
+    if (ext === '') return '';
+    return ext.toLowerCase();
   });
 
   fastify.decorate('checkFileType', filename => {
@@ -607,7 +879,7 @@ async function other(fastify) {
       new Promise((resolve, reject) => {
         const promisses = [];
         fastify
-          .getPatientStudiesInternal(params, undefined, epadAuth)
+          .getPatientStudiesInternal(params, undefined, epadAuth, {}, true)
           .then(result => {
             result.forEach(study => {
               promisses.push(() => {
@@ -692,14 +964,16 @@ async function other(fastify) {
       // delete study in dicomweb and annotations
       const promisses = [];
       promisses.push(() => {
-        return fastify.deleteSeriesDicomsInternal(request.params).catch(err => {
-          fastify.log.warn(
-            `Could not delete series from dicomweb with error: ${
-              err.message
-            }. Trying nondicom series delete`
-          );
-          return fastify.deleteNonDicomSeriesInternal(request.params.series);
+        return fastify.deleteNonDicomSeriesInternal(request.params.series).catch(err => {
+          if (err.message !== 'No nondicom entity')
+            fastify.log.warn(
+              `Could not delete nondicom series. Error: ${err.message}. Trying dicom series delete`
+            );
+          return fastify.deleteSeriesDicomsInternal(request.params);
         });
+      });
+      promisses.push(() => {
+        return fastify.deleteSeriesAimProjectRels(request.params);
       });
       promisses.push(() => {
         return fastify.deleteAimsInternal(request.params, request.epadAuth);
@@ -740,11 +1014,14 @@ async function other(fastify) {
 
   fastify.decorate('getNotifications', (request, reply) => {
     try {
+      // if there is corsorigin in config and it is not false then reflect request origin
       reply.res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Access-Control-Allow-Origin': '*',
-        'X-Accel-Buffering': 'no',
+        ...{
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'X-Accel-Buffering': 'no',
+        },
+        ...(config.corsOrigin ? { 'Access-Control-Allow-Origin': request.headers.origin } : {}),
       });
       const padding = new Array(2049);
       reply.res.write(`:${padding.join(' ')}\n`); // 2kB padding for IE
@@ -792,6 +1069,7 @@ async function other(fastify) {
         users: 'user',
         worklists: 'worklist',
       };
+      if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
         if (reqInfo.method === 'POST') reqInfo.level = levels[urlParts[urlParts.length - 1]];
         else reqInfo.level = urlParts[urlParts.length - 1];
@@ -995,12 +1273,14 @@ async function other(fastify) {
       // eslint-disable-next-line no-param-reassign
       fastify.messageId += 1;
       fastify.connectedUsers[username].write(`data: ${JSON.stringify(messageJson)}\n\n`);
+      return true;
     }
+    return false;
   });
   fastify.decorate(
     'addConnectedUser',
     // eslint-disable-next-line no-return-assign
-    (req, res) => {
+    async (req, res) => {
       fastify.log.info(
         `Adding ${req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'}`
       );
@@ -1008,6 +1288,8 @@ async function other(fastify) {
       fastify.connectedUsers[
         req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'
       ] = res.res;
+      // send unsent notifications
+      await fastify.getUnnotifiedEventLogs(req);
     }
   );
   fastify.decorate(
@@ -1188,8 +1470,12 @@ async function other(fastify) {
           // check the method and call specific rights check
           switch (request.req.method) {
             case 'GET': // check project access (projectToRole). filtering should be done in the methods
-              if (fastify.hasAccessToProject(request, reqInfo.project) === undefined)
-                reply.send(new UnauthorizedError('User has no access to project'));
+              if (fastify.hasAccessToProject(request, reqInfo.project) === undefined) {
+                // check if it is a public project
+                const project = await fastify.getProjectInternal(reqInfo.project);
+                if (project.type.toLowerCase() !== 'public')
+                  reply.send(new UnauthorizedError('User has no access to project'));
+              }
               break;
             case 'PUT': // check permissions
               // not really a good way to check it but
@@ -1229,7 +1515,15 @@ async function other(fastify) {
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
-              if (!fastify.hasCreatePermission(request, reqInfo.level))
+              if (
+                !fastify.hasCreatePermission(request, reqInfo.level) &&
+                !(
+                  reqInfo.level === 'worklist' &&
+                  request.body.assignees &&
+                  request.body.assignees.length === 1 &&
+                  request.body.assignees[0] === request.epadAuth.username
+                )
+              )
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner
@@ -1243,6 +1537,46 @@ async function other(fastify) {
       }
     } catch (err) {
       reply.send(err);
+    }
+  });
+
+  fastify.decorate('decrypt', (request, reply) => {
+    try {
+      if (!config.secret) {
+        reply.send(new InternalError('Decrypt', new Error('No secret defined')));
+      } else {
+        const encodeKey = crypto
+          .createHash('sha256')
+          .update(config.secret, 'utf-8')
+          .digest();
+
+        const binary = Buffer.from(request.query.arg, 'base64');
+        const ivlen = binary.readInt32BE();
+        const iv = binary.subarray(4, 4 + ivlen);
+        const encoded = binary.subarray(4 + ivlen);
+        const cipher = crypto.createDecipheriv('aes-256-cbc', encodeKey, iv);
+        const decrypted = cipher.update(encoded, 'base64') + cipher.final();
+        const items = decrypted.split('&');
+        const obj = {};
+        for (let i = 0; i < items.length; i += 1) {
+          const keyValue = items[i].split('=');
+          // eslint-disable-next-line prefer-destructuring
+          obj[keyValue[0]] = keyValue[1];
+        }
+        if (obj.expiry) {
+          const expiryDate = new Date(obj.expiry * 1000);
+          const now = new Date();
+          if (now <= expiryDate) {
+            reply.code(200).send(obj);
+          } else {
+            reply.send(new InternalError('Decrypt', new Error('Time expired')));
+          }
+        } else {
+          reply.code(200).send(obj);
+        }
+      }
+    } catch (err) {
+      reply.send(new InternalError('Decrypt', err));
     }
   });
 
@@ -1264,17 +1598,9 @@ async function other(fastify) {
   fastify.decorate('responseWrapper', (request, reply, payload, done) => {
     // we have a successful request, lets get the hostname
     // getting the first one, is it better to get the last all the time?
-    if (!fastify.hostname) fastify.decorate('hostname', request.req.hostname);
+    // TODO fails in cavit, why?
+    if (!fastify.hasDecorator('hostname')) fastify.decorate('hostname', request.req.hostname);
 
-    if (request.req.method === 'PUT') {
-      try {
-        new EpadNotification(request, fastify.getInfoFromRequest(request), 'Put successful').notify(
-          fastify
-        );
-      } catch (err) {
-        fastify.log.error(`Cannot notify user ${err.message}`);
-      }
-    }
     done(null, payload);
   });
 

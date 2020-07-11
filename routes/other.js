@@ -320,5 +320,17 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.getWadoRS,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/polldw',
+    handler: fastify.triggerPollDW,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/decrypt',
+    handler: fastify.decrypt,
+  });
 }
 module.exports = otherRoutes;

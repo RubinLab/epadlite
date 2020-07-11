@@ -56,5 +56,26 @@ config.maxConcurrent = config.maxConcurrent || 5;
 config.disableStats = config.disableStats || false;
 config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
 config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;
+<<<<<<< HEAD
 config.disableDICOMSend = process.env.DISABLE_DICOM_SEND === 'true' || config.disableDICOMSend;
+=======
+config.unassignedProjectID = config.unassignedProjectID || 'nonassigned';
+config.XNATUploadProjectID = config.XNATUploadProjectID || 'all';
+config.pollDW =
+  // eslint-disable-next-line no-nested-ternary
+  process.env.POLL_DW !== undefined
+    ? process.env.POLL_DW
+    : config.pollDW !== undefined
+    ? config.pollDW
+    : 3; // in minutes, 0 => no poll
+config.corsOrigin = config.corsOrigin || false;
+// env variables comes as string if it is true or false we need to convert to boolean
+if (process.env.CORS_ORIGIN) {
+  if (process.env.CORS_ORIGIN === 'true') config.corsOrigin = true;
+  else if (process.env.CORS_ORIGIN === 'false') config.corsOrigin = false;
+  else config.corsOrigin = JSON.parse(process.env.CORS_ORIGIN);
+}
+config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
+config.secret = process.env.SECRET || config.secret || undefined;
+>>>>>>> develop
 module.exports = config;

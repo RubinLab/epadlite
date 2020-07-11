@@ -77,6 +77,10 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
+      preferences: {
+        type: DataTypes.STRING(3000),
+        allowNull: true,
+      },
     },
     {
       tableName: 'user',

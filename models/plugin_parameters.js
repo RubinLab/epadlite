@@ -2,7 +2,7 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'eventlog',
+    'plugin_parameters',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -10,39 +10,35 @@ module.exports = function(sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
-      projectID: {
+      plugin_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+        references: {
+          model: 'plugin_docker',
+          key: 'id',
+        },
+      },
+      paramid: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
-      subjectuid: {
+      name: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
-      studyUID: {
+      format: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
-      seriesUID: {
+      prefix: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
-      imageUID: {
+      inputBinding: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
-      aimID: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
-      },
-      username: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
-      },
-      function: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
-      },
-      params: {
+      default_value: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
@@ -64,21 +60,17 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(64),
         allowNull: true,
       },
-      filename: {
-        type: DataTypes.STRING(250),
+      type: {
+        type: DataTypes.STRING(20),
         allowNull: true,
       },
-      error: {
-        type: DataTypes.INTEGER(1),
-        allowNull: true,
-      },
-      notified: {
-        type: DataTypes.INTEGER(1),
+      description: {
+        type: DataTypes.STRING(150),
         allowNull: true,
       },
     },
     {
-      tableName: 'eventlog',
+      tableName: 'plugin_parameters',
     }
   );
 };
