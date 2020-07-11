@@ -3,6 +3,41 @@ async function routes(fastify) {
   // // add an aim document, updates if exists
   fastify.route({
     method: 'POST',
+    url: '/projects/:project/aimfiles',
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveAimFile,
+  });
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/aimfiles/:aimuid',
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          aimuid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveAimFile,
+  });
+  fastify.route({
+    method: 'POST',
     url: '/projects/:project/aims',
     schema: {
       tags: ['project', 'aim'],

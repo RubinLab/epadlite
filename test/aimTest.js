@@ -274,7 +274,7 @@ describe('System AIM Tests', () => {
   it("it should fail getting zip file for downloading aims ['2.25.211702350959705565754863799143359605362'] with all query params as false", done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/aims/download?summary=false&aim=false')
+      .post('/aims/download?summary=false&aim=false&seg=false')
       .send(['2.25.211702350959705565754863799143359605362'])
       .query({ username: 'admin' })
       .then(res => {
@@ -343,6 +343,22 @@ describe('System AIM Tests', () => {
       .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  it("it should get zip file for downloading aims ['2.25.279022005483174190474579775643265129014'] with only query param seg=true", done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/aims/download?seg=true')
+      .send(['2.25.279022005483174190474579775643265129014'])
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res).to.have.header('Content-Disposition', 'attachment; filename=annotations.zip');
         done();
       })
       .catch(e => {

@@ -289,12 +289,14 @@ async function couchdb(fastify, options) {
               { id: 'comment', title: 'Comment' },
               { id: 'userComment', title: 'User_Comment' },
               { id: 'points', title: 'Points' },
+              { id: 'dsoSeriesUid', title: 'DSO_Series_UID' },
               { id: 'studyUid', title: 'Study_UID' },
               { id: 'seriesUid', title: 'Series_UID' },
               { id: 'imageUid', title: 'Image_UID' },
             ];
 
             const data = [];
+            const segRetrievePromises = [];
             aims.forEach(aim => {
               if (params.summary && params.summary.toLowerCase() === 'true') {
                 const imageAnnotations =
@@ -333,6 +335,12 @@ async function couchdb(fastify, options) {
                     comment: commentSplit[0],
                     userComment: commentSplit.length > 1 ? commentSplit[1] : '',
                     points: `[${points}]`,
+                    dsoSeriesUid:
+                      imageAnnotation.segmentationEntityCollection &&
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity
+                        ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                            .seriesInstanceUid.root
+                        : '',
                     studyUid:
                       imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
                         .imageStudy.instanceUid.root,
@@ -356,6 +364,19 @@ async function couchdb(fastify, options) {
                 );
                 isThereDataToWrite = true;
               }
+              if (
+                params.seg &&
+                params.seg.toLowerCase() === 'true' &&
+                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .segmentationEntityCollection
+              ) {
+                const segEntity =
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .segmentationEntityCollection.SegmentationEntity[0];
+                segRetrievePromises.push(() => {
+                  return fastify.getSegDicom(segEntity);
+                });
+              }
             });
             if (params.summary && params.summary.toLowerCase() === 'true') {
               // create the csv writer and write the summary
@@ -368,41 +389,56 @@ async function couchdb(fastify, options) {
                 .then(() => fastify.log.info('The summary CSV file was written successfully'));
               isThereDataToWrite = true;
             }
-            if (isThereDataToWrite) {
-              // create a file to stream archive data to.
-              const output = fs.createWriteStream(`${dir}/annotations.zip`);
-              const archive = archiver('zip', {
-                zlib: { level: 9 }, // Sets the compression level.
-              });
-              // create the archive
-              archive
-                .directory(`${dir}/annotations`, false)
-                .on('error', err => reject(new InternalError('Archiving aims', err)))
-                .pipe(output);
+            fastify.pq
+              .addAll(segRetrievePromises)
+              .then(segs => {
+                for (let i = 0; i < segs.length; i += 1) {
+                  fs.writeFileSync(`${dir}/annotations/${segs[i].uid}.dcm`, segs[i].buffer);
+                  isThereDataToWrite = true;
+                }
+                if (isThereDataToWrite) {
+                  // create a file to stream archive data to.
+                  const output = fs.createWriteStream(`${dir}/annotations.zip`);
+                  const archive = archiver('zip', {
+                    zlib: { level: 9 }, // Sets the compression level.
+                  });
+                  // create the archive
+                  archive
+                    .directory(`${dir}/annotations`, false)
+                    .on('error', err => reject(new InternalError('Archiving aims', err)))
+                    .pipe(output);
 
-              output.on('close', () => {
-                fastify.log.info(`Created zip in ${dir}`);
-                const readStream = fs.createReadStream(`${dir}/annotations.zip`);
-                // delete tmp folder after the file is sent
-                readStream.once('end', () => {
-                  readStream.destroy(); // make sure stream closed, not close if download aborted.
+                  output.on('close', () => {
+                    fastify.log.info(`Created zip in ${dir}`);
+                    const readStream = fs.createReadStream(`${dir}/annotations.zip`);
+                    // delete tmp folder after the file is sent
+                    readStream.once('end', () => {
+                      readStream.destroy(); // make sure stream closed, not close if download aborted.
+                      fs.remove(dir, error => {
+                        if (error)
+                          fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                        else fastify.log.info(`${dir} deleted`);
+                      });
+                    });
+                    resolve(readStream);
+                  });
+                  archive.finalize();
+                } else {
                   fs.remove(dir, error => {
                     if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                     else fastify.log.info(`${dir} deleted`);
                   });
-                });
-                resolve(readStream);
+                  reject(
+                    new InternalError(
+                      'Downloading aims',
+                      new Error('No aim or summary in download')
+                    )
+                  );
+                }
+              })
+              .catch(segErr => {
+                reject(new InternalError('Downloading aims with segmentations', segErr));
               });
-              archive.finalize();
-            } else {
-              fs.remove(dir, error => {
-                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                else fastify.log.info(`${dir} deleted`);
-              });
-              reject(
-                new InternalError('Downloading aims', new Error('No aim or summary in download'))
-              );
-            }
           }
         } catch (err) {
           reject(new InternalError('Downloading aims', err));
@@ -478,6 +514,10 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('isCollaborator', (project, epadAuth) => {
+    return epadAuth.projectToRole.includes(`${project}:Collaborator`);
+  });
+
   // filter aims with aimId filter array
   fastify.decorate(
     'filterAims',
@@ -499,7 +539,7 @@ async function couchdb(fastify, options) {
           if (params.project) {
             // TODO if we want to return sth other than 404 for aim access we should check if this filtering empties filteredAims
             // if the user is a collaborator in the project he should only see his annotations
-            if (epadAuth.projectToRole.includes(`${params.project}:Collaborator`)) {
+            if (fastify.isCollaborator(params.project, epadAuth)) {
               if (format && format === 'summary') {
                 filteredRows = _.filter(
                   filteredRows,
@@ -522,21 +562,31 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('getAims', (request, reply) => {
-    fastify
-      .getAimsInternal(request.query.format, request.params, undefined, request.epadAuth)
-      .then(result => {
-        if (request.query.format === 'stream') {
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-        }
-        reply.code(200).send(result);
-      })
-      .catch(err => reply.send(err));
+  fastify.decorate('getAims', async (request, reply) => {
+    try {
+      const filter = await fastify.getUserAccessibleAimUids(request.epadAuth);
+      const result = await fastify.getAimsInternal(
+        request.query.format,
+        request.params,
+        filter,
+        request.epadAuth
+      );
+      if (request.query.format === 'stream') {
+        reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+      }
+      reply.code(200).send(result);
+    } catch (err) {
+      reply.send(err);
+    }
   });
 
   fastify.decorate('getAimsFromUIDs', (request, reply) => {
     try {
-      if (request.query.summary === undefined && request.query.aim === undefined) {
+      if (
+        request.query.summary === undefined &&
+        request.query.aim === undefined &&
+        request.query.seg === undefined
+      ) {
         reply.send(
           new BadRequestError(
             'Getting aims with uids',
@@ -680,7 +730,9 @@ async function couchdb(fastify, options) {
               const updateWorklistPromises = [];
               const { project, subject, study } = params;
               const aimUsersArr = Object.keys(aimUsers);
-              if (project) {
+              // TODO this is system delete only, which means subject/study is deleted from system
+              // do we need to update completeness at all?
+              if (project && study) {
                 fastify
                   .findProjectIdInternal(project)
                   .then(res => {
@@ -723,6 +775,64 @@ async function couchdb(fastify, options) {
   //     })
   //     .catch(err => reply.send(err));
   // });
+
+  fastify.decorate(
+    'getTemplateInternal',
+    (codeValue, format = 'json') =>
+      new Promise((resolve, reject) => {
+        try {
+          let view = 'templates_json';
+          if (format) {
+            if (format === 'json') view = 'templates_json';
+            else if (format === 'summary') view = 'templates_summary';
+          }
+          const db = fastify.couch.db.use(config.db);
+          db.view(
+            'instances',
+            view,
+            {
+              startkey: [codeValue, '', ''],
+              endkey: [`${codeValue}\u9999`, '{}', '{}'],
+              reduce: true,
+              group_level: 3,
+            },
+            (error, body) => {
+              if (!error) {
+                const res = [];
+                if (body.rows.length > 1)
+                  fastify.log.warn(
+                    `Expecting one value but got ${body.rows.length}. Returning first`
+                  );
+                if (format === 'summary') {
+                  body.rows.forEach(template => {
+                    res.push(template.key[2]);
+                  });
+                  resolve(res[0]);
+                } else if (format === 'stream') {
+                  body.rows.forEach(template => {
+                    res.push(template.key[2]);
+                  });
+                  fastify
+                    .downloadTemplates(res)
+                    .then(result => resolve(result[0]))
+                    .catch(err => reject(err));
+                } else {
+                  // the default is json! The old APIs were XML, no XML in epadlite
+                  body.rows.forEach(template => {
+                    res.push(template.key[2]);
+                  });
+                  resolve(res[0]);
+                }
+              } else {
+                reject(new InternalError('Getting templates from couchdb', error));
+              }
+            }
+          );
+        } catch (err) {
+          reject(new InternalError('Getting templates', err));
+        }
+      })
+  );
 
   fastify.decorate(
     'getTemplatesInternal',
@@ -1071,7 +1181,8 @@ async function couchdb(fastify, options) {
           db.fetch({ keys: ids }).then(data => {
             data.rows.forEach(item => {
               if (
-                'doc' in item &&
+                item &&
+                item.doc &&
                 item.doc.fileInfo &&
                 (filter.subject === undefined ||
                   item.doc.fileInfo.subject_uid === filter.subject) &&
@@ -1090,7 +1201,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'getFilesFromUIDsInternal',
-    (query, ids, filter) =>
+    (query, ids, filter, subDir) =>
       new Promise(async (resolve, reject) => {
         try {
           let format = 'json';
@@ -1108,7 +1219,7 @@ async function couchdb(fastify, options) {
             });
           } else if (format === 'stream') {
             fastify
-              .downloadFiles(filteredIds)
+              .downloadFiles(filteredIds, subDir)
               .then(result => resolve(result))
               .catch(err => reject(err));
           }
@@ -1119,41 +1230,31 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate('getFilter', params => {
-    // make sure there is value in all three
-    // only the last ove should have \u9999 at the end
-    const myParams = params;
+    const startKey = [];
+    const endKey = [];
     let isFiltered = false;
-    if (!params.series) {
-      myParams.series = '';
-      myParams.seriesEnd = '{}';
-      if (!params.study) {
-        myParams.study = '';
-        myParams.studyEnd = '{}';
-        if (!params.subject) {
-          myParams.subject = '';
-          myParams.subjectEnd = '{}';
-        } else {
-          myParams.subject = params.subject;
-          myParams.subjectEnd = `${params.subject}\u9999`;
-          isFiltered = true;
+    if (params.subject) {
+      startKey.push(params.subject);
+      endKey.push(params.subject);
+      if (params.study) {
+        startKey.push(params.study);
+        endKey.push(params.study);
+        if (params.series) {
+          startKey.push(params.series);
+          endKey.push(params.series);
         }
-      } else {
-        myParams.studyEnd = `${params.study}\u9999`;
-        myParams.subjectEnd = params.subject;
-        isFiltered = true;
       }
-    } else {
-      myParams.seriesEnd = `${params.series}\u9999`;
-      myParams.studyEnd = params.study;
-      myParams.subjectEnd = params.subject;
       isFiltered = true;
     }
+
+    for (let i = endKey.length; i < 5; i += 1) endKey.push({});
     if (isFiltered) {
       return {
-        startkey: [myParams.subject, myParams.study, myParams.series, ''],
-        endkey: [myParams.subjectEnd, myParams.studyEnd, myParams.seriesEnd, '{}'],
+        startkey: startKey,
+        endkey: endKey,
       };
     }
+
     return {};
   });
 
@@ -1242,11 +1343,11 @@ async function couchdb(fastify, options) {
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
 
-          fs.mkdirSync(`${dir}/files`);
+          if (!fs.existsSync(`${dir}/files`)) fs.mkdirSync(`${dir}/files`);
 
           const db = fastify.couch.db.use(config.db);
           for (let i = 0; i < ids.length; i += 1) {
-            const filename = ids[i].split('_')[0];
+            const filename = ids[i].split('__ePad__')[0];
             db.attachment
               .getAsStream(ids[i], filename)
               .pipe(fs.createWriteStream(`${dir}/files/${filename}`));

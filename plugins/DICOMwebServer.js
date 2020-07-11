@@ -371,6 +371,114 @@ async function dicomwebserver(fastify) {
       })
   );
 
+  fastify.decorate('triggerPollDW', (request, reply) => {
+    fastify.log.info(`Polling initiated by ${request.epadAuth.username}`);
+    fastify
+      .pollDWStudies()
+      .then(() => reply.code(200).send('Polled dicomweb successfully'))
+      .catch(err => reply.send(err));
+  });
+
+  fastify.decorate(
+    'pollDWStudies',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          fastify.log.info(`Polling dicomweb ${new Date()}`);
+          // use admin username
+          const epadAuth = { username: 'admin', admin: true };
+          const updateStudyPromises = [];
+          const values = await this.request.get(`/studies`, header);
+          const studyUids = await fastify.getDBStudies();
+          for (let i = 0; i < values.data.length; i += 1) {
+            const value = values.data[i];
+            const studyUid = value['0020000D'].Value[0];
+            const { numberOfSeries, numberOfImages } =
+              value['00080061'] &&
+              value['00080061'].Value &&
+              value['00080061'].Value.includes('SEG')
+                ? // eslint-disable-next-line no-await-in-loop
+                  await fastify.updateStudyCounts(value['0020000D'].Value[0])
+                : {
+                    numberOfSeries:
+                      value['00201206'] && value['00201206'].Value
+                        ? value['00201206'].Value[0]
+                        : '',
+                    numberOfImages:
+                      value['00201208'] && value['00201208'].Value
+                        ? value['00201208'].Value[0]
+                        : '',
+                  };
+            let studyRec = {};
+            // check if the study exists in epad
+            if (studyUids.includes(studyUid)) {
+              // if it does just update the exam_types, num_of_images, num_of_series
+              studyRec = {
+                exam_types: JSON.stringify(value['00080061'].Value ? value['00080061'].Value : []),
+                num_of_images: numberOfImages,
+                num_of_series: numberOfSeries,
+                // so that we fix the old ones with no value
+                referring_physician: value['00080090'].Value
+                  ? value['00080090'].Value[0].Alphabetic
+                  : '',
+                accession_number: value['00080050'].Value ? value['00080050'].Value[0] : null,
+                study_id: value['00200010'].Value ? value['00200010'].Value[0] : null,
+                study_time: value['00080030'].Value ? value['00080030'].Value[0] : null,
+              };
+              updateStudyPromises.push(() => {
+                return fastify.updateStudyDBRecord(studyUid, studyRec, epadAuth);
+              });
+            } else {
+              // if it doesn't create study record and if not exists subject record
+              try {
+                const subjectInfo = {
+                  subjectuid: fastify.replaceNull(value['00100020'].Value[0]),
+                  name: value['00100010'].Value ? value['00100010'].Value[0].Alphabetic : '',
+                  gender: value['00100040'].Value ? value['00100040'].Value[0] : '',
+                  dob: value['00100030'].Value ? value['00100030'].Value[0] : null,
+                };
+                // eslint-disable-next-line no-await-in-loop
+                const subject = await fastify.addSubjectToDBIfNotExistInternal(
+                  subjectInfo,
+                  epadAuth
+                );
+                studyRec = {
+                  exam_types: JSON.stringify(
+                    value['00080061'].Value ? value['00080061'].Value : []
+                  ),
+                  num_of_images: numberOfImages,
+                  num_of_series: numberOfSeries,
+                  studyuid: studyUid,
+                  studydate: value['00080020'].Value ? value['00080020'].Value[0] : null,
+                  description:
+                    value['00081030'] && value['00081030'].Value ? value['00081030'].Value[0] : '',
+                  referring_physician: value['00080090'].Value
+                    ? value['00080090'].Value[0].Alphabetic
+                    : '',
+                  accession_number: value['00080050'].Value ? value['00080050'].Value[0] : null,
+                  study_id: value['00200010'].Value ? value['00200010'].Value[0] : null,
+                  study_time: value['00080030'].Value ? value['00080030'].Value[0] : null,
+                  subject_id: subject.id,
+                };
+                updateStudyPromises.push(() => {
+                  return fastify.updateStudyDBRecord(studyUid, studyRec, epadAuth);
+                });
+              } catch (err) {
+                fastify.log.error(
+                  `Could not create subject to add study ${studyUid} to epad. Error: ${err.message}`
+                );
+              }
+            }
+          }
+          await fastify.pq.addAll(updateStudyPromises);
+          fastify.log.info(`Finished Polling dicomweb ${new Date()}`);
+          resolve();
+        } catch (err) {
+          reject(new InternalError('Polling patient studies', err));
+        }
+      })
+  );
+
   fastify.decorate(
     'getPatientStudiesInternal',
     (
@@ -381,7 +489,8 @@ async function dicomwebserver(fastify) {
       noStats = false,
       tag = '0020000D',
       aimField = 'studyUID',
-      negateFilter = false
+      negateFilter = false,
+      createdTimes
     ) =>
       new Promise((resolve, reject) => {
         try {
@@ -390,7 +499,7 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(this.request.get(`/studies${query}`, header));
           // get aims for a specific patient
-          if (!noStats)
+          if (!noStats) {
             if (params.project)
               promisses.push(
                 fastify.filterProjectAims(
@@ -405,7 +514,7 @@ async function dicomwebserver(fastify) {
                 )
               );
             else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
-
+          }
           Promise.all(promisses)
             .then(async values => {
               // handle success
@@ -449,7 +558,8 @@ async function dicomwebserver(fastify) {
                   _.chain(filteredStudies)
                     .map(async value => {
                       // update examptypes in db
-                      if (value['0020000D'].Value)
+                      // TODO we need to make sure it doesn't come there on pollDW
+                      if (value['0020000D'].Value && !config.pollDW)
                         await fastify.updateStudyExamType(
                           value['0020000D'].Value[0],
                           value['00080061'] && value['00080061'].Value
@@ -505,7 +615,10 @@ async function dicomwebserver(fastify) {
                         numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
                           ? aimsCountMap[value['0020000D'].Value[0]]
                           : 0,
-                        createdTime: '', // no date in studies call
+                        createdTime:
+                          createdTimes && createdTimes[value['0020000D'].Value[0]]
+                            ? createdTimes[value['0020000D'].Value[0]]
+                            : '',
                         // extra for flexview
                         studyID: value['00200010'].Value ? value['00200010'].Value[0] : '',
                         studyDate: value['00080020'].Value ? value['00080020'].Value[0] : '',
@@ -723,9 +836,7 @@ async function dicomwebserver(fastify) {
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
                     numberOfFrames:
-                      value['00280008'] && value['00280008'].Value
-                        ? value['00280008'].Value[0]
-                        : '',
+                      value['00280008'] && value['00280008'].Value ? value['00280008'].Value[0] : 1,
                     isDSO:
                       value['00080060'] && value['00080060'].Value
                         ? value['00080060'].Value[0] === 'SEG'
@@ -756,18 +867,26 @@ async function dicomwebserver(fastify) {
   );
 
   fastify.decorate('getWado', (request, reply) => {
-    this.request
-      .get(
-        `/?requestType=WADO&studyUID=${request.query.studyUID}&seriesUID=${
-          request.query.seriesUID
-        }&objectUID=${request.query.objectUID}`,
-        { ...header, responseType: 'stream' }
-      )
+    fastify
+      .getWadoInternal({
+        study: request.query.studyUID,
+        series: request.query.seriesUID,
+        image: request.query.objectUID,
+      })
       .then(result => {
         reply.headers(result.headers);
         reply.code(200).send(result.data);
       })
       .catch(err => reply.send(new InternalError('WADO', err)));
+  });
+
+  fastify.decorate('getWadoInternal', params => {
+    return this.request.get(
+      `/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${
+        params.image
+      }`,
+      { ...header, responseType: 'stream' }
+    );
   });
 
   fastify.decorate('getPatient', (request, reply) => {

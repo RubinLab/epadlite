@@ -504,7 +504,7 @@ async function routes(fastify) {
   });
 
   fastify.route({
-    method: 'PUT',
+    method: 'POST',
     url: '/projects/:project/subjects/download',
     schema: {
       tags: ['project', 'subject'],
@@ -527,7 +527,7 @@ async function routes(fastify) {
   });
 
   fastify.route({
-    method: 'PUT',
+    method: 'POST',
     url: '/projects/:project/studies/download',
     schema: {
       tags: ['project', 'study'],

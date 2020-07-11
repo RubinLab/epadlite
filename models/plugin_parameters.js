@@ -2,7 +2,7 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define(
-    'study',
+    'plugin_parameters',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -10,24 +10,35 @@ module.exports = function(sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
-      studyuid: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
-        unique: true,
-      },
-      studydate: {
-        type: DataTypes.DATEONLY,
-        allowNull: true,
-      },
-      subject_id: {
+      plugin_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'subject',
+          model: 'plugin_docker',
           key: 'id',
         },
       },
-      exam_types: {
+      paramid: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      name: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      format: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      prefix: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      inputBinding: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      default_value: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
@@ -49,37 +60,17 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(64),
         allowNull: true,
       },
+      type: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+      },
       description: {
-        type: DataTypes.STRING(1000),
-        allowNull: true,
-      },
-      referring_physician: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
-      },
-      accession_number: {
-        type: DataTypes.STRING(64),
-        allowNull: true,
-      },
-      num_of_images: {
-        type: DataTypes.INTEGER(10),
-        allowNull: true,
-      },
-      num_of_series: {
-        type: DataTypes.INTEGER(10),
-        allowNull: true,
-      },
-      study_id: {
-        type: DataTypes.STRING(32),
-        allowNull: true,
-      },
-      study_time: {
-        type: DataTypes.STRING(32),
+        type: DataTypes.STRING(150),
         allowNull: true,
       },
     },
     {
-      tableName: 'study',
+      tableName: 'plugin_parameters',
     }
   );
 };

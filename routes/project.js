@@ -139,9 +139,52 @@ async function routes(fastify) {
     handler: fastify.getProjects,
   });
 
+  //  cavit
+  fastify.route({
+    method: 'GET',
+    url: '/projectswithpkasid',
+    schema: {
+      tags: ['project'],
+      //   response: {
+      //     200: 'templates_schema#',
+      //   },
+    },
+    handler: fastify.getProjectsWithPkAsId,
+  });
+
+  // getting all plugins for given project(s)
+  // fastify.route({
+  //   method: 'GET',
+  //   url: '/projects/plugins/:projectids',
+  //   schema: {
+  //     tags: ['project'],
+  //     //   response: {
+  //     //     200: 'templates_schema#',
+  //     //   },
+  //   },
+  //   handler: fastify.getProjectsWithPlugins,
+  // });
+  //  cavit
+
   fastify.route({
     method: 'GET',
     url: '/projects/:project',
+    schema: {
+      tags: ['project'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getProject,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/download',
     schema: {
       tags: ['project'],
       params: {
