@@ -332,5 +332,11 @@ async function otherRoutes(fastify) {
     url: '/decrypt',
     handler: fastify.decrypt,
   });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/decryptandadd',
+    handler: fastify.decryptAdd,
+  });
 }
 module.exports = otherRoutes;

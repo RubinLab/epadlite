@@ -1540,40 +1540,89 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate(
+    'decryptAdd',
+    (request, reply) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const obj = fastify.decryptInternal(request.query.arg);
+          const projectID = obj.projectID ? obj.projectID : 'lite';
+          // if patientID and studyUID
+          if (obj.patientID && obj.studyUID) {
+            await fastify.addPatientStudyToProjectInternal(
+              { project: projectID, subject: obj.patientID, study: obj.studyUID },
+              request.epadAuth,
+              {}
+            );
+          }
+          if (obj.accession) {
+            // if accession
+            const patientStudyPairs = fastify.getPatientIDandStudyUIDsFromAccession(obj.accession);
+            for (let i = 0; i < patientStudyPairs.length; i += 1)
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.addPatientStudyToProjectInternal(
+                {
+                  project: projectID,
+                  subject: patientStudyPairs[i].patientID,
+                  study: patientStudyPairs[i].studyUID,
+                },
+                request.epadAuth,
+                {}
+              );
+          } else {
+            // not supported
+            reply.send(
+              new BadRequestError(
+                'Encrypted URL adding',
+                new Error(`Supported parameters not found patientID and studyUID or accession`)
+              )
+            );
+          }
+        } catch (err) {
+          reject(new InternalError(`Decrypt and add`, err));
+        }
+      })
+  );
+
+  fastify.decorate('decryptInternal', encrypted => {
+    if (!config.secret) {
+      throw new Error('No secret defined');
+    } else {
+      const encodeKey = crypto
+        .createHash('sha256')
+        .update(config.secret, 'utf-8')
+        .digest();
+
+      const binary = Buffer.from(encrypted, 'base64');
+      const ivlen = binary.readInt32BE();
+      const iv = binary.subarray(4, 4 + ivlen);
+      const encoded = binary.subarray(4 + ivlen);
+      const cipher = crypto.createDecipheriv('aes-256-cbc', encodeKey, iv);
+      const decrypted = cipher.update(encoded, 'base64') + cipher.final();
+      const items = decrypted.split('&');
+      const obj = {};
+      for (let i = 0; i < items.length; i += 1) {
+        const keyValue = items[i].split('=');
+        // eslint-disable-next-line prefer-destructuring
+        obj[keyValue[0]] = keyValue[1];
+      }
+      if (obj.expiry) {
+        const expiryDate = new Date(obj.expiry * 1000);
+        const now = new Date();
+        if (now <= expiryDate) {
+          return obj;
+        }
+        throw new Error('Time expired');
+      }
+      return obj;
+    }
+  });
+
   fastify.decorate('decrypt', (request, reply) => {
     try {
-      if (!config.secret) {
-        reply.send(new InternalError('Decrypt', new Error('No secret defined')));
-      } else {
-        const encodeKey = crypto
-          .createHash('sha256')
-          .update(config.secret, 'utf-8')
-          .digest();
-
-        const binary = Buffer.from(request.query.arg, 'base64');
-        const ivlen = binary.readInt32BE();
-        const iv = binary.subarray(4, 4 + ivlen);
-        const encoded = binary.subarray(4 + ivlen);
-        const cipher = crypto.createDecipheriv('aes-256-cbc', encodeKey, iv);
-        const decrypted = cipher.update(encoded, 'base64') + cipher.final();
-        const items = decrypted.split('&');
-        const obj = {};
-        for (let i = 0; i < items.length; i += 1) {
-          const keyValue = items[i].split('=');
-          // eslint-disable-next-line prefer-destructuring
-          obj[keyValue[0]] = keyValue[1];
-        }
-        if (obj.expiry) {
-          const expiryDate = new Date(obj.expiry * 1000);
-          const now = new Date();
-          if (now <= expiryDate) {
-            reply.code(200).send(obj);
-          } else {
-            reply.send(new InternalError('Decrypt', new Error('Time expired')));
-          }
-        } else {
-          reply.code(200).send(obj);
-        }
+      const obj = fastify.decryptInternal(request.query.arg);
+      if (obj) {
+        reply.code(200).send(obj);
       }
     } catch (err) {
       reply.send(new InternalError('Decrypt', err));

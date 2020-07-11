@@ -499,6 +499,26 @@ async function dicomwebserver(fastify) {
   );
 
   fastify.decorate(
+    'getPatientIDandStudyUIDsFromAccession',
+    accessionNumber =>
+      new Promise((resolve, reject) => {
+        const query = `AccessionNumber=${accessionNumber}`;
+        this.request
+          .get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
+          .then(res => {
+            const patientStudyPairs = res.map(value => {
+              return {
+                patientID: fastify.replaceNull(value['00100020'].Value[0]),
+                studyUID: value['0020000D'].Value[0],
+              };
+            });
+            resolve(patientStudyPairs);
+          })
+          .catch(err => reject(new InternalError('Retrieving studies with accession', err)));
+      })
+  );
+
+  fastify.decorate(
     'getPatientStudiesInternal',
     (
       params,
