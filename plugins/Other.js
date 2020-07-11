@@ -583,15 +583,13 @@ async function other(fastify) {
                 filteredOsirixObjects[keys[i]] = { ...values[i], seedData };
               });
               const aimJsons = fastify.createAimJsons(Object.values(filteredOsirixObjects));
-              console.log('----> aimJsons');
-              console.log(aimJsons);
               promiseArr = [];
               aimJsons.forEach(jsonBuffer => {
-                console.log(jsonBuffer.ImageAnnotationCollection.imageAnnotations);
                 promiseArr.push(
                   fastify.saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                 );
               });
+
               Promise.all(promiseArr)
                 .then(res => {
                   console.log('in resolve', res);
@@ -692,12 +690,10 @@ async function other(fastify) {
       // eslint-disable-next-line default-case
       switch (type) {
         case 19:
-          console.log(`type: ${type} point markup`, markup);
           fastify.addPointToAim(aim, markup, shapeIndex, imageReferenceUid);
           break;
         case 5:
         case 14:
-          console.log(`type: ${type} line markup`, markup);
           fastify.addLineToAim(aim, markup, shapeIndex, imageReferenceUid);
           break;
         // case 'circle':
@@ -710,7 +706,6 @@ async function other(fastify) {
         case 20:
         case 11:
         case 6:
-          console.log(` type: ${type} poly markup`, markup);
           fastify.addPolygonToAim(aim, markup, shapeIndex, imageReferenceUid);
           break;
         // case 'bidirectional':
@@ -728,24 +723,46 @@ async function other(fastify) {
       points,
       imageReferenceUid
     );
-    // find out the unit about statistics to write to aim
-    let unit;
-    const { mean, stdDev, min, max } = polygon;
+    fastify.createCalcEntity(aim, markupId, polygon);
+  });
 
-    // TODO: instantiate unit
-    // TODO: checkout modality
+  fastify.decorate('createCalcEntity', (aim, markupId, shape) => {
+    const { AreaCm2, mean, stdDev, min, max, LengthCm } = shape;
+    // const modality = aim.temp.series.modality;
+    const unit = 'linear';
 
-    const meanId = aim.createMeanCalcEntity({ mean, unit });
-    aim.createImageAnnotationStatement(1, markupId, meanId);
+    if (mean) {
+      const meanId = aim.createMeanCalcEntity({ mean, unit });
+      aim.createImageAnnotationStatement(1, markupId, meanId);
+    }
 
-    const stdDevId = aim.createStdDevCalcEntity({ stdDev, unit });
-    aim.createImageAnnotationStatement(1, markupId, stdDevId);
+    if (stdDev) {
+      const stdDevId = aim.createStdDevCalcEntity({ stdDev, unit });
+      aim.createImageAnnotationStatement(1, markupId, stdDevId);
+    }
 
-    const minId = aim.createMinCalcEntity({ min, unit });
-    aim.createImageAnnotationStatement(1, markupId, minId);
+    if (min) {
+      const minId = aim.createMinCalcEntity({ min, unit });
+      aim.createImageAnnotationStatement(1, markupId, minId);
+    }
 
-    const maxId = aim.createMaxCalcEntity({ max, unit });
-    aim.createImageAnnotationStatement(1, markupId, maxId);
+    if (max) {
+      const maxId = aim.createMaxCalcEntity({ max, unit });
+      aim.createImageAnnotationStatement(1, markupId, maxId);
+    }
+
+    if (LengthCm) {
+      const lengthId = aim.createLengthCalcEntity({
+        value: LengthCm,
+        unit: 'cm',
+      });
+      aim.createImageAnnotationStatement(1, markupId, lengthId);
+    }
+
+    if (AreaCm2) {
+      const areaId = aim.createAreaCalcEntity({ value: AreaCm2, unit: 'cm2' });
+      aim.createImageAnnotationStatement(1, markupId, areaId);
+    }
   });
 
   fastify.decorate('addPointToAim', (aim, point, shapeIndex, imageReferenceUid) => {
@@ -754,19 +771,15 @@ async function other(fastify) {
   });
 
   fastify.decorate('addLineToAim', (aim, line, shapeIndex, imageReferenceUid) => {
-    const { points, LengthCm } = line;
+    const { points } = line;
     const markupId = aim.addMarkupEntity(
       'TwoDimensionMultiPoint',
       shapeIndex,
       points,
       imageReferenceUid
     );
-    const lengthMm = LengthCm * 10;
-    const lengthId = aim.createLengthCalcEntity({
-      value: lengthMm,
-      unit: 'mm',
-    });
-    aim.createImageAnnotationStatement(1, markupId, lengthId);
+
+    fastify.createCalcEntity(aim, markupId, line);
   });
 
   fastify.decorate('createPointsArrForOsirix', osirixCoordinates => {
