@@ -9454,6 +9454,7 @@ async function epaddb(fastify, options, done) {
             fastify.log.info(`Resuming unfinished Processing at ${resumeTimestamp}`);
 
             const tmpFolders = [];
+            const deletedTmpFolders = [];
             const zipFiles = [];
             // populate zip files to ignore
             const reqs = [];
@@ -9478,26 +9479,43 @@ async function epaddb(fastify, options, done) {
             for (let i = 0; i < remaining.length; i += 1) {
               // TODO sending just username, it has no project role, can it fail?
               const epadAuth = { username: remaining[i].creator };
-              // eslint-disable-next-line no-await-in-loop
-              await fastify.updateProcessing(
-                JSON.parse(remaining[i].params),
-                JSON.parse(remaining[i].query),
-                remaining[i].path,
-                remaining[i].files_only,
-                remaining[i].attempt_number + 1,
-                epadAuth
-              );
               const tmpFolder = remaining[i].path.split('/')[2];
-              if (!tmpFolders.includes(tmpFolder)) tmpFolders.push(tmpFolder);
-              // eslint-disable-next-line no-await-in-loop
-              await fastify.processFolder(
-                remaining[i].path,
-                JSON.parse(remaining[i].params),
-                JSON.parse(remaining[i].query),
-                epadAuth,
-                remaining[i].files_only,
-                zipFiles
-              );
+              if (
+                !deletedTmpFolders.includes(tmpFolder) &&
+                fs.existsSync(path.join('/tmp', tmpFolder))
+              ) {
+                if (!tmpFolders.includes(tmpFolder)) tmpFolders.push(tmpFolder);
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.updateProcessing(
+                  JSON.parse(remaining[i].params),
+                  JSON.parse(remaining[i].query),
+                  remaining[i].path,
+                  remaining[i].files_only,
+                  remaining[i].attempt_number + 1,
+                  epadAuth
+                );
+
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.processFolder(
+                  remaining[i].path,
+                  JSON.parse(remaining[i].params),
+                  JSON.parse(remaining[i].query),
+                  epadAuth,
+                  remaining[i].files_only,
+                  zipFiles
+                );
+              } else {
+                fastify.log.warn(
+                  `Cannot resume processing ${remaining[i].path} as ${tmpFolder} is deleted`
+                );
+                deletedTmpFolders.push(tmpFolder);
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.removeProcessing(
+                  JSON.parse(remaining[i].params),
+                  JSON.parse(remaining[i].query),
+                  remaining[i].path
+                );
+              }
             }
             for (let i = 0; i < tmpFolders.length; i += 1)
               fs.remove(path.join('/tmp', tmpFolders[i]), error => {
