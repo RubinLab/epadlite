@@ -56,9 +56,7 @@ config.maxConcurrent = config.maxConcurrent || 5;
 config.disableStats = config.disableStats || false;
 config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
 config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;
-<<<<<<< HEAD
 config.disableDICOMSend = process.env.DISABLE_DICOM_SEND === 'true' || config.disableDICOMSend;
-=======
 config.unassignedProjectID = config.unassignedProjectID || 'nonassigned';
 config.XNATUploadProjectID = config.XNATUploadProjectID || 'all';
 config.pollDW =
@@ -77,5 +75,4 @@ if (process.env.CORS_ORIGIN) {
 }
 config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
 config.secret = process.env.SECRET || config.secret || undefined;
->>>>>>> develop
 module.exports = config;

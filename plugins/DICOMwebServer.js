@@ -589,77 +589,6 @@ async function dicomwebserver(fastify) {
                           epadAuth
                         );
 
-<<<<<<< HEAD
-              // get the patients's studies and map each study to epadlite study object
-              const result = _.chain(filteredStudies)
-                .map(value => {
-                  return {
-                    projectID: params.project ? params.project : projectID,
-                    patientID: fastify.replaceNull(value['00100020'].Value[0]),
-                    patientName:
-                      value['00100010'] && value['00100010'].Value
-                        ? value['00100010'].Value[0].Alphabetic
-                        : '',
-                    studyUID: value['0020000D'].Value[0],
-                    insertDate:
-                      value['00080020'] && value['00080020'].Value
-                        ? value['00080020'].Value[0]
-                        : '', // study date
-                    firstSeriesUID: '', // TODO
-                    firstSeriesDateAcquired: '', // TODO
-                    physicianName: '', // TODO
-                    referringPhysicianName:
-                      value['00080090'] && value['00080090'].Value
-                        ? value['00080090'].Value[0].Alphabetic
-                        : '',
-                    birthdate:
-                      value['00100030'] && value['00100030'].Value
-                        ? value['00100030'].Value[0]
-                        : '',
-                    sex:
-                      value['00100040'] && value['00100040'].Value
-                        ? value['00100040'].Value[0]
-                        : '',
-                    studyDescription:
-                      value['00081030'] && value['00081030'].Value
-                        ? value['00081030'].Value[0]
-                        : '',
-                    studyAccessionNumber:
-                      value['00080050'] && value['00080050'].Value
-                        ? value['00080050'].Value[0]
-                        : '',
-                    examTypes:
-                      value['00080061'] && value['00080061'].Value ? value['00080061'].Value : [],
-                    numberOfImages:
-                      value['00201208'] && value['00201208'].Value
-                        ? value['00201208'].Value[0]
-                        : '',
-                    numberOfSeries:
-                      value['00201206'] && value['00201206'].Value
-                        ? value['00201206'].Value[0]
-                        : '',
-                    numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
-                      ? aimsCountMap[value['0020000D'].Value[0]]
-                      : 0,
-                    createdTime: '', // no date in studies call
-                    // extra for flexview
-                    studyID:
-                      value['00200010'] && value['00200010'].Value
-                        ? value['00200010'].Value[0]
-                        : '',
-                    studyDate:
-                      value['00080020'] && value['00080020'].Value
-                        ? value['00080020'].Value[0]
-                        : '',
-                    studyTime:
-                      value['00080030'] && value['00080030'].Value
-                        ? value['00080030'].Value[0]
-                        : '',
-                  };
-                })
-                .sortBy('studyDescription')
-                .value();
-=======
                       const { numberOfSeries, numberOfImages } =
                         requestQuery.filterDSO &&
                         requestQuery.filterDSO === 'true' &&
@@ -677,32 +606,46 @@ async function dicomwebserver(fastify) {
                                   ? value['00201208'].Value[0]
                                   : '',
                             };
->>>>>>> develop
 
                       return {
                         projectID: params.project ? params.project : projectID,
                         patientID: fastify.replaceNull(value['00100020'].Value[0]),
-                        patientName: value['00100010'].Value
-                          ? value['00100010'].Value[0].Alphabetic
-                          : '',
+                        patientName:
+                          value['00100010'] && value['00100010'].Value
+                            ? value['00100010'].Value[0].Alphabetic
+                            : '',
                         studyUID: value['0020000D'].Value[0],
-                        insertDate: value['00080020'].Value ? value['00080020'].Value[0] : '', // study date
+                        insertDate:
+                          value['00080020'] && value['00080020'].Value
+                            ? value['00080020'].Value[0]
+                            : '', // study date
                         firstSeriesUID: '', // TODO
                         firstSeriesDateAcquired: '', // TODO
                         physicianName: '', // TODO
-                        referringPhysicianName: value['00080090'].Value
-                          ? value['00080090'].Value[0].Alphabetic
-                          : '',
-                        birthdate: value['00100030'].Value ? value['00100030'].Value[0] : '',
-                        sex: value['00100040'].Value ? value['00100040'].Value[0] : '',
+                        referringPhysicianName:
+                          value['00080090'] && value['00080090'].Value
+                            ? value['00080090'].Value[0].Alphabetic
+                            : '',
+                        birthdate:
+                          value['00100030'] && value['00100030'].Value
+                            ? value['00100030'].Value[0]
+                            : '',
+                        sex:
+                          value['00100040'] && value['00100040'].Value
+                            ? value['00100040'].Value[0]
+                            : '',
                         studyDescription:
                           value['00081030'] && value['00081030'].Value
                             ? value['00081030'].Value[0]
                             : '',
-                        studyAccessionNumber: value['00080050'].Value
-                          ? value['00080050'].Value[0]
-                          : '',
-                        examTypes: value['00080061'].Value ? value['00080061'].Value : [],
+                        studyAccessionNumber:
+                          value['00080050'] && value['00080050'].Value
+                            ? value['00080050'].Value[0]
+                            : '',
+                        examTypes:
+                          value['00080061'] && value['00080061'].Value
+                            ? value['00080061'].Value
+                            : [],
                         numberOfImages,
                         numberOfSeries,
                         numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
@@ -713,9 +656,18 @@ async function dicomwebserver(fastify) {
                             ? createdTimes[value['0020000D'].Value[0]]
                             : '',
                         // extra for flexview
-                        studyID: value['00200010'].Value ? value['00200010'].Value[0] : '',
-                        studyDate: value['00080020'].Value ? value['00080020'].Value[0] : '',
-                        studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '',
+                        studyID:
+                          value['00200010'] && value['00200010'].Value
+                            ? value['00200010'].Value[0]
+                            : '',
+                        studyDate:
+                          value['00080020'] && value['00080020'].Value
+                            ? value['00080020'].Value[0]
+                            : '',
+                        studyTime:
+                          value['00080030'] && value['00080030'].Value
+                            ? value['00080030'].Value[0]
+                            : '',
                       };
                     })
                     .sortBy('studyDescription')
@@ -1022,9 +974,9 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getWadoInternal', params => {
     return this.wadoRequest.get(
-      `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${
-        params.image
-      }`,
+      `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${params.study}&seriesUID=${
+        params.series
+      }&objectUID=${params.image}`,
       { ...header, responseType: 'stream' }
     );
   });
