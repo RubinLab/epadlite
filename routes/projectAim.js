@@ -15,7 +15,7 @@ async function routes(fastify) {
         },
       },
     },
-    handler: fastify.saveFile,
+    handler: fastify.saveAimFile,
   });
   fastify.route({
     method: 'PUT',
@@ -34,7 +34,7 @@ async function routes(fastify) {
         },
       },
     },
-    handler: fastify.saveFile,
+    handler: fastify.saveAimFile,
   });
   fastify.route({
     method: 'POST',
