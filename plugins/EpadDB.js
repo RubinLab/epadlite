@@ -1083,38 +1083,61 @@ async function epaddb(fastify, options, done) {
       //  new UnauthorizedError('User has no access to project')
       reply.send(new UnauthorizedError('User has no right to create plugin'));
     } else {
+      // check if plugin_id exist
       models.plugin_docker
-        .create({
-          plugin_id: pluginform.plugin_id,
-          name: pluginform.name,
-          description: pluginform.description,
-          image_repo: pluginform.image_repo,
-          image_tag: pluginform.image_tag,
-          image_name: pluginform.image_name,
-          image_id: pluginform.image_id,
-          enabled: pluginform.enabled,
-          modality: pluginform.modality,
-          creator: request.epadAuth.username,
-          createdtime: Date.now(),
-          updatetime: '1970-01-01 00:00:01',
-          developer: pluginform.developer,
-          documentation: pluginform.documentation,
-          processmultipleaims: tempprocessmultipleaims,
+        .findAll({
+          where: { plugin_id: pluginform.plugin_id },
         })
-        .then(() => {
-          //  new UnauthorizedError('User has no access to project')
-          reply.code(200).send('Plugin saved seccessfully');
+        .then(result => {
+          if (result.length === 0) {
+            // save plugin
+            models.plugin_docker
+              .create({
+                plugin_id: pluginform.plugin_id,
+                name: pluginform.name,
+                description: pluginform.description,
+                image_repo: pluginform.image_repo,
+                image_tag: pluginform.image_tag,
+                image_name: pluginform.image_name,
+                image_id: pluginform.image_id,
+                enabled: pluginform.enabled,
+                modality: pluginform.modality,
+                creator: request.epadAuth.username,
+                createdtime: Date.now(),
+                updatetime: '1970-01-01 00:00:01',
+                developer: pluginform.developer,
+                documentation: pluginform.documentation,
+                processmultipleaims: tempprocessmultipleaims,
+              })
+              .then(() => {
+                //  new UnauthorizedError('User has no access to project')
+                reply.code(200).send('Plugin saved seccessfully');
+              })
+              .catch(err => {
+                reply
+                  .code(500)
+                  .send(
+                    new InternalError(
+                      'Something went wrong while creating a new plugin in plugin table',
+                      err
+                    )
+                  );
+              });
+            // save plugin end
+          } else {
+            reply
+              .code(500)
+              .send(new InternalError('Select different id ', new Error('id exist already')));
+          }
         })
         .catch(err => {
           reply
             .code(500)
             .send(
-              new InternalError(
-                'Something went wrong while creating a new plugin in plugin table',
-                err
-              )
+              new InternalError('Something went wrong while verifying duplicate plugin_id', err)
             );
         });
+      // check plugin id end
     }
   });
 

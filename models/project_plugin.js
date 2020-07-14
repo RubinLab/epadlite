@@ -22,7 +22,7 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'plugin',
+          model: 'plugin_docker',
           key: 'id',
         },
       },
