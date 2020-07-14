@@ -8260,8 +8260,12 @@ async function epaddb(fastify, options, done) {
       );
     }
     if (request.query.editTags === 'true') {
-      request.params.series = seriesUid;
-      await fastify.editTags(request, reply);
+      if (!request.epadAuth.admin) {
+        reply.send(new UnauthorizedError('User is not admin, cannot edit tags'));
+      } else {
+        request.params.series = seriesUid;
+        await fastify.editTags(request, reply);
+      }
     } else {
       const promisses = [];
       promisses.push(
@@ -8295,7 +8299,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getObjectCreator',
-    (level, objectId) =>
+    (level, objectId, projectId) =>
       new Promise(async (resolve, reject) => {
         try {
           let uidField = '';
@@ -8306,14 +8310,14 @@ async function epaddb(fastify, options, done) {
               uidField = 'projectid';
               model = 'project';
               break;
-            // case 'aim':
-            // uidField='projectid';
-            // model='project';
-            // break;
-            // case 'template':
-            // uidField='projectid';
-            // model='project';
-            // break;
+            case 'aim':
+              uidField = 'aim_uid';
+              model = 'project_aim';
+              break;
+            case 'template':
+              uidField = 'template_uid';
+              model = 'project_template';
+              break;
             // case 'file':
             // uidField='projectid';
             // model='project';
@@ -8338,16 +8342,44 @@ async function epaddb(fastify, options, done) {
             // uidField='projectid';
             // model='project';
             // break;
+            case 'subject':
+              uidField = 'subjectuid';
+              model = 'subject';
+              break;
+            case 'study':
+              uidField = 'studyuid';
+              model = 'study';
+              break;
             default:
               uidField = undefined;
               model = undefined;
               break;
           }
           if (model) {
-            const object = await models[model].findOne({
-              where: { [uidField]: objectId },
-            });
-            if (object) resolve(object.creator);
+            let whereJSON = { [uidField]: objectId };
+            if (model.startsWith('project_') && !projectId) {
+              // check if all the entities are the same user's and resolve that username if so
+              // resolves '' if not
+              const objects = await models[model].findAll({
+                where: whereJSON,
+              });
+              let creator = '';
+              for (let i = 0; i < objects.length; i += 1) {
+                // eslint-disable-next-line prefer-destructuring
+                if (creator === '') creator = objects[i].creator;
+                else if (creator !== objects[i].creator) creator = '';
+              }
+              resolve(creator);
+            } else {
+              // checks relation
+              if (model.startsWith('project_') && projectId)
+                whereJSON = { ...whereJSON, project_id: projectId };
+
+              const object = await models[model].findOne({
+                where: whereJSON,
+              });
+              if (object) resolve(object.creator);
+            }
           }
           resolve();
         } catch (err) {

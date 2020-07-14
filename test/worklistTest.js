@@ -302,7 +302,7 @@ describe('Worklist Tests', () => {
   it('should create a link between a worklist and a study', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/worklists/testCreate/projects/testStRelation/subjects/3/studies/0023.2015.09.28.3')
+      .put('/worklists/testCreate/projects/testStRelation/subjects/3/studies/0023.2015.09.28.3')
       .query({ username: 'testCreator@gmail.com' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -471,9 +471,7 @@ describe('Worklist Tests', () => {
     it('should add study to the worklist', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post(
-          '/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3'
-        )
+        .put('/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
         .query({ username: 'testProgressUser1@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);

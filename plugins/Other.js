@@ -1424,7 +1424,11 @@ async function other(fastify) {
           reqInfo.objectId
         }`
       );
-      const creator = await fastify.getObjectCreator(reqInfo.level, reqInfo.objectId);
+      const creator = await fastify.getObjectCreator(
+        reqInfo.level,
+        reqInfo.objectId,
+        reqInfo.project
+      );
       fastify.log.info('Creator is', creator);
       if (creator && creator === request.epadAuth.username) return true;
       // not a db item return true
@@ -1473,7 +1477,7 @@ async function other(fastify) {
               if (fastify.hasAccessToProject(request, reqInfo.project) === undefined) {
                 // check if it is a public project
                 const project = await fastify.getProjectInternal(reqInfo.project);
-                if (project.type.toLowerCase() !== 'public')
+                if (!project || project.type.toLowerCase() !== 'public')
                   reply.send(new UnauthorizedError('User has no access to project'));
               }
               break;
