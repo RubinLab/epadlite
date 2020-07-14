@@ -8260,8 +8260,12 @@ async function epaddb(fastify, options, done) {
       );
     }
     if (request.query.editTags === 'true') {
-      request.params.series = seriesUid;
-      await fastify.editTags(request, reply);
+      if (!request.epadAuth.admin) {
+        reply.send(new UnauthorizedError('User is not admin, cannot edit tags'));
+      } else {
+        request.params.series = seriesUid;
+        await fastify.editTags(request, reply);
+      }
     } else {
       const promisses = [];
       promisses.push(
