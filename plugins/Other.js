@@ -1544,49 +1544,59 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate(
-    'decryptAdd',
-    (request, reply) =>
-      new Promise(async (resolve, reject) => {
-        try {
-          const obj = fastify.decryptInternal(request.query.arg);
-          const projectID = obj.projectID ? obj.projectID : 'lite';
-          // if patientID and studyUID
-          if (obj.patientID && obj.studyUID) {
+  fastify.decorate('decryptAdd', async (request, reply) => {
+    try {
+      const obj = fastify.decryptInternal(request.query.arg);
+      const projectID = obj.projectID ? obj.projectID : 'lite';
+      // if patientID and studyUID
+      if (obj.patientID && obj.studyUID) {
+        await fastify.addPatientStudyToProjectInternal(
+          { project: projectID, subject: obj.patientID, study: obj.studyUID },
+          request.epadAuth
+        );
+        reply.send({ ...obj, projectID });
+      } else if (obj.accession) {
+        // if accession
+        const patientStudyPairs = fastify.getPatientIDandStudyUIDsFromAccession(obj.accession);
+
+        // send the first it there is
+        if (patientStudyPairs.length > 0) {
+          for (let i = 0; i < patientStudyPairs.length; i += 1)
+            // eslint-disable-next-line no-await-in-loop
             await fastify.addPatientStudyToProjectInternal(
-              { project: projectID, subject: obj.patientID, study: obj.studyUID },
+              {
+                project: projectID,
+                subject: patientStudyPairs[i].patientID,
+                study: patientStudyPairs[i].studyUID,
+              },
               request.epadAuth,
               {}
             );
-          }
-          if (obj.accession) {
-            // if accession
-            const patientStudyPairs = fastify.getPatientIDandStudyUIDsFromAccession(obj.accession);
-            for (let i = 0; i < patientStudyPairs.length; i += 1)
-              // eslint-disable-next-line no-await-in-loop
-              await fastify.addPatientStudyToProjectInternal(
-                {
-                  project: projectID,
-                  subject: patientStudyPairs[i].patientID,
-                  study: patientStudyPairs[i].studyUID,
-                },
-                request.epadAuth,
-                {}
-              );
-          } else {
-            // not supported
-            reply.send(
-              new BadRequestError(
-                'Encrypted URL adding',
-                new Error(`Supported parameters not found patientID and studyUID or accession`)
-              )
-            );
-          }
-        } catch (err) {
-          reject(new InternalError(`Decrypt and add`, err));
-        }
-      })
-  );
+          reply.send({
+            projectID,
+            patientID: patientStudyPairs[0].patientID,
+            studyUID: patientStudyPairs[0].studyUID,
+          });
+        } else
+          reply.send(
+            new BadRequestError(
+              'Encrypted URL adding',
+              new Error(`Couldn't get study from accession ${obj.accession}`)
+            )
+          );
+      } else {
+        // not supported
+        reply.send(
+          new BadRequestError(
+            'Encrypted URL adding',
+            new Error(`Supported parameters not found patientID and studyUID or accession`)
+          )
+        );
+      }
+    } catch (err) {
+      reply.send(new InternalError(`Decrypt and add`, err));
+    }
+  });
 
   fastify.decorate('decryptInternal', encrypted => {
     if (!config.secret) {
