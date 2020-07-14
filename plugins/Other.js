@@ -1424,7 +1424,11 @@ async function other(fastify) {
           reqInfo.objectId
         }`
       );
-      const creator = await fastify.getObjectCreator(reqInfo.level, reqInfo.objectId);
+      const creator = await fastify.getObjectCreator(
+        reqInfo.level,
+        reqInfo.objectId,
+        reqInfo.project
+      );
       fastify.log.info('Creator is', creator);
       if (creator && creator === request.epadAuth.username) return true;
       // not a db item return true
