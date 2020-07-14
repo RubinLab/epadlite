@@ -4422,7 +4422,7 @@ async function epaddb(fastify, options, done) {
             }
           } else if (config.mode === 'lite') {
             // if mode is like just return lite projects aims
-            const aimUids = await fastify.getAimUidsForProject({ project: 'lite' });
+            const aimUids = await fastify.getAimUidsForProjectFilter({ project: 'lite' });
             resolve(aimUids);
           }
         } catch (err) {
@@ -4432,8 +4432,8 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
-    'getAimUidsForProject',
-    params =>
+    'getAimUidsForProjectFilter',
+    (params, filter) =>
       new Promise(async (resolve, reject) => {
         try {
           const project = await models.project.findOne(
@@ -4451,9 +4451,11 @@ async function epaddb(fastify, options, done) {
               )
             );
           else {
+            let whereJSON = { project_id: project.id };
+            if (filter) whereJSON = { ...whereJSON, ...filter };
             const aimUids = [];
             const projectAims = await models.project_aim.findAll({
-              where: { project_id: project.id },
+              where: whereJSON,
             });
             // projects will be an array of Project instances with the specified name
             for (let i = 0; i < projectAims.length; i += 1) {
@@ -4470,10 +4472,10 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'filterProjectAims',
-    (params, query, epadAuth) =>
+    (params, query, epadAuth, filter) =>
       new Promise(async (resolve, reject) => {
         try {
-          const aimUids = await fastify.getAimUidsForProject(params);
+          const aimUids = await fastify.getAimUidsForProjectFilter(params, filter);
           const result = await fastify.getAimsInternal(query.format, params, aimUids, epadAuth);
           resolve(result);
         } catch (err) {
@@ -4521,11 +4523,33 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
-      let result = await fastify.filterProjectAims(request.params, request.query, request.epadAuth);
-      if (request.query.format === 'stream') {
-        reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-      } else if (request.query.format === 'summary') {
-        result = result.map(obj => ({ ...obj, projectID: request.params.project }));
+      let filter;
+      if (request.query.format === 'returnTable' && request.query.templatecode) {
+        filter = { template: request.query.templatecode };
+      }
+      let result = await fastify.filterProjectAims(
+        request.params,
+        request.query,
+        request.epadAuth,
+        filter
+      );
+      switch (request.query.format) {
+        case 'returnTable':
+          result = fastify.fillTable(
+            result,
+            request.query.templatecode,
+            request.query.columns.split(','),
+            request.query.shapes
+          );
+          break;
+        case 'stream':
+          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+          break;
+        case 'summary':
+          result = result.map(obj => ({ ...obj, projectID: request.params.project }));
+          break;
+        default:
+          break;
       }
       reply.code(200).send(result);
     } catch (err) {
