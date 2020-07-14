@@ -103,7 +103,7 @@ async function couchdb(fastify, options) {
       ioes.forEach(ioe => {
         // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
         header.push({ id: ioe.label.value.toLowerCase(), title: ioe.label.value });
-        if (ioe.imagingObservationEntityCharacteristicCollection) {
+        if (ioe.imagingObservationCharacteristicCollection) {
           const iocs =
             ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
           iocs.forEach(ioc => {
