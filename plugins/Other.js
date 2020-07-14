@@ -1477,7 +1477,7 @@ async function other(fastify) {
               if (fastify.hasAccessToProject(request, reqInfo.project) === undefined) {
                 // check if it is a public project
                 const project = await fastify.getProjectInternal(reqInfo.project);
-                if (project.type.toLowerCase() !== 'public')
+                if (!project || project.type.toLowerCase() !== 'public')
                   reply.send(new UnauthorizedError('User has no access to project'));
               }
               break;
