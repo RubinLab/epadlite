@@ -84,7 +84,7 @@ async function reporting(fastify) {
       }
       if (aimJSONs.length === 0) return table;
       for (let i = 0; i < aimJSONs.length; i += 1) {
-        const row = rowTemplate;
+        const row = { ...rowTemplate };
         // check the template
         if (template != null) {
           // I already filter it in db but just in case
@@ -341,38 +341,44 @@ async function reporting(fastify) {
                 if (value == null || value.trim() === '') value = '0';
                 if (calcResult.unitOfMeasure.value === 'mm') value = `${parseFloat(value) / 10}`;
                 if ('allcalc' in row) {
+                  // get the last type to support attenuation coefficient/mean and also for suv
                   row.allcalc[calc.description.value.toLowerCase()] = fastify.formJsonObj(
                     value,
-                    calc.typeCode[0].code
+                    calc.typeCode[calc.typeCode.length - 1].code
                   );
                 }
 
                 if ('length' in row && calc.description.value.toLowerCase() === 'linelength')
                   row.length = fastify.formJsonObj(value, 'RID39123');
-                else
+                else if (calc.description.value.toLowerCase() in row) {
+                  // get the last type to support attenuation coefficient/mean and also for suv
                   row[calc.description.value.toLowerCase()] = fastify.formJsonObj(
                     value,
-                    calc.typeCode[0].code
+                    calc.typeCode[calc.typeCode.length - 1].code
                   );
+                }
                 hasCalcs = true;
               } else if (calcResult['xsi:type'] === 'ExtendedCalculationResult') {
                 let { value } = calcResult.calculationDataCollection.CalculationData[0].value;
                 if (value == null || value.trim() === '') value = '0';
                 if (calcResult.unitOfMeasure.value === 'mm') value = `${parseFloat(value) / 10}`;
                 if ('allcalc' in row) {
+                  // get the last type to support attenuation coefficient/mean and also for suv
                   row.allcalc[calc.description.value.toLowerCase()] = fastify.formJsonObj(
                     value,
-                    calc.typeCode[0].code
+                    calc.typeCode[calc.typeCode.length - 1].code
                   );
                 }
 
                 if ('length' in row && calc.description.value.toLowerCase() === 'linelength')
                   row.length = fastify.formJsonObj(value, 'RID39123');
-                else
+                else if (calc.description.value.toLowerCase() in row) {
+                  // get the last type to support attenuation coefficient/mean and also for suv
                   row[calc.description.value.toLowerCase()] = fastify.formJsonObj(
                     value,
-                    calc.typeCode[0].code
+                    calc.typeCode[calc.typeCode.length - 1].code
                   );
+                }
                 hasCalcs = true;
               }
             }
