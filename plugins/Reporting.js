@@ -390,6 +390,7 @@ async function reporting(fastify) {
     } catch (err) {
       console.log(err);
     }
+    return [];
   });
 }
 
