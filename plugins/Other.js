@@ -731,7 +731,6 @@ async function other(fastify) {
                   .then(res => {
                     try {
                       fastify.log.info(`Saving successful for ${filename}`);
-                      console.log('-----------> json res', res);
                       resolve(res);
                     } catch (errProject) {
                       reject(errProject);
@@ -742,42 +741,90 @@ async function other(fastify) {
                   });
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
-              const osirixObj = fastify.parseOsirix(`${dir}/${filename}`);
-              const filteredOsirixObjects = fastify.filterOsirixAnnotations(osirixObj.Images);
-              const keys = Object.keys(filteredOsirixObjects);
-              const values = Object.values(filteredOsirixObjects);
-              const { username } = epadAuth;
-              let promiseArr = [];
-              values.forEach(annotation => {
-                promiseArr.push(fastify.getImageMetaDataforOsirix(annotation, username));
-              });
-
-              const seedDataArr = await Promise.all(promiseArr);
-              seedDataArr.forEach((seedData, i) => {
-                filteredOsirixObjects[keys[i]] = { ...values[i], seedData };
-              });
-              const aimJsons = fastify.createAimJsons(Object.values(filteredOsirixObjects));
-              promiseArr = [];
-              aimJsons.forEach(jsonBuffer => {
-                promiseArr.push(
-                  fastify.saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
-                );
-              });
-              console.log(' ----> promiseArr');
-              console.log(promiseArr);
-
-              Promise.all(promiseArr)
-                .then(res => {
-                  console.log('in resolve', res);
-                  try {
-                    fastify.log.info(`Saving successful for ${filename}`);
-                    resolve(res[0]);
-                  } catch (errProject) {
-                    reject(errProject);
-                  }
+              fastify
+                .parseOsirix(`${dir}/${filename}`)
+                .then(osirixObj => {
+                  const { filteredOsirix, nonSupported } = fastify.filterOsirixAnnotations(
+                    osirixObj.Images
+                  );
+                  const keys = Object.keys(filteredOsirix);
+                  const values = Object.values(filteredOsirix);
+                  const { username } = epadAuth;
+                  const promiseArr = [];
+                  const result = { errors: [] };
+                  values.forEach(annotation => {
+                    promiseArr.push(
+                      fastify.getImageMetaDataforOsirix(annotation, username).catch(error => {
+                        result.errors.push(error);
+                      })
+                    );
+                  });
+                  Promise.all(promiseArr).then(seedDataArr => {
+                    if (result.errors.length === promiseArr.length) {
+                      reject(new InternalError(`Can not find the image`, result.errors[0]));
+                    } else {
+                      seedDataArr.forEach((seedData, i) => {
+                        if (seedData) {
+                          filteredOsirix[keys[i]] = { ...values[i], seedData };
+                        }
+                      });
+                      const aimJsons = fastify.createAimJsons(Object.values(filteredOsirix));
+                      const aimsavePromises = [];
+                      aimJsons.forEach(jsonBuffer => {
+                        aimsavePromises.push(
+                          fastify
+                            .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
+                            .catch(error => {
+                              result.errors.push(error);
+                            })
+                        );
+                      });
+                      Promise.all(aimsavePromises)
+                        .then(() => {
+                          try {
+                            const uploadMsg = 'Upload Failed as ';
+                            let errMessage = 'none of the files were uploaded successfully';
+                            if (result.errors.length === promiseArr.length) {
+                              reject(new InternalError(uploadMsg, { message: errMessage }));
+                            } else {
+                              // eslint-disable-next-line no-lonely-if
+                              if (nonSupported.length) {
+                                errMessage = `Not supported shapes in: ${nonSupported.join(', ')}`;
+                                const error = new InternalError('Upload completed with errors', {
+                                  message: errMessage,
+                                });
+                                if (result.errors.length > 0) {
+                                  const combinedErrors = result.errors.push(error);
+                                  fastify.log.info(`Saving successful`);
+                                  resolve({ success: true, errors: [combinedErrors] });
+                                } else {
+                                  fastify.log.info(`Saving successful`);
+                                  resolve({ success: true, errors: [error] });
+                                }
+                              } else {
+                                fastify.log.info(`Saving successful`);
+                                resolve({ success: true, errors: [result.errors] });
+                              }
+                            }
+                          } catch (errProject) {
+                            reject(errProject);
+                          }
+                        })
+                        .catch(err => {
+                          const uploadMsg = 'Upload Failed as ';
+                          const errMessage = 'none of the files were uploaded successfully';
+                          reject(new InternalError(uploadMsg + errMessage, err));
+                        });
+                    }
+                  });
                 })
-                .catch(err => {
-                  reject(err);
+                .catch(() => {
+                  reject(
+                    new BadRequestError(
+                      'Uploading files',
+                      new Error(`Unsupported filetype for file ${dir}/${filename}`)
+                    )
+                  );
                 });
             } else if (
               filename.endsWith('zip') &&
@@ -845,15 +892,19 @@ async function other(fastify) {
   );
 
   fastify.decorate('createAimJsons', filteredOsirixArr => {
-    const aimJsons = [];
-    filteredOsirixArr.forEach(el => {
-      const aim = new Aim(el.seedData, fastify.enumAimType.imageAnnotation);
-      const markupsToSave = el.rois.map(roi => fastify.formMarupksToSave(roi));
-      fastify.createAimMarkups(aim, markupsToSave);
-      const aimJson = JSON.parse(aim.getAim());
-      aimJsons.push(aimJson);
-    });
-    return aimJsons;
+    try {
+      const aimJsons = [];
+      filteredOsirixArr.forEach(el => {
+        const aim = new Aim(el.seedData, fastify.enumAimType.imageAnnotation);
+        const markupsToSave = el.rois.map(roi => fastify.formMarupksToSave(roi));
+        fastify.createAimMarkups(aim, markupsToSave);
+        const aimJson = JSON.parse(aim.getAim());
+        aimJsons.push(aimJson);
+      });
+      return aimJsons;
+    } catch (err) {
+      return new InternalError('Creating aim jsons', err);
+    }
   });
 
   fastify.decorate('enumAimType', {
@@ -888,6 +939,7 @@ async function other(fastify) {
     markupsToSave.forEach(value => {
       const { type, markup, shapeIndex, imageReferenceUid } = value;
       // eslint-disable-next-line default-case
+      // eslint-disable-next-line default-case
       switch (type) {
         case 19:
           fastify.addPointToAim(aim, markup, shapeIndex, imageReferenceUid);
@@ -896,9 +948,6 @@ async function other(fastify) {
         case 14:
           fastify.addLineToAim(aim, markup, shapeIndex, imageReferenceUid);
           break;
-        // case 'circle':
-        //   this.addCircleToAim(aim, markup, shapeIndex, imageReferenceUid);
-        //   break;
         case 15:
         case 10:
         case 9:
@@ -908,8 +957,6 @@ async function other(fastify) {
         case 6:
           fastify.addPolygonToAim(aim, markup, shapeIndex, imageReferenceUid);
           break;
-        // case 'bidirectional':
-        //   this.addBidirectionalToAim(aim, markup, shapeIndex, imageReferenceUid);
       }
     });
   });
@@ -921,7 +968,8 @@ async function other(fastify) {
       'TwoDimensionPolyline',
       shapeIndex,
       points,
-      imageReferenceUid
+      imageReferenceUid,
+      1
     );
     fastify.createCalcEntity(aim, markupId, polygon);
   });
@@ -967,7 +1015,7 @@ async function other(fastify) {
 
   fastify.decorate('addPointToAim', (aim, point, shapeIndex, imageReferenceUid) => {
     const { points } = point;
-    aim.addMarkupEntity('TwoDimensionPoint', shapeIndex, points, imageReferenceUid);
+    aim.addMarkupEntity('TwoDimensionPoint', shapeIndex, points, imageReferenceUid, 1);
   });
 
   fastify.decorate('addLineToAim', (aim, line, shapeIndex, imageReferenceUid) => {
@@ -976,7 +1024,8 @@ async function other(fastify) {
       'TwoDimensionMultiPoint',
       shapeIndex,
       points,
-      imageReferenceUid
+      imageReferenceUid,
+      1
     );
 
     fastify.createCalcEntity(aim, markupId, line);
@@ -994,33 +1043,40 @@ async function other(fastify) {
     return arr;
   });
   fastify.decorate('parseOsirix', docPath => {
-    const osirixObj = plist.parse(fs.readFileSync(docPath, 'utf8'));
-    return osirixObj;
+    return new Promise((resolve, reject) => {
+      try {
+        const osirixObj = plist.parse(fs.readFileSync(docPath, 'utf8'));
+        resolve(osirixObj);
+      } catch (err) {
+        reject(err);
+      }
+    });
   });
 
-  // call getImageMetaDataforOsirix for obj
-  fastify.decorate('getImageMetaDataforOsirix', async (annotation, username) => {
-    try {
-      const { SOPInstanceUID, SeriesInstanceUID, StudyInstanceUID } = annotation.rois[0];
-      const parameters = {
-        instance: SOPInstanceUID,
-        series: SeriesInstanceUID,
-        study: StudyInstanceUID,
-      };
-      const seedData = await fastify.getImageMetadata(parameters);
-      const answers = fastify.getTemplateAnswers(seedData, annotation.name, '');
-      const merged = { ...seedData.aim, ...answers };
-      seedData.aim = merged;
-      seedData.user = { loginName: username, name: username };
-      return seedData;
-    } catch (err) {
-      return err;
-    }
+  fastify.decorate('getImageMetaDataforOsirix', (annotation, username) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { SOPInstanceUID, SeriesInstanceUID, StudyInstanceUID } = annotation.rois[0];
+        const parameters = {
+          instance: SOPInstanceUID,
+          series: SeriesInstanceUID,
+          study: StudyInstanceUID,
+        };
+        const seedData = await fastify.getImageMetadata(parameters);
+        const answers = fastify.getTemplateAnswers(seedData, annotation.name, '');
+        const merged = { ...seedData.aim, ...answers };
+        seedData.aim = merged;
+        seedData.user = { loginName: username, name: username };
+        resolve(seedData);
+      } catch (err) {
+        reject(new InternalError(`Getting data from image`, err));
+      }
+    });
   });
 
   // eslint-disable-next-line consistent-return
   fastify.decorate('getTemplateAnswers', (metadata, annotationName, tempModality) => {
-    try {
+    if (metadata.series) {
       const { number, description, instanceNumber } = metadata.series;
       const seriesModality = metadata.series.modality;
       const comment = {
@@ -1036,28 +1092,31 @@ async function other(fastify) {
           'iso:displayName': { 'xmlns:iso': 'uri:iso.org:21090', value: 'ROI Only' },
         },
       ];
-
       return { comment, modality, name, typeCode };
-    } catch (err) {
-      console.log(err);
     }
   });
 
   fastify.decorate('filterOsirixAnnotations', imagesArr => {
-    const result = {};
+    const filteredOsirix = {};
+    const nonSupported = [];
+    const supportedTypes = [19, 5, 14, 15, 10, 9, 28, 20, 11, 6];
     imagesArr.forEach(img => {
       img.ROIs.reduce((all, item) => {
-        const key = `${item.Name}${item.SeriesInstanceUID}`;
-        if (all[key]) {
-          all[key].rois.push(item);
+        if (supportedTypes.includes(item.Type)) {
+          const key = `${item.Name}${item.SeriesInstanceUID}`;
+          if (all[key]) {
+            all[key].rois.push(item);
+          } else {
+            // eslint-disable-next-line no-param-reassign
+            all[key] = { name: item.Name, rois: [item] };
+          }
         } else {
-          // eslint-disable-next-line no-param-reassign
-          all[key] = { name: item.Name, rois: [item] };
+          nonSupported.push(item.Name);
         }
         return all;
-      }, result);
+      }, filteredOsirix);
     });
-    return result;
+    return { filteredOsirix, nonSupported };
   });
 
   fastify.decorate(
