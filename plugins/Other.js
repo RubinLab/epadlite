@@ -785,25 +785,25 @@ async function other(fastify) {
                             const uploadMsg = 'Upload Failed as ';
                             let errMessage = 'none of the files were uploaded successfully';
                             if (result.errors.length === promiseArr.length) {
-                              reject(new InternalError(uploadMsg, { message: errMessage }));
+                              reject(new InternalError(uploadMsg, new Error(errMessage)));
                             } else {
                               // eslint-disable-next-line no-lonely-if
                               if (nonSupported.length) {
                                 errMessage = `Not supported shapes in: ${nonSupported.join(', ')}`;
-                                const error = new InternalError('Upload completed with errors', {
-                                  message: errMessage,
-                                });
+                                const error = new InternalError(
+                                  'Upload completed with errors',
+                                  new Error(errMessage)
+                                );
                                 if (result.errors.length > 0) {
-                                  const combinedErrors = result.errors.push(error);
                                   fastify.log.info(`Saving successful`);
-                                  resolve({ success: true, errors: [combinedErrors] });
+                                  resolve({ success: true, errors: [...result.errors, error] });
                                 } else {
                                   fastify.log.info(`Saving successful`);
                                   resolve({ success: true, errors: [error] });
                                 }
                               } else {
                                 fastify.log.info(`Saving successful`);
-                                resolve({ success: true, errors: [result.errors] });
+                                resolve({ success: true, errors: result.errors });
                               }
                             }
                           } catch (errProject) {
@@ -933,13 +933,10 @@ async function other(fastify) {
     };
   });
 
+  // if new supported objects are added filterOsirixAnnotations should be updated
   fastify.decorate('createAimMarkups', (aim, markupsToSave) => {
-    // eslint-disable-next-line no-unused-vars
-
     markupsToSave.forEach(value => {
       const { type, markup, shapeIndex, imageReferenceUid } = value;
-      // eslint-disable-next-line default-case
-      // eslint-disable-next-line default-case
       switch (type) {
         case 19:
           fastify.addPointToAim(aim, markup, shapeIndex, imageReferenceUid);
@@ -956,6 +953,8 @@ async function other(fastify) {
         case 11:
         case 6:
           fastify.addPolygonToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        default:
           break;
       }
     });
@@ -976,7 +975,6 @@ async function other(fastify) {
 
   fastify.decorate('createCalcEntity', (aim, markupId, shape) => {
     const { AreaCm2, mean, stdDev, min, max, LengthCm } = shape;
-    // const modality = aim.temp.series.modality;
     const unit = 'linear';
 
     if (mean) {
@@ -1032,7 +1030,6 @@ async function other(fastify) {
   });
 
   fastify.decorate('createPointsArrForOsirix', osirixCoordinates => {
-    // unit, mean, stdDev, min, max, points, modality
     const arr = osirixCoordinates.map(el => {
       const coors = el.split(',');
       const x = coors[0].trim().substr(1);
@@ -1082,7 +1079,6 @@ async function other(fastify) {
       const comment = {
         value: `${seriesModality} / ${description} / ${instanceNumber} / ${number}`,
       };
-      // TODO: handle modality and suv hu
       const modality = { value: tempModality };
       const name = { value: annotationName };
       const typeCode = [
@@ -1096,6 +1092,7 @@ async function other(fastify) {
     }
   });
 
+  // if new supported objects are added createAimMarkups should be updated
   fastify.decorate('filterOsirixAnnotations', imagesArr => {
     const filteredOsirix = {};
     const nonSupported = [];
