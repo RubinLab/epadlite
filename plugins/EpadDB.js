@@ -9207,6 +9207,12 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS study_time varchar(32) DEFAULT NULL AFTER study_id;`,
               { transaction: t }
             );
+
+            await fastify.orm.query(
+              `ALTER TABLE upload_processing 
+                MODIFY COLUMN path varchar(1024) NOT NULL;`,
+              { transaction: t }
+            );
           });
 
           // the db schema is updated successfully lets copy the files
@@ -9607,6 +9613,7 @@ async function epaddb(fastify, options, done) {
             await fastify.pollDWStudies();
           }, config.pollDW * 60000);
         }
+
         if (!config.noResume) fastify.resumeProcessing();
       }
       done();
