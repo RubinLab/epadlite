@@ -9163,8 +9163,8 @@ async function epaddb(fastify, options, done) {
             );
             // cavit
             // 15. plugin
-            // new fields subject_id, numOfSeries and numOfImages
-            // no data migration to fill in new fields, in old epad data was in worklist_subject only
+            // new columns below added to support dockerized plugins
+
             await fastify.orm.query(
               `ALTER TABLE plugin
                 ADD COLUMN IF NOT EXISTS image_repo varchar(128) AFTER name,
