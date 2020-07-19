@@ -34,9 +34,9 @@ config.dicomWebConfig.baseUrl =
   process.env.DICOMWEB_BASEURL || config.dicomWebConfig.baseUrl || 'http://hostname';
 
 config.mode = process.env.MODE || config.mode || 'lite'; // default lite
-config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png|csv';
+config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';
 config.reportExt = process.env.REPORT_EXT || config.reportExt || 'txt|pdf';
-config.validExt = `${config.imageExt}|${config.reportExt}`;
+config.validExt = `${config.imageExt}|${config.reportExt}|csv`;
 config.prefix = process.env.PREFIX || config.prefix || '';
 config.thickDb = config.thickDb || {
   name: process.env.SQL_DB_NAME || 'epaddb',
