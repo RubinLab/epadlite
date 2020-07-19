@@ -4756,7 +4756,7 @@ async function epaddb(fastify, options, done) {
             new InternalError(
               `Aim project relation creation aimuid ${
                 aim.ImageAnnotationCollection.uniqueIdentifier.root
-              }, project ${project.projectid}`,
+              }, project ${project.project}`,
               err
             )
           );

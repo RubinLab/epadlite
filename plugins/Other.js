@@ -9,9 +9,10 @@ window = {};
 const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
+const plist = require('plist');
+const { createOfflineAimSegmentation, Aim } = require('aimapi');
 const crypto = require('crypto');
 const concat = require('concat-stream');
-const { createOfflineAimSegmentation } = require('aimapi');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -743,6 +744,92 @@ async function other(fastify) {
                     reject(err);
                   });
               }
+            } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
+              fastify
+                .parseOsirix(`${dir}/${filename}`)
+                .then(osirixObj => {
+                  const { filteredOsirix, nonSupported } = fastify.filterOsirixAnnotations(
+                    osirixObj.Images
+                  );
+                  const keys = Object.keys(filteredOsirix);
+                  const values = Object.values(filteredOsirix);
+                  const { username } = epadAuth;
+                  const promiseArr = [];
+                  const result = { errors: [] };
+                  values.forEach(annotation => {
+                    promiseArr.push(
+                      fastify.getImageMetaDataforOsirix(annotation, username).catch(error => {
+                        result.errors.push(error);
+                      })
+                    );
+                  });
+                  Promise.all(promiseArr).then(seedDataArr => {
+                    if (result.errors.length === promiseArr.length) {
+                      reject(new InternalError(`Can not find the image`, result.errors[0]));
+                    } else {
+                      seedDataArr.forEach((seedData, i) => {
+                        if (seedData) {
+                          filteredOsirix[keys[i]] = { ...values[i], seedData };
+                        }
+                      });
+                      const aimJsons = fastify.createAimJsons(Object.values(filteredOsirix));
+                      const aimsavePromises = [];
+                      aimJsons.forEach(jsonBuffer => {
+                        aimsavePromises.push(
+                          fastify
+                            .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
+                            .catch(error => {
+                              result.errors.push(error);
+                            })
+                        );
+                      });
+                      Promise.all(aimsavePromises)
+                        .then(() => {
+                          try {
+                            const uploadMsg = 'Upload Failed as ';
+                            let errMessage = 'none of the files were uploaded successfully';
+                            if (result.errors.length === promiseArr.length) {
+                              reject(new InternalError(uploadMsg, new Error(errMessage)));
+                            } else {
+                              // eslint-disable-next-line no-lonely-if
+                              if (nonSupported.length) {
+                                errMessage = `Not supported shapes in: ${nonSupported.join(', ')}`;
+                                const error = new InternalError(
+                                  'Upload completed with errors',
+                                  new Error(errMessage)
+                                );
+                                if (result.errors.length > 0) {
+                                  fastify.log.info(`Saving successful`);
+                                  resolve({ success: true, errors: [...result.errors, error] });
+                                } else {
+                                  fastify.log.info(`Saving successful`);
+                                  resolve({ success: true, errors: [error] });
+                                }
+                              } else {
+                                fastify.log.info(`Saving successful`);
+                                resolve({ success: true, errors: result.errors });
+                              }
+                            }
+                          } catch (errProject) {
+                            reject(errProject);
+                          }
+                        })
+                        .catch(err => {
+                          const uploadMsg = 'Upload Failed as ';
+                          const errMessage = 'none of the files were uploaded successfully';
+                          reject(new InternalError(uploadMsg + errMessage, err));
+                        });
+                    }
+                  });
+                })
+                .catch(() => {
+                  reject(
+                    new BadRequestError(
+                      'Uploading files',
+                      new Error(`Unsupported filetype for file ${dir}/${filename}`)
+                    )
+                  );
+                });
             } else if (
               filename.endsWith('zip') &&
               !filename.startsWith('__MACOSX') &&
@@ -807,6 +894,231 @@ async function other(fastify) {
         }
       })
   );
+
+  fastify.decorate('createAimJsons', filteredOsirixArr => {
+    try {
+      const aimJsons = [];
+      filteredOsirixArr.forEach(el => {
+        const aim = new Aim(el.seedData, fastify.enumAimType.imageAnnotation);
+        const markupsToSave = el.rois.map(roi => fastify.formMarupksToSave(roi));
+        fastify.createAimMarkups(aim, markupsToSave);
+        const aimJson = JSON.parse(aim.getAim());
+        aimJsons.push(aimJson);
+      });
+      return aimJsons;
+    } catch (err) {
+      return new InternalError('Creating aim jsons', err);
+    }
+  });
+
+  fastify.decorate('enumAimType', {
+    imageAnnotation: 1,
+    seriesAnnotation: 2,
+    studyAnnotation: 3,
+  });
+
+  fastify.decorate('formMarupksToSave', roi => {
+    // eslint-disable-next-line camelcase
+    const { SOPInstanceUID, Type, IndexInImage, Max, Mean, Min, Dev, LengthCm, AreaCm2 } = roi;
+    const points = fastify.createPointsArrForOsirix(roi.Point_px);
+    return {
+      imageReferenceUid: SOPInstanceUID,
+      markup: {
+        max: Max,
+        mean: Mean,
+        min: Min,
+        stdDev: Dev,
+        points,
+        LengthCm,
+        AreaCm2,
+      },
+      shapeIndex: IndexInImage,
+      type: Type,
+    };
+  });
+
+  // if new supported objects are added filterOsirixAnnotations should be updated
+  fastify.decorate('createAimMarkups', (aim, markupsToSave) => {
+    markupsToSave.forEach(value => {
+      const { type, markup, shapeIndex, imageReferenceUid } = value;
+      switch (type) {
+        case 19:
+          fastify.addPointToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        case 5:
+        case 14:
+          fastify.addLineToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        case 15:
+        case 10:
+        case 9:
+        case 28:
+        case 20:
+        case 11:
+        case 6:
+          fastify.addPolygonToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        default:
+          break;
+      }
+    });
+  });
+
+  fastify.decorate('addPolygonToAim', (aim, polygon, shapeIndex, imageReferenceUid) => {
+    const { points } = polygon;
+    // eslint-disable-next-line no-unused-vars
+    const markupId = aim.addMarkupEntity(
+      'TwoDimensionPolyline',
+      shapeIndex,
+      points,
+      imageReferenceUid,
+      1
+    );
+    fastify.createCalcEntity(aim, markupId, polygon);
+  });
+
+  fastify.decorate('createCalcEntity', (aim, markupId, shape) => {
+    const { AreaCm2, mean, stdDev, min, max, LengthCm } = shape;
+    const unit = 'linear';
+
+    if (mean) {
+      const meanId = aim.createMeanCalcEntity({ mean, unit });
+      aim.createImageAnnotationStatement(1, markupId, meanId);
+    }
+
+    if (stdDev) {
+      const stdDevId = aim.createStdDevCalcEntity({ stdDev, unit });
+      aim.createImageAnnotationStatement(1, markupId, stdDevId);
+    }
+
+    if (min) {
+      const minId = aim.createMinCalcEntity({ min, unit });
+      aim.createImageAnnotationStatement(1, markupId, minId);
+    }
+
+    if (max) {
+      const maxId = aim.createMaxCalcEntity({ max, unit });
+      aim.createImageAnnotationStatement(1, markupId, maxId);
+    }
+
+    if (LengthCm) {
+      const lengthId = aim.createLengthCalcEntity({
+        value: LengthCm,
+        unit: 'cm',
+      });
+      aim.createImageAnnotationStatement(1, markupId, lengthId);
+    }
+
+    if (AreaCm2) {
+      const areaId = aim.createAreaCalcEntity({ value: AreaCm2, unit: 'cm2' });
+      aim.createImageAnnotationStatement(1, markupId, areaId);
+    }
+  });
+
+  fastify.decorate('addPointToAim', (aim, point, shapeIndex, imageReferenceUid) => {
+    const { points } = point;
+    aim.addMarkupEntity('TwoDimensionPoint', shapeIndex, points, imageReferenceUid, 1);
+  });
+
+  fastify.decorate('addLineToAim', (aim, line, shapeIndex, imageReferenceUid) => {
+    const { points } = line;
+    const markupId = aim.addMarkupEntity(
+      'TwoDimensionMultiPoint',
+      shapeIndex,
+      points,
+      imageReferenceUid,
+      1
+    );
+
+    fastify.createCalcEntity(aim, markupId, line);
+  });
+
+  fastify.decorate('createPointsArrForOsirix', osirixCoordinates => {
+    const arr = osirixCoordinates.map(el => {
+      const coors = el.split(',');
+      const x = coors[0].trim().substr(1);
+      let y = coors[1].trim();
+      y = y.substr(0, y.length - 1);
+      return { x: parseFloat(x), y: parseFloat(y) };
+    });
+    return arr;
+  });
+  fastify.decorate('parseOsirix', docPath => {
+    return new Promise((resolve, reject) => {
+      try {
+        const osirixObj = plist.parse(fs.readFileSync(docPath, 'utf8'));
+        resolve(osirixObj);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+
+  fastify.decorate('getImageMetaDataforOsirix', (annotation, username) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { SOPInstanceUID, SeriesInstanceUID, StudyInstanceUID } = annotation.rois[0];
+        const parameters = {
+          instance: SOPInstanceUID,
+          series: SeriesInstanceUID,
+          study: StudyInstanceUID,
+        };
+        const seedData = await fastify.getImageMetadata(parameters);
+        const answers = fastify.getTemplateAnswers(seedData, annotation.name, '');
+        const merged = { ...seedData.aim, ...answers };
+        seedData.aim = merged;
+        seedData.user = { loginName: username, name: username };
+        resolve(seedData);
+      } catch (err) {
+        reject(new InternalError(`Getting data from image`, err));
+      }
+    });
+  });
+
+  // eslint-disable-next-line consistent-return
+  fastify.decorate('getTemplateAnswers', (metadata, annotationName, tempModality) => {
+    if (metadata.series) {
+      const { number, description, instanceNumber } = metadata.series;
+      const seriesModality = metadata.series.modality;
+      const comment = {
+        value: `${seriesModality} / ${description} / ${instanceNumber} / ${number}`,
+      };
+      const modality = { value: tempModality };
+      const name = { value: annotationName };
+      const typeCode = [
+        {
+          code: 'ROI',
+          codeSystemName: '99EPAD',
+          'iso:displayName': { 'xmlns:iso': 'uri:iso.org:21090', value: 'ROI Only' },
+        },
+      ];
+      return { comment, modality, name, typeCode };
+    }
+  });
+
+  // if new supported objects are added createAimMarkups should be updated
+  fastify.decorate('filterOsirixAnnotations', imagesArr => {
+    const filteredOsirix = {};
+    const nonSupported = [];
+    const supportedTypes = [19, 5, 14, 15, 10, 9, 28, 20, 11, 6];
+    imagesArr.forEach(img => {
+      img.ROIs.reduce((all, item) => {
+        if (supportedTypes.includes(item.Type)) {
+          const key = `${item.Name}${item.SeriesInstanceUID}`;
+          if (all[key]) {
+            all[key].rois.push(item);
+          } else {
+            // eslint-disable-next-line no-param-reassign
+            all[key] = { name: item.Name, rois: [item] };
+          }
+        } else {
+          nonSupported.push(item.Name);
+        }
+        return all;
+      }, filteredOsirix);
+    });
+    return { filteredOsirix, nonSupported };
+  });
 
   fastify.decorate(
     'saveOtherFileToProjectInternal',
