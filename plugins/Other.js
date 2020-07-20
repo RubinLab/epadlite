@@ -166,9 +166,7 @@ async function other(fastify) {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 fastify.log.info(`${dir} deleted`);
               });
-
               const errMessagesText = fastify.getCombinedErrorText(errors);
-
               if (success) {
                 if (errMessagesText) {
                   if (config.env === 'test')
@@ -608,7 +606,7 @@ async function other(fastify) {
                     } catch (folderErr) {
                       reject(folderErr);
                     }
-                  else
+                  else {
                     promisses.push(() => {
                       return fastify
                         .processFile(
@@ -625,21 +623,18 @@ async function other(fastify) {
                           result.errors.push(error);
                         });
                     });
+                  }
               }
               pq.addAll(promisses).then(async values => {
                 try {
-                  result.success = false;
-                  for (let i = 0; values.length; i += 1) {
-                    if (
-                      values[i] === undefined ||
-                      (values[i].errors && values[i].errors.length === 0)
-                    ) {
+                  for (let i = 0; i < values.length; i += 1) {
+                    if (values[i] && values[i].success) {
                       // one success is enough
-                      result.success = result.success || values[i].success;
+                      result.success = true;
                       // I cannot break because of errors accumulation, I am not sure about performance
                       // break;
                     }
-                    if (values[i].errors && values[i].errors.length > 0)
+                    if (values[i] && values[i].errors && values[i].errors.length > 0)
                       result.errors = result.errors.concat(values[i].errors);
                   }
                   if (datasets.length > 0) {
@@ -837,7 +832,9 @@ async function other(fastify) {
             ) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
-                .then(result => resolve(result))
+                .then(result => {
+                  resolve(result);
+                })
                 .catch(err => reject(err));
             } else if (fastify.checkFileType(filename) && filename !== '.DS_Store')
               // check .DS_Store just in case
@@ -850,7 +847,9 @@ async function other(fastify) {
                   Buffer.byteLength(buffer),
                   epadAuth
                 )
-                .then(() => resolve({ success: true, errors: [] }))
+                .then(() => {
+                  resolve({ success: true, errors: [] });
+                })
                 .catch(err => reject(err));
             else {
               // check to see if it is a dicom file with no dcm extension
