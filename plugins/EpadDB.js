@@ -8102,7 +8102,7 @@ async function epaddb(fastify, options, done) {
                 await fastify.updateStudyBuffers(
                   params,
                   body,
-                  studyUids[i],
+                  studyUids[i].study,
                   epadAuth,
                   applyPatient,
                   applyStudy
