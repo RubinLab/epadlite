@@ -454,60 +454,51 @@ async function couchdb(fastify, options) {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
             reject(new UnauthenticatedError('No epadauth in request'));
-          const paramsFilter = fastify.getFilter(params);
 
-          const filterOptions = {
-            ...paramsFilter,
-            reduce: true,
-            group_level: 5,
-          };
+          if (format === 'summary') {
+            const paramsFilter = fastify.getFilter(params);
 
-          // define which view to use according to the parameter format
-          // default is json
-          let view = 'aims_json';
-          if (format) {
-            if (format === 'json') view = 'aims_json';
-            else if (format === 'summary') view = 'aims_summary';
-          }
-          const db = fastify.couch.db.use(config.db);
-          db.view('instances', view, filterOptions, async (error, body) => {
-            if (!error) {
-              const filteredRows = await fastify.filterAims(
-                body.rows,
-                filter,
-                format,
-                params,
-                epadAuth
-              );
-              const res = [];
-              if (format === 'summary') {
+            const db = fastify.couch.db.use(config.db);
+            const filterOptions = {
+              ...paramsFilter,
+              reduce: true,
+              group_level: 5,
+            };
+            db.view('instances', 'aims_summary', filterOptions, async (error, body) => {
+              if (!error) {
+                const filteredRows = await fastify.filterAims(
+                  body.rows,
+                  filter,
+                  format,
+                  params,
+                  epadAuth
+                );
+                const res = [];
                 for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
                   res.push(filteredRows[i].key[4]);
                 resolve(res);
-              } else if (format === 'stream') {
-                for (let i = 0; i < filteredRows.length; i += 1)
-                  // get the actual instance object (tags only)
-                  // the first 3 keys are patient, study, series, image
-                  res.push(filteredRows[i].key[4]);
-
-                // download aims only
-                fastify
-                  .downloadAims({ aim: 'true' }, res)
-                  .then(result => resolve(result))
-                  .catch(err => reject(err));
               } else {
-                // the default is json! The old APIs were XML, no XML in epadlite
-                for (let i = 0; i < filteredRows.length; i += 1)
-                  // get the actual instance object (tags only)
-                  // the first 3 keys are patient, study, series, image
-                  res.push(filteredRows[i].key[4]);
-                resolve(res);
+                reject(new InternalError('Get aims from couchdb', error));
               }
-            } else {
-              reject(new InternalError('Get aims from couchdb', error));
-            }
-          });
+            });
+          } else {
+            fastify
+              .getAimsFromUIDsInternal({ aim: 'true' }, filter)
+              .then(res => {
+                if (format === 'stream') {
+                  // download aims only
+                  fastify
+                    .downloadAims({ aim: 'true' }, res)
+                    .then(result => resolve(result))
+                    .catch(err => reject(err));
+                } else {
+                  // the default is json! The old APIs were XML, no XML in epadlite
+                  resolve(res);
+                }
+              })
+              .catch(err => reject(err));
+          }
         } catch (err) {
           reject(new InternalError('Get aims', err));
         }
@@ -580,37 +571,50 @@ async function couchdb(fastify, options) {
     }
   });
 
+  fastify.decorate(
+    'getAimsFromUIDsInternal',
+    (query, body) =>
+      new Promise((resolve, reject) => {
+        try {
+          if (query.summary === undefined && query.aim === undefined && query.seg === undefined) {
+            reject(
+              new BadRequestError(
+                'Getting aims with uids',
+                new Error("Query params shouldn't be empty")
+              )
+            );
+          } else {
+            console.time('uids');
+            const db = fastify.couch.db.use(config.db);
+            const res = [];
+            db.fetch({ keys: body }).then(data => {
+              console.timeEnd('uids');
+              data.rows.forEach(item => {
+                // if not found it returns the record with no doc, error: 'not_found'
+                if ('doc' in item) res.push(item.doc.aim);
+              });
+              resolve(res);
+            });
+          }
+        } catch (err) {
+          reject(new InternalError('Getting aims with uids', err));
+        }
+      })
+  );
+
   fastify.decorate('getAimsFromUIDs', (request, reply) => {
-    try {
-      if (
-        request.query.summary === undefined &&
-        request.query.aim === undefined &&
-        request.query.seg === undefined
-      ) {
-        reply.send(
-          new BadRequestError(
-            'Getting aims with uids',
-            new Error("Query params shouldn't be empty")
-          )
-        );
-      } else {
-        const db = fastify.couch.db.use(config.db);
-        const res = [];
-        db.fetch({ keys: request.body }).then(data => {
-          data.rows.forEach(item => {
-            // if not found it returns the record with no doc, error: 'not_found'
-            if ('doc' in item) res.push(item.doc.aim);
-          });
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-          fastify
-            .downloadAims(request.query, res)
-            .then(result => reply.code(200).send(result))
-            .catch(err => reply.send(err));
-        });
-      }
-    } catch (err) {
-      reply.send(new InternalError('Getting aims with uids', err));
-    }
+    fastify
+      .getAimsFromUIDsInternal(request.query, request.body)
+      .then(res => {
+        fastify
+          .downloadAims(request.query, res)
+          .then(result => {
+            reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+            reply.code(200).send(result);
+          })
+          .catch(err => reply.send(err));
+      })
+      .catch(err => reply.send(err));
   });
 
   fastify.decorate('saveAim', (request, reply) => {
@@ -1405,7 +1409,9 @@ async function couchdb(fastify, options) {
           }
 
           db.destroy(params.filename, existing._rev)
-            .then(() => resolve())
+            .then(() => {
+              resolve();
+            })
             .catch(err => {
               reject(new InternalError('Deleting file from couchdb', err));
             });

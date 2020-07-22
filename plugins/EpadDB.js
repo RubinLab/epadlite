@@ -4474,9 +4474,19 @@ async function epaddb(fastify, options, done) {
               )
             );
           else {
+            let whereJSON = { project_id: project.id };
+            if (params.subject) {
+              whereJSON = { ...whereJSON, subject_uid: params.subject };
+              if (params.study) {
+                whereJSON = { ...whereJSON, study_uid: params.study };
+                if (params.series) {
+                  whereJSON = { ...whereJSON, series_uid: params.series };
+                }
+              }
+            }
             const aimUids = [];
             const projectAims = await models.project_aim.findAll({
-              where: { project_id: project.id },
+              where: whereJSON,
             });
             // projects will be an array of Project instances with the specified name
             for (let i = 0; i < projectAims.length; i += 1) {

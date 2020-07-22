@@ -10,37 +10,25 @@ module.exports.views = {
       'key.patientName=subject.name.value;key.studyDate=empty;if(imgref.imageStudy) ' +
       'key.studyDate=imgref.imageStudy.startDate.value;key.comment=empty;if(doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].comment && doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].comment.value )' +
       "key.comment=doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].comment.value.split('~')[0];key.templateType=empty;if(doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode )" +
-      "key.templateType=doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]['iso:displayName'].value;key.color=empty;key.dsoFrameNo=empty;key.isDicomSR=empty;key.originalSubjectID=subjectID;emit([subjectID,studyUID,seriesUID,instanceUID,key],1)}} ",
-    reduce: '_count()',
-  },
-
-  aims_json: {
-    map:
-      "function(doc){if(doc.aim){subject=doc.aim.ImageAnnotationCollection.person;subjectID='NA';if(subject.id)subjectID=String(subject.id.value);imgref=doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageReferenceEntityCollection.ImageReferenceEntity[0];studyUID='NA';if(imgref.imageStudy)studyUID=imgref.imageStudy.instanceUid.root;seriesUID='NA';if(imgref.imageStudy.imageSeries)seriesUID=imgref.imageStudy.imageSeries.instanceUid.root;instanceUID='NA';if(imgref.imageStudy.imageSeries.imageCollection.Image)instanceUID=imgref.imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root;var i;emit([subjectID,studyUID,seriesUID,instanceUID,doc.aim],1)}} ",
-    reduce: '_count()',
+      "key.templateType=doc.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]['iso:displayName'].value;key.color=empty;key.dsoFrameNo=empty;key.isDicomSR=empty;key.originalSubjectID=subjectID;emit([subjectID,studyUID,seriesUID,instanceUID,key],null)}} ",
+    reduce: '_count',
   },
 
   templates_json: {
     map:
       " function(doc) { if (doc.template) { type='image'; if (doc.template.TemplateContainer.Template[0].templateType) type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase(); emit([type, doc.template.TemplateContainer.Template[0].codeValue, doc.template], 1); emit([doc.template.TemplateContainer.Template[0].codeValue, '', doc.template], 1)}} ",
-    reduce: '_count()',
+    reduce: '_count',
   },
 
   templates_summary: {
     map:
       " function(doc){if(doc.template){key={};key.containerUID=doc.template.TemplateContainer.uid;key.containerName=doc.template.TemplateContainer.name;key.containerDescription=doc.template.TemplateContainer.description;key.containerVersion=doc.template.TemplateContainer.version;key.containerAuthors=doc.template.TemplateContainer.authors;key.containerCreationDate=doc.template.TemplateContainer.creationDate;template={'type':'image'};if(doc.template.TemplateContainer.Template[0].templateType)template.type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase();template.templateName=doc.template.TemplateContainer.Template[0].name;template.templateDescription=doc.template.TemplateContainer.Template[0].description;template.templateUID=doc.template.TemplateContainer.uid;template.templateCodeValue=doc.template.TemplateContainer.Template[0].codeValue;template.templateCodeMeaning=doc.template.TemplateContainer.Template[0].codeMeaning;template.templateVersion=doc.template.TemplateContainer.Template[0].version;template.templateAuthors=doc.template.TemplateContainer.Template[0].authors;template.templateCreationDate=doc.template.TemplateContainer.Template[0].creationDate;key.Template=[template];emit([key.Template[0].type,key.Template[0].templateUID,key],1); emit([key.Template[0].templateCodeValue,'',key],1)}} ",
-    reduce: '_count()',
-  },
-
-  templates_bycode: {
-    map:
-      " function(doc){if(doc.template){key={};key.containerUID=doc.template.TemplateContainer.uid;key.containerName=doc.template.TemplateContainer.name;key.containerDescription=doc.template.TemplateContainer.description;key.containerVersion=doc.template.TemplateContainer.version;key.containerAuthors=doc.template.TemplateContainer.authors;key.containerCreationDate=doc.template.TemplateContainer.creationDate;template={'type':'image'};if(doc.template.TemplateContainer.Template[0].templateType)template.type=doc.template.TemplateContainer.Template[0].templateType.toLowerCase();template.templateName=doc.template.TemplateContainer.Template[0].name;template.templateDescription=doc.template.TemplateContainer.Template[0].description;template.templateUID=doc.template.TemplateContainer.uid;template.templateCodeValue=doc.template.TemplateContainer.Template[0].codeValue;template.templateCodeMeaning=doc.template.TemplateContainer.Template[0].codeMeaning;template.templateVersion=doc.template.TemplateContainer.Template[0].version;template.templateAuthors=doc.template.TemplateContainer.Template[0].authors;template.templateCreationDate=doc.template.TemplateContainer.Template[0].creationDate;key.Template=[template];emit([key.Template[0].type,key.Template[0].templateUID,key],1)}} ",
-    reduce: '_count()',
+    reduce: '_count',
   },
 
   files: {
     map:
       ' function(doc) { if (doc.fileInfo) { emit([doc.fileInfo.subject_uid,doc.fileInfo.study_uid,doc.fileInfo.series_uid, doc._id, doc.fileInfo], 1)}} ',
-    reduce: '_count()',
+    reduce: '_count',
   },
 };
