@@ -4421,28 +4421,43 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getUserAccessibleAimUids',
-    epadAuth =>
+    (params, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
           // if in thick mode
           if (config.mode === 'thick') {
-            // if admin no filter
-            if (epadAuth.admin) resolve(undefined);
-            else {
-              // get other peoples aims from projects user is member or owner, or public project
-              // union with user's annotations
-              const result = await fastify.orm.query(
-                `SELECT a.aim_uid 
-                  FROM project_aim a, project_user pu, user u 
-                  WHERE u.id = pu.user_id AND a.project_id = pu.project_id 
-                  AND u.username = '${epadAuth.username}' 
-                  AND (pu.role <> 'Collaborator' or a.user = '${epadAuth.username}')
-                `,
-                { raw: true, type: QueryTypes.SELECT }
-              );
-              const aimUids = result.map(val => val.aim_uid);
-              resolve(aimUids);
+            // get other peoples aims from projects user is member or owner, or public project
+            // union with user's annotations
+            let qry = '';
+            if (epadAuth.admin) {
+              // no user filtering
+              qry += `SELECT a.aim_uid 
+                FROM project_aim a, project p
+                WHERE a.project_id =p.id
+              `;
+            } else {
+              qry += `SELECT a.aim_uid 
+                FROM project_aim a, project_user pu, user u, project p
+                WHERE u.id = pu.user_id AND a.project_id = pu.project_id and p.id=pu.project_id 
+                AND u.username = '${epadAuth.username}' 
+                AND (pu.role <> 'Collaborator' or a.user = '${epadAuth.username}' or u.admin=true)
+              `;
             }
+            if (params.project) {
+              qry += ` AND p.projectid='${params.project}' `;
+            }
+            if (params.subject) {
+              qry += ` AND a.subject_uid='${params.subject}' `;
+            }
+            if (params.study) {
+              qry += ` AND a.study_uid='${params.study}' `;
+            }
+            if (params.series) {
+              qry += ` AND a.series_uid='${params.series}' `;
+            }
+            const result = await fastify.orm.query(qry, { raw: true, type: QueryTypes.SELECT });
+            const aimUids = result.map(val => val.aim_uid);
+            resolve(aimUids);
           } else if (config.mode === 'lite') {
             // if mode is like just return lite projects aims
             const aimUids = await fastify.getAimUidsForProject({ project: 'lite' });
@@ -4492,7 +4507,6 @@ async function epaddb(fastify, options, done) {
             for (let i = 0; i < projectAims.length; i += 1) {
               aimUids.push(projectAims[i].aim_uid);
             }
-
             resolve(aimUids);
           }
         } catch (err) {
@@ -4506,7 +4520,7 @@ async function epaddb(fastify, options, done) {
     (params, query, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const aimUids = await fastify.getAimUidsForProject(params);
+          const aimUids = await fastify.getUserAccessibleAimUids(params, epadAuth);
           const result = await fastify.getAimsInternal(query.format, params, aimUids, epadAuth);
           resolve(result);
         } catch (err) {
@@ -4579,10 +4593,28 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        const projectAimCount = await models.project_aim.count({
-          where: { project_id: project.id, aim_uid: request.params.aimuid },
+        let qry = `SELECT count(*) as count
+              FROM project_aim a, project_user pu, user u
+              WHERE u.id = pu.user_id AND a.project_id = pu.project_id
+              AND u.username = '${request.epadAuth.username}' 
+              AND (pu.role <> 'Collaborator' or a.user = '${
+                request.epadAuth.username
+              }' or u.admin=true)
+              AND a.project_id=${project.id}
+              AND a.aim_uid='${request.params.aimuid}'
+            `;
+        if (request.epadAuth.admin) {
+          qry = `SELECT count(*) as count
+              FROM project_aim a
+              WHERE a.project_id=${project.id}
+              AND a.aim_uid='${request.params.aimuid}'
+            `;
+        }
+        const projectAim = await fastify.orm.query(qry, {
+          raw: true,
+          type: QueryTypes.SELECT,
         });
-        if (projectAimCount !== 1)
+        if (projectAim && projectAim[0] && projectAim[0].count !== 1)
           reply.send(new ResourceNotFoundError('Project aim', request.params.aimuid));
         else {
           const result = await fastify.getAimsInternal(
@@ -4591,7 +4623,6 @@ async function epaddb(fastify, options, done) {
             [request.params.aimuid],
             request.epadAuth
           );
-          // .then(result => {
           if (request.query.format === 'stream') {
             reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
           }
@@ -4599,8 +4630,6 @@ async function epaddb(fastify, options, done) {
           else {
             reply.send(new ResourceNotFoundError('Aim', request.params.aimuid));
           }
-          // })
-          // .catch(err => reply.send(new InternalError(`Getting project aim from couchdb`, err)));
         }
       }
     } catch (err) {

@@ -459,6 +459,7 @@ async function couchdb(fastify, options) {
             const paramsFilter = fastify.getFilter(params);
 
             const db = fastify.couch.db.use(config.db);
+            // for some reason, when I remove instancsuid from the view, this filter does not work for series
             const filterOptions = {
               ...paramsFilter,
               reduce: true,
@@ -466,13 +467,7 @@ async function couchdb(fastify, options) {
             };
             db.view('instances', 'aims_summary', filterOptions, async (error, body) => {
               if (!error) {
-                const filteredRows = await fastify.filterAims(
-                  body.rows,
-                  filter,
-                  format,
-                  params,
-                  epadAuth
-                );
+                const filteredRows = await fastify.filterAims(body.rows, filter);
                 const res = [];
                 for (let i = 0; i < filteredRows.length; i += 1)
                   // get the actual instance object (tags only)
@@ -512,36 +507,40 @@ async function couchdb(fastify, options) {
   // filter aims with aimId filter array
   fastify.decorate(
     'filterAims',
-    (aimsRows, filter, format, params, epadAuth) =>
+    (aimsRows, filter) =>
       new Promise((resolve, reject) => {
         try {
           const keyNum = 4; // view dependent
           let filteredRows = aimsRows;
           if (filter) {
-            if (format && format === 'summary') {
-              filteredRows = _.filter(filteredRows, obj => filter.includes(obj.key[keyNum].aimID));
-            } else {
-              filteredRows = _.filter(filteredRows, obj =>
-                filter.includes(obj.key[keyNum].ImageAnnotationCollection.uniqueIdentifier.root)
-              );
-            }
+            // only working with aims_summary view now
+            filteredRows = _.filter(filteredRows, obj => filter.includes(obj.key[keyNum].aimID));
           }
+          resolve(filteredRows);
+        } catch (err) {
+          reject(new InternalError('Filtering aims', err));
+        }
+      })
+  );
+
+  // TODO attempt for json filtering for getAims
+  fastify.decorate(
+    'filterResultingAimObjectsWithUserRights',
+    (aimsObjects, format, params, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let filteredRows = aimsObjects;
           // if we have project we should filter for project and user rights
           if (params.project) {
             // TODO if we want to return sth other than 404 for aim access we should check if this filtering empties filteredAims
             // if the user is a collaborator in the project he should only see his annotations
             if (fastify.isCollaborator(params.project, epadAuth)) {
               if (format && format === 'summary') {
-                filteredRows = _.filter(
-                  filteredRows,
-                  obj => epadAuth.username === obj.key[keyNum].userName
-                );
+                filteredRows = _.filter(filteredRows, obj => epadAuth.username === obj.userName);
               } else {
                 filteredRows = _.filter(
                   filteredRows,
-                  obj =>
-                    epadAuth.username ===
-                    obj.key[keyNum].ImageAnnotationCollection.user.loginName.value
+                  obj => epadAuth.username === obj.ImageAnnotationCollection.user.loginName.value
                 );
               }
             }
@@ -555,11 +554,13 @@ async function couchdb(fastify, options) {
 
   fastify.decorate('getAims', async (request, reply) => {
     try {
-      const filter = await fastify.getUserAccessibleAimUids(request.epadAuth);
+      // TODO handle filtering properly! /aims?format=json without project doesn't filter for subject/study now
+      // const filter = await fastify.getUserAccessibleAimUids(request.params, request.epadAuth);
+      // console.log('filter', filter);
       const result = await fastify.getAimsInternal(
         request.query.format,
         request.params,
-        filter,
+        undefined,
         request.epadAuth
       );
       if (request.query.format === 'stream') {
@@ -584,14 +585,12 @@ async function couchdb(fastify, options) {
               )
             );
           } else {
-            console.time('uids');
             const db = fastify.couch.db.use(config.db);
-            const res = [];
             db.fetch({ keys: body }).then(data => {
-              console.timeEnd('uids');
+              const res = [];
               data.rows.forEach(item => {
                 // if not found it returns the record with no doc, error: 'not_found'
-                if ('doc' in item) res.push(item.doc.aim);
+                if (item.doc && item.doc.aim) res.push(item.doc.aim);
               });
               resolve(res);
             });
@@ -1233,7 +1232,7 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('getFilter', params => {
+  fastify.decorate('getFilter', (params, length = 5) => {
     const startKey = [];
     const endKey = [];
     let isFiltered = false;
@@ -1251,7 +1250,7 @@ async function couchdb(fastify, options) {
       isFiltered = true;
     }
 
-    for (let i = endKey.length; i < 5; i += 1) endKey.push({});
+    for (let i = endKey.length; i < length; i += 1) endKey.push({});
     if (isFiltered) {
       return {
         startkey: startKey,
