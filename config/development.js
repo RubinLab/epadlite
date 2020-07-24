@@ -8,5 +8,4 @@ module.exports = {
   logger: process.env.LOGGER || true,
   https: process.env.HTTPS || false,
   mode: process.env.MODE || 'lite',
-  secret: 'secret',
 };
