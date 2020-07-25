@@ -4533,23 +4533,33 @@ async function epaddb(fastify, options, done) {
         request.epadAuth,
         filter
       );
-      switch (request.query.format) {
-        case 'returnTable':
-          result = fastify.fillTable(
-            result,
-            request.query.templatecode,
-            request.query.columns.split(','),
-            request.query.shapes
-          );
-          break;
-        case 'stream':
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-          break;
-        case 'summary':
-          result = result.map(obj => ({ ...obj, projectID: request.params.project }));
-          break;
-        default:
-          break;
+      if (request.query.report) {
+        switch (request.query.report) {
+          case 'RECIST':
+            result = fastify.getRecist(result);
+            break;
+          default:
+            break;
+        }
+      } else {
+        switch (request.query.format) {
+          case 'returnTable':
+            result = fastify.fillTable(
+              result,
+              request.query.templatecode,
+              request.query.columns.split(','),
+              request.query.shapes
+            );
+            break;
+          case 'stream':
+            reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+            break;
+          case 'summary':
+            result = result.map(obj => ({ ...obj, projectID: request.params.project }));
+            break;
+          default:
+            break;
+        }
       }
       reply.code(200).send(result);
     } catch (err) {

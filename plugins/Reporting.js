@@ -136,7 +136,7 @@ async function reporting(fastify) {
                 shapes
               )
             ) {
-              fastify.log.warning(
+              fastify.log.warn(
                 `Aim shape is ${JSON.stringify(markupShapes)} was looking for ${JSON.stringify(
                   shapes
                 )}`
@@ -388,9 +388,584 @@ async function reporting(fastify) {
       }
       return table;
     } catch (err) {
-      console.log(err);
+      fastify.log.err(
+        `Error during filling table for ${template}, ${columns}, ${shapes} and ${
+          aimJSONs.length
+        }. Error: ${err.message}`
+      );
     }
     return [];
+  });
+
+  fastify.decorate('getRecist', aimJSONs => {
+    try {
+      const table = fastify.fillTable(aimJSONs, 'RECIST', [
+        'Name',
+        'StudyDate',
+        'Lesion',
+        'Type',
+        'Location',
+        'Length',
+        'StudyUID',
+        'SeriesUID',
+        'AimUID',
+        'LongAxis',
+        'ShortAxis',
+        'Modality',
+        'Trial',
+        'Trial Arm',
+        'Trial CaseID',
+      ]);
+      const tableV2 = fastify.fillTable(aimJSONs, 'RECIST_v2', [
+        'Name',
+        'StudyDate',
+        'Timepoint',
+        'Type',
+        'Lesion Status',
+        'Location',
+        'Length',
+        'StudyUID',
+        'SeriesUID',
+        'AimUID',
+        'LongAxis',
+        'ShortAxis',
+        'Modality',
+        'Trial',
+        'Trial Arm',
+        'Trial CaseID',
+      ]);
+
+      const lesions = table.concat(tableV2);
+      const tLesionNames = [];
+      const studyDates = [];
+      const ntLesionNames = [];
+      const targetTypes = ['target', 'target lesion', 'resolved lesion'];
+      const ntNewLesionStudyDates = [];
+      let tTimepoints = [];
+      // first pass fill in the lesion names and study dates (x and y axis of the table)
+      for (let i = 0; i < lesions.length; i += 1) {
+        const lesionName = lesions[i].name.value.toLowerCase();
+        const studyDate = lesions[i].studydate.value;
+        const type = lesions[i].type.value.toLowerCase();
+        if (!studyDates.includes(studyDate)) studyDates.push(studyDate);
+        if (targetTypes.includes(type.toLowerCase())) {
+          if (!tLesionNames.includes(lesionName)) tLesionNames.push(lesionName);
+        } else {
+          // will not work with the new version, but should keep for the old version
+          if (type.toLowerCase() === 'new lesion' && !ntNewLesionStudyDates.includes(studyDate)) {
+            ntNewLesionStudyDates.push(studyDate);
+          }
+          if (!ntLesionNames.includes(lesionName)) ntLesionNames.push(lesionName);
+        }
+      }
+      // sort lists
+      tLesionNames.sort();
+      studyDates.sort();
+      ntLesionNames.sort();
+
+      if (tLesionNames.length > 0 && studyDates.length > 0) {
+        // fill in the table for target lesions
+        if (tTimepoints == null) {
+          tTimepoints = [];
+          for (let i = 0; i < studyDates.length; i += 1) tTimepoints.push(null);
+        }
+        const target = fastify.fillRecistTable(
+          tLesionNames,
+          studyDates,
+          lesions,
+          targetTypes,
+          tTimepoints
+        );
+        // if (ntLesionNames.length > 0 && studyDates.length > 0) {
+        // fill in the table for non-target lesions
+        const nonTargetTypes = ['non-target', 'nontarget', 'non-cancer lesion', 'new lesion'];
+
+        const nonTarget = fastify.fillRecistTable(
+          ntLesionNames,
+          studyDates,
+          lesions,
+          nonTargetTypes,
+          tTimepoints
+        );
+        for (let i = 0; i < nonTarget.table.length; i += 1) {
+          for (let j = 0; j < studyDates.length; j += 1) {
+            if (
+              nonTarget.table[i][j + 3] != null &&
+              nonTarget.table[i][j + 3].trim().toLowerCase() === 'new lesion' &&
+              !ntNewLesionStudyDates.includes(studyDates.get(j))
+            ) {
+              ntNewLesionStudyDates.push(studyDates.get(j));
+            }
+          }
+        }
+        // }
+
+        const isThereNewLesion = [];
+        if (ntNewLesionStudyDates.length > 0) {
+          for (let i = 0; i < ntNewLesionStudyDates.length; i += 1)
+            isThereNewLesion[studyDates.indexOf(ntNewLesionStudyDates[i])] = true;
+        }
+
+        // calculate the sums first
+        const tSums = fastify.calcSums(target.table, tTimepoints);
+        // calculate the rrs
+        const tRRBaseline = fastify.calcRRBaseline(tSums, tTimepoints);
+        const tRRMin = fastify.calcRRMin(tSums, tTimepoints);
+        // use rrmin not baseline
+        const responseCats = fastify.calcResponseCat(tRRMin, tTimepoints, isThereNewLesion, tSums);
+        // check for the reappear. we just have reappear in nontarget right now
+        // if the previous was CR, and there is a reappear it is PD
+        for (let i = 0; i < responseCats.length; i += 1) {
+          if (
+            responseCats[i] != null &&
+            responseCats[i].toUpperCase() === 'CR' &&
+            i < responseCats.length - 1 &&
+            ntLesionNames.length > 0
+          ) {
+            // this is cr, find the next timepoint
+            // stop looking if the timepoint is greater than +1
+            for (let k = i + 1; k < tTimepoints.length; k += 1) {
+              if (tTimepoints[k] === tTimepoints[i] + 1) {
+                // see for all the nontarget lesions
+                for (let j = 0; j < nonTarget.table.length; j += 1) {
+                  if (
+                    nonTarget.table[j][k] != null &&
+                    nonTarget.table[j][k].toLowerCase().includes('reappeared')
+                  )
+                    responseCats[k] = 'PD';
+                }
+              } else if (tTimepoints[k] > tTimepoints[i] + 1) {
+                break;
+              }
+            }
+          }
+        }
+
+        if (ntLesionNames.length > 0 && studyDates.length > 0) {
+          const rr = {
+            tLesionNames,
+            studyDates,
+            tTable: target.table,
+            tSums: fastify.cleanArray(tSums),
+            tRRBaseline: fastify.cleanArray(tRRBaseline),
+            tRRMin: fastify.cleanArray(tRRMin),
+            tResponseCats: fastify.cleanArray(responseCats),
+            tUIDs: target.UIDs,
+            stTimepoints: tTimepoints,
+            tTimepoints: fastify.cleanConsecutives(tTimepoints),
+            ntLesionNames,
+            ntTable: nonTarget.table,
+            ntUIDs: nonTarget.UIDs,
+          };
+          return rr;
+        }
+        const rr = {
+          tLesionNames,
+          studyDates,
+          tTable: target.table,
+          tSums: fastify.cleanArray(tSums),
+          tRRBaseline: fastify.cleanArray(tRRBaseline),
+          tRRMin: fastify.cleanArray(tRRMin),
+          tResponseCats: fastify.cleanArray(responseCats),
+          tUIDs: target.UIDs,
+          stTimepoints: tTimepoints,
+          tTimepoints: fastify.cleanConsecutives(tTimepoints),
+        };
+        return rr;
+      }
+      fastify.log.info(`no target lesion in table ${table}`);
+
+      return null;
+    } catch (err) {
+      fastify.log.err(
+        `Error generating recist report for ${aimJSONs.length} Error: ${err.message}`
+      );
+    }
+    return [];
+  });
+
+  /**
+   * calculate sums of lesion dimensions for each timepoint
+   * @param table
+   * @param timepoints. timepoints should start from 0 and be continuous but timepoint can repeat(they need to be adjacent)
+   * @return it will return the sums for each timepoint. if the timepoint is listed twice. it will have the same amount twice
+   */
+  fastify.decorate('calcSums', (table, timepoints) => {
+    const sums = [];
+    for (let i = 0; i < timepoints.length; i += 1) sums.push(0.0);
+    for (let k = 0; k < table[0].length - 3; k += 1) {
+      sums[k] = 0.0;
+      fastify.log.info(`k is ${k}`);
+      let j = k;
+      for (j = k; j < table[0].length - 3; j += 1) {
+        fastify.log.info(`j is ${j}`);
+        if (timepoints[j] === timepoints[k]) {
+          if (j !== k) sums[j] = null;
+
+          for (let i = 0; i < table.length; i += 1) {
+            const cell = Number.parseFloat(table[i][j + 3]);
+            if (!Number.isNaN(cell)) {
+              sums[k] += cell;
+            } else {
+              fastify.log.warn(`Couldn't convert to double value=${table[i][j + 3]}`);
+            }
+          }
+        } else {
+          // break if you see any other timepoint and skip the columns already calculated
+          break;
+        }
+      }
+      k = j - 1;
+      fastify.log.info(`jumping to ${k + 1}`);
+    }
+    for (let i = 0; i < sums.length; i += 1) fastify.log.info(`sum ${i} ${sums[i]}`);
+    return sums;
+  });
+
+  /**
+   * calculate sums of lesion dimensions for each timepoint for metric
+   * works on longitudinal report table
+   * @param table
+   * @param timepoints. timepoints should start from 0 and be continuous but timepoint can repeat(they need to be adjacent)
+   * @param metric metric name to filter from longitudinal report
+   * @return it will return the sums for each timepoint. if the timepoint is listed twice. it will have the same amount twice
+   */
+  // 	fastify.decorate('calcSumsLongitudinal', (table, timepoints, metric) => {
+  // 		Double[] sums=new Double[table[0].length-LongitudinalReport.numofHeaderCols];
+  // 		for (int k=0; k< table[0].length-LongitudinalReport.numofHeaderCols && k< timepoints.length; k++) {
+  // 			sums[k]=0.0;
+  // 			log.info("k is "+k);
+  // 			int j=k;
+  // 			for (j=k; j< table[0].length-LongitudinalReport.numofHeaderCols  && j< timepoints.length; j++) {
+  // 				log.info("j is "+j);
+  // 				if (timepoints[j]==timepoints[k]){
+  // 					if (j!=k)
+  // 						sums[j]=null;
+
+  // 					for(int i=0; i<table.length; i++){
+  // 							if (table[i][j+LongitudinalReport.numofHeaderCols]!=null && table[i][j+LongitudinalReport.numofHeaderCols] instanceof String && ((String)table[i][j+LongitudinalReport.numofHeaderCols]).startsWith("{")){
+  // 								JSONObject allcalc=new JSONObject((String)table[i][j+LongitudinalReport.numofHeaderCols]);
+  // 								try{
+  // 									JSONObject metricJSON=allcalc.getJSONObject(metric);
+  // 									if (metricJSON!=null){
+  // 										sums[k]+=metricJSON.getDouble("value");
+  // 										log.info("added to sum: "+metricJSON.getDouble("value") + " i: "+i+" j: "+j + " table: " +(String)table[i][j+LongitudinalReport.numofHeaderCols]);
+  // 									}
+  // 								}catch(Exception e){
+  // 									log.warning("Couldn't convert to double value="+table[i][j+LongitudinalReport.numofHeaderCols],e);
+  // 								}
+  // 							}
+  // 					}
+  // 				}else{
+  // 					//break if you see any other timepoint and skip the columns already calculated
+
+  // 					break;
+  // 				}
+  // 			}
+  // 			k=j-1;
+  // 			log.info("jumping to "+(k+1));
+
+  // 		}
+  // 		for (int i=0;i<sums.length;i++)
+  // 			log.info("sum "+ i+ " " + sums[i]);
+  // 		return sums;
+  // 	});
+
+  /**
+   * calculate response rates in reference to baseline (first)
+   * @param sums
+   * @return
+   */
+  fastify.decorate('calcRRBaseline', (sums, timepoints) => {
+    let baseline = sums[0];
+    const rrBaseline = [];
+    for (let i = 0; i < timepoints.length; i += 1) rrBaseline.push(0.0);
+    for (let i = 0; i < sums.length; i += 1) {
+      if (sums[i] != null) {
+        if (timepoints[i] != null && timepoints[i] === 0) {
+          baseline = sums[i];
+          fastify.log.info(`baseline changed. New baseline is:${i}`);
+        }
+        if (baseline === 0) {
+          fastify.log.warn('baseline is 0. returning 999999.9 for rr');
+          rrBaseline[i] = 999999.9;
+        } else rrBaseline[i] = ((sums[i] - baseline) * 100.0) / baseline;
+      }
+    }
+    return rrBaseline;
+  });
+
+  /**
+   * calculate response rates in reference to the current baseline and current min.
+   * at the baseline min=baseline=0
+   * till I reach min use baseline as the reference after that use min
+   * CORRECTION: rr from min should use min only after it starts increasing
+   * it also handles multiple baselines and gets the latest
+   * needs timepoints for that
+   * @param sums
+   * @param timepoints
+   * @return
+   */
+  fastify.decorate('calcRRMin', (sums, timepoints) => {
+    let min = sums[0];
+    fastify.log.info(`Min is ${min}`);
+    const rr = [];
+    for (let i = 0; i < timepoints.length; i += 1) rr.push(0.0);
+    for (let i = 0; i < sums.length; i += 1) {
+      if (sums[i] != null) {
+        if (timepoints[i] != null && timepoints[i] === 0) {
+          min = sums[i];
+          fastify.log.info(`Min changed. New baseline.min is:${min}`);
+        }
+        if (min === 0) {
+          fastify.log.warn('min is 0. returning 999999.9 for rr');
+          rr[i] = 999999.9;
+        } else rr[i] = ((sums[i] - min) * 100.0) / min;
+        if (sums[i] < min) {
+          let j = 1;
+          // skip nulls
+          while (i + j < sums.length && sums[i + j] == null) {
+            j += 1;
+          }
+          if (i + j < sums.length && sums[i + j] != null && sums[i + j] > sums[i]) {
+            min = sums[i];
+            fastify.log.info(`Min changed. Smaller rr. min is:${min}`);
+          }
+        }
+      }
+    }
+    return rr;
+  });
+
+  /**
+   * calculates the response categories using rr array, timepoints and isThereNewLesion boolean array
+   * if isThereNewLesion is null it won't handle the PD properly
+   * @param rr
+   * @param timepoints
+   * @param isThereNewLesion
+   * @return
+   */
+  fastify.decorate('calcResponseCat', (rr, timepoints, isThereNewLesion, sums) => {
+    const responseCats = [];
+    for (let i = 0; i < rr.length; i += 1) {
+      if (rr[i] != null) {
+        if (i === 0 || (timepoints[i] != null && timepoints[i] === 0)) {
+          responseCats.push('BL');
+        } else if (
+          rr[i] >= 20 ||
+          (isThereNewLesion != null && isThereNewLesion[i] != null && isThereNewLesion[i] === true)
+        ) {
+          responseCats.push('PD'); // progressive
+        } else if (sums[i] === 0) {
+          responseCats.push('CR'); // complete response
+        } else if (rr[i] <= -30) {
+          responseCats.push('PR'); // partial response
+        } else {
+          responseCats.push('SD'); // stable disease
+        }
+      }
+    }
+    return responseCats;
+  });
+
+  fastify.decorate('fillRecistTable', (lesionNames, studyDates, lesions, type, timepoints) => {
+    try {
+      const table = [];
+      const row = [];
+      for (let i = 0; i < studyDates.length + 3; i += 1) row.push('');
+      const uidRow = [];
+      for (let i = 0; i < studyDates.length; i += 1) uidRow.push('');
+
+      lesionNames.forEach(() => table.push([...row]));
+
+      const UIDs = [];
+      lesionNames.forEach(() => UIDs.push([...uidRow]));
+      let baselineIndex = 0;
+
+      // get the values to the table
+      for (let i = 0; i < lesions.length; i += 1) {
+        const lesionName = lesions[i].name.value.toLowerCase();
+        const studyDate = lesions[i].studydate.value;
+        const aimType = lesions[i].type.value.toLowerCase();
+        const location = lesions[i].location.value.toLowerCase();
+        const statusObject = lesions[i]['lesion status'];
+        let aimStatus = null;
+        if (statusObject) aimStatus = statusObject.value;
+
+        if (!type.includes(aimType.toLowerCase())) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        table[lesionNames.indexOf(lesionName)][0] = lesionName;
+        // check if exists and if different and put warnings.
+        // changes anyhow
+        if (
+          table[lesionNames.indexOf(lesionName)][1] != null &&
+          table[lesionNames.indexOf(lesionName)][1].toLowerCase() !== aimType
+        )
+          fastify.log.warn(
+            `Type at date ${studyDate} is different from the same lesion on a different date. The existing one is: ${
+              table[lesionNames.indexOf(lesionName)][1]
+            } whereas this is: ${aimType}`
+          );
+        table[lesionNames.indexOf(lesionName)][1] = aimType;
+
+        if (
+          table[lesionNames.indexOf(lesionName)][2] != null &&
+          table[lesionNames.indexOf(lesionName)][2].toLowerCase() !== location
+        )
+          fastify.log.warn(
+            `Location at date ${studyDate} is different from the same lesion on a different date. The existing one is:${
+              table[lesionNames.indexOf(lesionName)][2]
+            } whereas this is:${location}`
+          );
+        table[lesionNames.indexOf(lesionName)][2] = location;
+        // get the lesion and get the timepoint. if it is integer put that otherwise calculate using study dates
+        let tpObj = lesions[i].timepoint;
+        if (!tpObj) tpObj = lesions[i].lesion;
+        const lesionTimepoint = tpObj.value;
+        let timepoint = parseInt(lesionTimepoint, 10);
+        if (Number.isNaN(timepoint)) {
+          fastify.log.info(`Trying to get timepoint from text ${lesionTimepoint}`);
+          if (lesionTimepoint.toLowerCase().includes('baseline')) {
+            timepoint = 0;
+          } else {
+            timepoint = studyDates.indexOf(studyDate) - baselineIndex;
+          }
+        }
+        if (timepoint === 0) baselineIndex = studyDates.indexOf(studyDate);
+        if (
+          timepoints[studyDates.indexOf(studyDate)] !== null &&
+          timepoints[studyDates.indexOf(studyDate)] !== timepoint
+        ) {
+          // TODO How to handle timepoint changes? I currently override with the latest for now
+          fastify.log.info(
+            `why is the timepoint ${timepoint} different from the already existing ${
+              timepoints[studyDates.indexOf(studyDate)]
+            } ${studyDate}`
+          );
+        }
+        // eslint-disable-next-line no-param-reassign
+        timepoints[studyDates.indexOf(studyDate)] = timepoint;
+        //			log.info("setting timepoint index "+studyDates.indexOf(studyDate) + " for study "+studyDate + " is set to "+timepoint);
+        // check if it is the nontarget table and fill in with text instead of values
+        if (type.includes('nontarget')) {
+          if (aimStatus != null && aimStatus !== '') {
+            table[lesionNames.indexOf(lesionName)][studyDates.indexOf(studyDate) + 3] = aimStatus;
+          } else {
+            let status = '';
+            if (aimType.equals('resolved lesion') || aimType.equals('new lesion')) status = aimType;
+            else status = 'present lesion';
+
+            table[lesionNames.indexOf(lesionName)][studyDates.indexOf(studyDate) + 3] = status;
+          }
+        } else if (!aimType.includes('resolved lesion')) {
+          // get length and put it in table
+          // if there are longaxis and shortaxis
+          // use short if it is lymph, use long otherwise
+          // if there is just length use that
+          let length = '';
+          const { longaxis } = lesions[i];
+          const { shortaxis } = lesions[i];
+          if (
+            longaxis &&
+            longaxis.value &&
+            longaxis.value !== '' &&
+            shortaxis &&
+            shortaxis.value &&
+            shortaxis.value !== ''
+          ) {
+            if (location.includes('lymph')) length = shortaxis.value;
+            else length = longaxis.value;
+          } else {
+            length = lesions[i].length.value;
+          }
+          table[lesionNames.indexOf(lesionName)][studyDates.indexOf(studyDate) + 3] = length;
+        } else table[lesionNames.indexOf(lesionName)][studyDates.indexOf(studyDate) + 3] = '0';
+
+        if (UIDs != null) {
+          const studyUID = lesions[i].studyuid.value;
+          const seriesUID = lesions[i].seriesuid.value;
+          const aimUID = lesions[i].aimuid.value;
+          let modality = lesions[i].modality.code;
+          if (modality === '99EPADM0') modality = lesions[i].modality.value;
+          // put as a UID cell object
+          UIDs[lesionNames.indexOf(lesionName)][studyDates.indexOf(studyDate)] = {
+            studyUID,
+            seriesUID,
+            aimUID,
+            timepoint,
+            type: aimType,
+            location,
+            modality,
+          };
+        }
+      }
+      // I need to do this after the table is populated
+      if (type.includes('nontarget')) {
+        for (let i = 0; i < table.length; i += 1) {
+          for (let j = 0; j < studyDates.size(); j += 1) {
+            // if this is new lesion mark all following consecutive new lesions as present
+            if (table[i][j + 3] != null && table[i][j + 3].trim().toLowerCase() === 'new lesion') {
+              for (let k = j + 1; k < studyDates.size(); k += 1) {
+                if (
+                  table[i][k + 3] != null &&
+                  table[i][k + 3].trim().toLowerCase() === 'new lesion'
+                ) {
+                  table[i][k + 3] = 'present lesion';
+                } else if (
+                  table[i][k + 3] != null &&
+                  table[i][k + 3].trim().toLowerCase() === 'resolved lesion'
+                ) {
+                  break;
+                }
+              }
+            }
+
+            if (
+              table[i][j + 3] != null &&
+              table[i][j + 3].trim().toLowerCase() === 'resolved lesion'
+            ) {
+              if (
+                j < studyDates.size() - 1 &&
+                table[i][j + 4] != null &&
+                table[i][j + 4].trim().toLowerCase() === 'present lesion'
+              ) {
+                table[i][j + 4] = 'reappeared lesion';
+              }
+            }
+          }
+        }
+      }
+
+      return { table, UIDs };
+    } catch (err) {
+      fastify.log.err(
+        `Error during filling recist table for ${lesionNames} and ${studyDates} Error: ${
+          err.message
+        }`
+      );
+    }
+    return { table: [], UIDs: [] };
+  });
+
+  fastify.decorate('cleanArray', arr => {
+    const out = [];
+    for (let i = 0; i < arr.length; i += 1)
+      if (arr[i] !== undefined && arr[i] != null) {
+        out.push(arr[i]);
+      }
+    return out;
+  });
+
+  fastify.decorate('cleanConsecutives', arr => {
+    if (!arr) return null;
+    const out = [];
+    for (let i = 0; i < arr.length; i += 1)
+      if (i === 0 || (i > 0 && arr[i] !== arr[i - 1])) {
+        out.push(arr[i]);
+      }
+    return out;
   });
 }
 
