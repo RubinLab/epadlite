@@ -4610,4 +4610,77 @@ describe('Project Tests', () => {
         });
     });
   });
+  describe('Project Reporting Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'reporting',
+          projectName: 'reporting',
+          projectDescription: 'reporting desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+    });
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/reporting')
+        .query({ username: 'admin' });
+    });
+    it('should save 12 aims', done => {
+      fs.readdir('test/data/recist_annotations', async (err, files) => {
+        if (err) {
+          throw new Error(`Reading directory test/data/recist_annotations`, err);
+        } else {
+          for (let i = 0; i < files.length; i += 1) {
+            const jsonBuffer = JSON.parse(
+              fs.readFileSync(`test/data/recist_annotations/${files[i]}`)
+            );
+            // eslint-disable-next-line no-await-in-loop
+            await chai
+              .request(`http://${process.env.host}:${process.env.port}`)
+              .post('/projects/reporting/aims')
+              .send(jsonBuffer)
+              .query({ username: 'admin' });
+          }
+
+          done();
+        }
+      });
+    });
+
+    it('project reporting should have 12 aims', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.a('array');
+          expect(res.body.length).to.be.eql(12);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct recist report', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_recist.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?report=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
 });
