@@ -81,6 +81,7 @@ class DockerService {
     const paramsDocker = [...params.paramsDocker];
     const dockerFoldersToBind = [...params.dockerFoldersToBind];
     console.log('params list used in container : ', paramsDocker);
+    console.log('mapping these dockerFoldersToBind : ', paramsDocker);
     return (
       this.docker
         .createContainer({
@@ -100,6 +101,7 @@ class DockerService {
         })
         // eslint-disable-next-line func-names
         .then(function(container) {
+          console.log('created container : ', container);
           tmpContainer = container;
           return tmpContainer.start();
         })
