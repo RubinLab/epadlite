@@ -81,7 +81,7 @@ class DockerService {
     const paramsDocker = [...params.paramsDocker];
     const dockerFoldersToBind = [...params.dockerFoldersToBind];
     console.log('params list used in container : ', paramsDocker);
-    console.log('mapping these dockerFoldersToBind : ', paramsDocker);
+    console.log('mapping these dockerFoldersToBind : ', dockerFoldersToBind);
     return (
       this.docker
         .createContainer({
