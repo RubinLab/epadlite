@@ -1040,7 +1040,7 @@ async function couchdb(fastify, options) {
       db.fetch({ keys: request.body }).then(data => {
         data.rows.forEach(item => {
           // if not found it returns the record with no doc, error: 'not_found'
-          if ('doc' in item) res.push(item.doc.template);
+          if (item.doc) res.push(item.doc.template);
         });
         reply.header('Content-Disposition', `attachment; filename=templates.zip`);
         fastify
@@ -1093,13 +1093,15 @@ async function couchdb(fastify, options) {
           db.fetch({ keys: ids }).then(data => {
             if (format === 'summary') {
               data.rows.forEach(item => {
-                const summary = fastify.getSummaryFromTemplate(item.doc.template);
-                res.push(summary);
+                if (item.doc) {
+                  const summary = fastify.getSummaryFromTemplate(item.doc.template);
+                  res.push(summary);
+                }
               });
               resolve(res);
             } else if (format === 'stream') {
               data.rows.forEach(item => {
-                if ('doc' in item) res.push(item.doc.template);
+                if (item.doc) res.push(item.doc.template);
               });
               fastify
                 .downloadTemplates(res)
@@ -1108,7 +1110,7 @@ async function couchdb(fastify, options) {
             } else {
               // the default is json! The old APIs were XML, no XML in epadlite
               data.rows.forEach(item => {
-                if ('doc' in item) res.push(item.doc.template);
+                if (item.doc) res.push(item.doc.template);
               });
               resolve(res);
             }
