@@ -113,7 +113,9 @@ class DockerService {
           OpenStdin: false,
           StdinOnce: false,
           HostConfig: {
-            Binds: ['/home/epad/thick_test_v4/pluginData/admin/1/dicoms:/Code_Deploy_CWT/Data_v1'],
+            Binds: [
+              '/home/epad/thick_test_v4/pluginData/admin/1/dicoms:/Code_Deploy_CWT/Data_v1:rw',
+            ],
           },
         })
         // eslint-disable-next-line func-names
