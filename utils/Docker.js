@@ -103,6 +103,16 @@ class DockerService {
         .then(function(container) {
           console.log('created container : ', container);
           tmpContainer = container;
+          // eslint-disable-next-line func-names
+          tmpContainer.inspect(function(err, data) {
+            if (err) {
+              //  console.log(err);
+              console.log('error happened while inspecting plugin container : ', err);
+            }
+            if (data) {
+              console.log('inspect result for plugin container: ', data);
+            }
+          });
           return tmpContainer.start();
         })
         // eslint-disable-next-line func-names
