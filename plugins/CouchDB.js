@@ -449,7 +449,7 @@ async function couchdb(fastify, options) {
   // add accessor methods with decorate
   fastify.decorate(
     'getAimsInternal',
-    (format, params, filter, epadAuth) =>
+    (format, params, filter, epadAuth, stream) =>
       new Promise((resolve, reject) => {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
@@ -479,7 +479,7 @@ async function couchdb(fastify, options) {
             });
           } else {
             fastify
-              .getAimsFromUIDsInternal({ aim: 'true' }, filter)
+              .getAimsFromUIDsInternal({ aim: 'true' }, filter, stream)
               .then(res => {
                 if (format === 'stream') {
                   // download aims only
@@ -574,7 +574,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'getAimsFromUIDsInternal',
-    (query, body) =>
+    (query, body, stream) =>
       new Promise((resolve, reject) => {
         try {
           if (query.summary === undefined && query.aim === undefined && query.seg === undefined) {
@@ -586,14 +586,20 @@ async function couchdb(fastify, options) {
             );
           } else {
             const db = fastify.couch.db.use(config.db);
-            db.fetch({ keys: body }).then(data => {
-              const res = [];
-              data.rows.forEach(item => {
-                // if not found it returns the record with no doc, error: 'not_found'
-                if (item.doc && item.doc.aim) res.push(item.doc.aim);
+            if (stream && (!query.format || query.format === 'json')) {
+              const qry = { selector: { _id: { $in: body } }, fields: ['aim'] };
+              stream.code(200).send(db.findAsStream(qry));
+              resolve();
+            } else {
+              db.fetch({ keys: body }).then(data => {
+                const res = [];
+                data.rows.forEach(item => {
+                  // if not found it returns the record with no doc, error: 'not_found'
+                  if (item.doc && item.doc.aim) res.push(item.doc.aim);
+                });
+                resolve(res);
               });
-              resolve(res);
-            });
+            }
           }
         } catch (err) {
           reject(new InternalError('Getting aims with uids', err));

@@ -4517,11 +4517,17 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'filterProjectAims',
-    (params, query, epadAuth) =>
+    (params, query, epadAuth, stream) =>
       new Promise(async (resolve, reject) => {
         try {
           const aimUids = await fastify.getUserAccessibleAimUids(params, epadAuth);
-          const result = await fastify.getAimsInternal(query.format, params, aimUids, epadAuth);
+          const result = await fastify.getAimsInternal(
+            query.format,
+            params,
+            aimUids,
+            epadAuth,
+            stream
+          );
           resolve(result);
         } catch (err) {
           reject(err);
@@ -4568,13 +4574,22 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
-      let result = await fastify.filterProjectAims(request.params, request.query, request.epadAuth);
       if (request.query.format === 'stream') {
         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-      } else if (request.query.format === 'summary') {
+      }
+      let result = await fastify.filterProjectAims(
+        request.params,
+        request.query,
+        request.epadAuth,
+        reply
+      );
+      if (request.query.format === 'summary') {
         result = result.map(obj => ({ ...obj, projectID: request.params.project }));
       }
-      reply.code(200).send(result);
+      // if it is not json send the result, if json it streams
+      if (request.query.format && request.query.format !== 'json') {
+        reply.code(200).send(result);
+      }
     } catch (err) {
       reply.send(new InternalError(`Getting aims for project ${request.params.project}`, err));
     }
