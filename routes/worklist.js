@@ -103,7 +103,7 @@ async function routes(fastify) {
   });
 
   fastify.route({
-    method: 'POST',
+    method: 'PUT',
     url: '/worklists/:worklist/projects/:project/subjects/:subject/studies/:study',
     schema: {
       tags: ['worklist', 'user'],
@@ -138,7 +138,7 @@ async function routes(fastify) {
   });
 
   fastify.route({
-    method: 'POST',
+    method: 'PUT',
     url: '/worklists/:worklist/projects/:project/subjects/:subject',
     schema: {
       tags: ['worklist', 'user'],

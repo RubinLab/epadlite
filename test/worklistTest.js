@@ -134,6 +134,69 @@ describe('Worklist Tests', () => {
         done(e);
       });
   });
+  it('should fail creating a new worklist for test2ndAssignee with no CreateWorklist permission with 403', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/worklists?username=testAssignee@gmail.com')
+      .send({
+        name: 'test2',
+        worklistId: 'testCreate2',
+        description: 'testdesc2',
+        duedate: '2019-12-01',
+        assignees: ['test2ndAssignee'],
+      })
+      .then(res => {
+        expect(res.statusCode).to.equal(403);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('should succeed in creating a new worklist for himself with no CreateWorklist permission', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/worklists?username=testAssignee@gmail.com')
+      .send({
+        name: 'test2',
+        worklistId: 'testCreate2',
+        description: 'testdesc2',
+        duedate: '2019-12-01',
+        assignees: ['testAssignee@gmail.com'],
+      })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('worklists should have 2 worklists assigned to the user', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/users/testAssignee@gmail.com/worklists?username=testCreator@gmail.com')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(2);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+  it('should delete the second worklist', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/worklists/testCreate2?username=testAssignee@gmail.com')
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
   it('should fail creating a new worklist for unknown user with 401', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -239,7 +302,7 @@ describe('Worklist Tests', () => {
   it('should create a link between a worklist and a study', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/worklists/testCreate/projects/testStRelation/subjects/3/studies/0023.2015.09.28.3')
+      .put('/worklists/testCreate/projects/testStRelation/subjects/3/studies/0023.2015.09.28.3')
       .query({ username: 'testCreator@gmail.com' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
@@ -408,9 +471,7 @@ describe('Worklist Tests', () => {
     it('should add study to the worklist', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post(
-          '/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3'
-        )
+        .put('/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
         .query({ username: 'testProgressUser1@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -448,9 +509,11 @@ describe('Worklist Tests', () => {
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(4);
+          const worklistId = res.body[0].worklist_id;
+          const projectId = res.body[0].project_id;
           expect(res.body).to.deep.include({
-            worklist_id: 5,
-            project_id: 38,
+            worklist_id: worklistId,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -463,8 +526,8 @@ describe('Worklist Tests', () => {
           });
 
           expect(res.body).to.deep.include({
-            worklist_id: 5,
-            project_id: 38,
+            worklist_id: worklistId,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -477,8 +540,8 @@ describe('Worklist Tests', () => {
           });
 
           expect(res.body).to.deep.include({
-            worklist_id: 5,
-            project_id: 38,
+            worklist_id: worklistId,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -490,8 +553,8 @@ describe('Worklist Tests', () => {
             completeness: 0,
           });
           expect(res.body).to.deep.include({
-            worklist_id: 5,
-            project_id: 38,
+            worklist_id: worklistId,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -570,9 +633,11 @@ describe('Worklist Tests', () => {
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(4);
+          const worklistId = res.body[0].worklist_id;
+          const projectId = res.body[0].project_id;
           expect(res.body).to.deep.include({
-            worklist_id: 5,
-            project_id: 38,
+            worklist_id: worklistId,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -584,8 +649,8 @@ describe('Worklist Tests', () => {
             completeness: 100,
           });
           expect(res.body).to.deep.include({
-            worklist_id: 5,
-            project_id: 38,
+            worklist_id: worklistId,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -597,8 +662,8 @@ describe('Worklist Tests', () => {
             completeness: 50,
           });
           expect(res.body).to.deep.include({
-            worklist_id: 5,
-            project_id: 38,
+            worklist_id: worklistId,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
@@ -610,8 +675,8 @@ describe('Worklist Tests', () => {
             completeness: 100,
           });
           expect(res.body).to.deep.include({
-            worklist_id: 5,
-            project_id: 38,
+            worklist_id: worklistId,
+            project_id: projectId,
             subject_uid: '3',
             subject_name: 'Phantom',
             study_uid: '0023.2015.09.28.3',
