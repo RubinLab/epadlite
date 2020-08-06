@@ -4425,44 +4425,45 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           // if in thick mode
-          if (config.mode === 'thick') {
-            // get other peoples aims from projects user is member or owner, or public project
-            // union with user's annotations
-            let qry = '';
-            if (epadAuth.admin) {
-              // no user filtering
-              qry += `SELECT a.aim_uid 
+          // if (config.mode === 'thick') {
+          // get other peoples aims from projects user is member or owner, or public project
+          // union with user's annotations
+          let qry = '';
+          if (epadAuth.admin) {
+            // no user filtering
+            qry += `SELECT a.aim_uid 
                 FROM project_aim a, project p
                 WHERE a.project_id =p.id
               `;
-            } else {
-              qry += `SELECT a.aim_uid 
+          } else {
+            qry += `SELECT a.aim_uid 
                 FROM project_aim a, project_user pu, user u, project p
                 WHERE u.id = pu.user_id AND a.project_id = pu.project_id and p.id=pu.project_id 
                 AND u.username = '${epadAuth.username}' 
                 AND (pu.role <> 'Collaborator' or a.user = '${epadAuth.username}' or u.admin=true)
               `;
-            }
-            if (params.project) {
-              qry += ` AND p.projectid='${params.project}' `;
-            }
-            if (params.subject) {
-              qry += ` AND a.subject_uid='${params.subject}' `;
-            }
-            if (params.study) {
-              qry += ` AND a.study_uid='${params.study}' `;
-            }
-            if (params.series) {
-              qry += ` AND a.series_uid='${params.series}' `;
-            }
-            const result = await fastify.orm.query(qry, { raw: true, type: QueryTypes.SELECT });
-            const aimUids = result.map(val => val.aim_uid);
-            resolve(aimUids);
-          } else if (config.mode === 'lite') {
-            // if mode is like just return lite projects aims
-            const aimUids = await fastify.getAimUidsForProject({ project: 'lite' });
-            resolve(aimUids);
           }
+          if (params.project) {
+            qry += ` AND p.projectid='${params.project}' `;
+          }
+          if (params.subject) {
+            qry += ` AND a.subject_uid='${params.subject}' `;
+          }
+          if (params.study) {
+            qry += ` AND a.study_uid='${params.study}' `;
+          }
+          if (params.series) {
+            qry += ` AND a.series_uid='${params.series}' `;
+          }
+          console.log('qry', qry);
+          const result = await fastify.orm.query(qry, { raw: true, type: QueryTypes.SELECT });
+          const aimUids = result.map(val => val.aim_uid);
+          resolve(aimUids);
+          // } else if (config.mode === 'lite') {
+          //   // if mode is like just return lite projects aims
+          //   const aimUids = await fastify.getAimUidsForProject({ project: 'lite' });
+          //   resolve(aimUids);
+          // }
         } catch (err) {
           reject(err);
         }
