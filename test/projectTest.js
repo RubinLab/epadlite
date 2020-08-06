@@ -4610,7 +4610,7 @@ describe('Project Tests', () => {
         });
     });
   });
-  describe('Project Reporting Tests', () => {
+  describe.only('Project Reporting Tests', () => {
     before(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -4672,6 +4672,21 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/reporting/subjects/7/aims?report=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal report', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_longitudinal.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?report=Longitudinal')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);

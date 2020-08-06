@@ -4538,6 +4538,9 @@ async function epaddb(fastify, options, done) {
           case 'RECIST':
             result = fastify.getRecist(result);
             break;
+          case 'Longitudinal':
+            result = fastify.getLongitudinal(result);
+            break;
           default:
             break;
         }
