@@ -4697,5 +4697,20 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should return correct ADLA report', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_adla.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?report=Longitudinal&shapes=line')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
   });
 });
