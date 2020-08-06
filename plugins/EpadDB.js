@@ -4425,7 +4425,6 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           // if in thick mode
-          // if (config.mode === 'thick') {
           // get other peoples aims from projects user is member or owner, or public project
           // union with user's annotations
           let qry = '';
@@ -4455,15 +4454,9 @@ async function epaddb(fastify, options, done) {
           if (params.series) {
             qry += ` AND a.series_uid='${params.series}' `;
           }
-          console.log('qry', qry);
           const result = await fastify.orm.query(qry, { raw: true, type: QueryTypes.SELECT });
           const aimUids = result.map(val => val.aim_uid);
           resolve(aimUids);
-          // } else if (config.mode === 'lite') {
-          //   // if mode is like just return lite projects aims
-          //   const aimUids = await fastify.getAimUidsForProject({ project: 'lite' });
-          //   resolve(aimUids);
-          // }
         } catch (err) {
           reject(err);
         }
