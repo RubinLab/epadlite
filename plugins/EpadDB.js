@@ -190,6 +190,10 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'subject_id',
           });
 
+          models.project_subject.belongsTo(models.project, {
+            foreignKey: 'project_id',
+          });
+
           models.study.hasMany(models.project_subject_study, {
             foreignKey: 'study_id',
           });
@@ -4036,6 +4040,27 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate('getSubjectUIDsFromProject', async projectID => {
+    try {
+      const subjects = await models.subject.findAll({
+        include: [
+          {
+            model: models.project_subject,
+            include: [{ model: models.project, where: { projectid: projectID } }],
+          },
+        ],
+      });
+      return subjects.map(subject => {
+        return subject.dataValues.subjectuid;
+      });
+    } catch (err) {
+      fastify.log.error(
+        `Couldn't retrieve list of subjectuids from project ${projectID} Error: ${err.message}`
+      );
+      return [];
+    }
+  });
+
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
       if (request.params.project === config.unassignedProjectID && config.pollDW === 0) {
@@ -4536,10 +4561,29 @@ async function epaddb(fastify, options, done) {
       if (request.query.report) {
         switch (request.query.report) {
           case 'RECIST':
-            result = fastify.getRecist(result);
+            // should be one patient
+            if (request.params.subject) result = fastify.getRecist(result);
+            else {
+              reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
+              return;
+            }
             break;
           case 'Longitudinal':
-            result = fastify.getLongitudinal(result);
+            if (request.params.subject) result = fastify.getLongitudinal(result);
+            else {
+              reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
+              return;
+            }
+            break;
+          case 'WATERFALL':
+            if (!request.params.subject) {
+              result = await fastify.getWaterfallProject(
+                request.params.project,
+                request.query.type,
+                request.epadAuth,
+                request.query.metric
+              );
+            }
             break;
           default:
             break;

@@ -1,4 +1,5 @@
 const fp = require('fastify-plugin');
+const _ = require('lodash');
 // const config = require('../config/index');
 // const EpadNotification = require('../utils/EpadNotification');
 
@@ -12,6 +13,8 @@ const fp = require('fastify-plugin');
 // } = require('../utils/EpadErrors');
 
 async function reporting(fastify) {
+  fastify.decorate('numOfLongitudinalHeaderCols', 2);
+
   fastify.decorate('checkForShapes', (markupEntityArray, shapes) => {
     // first normalize the shapes to handle different versions of the shape names
     const normShapes = [];
@@ -69,13 +72,13 @@ async function reporting(fastify) {
     }
   });
 
-  fastify.decorate('fillTable', (aimJSONs, template, columns, shapes) => {
+  fastify.decorate('fillTable', (aimJSONs, template, columns, shapesIn) => {
     try {
       // const aimUids = await fastify.getAimUidsForProjectFilter(params, filter);
       // const aimJSONs = await fastify.getAimsInternal('json', params, aimUids, epadAuth);
 
       // TODO handle multiple templates
-
+      const shapes = typeof shapesIn === 'string' ? shapesIn.split(',') : shapesIn;
       const table = [];
       const rowTemplate = {};
       // make sure they are lower case and has value
@@ -389,7 +392,7 @@ async function reporting(fastify) {
       return table;
     } catch (err) {
       fastify.log.error(
-        `Error during filling table for ${template}, ${columns}, ${shapes} and ${
+        `Error during filling table for ${template}, ${columns}, ${shapesIn} and ${
           aimJSONs.length
         }. Error: ${err.message}`
       );
@@ -583,24 +586,29 @@ async function reporting(fastify) {
    * @param timepoints. timepoints should start from 0 and be continuous but timepoint can repeat(they need to be adjacent)
    * @return it will return the sums for each timepoint. if the timepoint is listed twice. it will have the same amount twice
    */
-  fastify.decorate('calcSums', (table, timepoints) => {
+  fastify.decorate('calcSums', (table, timepoints, metric) => {
     const sums = [];
     for (let i = 0; i < timepoints.length; i += 1) sums.push(0.0);
-    for (let k = 0; k < table[0].length - 3; k += 1) {
+    const numOfHeaderCols = metric && metric !== 'RECIST' ? fastify.numOfLongitudinalHeaderCols : 3;
+    for (let k = 0; k < table[0].length - numOfHeaderCols; k += 1) {
       sums[k] = 0.0;
       fastify.log.info(`k is ${k}`);
       let j = k;
-      for (j = k; j < table[0].length - 3; j += 1) {
+      for (j = k; j < table[0].length - numOfHeaderCols; j += 1) {
         fastify.log.info(`j is ${j}`);
         if (timepoints[j] === timepoints[k]) {
           if (j !== k) sums[j] = null;
 
           for (let i = 0; i < table.length; i += 1) {
-            const cell = Number.parseFloat(table[i][j + 3]);
-            if (!Number.isNaN(cell)) {
-              sums[k] += cell;
+            let cell = table[i][j + numOfHeaderCols];
+            if (metric) {
+              cell = cell[metric] ? cell[metric].value : 'NaN';
+            }
+            const cellValue = Number.parseFloat(cell);
+            if (!Number.isNaN(cellValue)) {
+              sums[k] += cellValue;
             } else {
-              fastify.log.warn(`Couldn't convert to double value=${table[i][j + 3]}`);
+              fastify.log.warn(`Couldn't convert to double value=${table[i][j + numOfHeaderCols]}`);
             }
           }
         } else {
@@ -614,55 +622,6 @@ async function reporting(fastify) {
     for (let i = 0; i < sums.length; i += 1) fastify.log.info(`sum ${i} ${sums[i]}`);
     return sums;
   });
-
-  /**
-   * calculate sums of lesion dimensions for each timepoint for metric
-   * works on longitudinal report table
-   * @param table
-   * @param timepoints. timepoints should start from 0 and be continuous but timepoint can repeat(they need to be adjacent)
-   * @param metric metric name to filter from longitudinal report
-   * @return it will return the sums for each timepoint. if the timepoint is listed twice. it will have the same amount twice
-   */
-  // 	fastify.decorate('calcSumsLongitudinal', (table, timepoints, metric) => {
-  // 		Double[] sums=new Double[table[0].length-LongitudinalReport.numofHeaderCols];
-  // 		for (int k=0; k< table[0].length-LongitudinalReport.numofHeaderCols && k< timepoints.length; k++) {
-  // 			sums[k]=0.0;
-  // 			log.info("k is "+k);
-  // 			int j=k;
-  // 			for (j=k; j< table[0].length-LongitudinalReport.numofHeaderCols  && j< timepoints.length; j++) {
-  // 				log.info("j is "+j);
-  // 				if (timepoints[j]==timepoints[k]){
-  // 					if (j!=k)
-  // 						sums[j]=null;
-
-  // 					for(int i=0; i<table.length; i++){
-  // 							if (table[i][j+LongitudinalReport.numofHeaderCols]!=null && table[i][j+LongitudinalReport.numofHeaderCols] instanceof String && ((String)table[i][j+LongitudinalReport.numofHeaderCols]).startsWith("{")){
-  // 								JSONObject allcalc=new JSONObject((String)table[i][j+LongitudinalReport.numofHeaderCols]);
-  // 								try{
-  // 									JSONObject metricJSON=allcalc.getJSONObject(metric);
-  // 									if (metricJSON!=null){
-  // 										sums[k]+=metricJSON.getDouble("value");
-  // 										log.info("added to sum: "+metricJSON.getDouble("value") + " i: "+i+" j: "+j + " table: " +(String)table[i][j+LongitudinalReport.numofHeaderCols]);
-  // 									}
-  // 								}catch(Exception e){
-  // 									log.warning("Couldn't convert to double value="+table[i][j+LongitudinalReport.numofHeaderCols],e);
-  // 								}
-  // 							}
-  // 					}
-  // 				}else{
-  // 					//break if you see any other timepoint and skip the columns already calculated
-
-  // 					break;
-  // 				}
-  // 			}
-  // 			k=j-1;
-  // 			log.info("jumping to "+(k+1));
-
-  // 		}
-  // 		for (int i=0;i<sums.length;i++)
-  // 			log.info("sum "+ i+ " " + sums[i]);
-  // 		return sums;
-  // 	});
 
   /**
    * calculate response rates in reference to baseline (first)
@@ -780,9 +739,8 @@ async function reporting(fastify) {
     return out;
   });
 
-  fastify.decorate('getLongitudinal', (aims, template, shapesIn) => {
+  fastify.decorate('getLongitudinal', (aims, template, shapes) => {
     try {
-      const shapes = shapesIn instanceof String ? shapesIn.split(',') : shapesIn;
       const lesions = fastify.fillTable(
         aims,
         template,
@@ -821,15 +779,12 @@ async function reporting(fastify) {
 
       if (tLesionNames.length > 0 && studyDates.length > 0) {
         // fill in the table for target lesions
-        // if (tTimepoints==null)
-        // 	tTimepoints=new Integer[studyDates.size()];
-        // RecistReportUIDCell[][] tUIDs=new RecistReportUIDCell[tLesionNames.size()][studyDates.size()];
         const { table, UIDs, timepoints } = fastify.fillReportTable(
           tLesionNames,
           studyDates,
           lesions,
           undefined, // no type filtering
-          2,
+          fastify.numOfLongitudinalHeaderCols,
           true,
           false
         );
@@ -950,7 +905,6 @@ async function reporting(fastify) {
           }
           // eslint-disable-next-line no-param-reassign
           timepoints[studyDates.indexOf(studyDate)] = timepoint;
-          //			log.info("setting timepoint index "+studyDates.indexOf(studyDate) + " for study "+studyDate + " is set to "+timepoint);
           // check if it is the nontarget table and fill in with text instead of values
           if (allCalc) {
             if (lesions[i].allcalc)
@@ -1077,6 +1031,122 @@ async function reporting(fastify) {
       return { table: [], UIDs: [] };
     }
   );
+
+  // ----  waterfall --------
+  fastify.decorate('getWaterfallProject', async (projectID, type, epadAuth, metric) => {
+    try {
+      const subjects = await fastify.getSubjectUIDsFromProject(projectID);
+      return await fastify.getWaterfall(subjects, projectID, undefined, type, epadAuth, metric);
+    } catch (err) {
+      fastify.log.error(
+        `Error generating waterfall report for project ${projectID} Error: ${err.message}`
+      );
+    }
+    return [];
+  });
+
+  /**
+   * get the waterfall report filtering with template, metric and shapes
+   * @param subjectsIn comma separated string of subject uids or subjectuids array
+   * @param projectID
+   * @param subjProjPairsIn  {subjectID:..., projectID:...} object pairs
+   * @param type BASELINE (default) or MIN
+   * @param epadAuth
+   * @param metric ADLA or RECIST (default)
+   * @param template
+   * @param shapes comma seperated list of shapes or shapes array
+   * @return
+   */
+  fastify.decorate(
+    'getWaterfall',
+    (subjectsIn, projectID, subjProjPairsIn, type, epadAuth, metric = 'RECIST', template, shapes) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // special report cases
+          if (metric === 'ADLA') {
+            // eslint-disable-next-line no-param-reassign
+            metric = 'standard deviation';
+            // eslint-disable-next-line no-param-reassign
+            shapes = 'line';
+          }
+          const waterfallData = [];
+          const subjProjPairs = subjProjPairsIn ? JSON.parse(subjProjPairsIn) : [];
+          if (subjProjPairs.length === 0 && subjectsIn && projectID) {
+            const subjects =
+              subjectsIn && typeof subjectsIn === 'string' ? subjectsIn.split(',') : subjectsIn;
+            for (let i = 0; i < subjects.length; i += 1) {
+              subjProjPairs.push({ projectID, subjectID: subjects[i] });
+            }
+          }
+          for (let i = 0; i < subjProjPairs.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            const aims = await fastify.filterProjectAims(
+              { project: subjProjPairs[i].projectID, subject: subjProjPairs[i].subjectID },
+              {},
+              epadAuth
+            );
+            fastify.log.info(`${aims.length} aims found for ${subjProjPairs[i].subjectID}`);
+
+            const report =
+              metric === 'RECIST'
+                ? fastify.getRecist(aims)
+                : fastify.getLongitudinal(aims, template, shapes);
+            if (report == null) {
+              fastify.log.warning(
+                `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`
+              );
+              // eslint-disable-next-line no-continue
+              continue;
+            }
+            waterfallData.push({
+              name: subjProjPairs[i].subjectID,
+              y: fastify.getBestResponse(report, type, metric),
+              project: subjProjPairs[i].projectID,
+            });
+          }
+          resolve({ series: _.sortBy(waterfallData, 'y').reverse() });
+        } catch (err) {
+          fastify.log.error(
+            `Error generating waterfall report for subjectUIDs ${JSON.stringify(
+              subjectsIn
+            )} project ${projectID} subjProjPairs ${JSON.stringify(subjProjPairsIn)} Error: ${
+              err.message
+            }`
+          );
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate('getBestResponse', (report, type, metric) => {
+    try {
+      let rr;
+      switch (type) {
+        case 'MIN':
+          rr = report.tRRMin;
+          if (!rr) {
+            const sums = fastify.calcSums(report.tTable, report.stTimepoints, metric);
+            rr = fastify.calcRRMin(sums, report.stTimepoints);
+          }
+          return Math.min(...rr);
+        default:
+          // BASELINE
+          rr = report.tRRBaseline;
+          if (!rr) {
+            const sums = fastify.calcSums(report.tTable, report.stTimepoints, metric);
+            rr = fastify.calcRRBaseline(sums, report.stTimepoints);
+          }
+          return Math.min(...rr);
+      }
+    } catch (err) {
+      fastify.log.error(
+        `Error generating best response for report ${JSON.stringify(
+          report
+        )} metric ${metric} and type ${type} Error: ${err.message}`
+      );
+    }
+    return NaN;
+  });
 }
 
 // expose as plugin so the module using it can access the decorated methods

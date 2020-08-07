@@ -4610,7 +4610,7 @@ describe('Project Tests', () => {
         });
     });
   });
-  describe.only('Project Reporting Tests', () => {
+  describe('Project Reporting Tests', () => {
     before(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -4629,6 +4629,22 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/reporting')
         .query({ username: 'admin' });
+    });
+    // just adding 7 like a nondicom to not messup other tests
+    // and to make sure it exists in the project for the waterfallproject tests
+    it('should add subject 7 to project reporting', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/reporting/subjects')
+        .query({ username: 'admin' })
+        .send({ subjectUid: '7', name: 'fake7' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
     });
     it('should save 12 aims', done => {
       fs.readdir('test/data/recist_annotations', async (err, files) => {
@@ -4702,6 +4718,106 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/reporting/subjects/7/aims?report=Longitudinal&shapes=line')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct RECIST waterfall report for project', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=WATERFALL&type=BASELINE&metric=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA waterfall report for project', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=WATERFALL&type=BASELINE&metric=ADLA')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should return correct RECIST waterfall report for subject selection with subjectuids', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/aims?subjectUIDs=7&projectID=reporting&report=WATERFALL&type=BASELINE&metric=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA waterfall report subject selection with subjectuids', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/aims?subjectUIDs=7&projectID=reporting&report=WATERFALL&type=BASELINE&metric=ADLA')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should return correct RECIST waterfall report for subject projects pairs selection', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          `/aims?report=WATERFALL&type=BASELINE&metric=RECIST&subj_proj_pairs=${JSON.stringify([
+            { subjectID: '7', projectID: 'reporting' },
+          ])}`
+        )
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA waterfall report for subject projects pairs selection', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          `/aims?report=WATERFALL&type=BASELINE&metric=ADLA&subj_proj_pairs=${JSON.stringify([
+            { subjectID: '7', projectID: 'reporting' },
+          ])}`
+        )
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
