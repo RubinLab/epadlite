@@ -881,7 +881,7 @@ async function reporting(fastify) {
           table[lesionNames.indexOf(lesionName)][nextCol] = location;
           // get the lesion and get the timepoint. if it is integer put that otherwise calculate using study dates
           const tpObj = lesions[i].timepoint ? lesions[i].timepoint : lesions[i].lesion;
-          const lesionTimepoint = tpObj.value;
+          const lesionTimepoint = tpObj && tpObj.value ? tpObj.value : '0';
           let timepoint = parseInt(lesionTimepoint, 10);
           if (Number.isNaN(timepoint)) {
             fastify.log.info(`Trying to get timepoint from text ${lesionTimepoint}`);
