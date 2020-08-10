@@ -418,6 +418,7 @@ async function reporting(fastify) {
         'Trial',
         'Trial Arm',
         'Trial CaseID',
+        'TrackingUniqueIdentifier',
       ]);
       const tableV2 = fastify.fillTable(aimJSONs, 'RECIST_v2', [
         'Name',
@@ -436,6 +437,7 @@ async function reporting(fastify) {
         'Trial',
         'Trial Arm',
         'Trial CaseID',
+        'TrackingUniqueIdentifier',
       ]);
 
       const lesions = table.concat(tableV2);
@@ -444,20 +446,32 @@ async function reporting(fastify) {
       const ntLesionNames = [];
       const targetTypes = ['target', 'target lesion', 'resolved lesion'];
       const ntNewLesionStudyDates = [];
+      const tTrackingUIDs = [];
+      const ntTrackingUIDs = [];
+      let lesionWTrackingUIDCount = 0;
       // first pass fill in the lesion names and study dates (x and y axis of the table)
       for (let i = 0; i < lesions.length; i += 1) {
         const lesionName = lesions[i].name.value.toLowerCase();
         const studyDate = lesions[i].studydate.value;
+        const trackingUID = lesions[i].trackinguniqueidentifier
+          ? lesions[i].trackinguniqueidentifier.value
+          : undefined;
         const type = lesions[i].type.value.toLowerCase();
         if (!studyDates.includes(studyDate)) studyDates.push(studyDate);
         if (targetTypes.includes(type.toLowerCase())) {
           if (!tLesionNames.includes(lesionName)) tLesionNames.push(lesionName);
+          if (trackingUID && !tTrackingUIDs.includes(trackingUID)) tTrackingUIDs.push(trackingUID);
         } else {
           // will not work with the new version, but should keep for the old version
           if (type.toLowerCase() === 'new lesion' && !ntNewLesionStudyDates.includes(studyDate)) {
             ntNewLesionStudyDates.push(studyDate);
           }
           if (!ntLesionNames.includes(lesionName)) ntLesionNames.push(lesionName);
+          if (trackingUID && !ntTrackingUIDs.includes(trackingUID))
+            ntTrackingUIDs.push(trackingUID);
+        }
+        if (trackingUID) {
+          lesionWTrackingUIDCount += 1;
         }
       }
       // sort lists
@@ -465,18 +479,27 @@ async function reporting(fastify) {
       studyDates.sort();
       ntLesionNames.sort();
 
+      let mode = 'name';
+      let tIndex = tLesionNames;
+      let ntIndex = ntLesionNames;
+      if (lesionWTrackingUIDCount === lesions.length) {
+        fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
+        mode = 'trackingUID';
+        tIndex = tTrackingUIDs;
+        ntIndex = ntTrackingUIDs;
+      }
       if (tLesionNames.length > 0 && studyDates.length > 0) {
         // fill in the table for target lesions
-        const target = fastify.fillReportTable(tLesionNames, studyDates, lesions, targetTypes);
-        // if (ntLesionNames.length > 0 && studyDates.length > 0) {
+        const target = fastify.fillReportTable(tIndex, studyDates, lesions, targetTypes, mode);
         // fill in the table for non-target lesions
         const nonTargetTypes = ['non-target', 'nontarget', 'non-cancer lesion', 'new lesion'];
 
         const nonTarget = fastify.fillReportTable(
-          ntLesionNames,
+          ntIndex,
           studyDates,
           lesions,
-          nonTargetTypes
+          nonTargetTypes,
+          mode
         );
         for (let i = 0; i < nonTarget.table.length; i += 1) {
           for (let j = 0; j < studyDates.length; j += 1) {
@@ -489,7 +512,6 @@ async function reporting(fastify) {
             }
           }
         }
-        // }
 
         const isThereNewLesion = [];
         if (ntNewLesionStudyDates.length > 0) {
@@ -784,6 +806,7 @@ async function reporting(fastify) {
           studyDates,
           lesions,
           undefined, // no type filtering
+          'name', // no tracking UID for now
           fastify.numOfLongitudinalHeaderCols,
           true,
           false
@@ -808,14 +831,26 @@ async function reporting(fastify) {
     return [];
   });
 
+  fastify.decorate('getLesionIndex', (index, mode, lesion) => {
+    switch (mode) {
+      case 'trackingUID':
+        return index.indexOf(lesion.trackinguniqueidentifier.value);
+      default:
+        // + name
+        return index.indexOf(lesion.name.value.toLowerCase());
+    }
+  });
+
   // default is recist with numOfHeaderCols = 3, allCalc = false, nonTarget = true
+  // index will be lesionNames and mode will be name by default
   fastify.decorate(
     'fillReportTable',
     (
-      lesionNames,
+      index,
       studyDates,
       lesions,
       type,
+      mode = 'name',
       numOfHeaderCols = 3,
       allCalc = false,
       nonTarget = true
@@ -827,10 +862,10 @@ async function reporting(fastify) {
         const uidRow = [];
         for (let i = 0; i < studyDates.length; i += 1) uidRow.push('');
 
-        lesionNames.forEach(() => table.push([...row]));
+        index.forEach(() => table.push([...row]));
 
         const UIDs = [];
-        lesionNames.forEach(() => UIDs.push([...uidRow]));
+        index.forEach(() => UIDs.push([...uidRow]));
         const timepoints = [];
         for (let i = 0; i < studyDates.length; i += 1) timepoints.push(null);
 
@@ -850,35 +885,43 @@ async function reporting(fastify) {
             // eslint-disable-next-line no-continue
             continue;
           }
-          table[lesionNames.indexOf(lesionName)][0] = lesionName;
+          const lesionIndex = fastify.getLesionIndex(index, mode, lesions[i]);
+          if (table[lesionIndex][0] !== null && table[lesionIndex][0] !== lesionName) {
+            fastify.log.warn(
+              `Lesion name at ${studyDate} is different from the same lesion on a different date. The existing one is: ${
+                table[lesionIndex][0]
+              } whereas this is: ${aimType}`
+            );
+            table[lesionIndex][0] = lesionName;
+          }
           // check if exists and if different and put warnings.
           // changes anyhow
           let nextCol = 1;
           // hence recist
           if (numOfHeaderCols > 2) {
             if (
-              table[lesionNames.indexOf(lesionName)][nextCol] != null &&
-              table[lesionNames.indexOf(lesionName)][nextCol].toLowerCase() !== aimType
+              table[lesionIndex][nextCol] != null &&
+              table[lesionIndex][nextCol].toLowerCase() !== aimType
             )
               fastify.log.warn(
                 `Type at date ${studyDate} is different from the same lesion on a different date. The existing one is: ${
-                  table[lesionNames.indexOf(lesionName)][nextCol]
+                  table[lesionIndex][nextCol]
                 } whereas this is: ${aimType}`
               );
-            table[lesionNames.indexOf(lesionName)][nextCol] = aimType;
+            table[lesionIndex][nextCol] = aimType;
             nextCol += 1;
           }
 
           if (
-            table[lesionNames.indexOf(lesionName)][nextCol] != null &&
-            table[lesionNames.indexOf(lesionName)][nextCol].toLowerCase() !== location
+            table[lesionIndex][nextCol] != null &&
+            table[lesionIndex][nextCol].toLowerCase() !== location
           )
             fastify.log.warn(
               `Location at date ${studyDate} is different from the same lesion on a different date. The existing one is:${
-                table[lesionNames.indexOf(lesionName)][nextCol]
+                table[lesionIndex][nextCol]
               } whereas this is:${location}`
             );
-          table[lesionNames.indexOf(lesionName)][nextCol] = location;
+          table[lesionIndex][nextCol] = location;
           // get the lesion and get the timepoint. if it is integer put that otherwise calculate using study dates
           const tpObj = lesions[i].timepoint ? lesions[i].timepoint : lesions[i].lesion;
           const lesionTimepoint = tpObj && tpObj.value ? tpObj.value : '0';
@@ -908,23 +951,18 @@ async function reporting(fastify) {
           // check if it is the nontarget table and fill in with text instead of values
           if (allCalc) {
             if (lesions[i].allcalc)
-              table[lesionNames.indexOf(lesionName)][
-                studyDates.indexOf(studyDate) + numOfHeaderCols
-              ] = lesions[i].allcalc;
+              table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] =
+                lesions[i].allcalc;
           } else if (type.includes('nontarget')) {
             if (aimStatus != null && aimStatus !== '') {
-              table[lesionNames.indexOf(lesionName)][
-                studyDates.indexOf(studyDate) + numOfHeaderCols
-              ] = aimStatus;
+              table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] = aimStatus;
             } else {
               let status = '';
               if (aimType.equals('resolved lesion') || aimType.equals('new lesion'))
                 status = aimType;
               else status = 'present lesion';
 
-              table[lesionNames.indexOf(lesionName)][
-                studyDates.indexOf(studyDate) + numOfHeaderCols
-              ] = status;
+              table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] = status;
             }
           } else if (!aimType.includes('resolved lesion')) {
             // get length and put it in table
@@ -947,13 +985,8 @@ async function reporting(fastify) {
             } else {
               length = lesions[i].length.value;
             }
-            table[lesionNames.indexOf(lesionName)][
-              studyDates.indexOf(studyDate) + numOfHeaderCols
-            ] = length;
-          } else
-            table[lesionNames.indexOf(lesionName)][
-              studyDates.indexOf(studyDate) + numOfHeaderCols
-            ] = '0';
+            table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] = length;
+          } else table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] = '0';
 
           if (UIDs != null) {
             const studyUID = lesions[i].studyuid.value;
@@ -968,7 +1001,7 @@ async function reporting(fastify) {
               if (lesions[i].shapes) additionalFields.shapes = lesions[i].shapes.value.join(',');
             }
             // put as a UID cell object
-            UIDs[lesionNames.indexOf(lesionName)][studyDates.indexOf(studyDate)] = {
+            UIDs[lesionIndex][studyDates.indexOf(studyDate)] = {
               studyUID,
               seriesUID,
               aimUID,
@@ -1023,9 +1056,7 @@ async function reporting(fastify) {
         return { table, UIDs, timepoints };
       } catch (err) {
         fastify.log.error(
-          `Error during filling report table for ${lesionNames} and ${studyDates} Error: ${
-            err.message
-          }`
+          `Error during filling report table for ${index} and ${studyDates} Error: ${err.message}`
         );
       }
       return { table: [], UIDs: [] };
