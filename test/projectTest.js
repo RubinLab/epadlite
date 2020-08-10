@@ -4828,5 +4828,44 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should fail getting  recist report without subject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail getting longitudinal report without subject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=Longitudinal')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail getting ADLA report without subject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=Longitudinal&shapes=line')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
   });
 });
