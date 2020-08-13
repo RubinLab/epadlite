@@ -56,7 +56,7 @@ async function reporting(fastify) {
   });
 
   fastify.decorate('formJsonObj', (value, code) => {
-    let obj = { value };
+    let obj = value ? { value } : { value: '' };
     if (code) obj = { ...obj, code };
     return obj;
   });
