@@ -2514,7 +2514,7 @@ async function epaddb(fastify, options, done) {
           ) {
             if (tempPluginParams[i].default_value !== '') {
               foldersToBind.push(
-                `${tempLocalFolder}/${tempPluginParams[i].paramid}:${
+                `${tempLocalFolder}${tempPluginParams[i].paramid}:${
                   tempPluginParams[i].default_value
                 }`
               );
