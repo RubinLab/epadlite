@@ -599,7 +599,7 @@ async function reporting(fastify) {
         `Error generating recist report for ${aimJSONs.length} Error: ${err.message}`
       );
     }
-    return [];
+    return null;
   });
 
   /**
@@ -782,7 +782,7 @@ async function reporting(fastify) {
         ],
         shapes
       );
-      if (lesions.length === 0) return [];
+      if (lesions.length === 0) return null;
 
       // get targets
       const tLesionNames = [];
@@ -823,12 +823,13 @@ async function reporting(fastify) {
         return rr;
       }
       fastify.log.info(`no target lesion in table ${lesions}`);
+      return null;
     } catch (err) {
       fastify.log.error(
         `Error generating longitudinal report for ${aims.length} Error: ${err.message}`
       );
     }
-    return [];
+    return null;
   });
 
   fastify.decorate('getLesionIndex', (index, mode, lesion) => {
@@ -1123,7 +1124,7 @@ async function reporting(fastify) {
                 ? fastify.getRecist(aims)
                 : fastify.getLongitudinal(aims, template, shapes);
             if (report == null) {
-              fastify.log.warning(
+              fastify.log.warn(
                 `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`
               );
               // eslint-disable-next-line no-continue

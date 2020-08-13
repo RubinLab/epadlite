@@ -204,8 +204,14 @@ async function epaddb(fastify, options, done) {
             otherKey: 'study_id',
           });
 
-          models.study.hasMany(models.project_subject_study, {
-            foreignKey: 'study_id',
+          models.project_subject_report.belongsTo(models.subject, {
+            foreignKey: 'subject_id',
+            onDelete: 'CASCADE',
+          });
+
+          models.project_subject_report.belongsTo(models.project, {
+            foreignKey: 'project_id',
+            onDelete: 'CASCADE',
           });
 
           models.project.hasMany(models.project_aim, {
@@ -4546,13 +4552,56 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate('getReportFromDB', async (params, report) => {
+    try {
+      const projSubjReport = await models.project_subject_report.findOne({
+        where: {
+          '$subject.subjectuid$': params.subject,
+          '$project.projectid$': params.project,
+          type: report.toLowerCase(),
+        },
+        include: [{ model: models.project }, { model: models.subject }],
+      });
+      if (projSubjReport && projSubjReport.dataValues.report) {
+        return JSON.parse(projSubjReport.dataValues.report);
+      }
+      return undefined;
+    } catch (err) {
+      throw new InternalError(
+        `Getting report ${report} from params ${JSON.stringify(params)}`,
+        err
+      );
+    }
+  });
+
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
       let filter;
       if (request.query.format === 'returnTable' && request.query.templatecode) {
         filter = { template: request.query.templatecode };
       }
-      let result = await fastify.filterProjectAims(
+      let result;
+      // check for saved reports
+      if (request.query.report) {
+        switch (request.query.report) {
+          case 'RECIST':
+            // should be one patient
+            if (request.params.subject) {
+              result = await fastify.getReportFromDB(request.params, request.query.report);
+              if (result) {
+                reply.code(200).send(result);
+                return;
+              }
+            } else {
+              reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
+              return;
+            }
+            break;
+          default:
+            fastify.log.info(`Report ${request.query.report} not in db. trying to generate`);
+        }
+      }
+      result = await fastify.filterProjectAims(
         request.params,
         request.query,
         request.epadAuth,
@@ -4770,10 +4819,13 @@ async function epaddb(fastify, options, done) {
               : '';
 
           let projectId = '';
+          let projectUid = '';
           if (typeof project === 'string') {
             projectId = await fastify.findProjectIdInternal(project);
+            projectUid = project;
           } else {
             projectId = project.id;
+            projectUid = project.dataValues.projectid;
           }
           await fastify.upsert(
             models.project_aim,
@@ -4799,13 +4851,14 @@ async function epaddb(fastify, options, done) {
           );
 
           // update the worklist completeness if in any
-          await fastify.updateWorklistCompleteness(
+          await fastify.aimUpdateGateway(
             projectId,
             subjectUid,
             studyUid,
             user,
             epadAuth,
-            transaction
+            transaction,
+            projectUid
           );
 
           resolve('Aim project relation is created');
@@ -4990,6 +5043,102 @@ async function epaddb(fastify, options, done) {
       reply.send(new InternalError(`Worklist requirement ${request.params.worklist} add`, err));
     }
   });
+
+  fastify.decorate(
+    'aimUpdateGateway',
+    (projectId, subjectUid, studyUid, user, epadAuth, transaction, projectUid) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await fastify.updateWorklistCompleteness(
+            projectId,
+            subjectUid,
+            studyUid,
+            user,
+            epadAuth,
+            transaction
+          );
+          await fastify.updateReports(projectId, projectUid, subjectUid, epadAuth, transaction);
+          resolve('Aim gateway completed!');
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getAndSaveRecist',
+    (projectId, subjectUid, result, epadAuth, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const recist = fastify.getRecist(result);
+          if (recist && recist !== {}) {
+            const bestResponseBaseline = recist.tRRBaseline ? Math.min(...recist.tRRBaseline) : 0;
+            const bestResponseMin = recist.tRRMin ? Math.min(...recist.tRRMin) : 0;
+            const subject = await models.subject.findOne(
+              {
+                where: { subjectuid: subjectUid },
+                attributes: ['id'],
+                raw: true,
+              },
+              transaction ? { transaction } : {}
+            );
+            await fastify.upsert(
+              models.project_subject_report,
+              {
+                project_id: projectId,
+                subject_id: subject.id,
+                type: 'recist',
+                report: JSON.stringify(recist),
+                best_response_baseline: bestResponseBaseline,
+                best_response_min: bestResponseMin,
+                updated: true,
+                updatetime: Date.now(),
+              },
+              {
+                project_id: projectId,
+                subject_id: subject.id,
+                type: 'recist',
+              },
+              epadAuth.username,
+              transaction
+            );
+          }
+          resolve('Recist got and saved it exists');
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating recist report for project ${projectId}, subject ${subjectUid}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'updateReports',
+    (projectId, projectUid, subjectUid, epadAuth, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // just RECIST for now
+          const result = await fastify.filterProjectAims(
+            { project: projectUid, subject: subjectUid },
+            {},
+            epadAuth,
+            {}
+          );
+          await fastify.getAndSaveRecist(projectId, subjectUid, result, epadAuth, transaction);
+          resolve('Reports updated!');
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating reports for project ${projectId}, subject ${subjectUid}`,
+              err
+            )
+          );
+        }
+      })
+  );
 
   fastify.decorate(
     'updateWorklistCompleteness',
@@ -5319,6 +5468,7 @@ async function epaddb(fastify, options, done) {
     }
     return { completed, required };
   });
+
   fastify.decorate('deleteAimFromProject', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -5349,12 +5499,14 @@ async function epaddb(fastify, options, done) {
         });
 
         if (args) {
-          await fastify.updateWorklistCompleteness(
+          await fastify.aimUpdateGateway(
             args.project_id,
             args.subject_uid,
             args.study_uid,
             args.user,
-            request.epadAuth
+            request.epadAuth,
+            undefined,
+            request.params.project
           );
         }
 
