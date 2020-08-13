@@ -113,9 +113,7 @@ class DockerService {
           OpenStdin: false,
           StdinOnce: false,
           HostConfig: {
-            Binds: [
-              '/home/node/app/pluginsDataFolder/admin/2/dicoms:/Code_Deploy_CWT/Data_v1:rw',
-            ],
+           Binds: dockerFoldersToBind,
           },
         })
         // eslint-disable-next-line func-names
