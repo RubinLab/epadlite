@@ -114,7 +114,7 @@ class DockerService {
           StdinOnce: false,
           HostConfig: {
             Binds: [
-              '/home/epad/thick_test_v4/pluginData/admin/1/dicoms:/Code_Deploy_CWT/Data_v1:rw',
+              '/home/node/app/pluginsDataFolder/admin/2/dicoms:/Code_Deploy_CWT/Data_v1:rw',
             ],
           },
         })
