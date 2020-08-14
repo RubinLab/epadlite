@@ -1111,30 +1111,40 @@ async function reporting(fastify) {
             }
           }
           for (let i = 0; i < subjProjPairs.length; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            const aims = await fastify.filterProjectAims(
-              { project: subjProjPairs[i].projectID, subject: subjProjPairs[i].subjectID },
-              {},
-              epadAuth
-            );
-            fastify.log.info(`${aims.length} aims found for ${subjProjPairs[i].subjectID}`);
-
-            const report =
-              metric === 'RECIST'
-                ? fastify.getRecist(aims)
-                : fastify.getLongitudinal(aims, template, shapes);
-            if (report == null) {
-              fastify.log.warn(
-                `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`
-              );
-              // eslint-disable-next-line no-continue
-              continue;
-            }
-            waterfallData.push({
-              name: subjProjPairs[i].subjectID,
-              y: fastify.getBestResponse(report, type, metric),
+            const params = {
               project: subjProjPairs[i].projectID,
-            });
+              subject: subjProjPairs[i].subjectID,
+            };
+            // eslint-disable-next-line no-await-in-loop
+            const bestResponse = await fastify.getReportFromDB(params, metric, type);
+            if (bestResponse !== null) {
+              waterfallData.push({
+                name: subjProjPairs[i].subjectID,
+                y: bestResponse,
+                project: subjProjPairs[i].projectID,
+              });
+            } else {
+              // eslint-disable-next-line no-await-in-loop
+              const aims = await fastify.filterProjectAims(params, {}, epadAuth);
+              fastify.log.info(`${aims.length} aims found for ${subjProjPairs[i].subjectID}`);
+
+              const report =
+                metric === 'RECIST'
+                  ? fastify.getRecist(aims)
+                  : fastify.getLongitudinal(aims, template, shapes);
+              if (report == null) {
+                fastify.log.warn(
+                  `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+              }
+              waterfallData.push({
+                name: subjProjPairs[i].subjectID,
+                y: fastify.getBestResponse(report, type, metric),
+                project: subjProjPairs[i].projectID,
+              });
+            }
           }
           resolve({ series: _.sortBy(waterfallData, 'y').reverse() });
         } catch (err) {

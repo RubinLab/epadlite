@@ -4552,7 +4552,7 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('getReportFromDB', async (params, report) => {
+  fastify.decorate('getReportFromDB', async (params, report, bestResponseType) => {
     try {
       const projSubjReport = await models.project_subject_report.findOne({
         where: {
@@ -4562,10 +4562,21 @@ async function epaddb(fastify, options, done) {
         },
         include: [{ model: models.project }, { model: models.subject }],
       });
-      if (projSubjReport && projSubjReport.dataValues.report) {
-        return JSON.parse(projSubjReport.dataValues.report);
+
+      if (projSubjReport) {
+        if (bestResponseType) {
+          if (bestResponseType.toLowerCase() === 'min')
+            return Number(projSubjReport.dataValues.best_response_min);
+          if (bestResponseType.toLowerCase() === 'baseline')
+            return Number(projSubjReport.dataValues.best_response_baseline);
+          fastify.log.warn(`Unsupported bestResponseType ${bestResponseType}`);
+          return null;
+        }
+        if (projSubjReport.dataValues.report) {
+          return JSON.parse(projSubjReport.dataValues.report);
+        }
       }
-      return undefined;
+      return null;
     } catch (err) {
       throw new InternalError(
         `Getting report ${report} from params ${JSON.stringify(params)}`,
