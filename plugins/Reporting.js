@@ -876,8 +876,9 @@ async function reporting(fastify) {
         for (let i = 0; i < lesions.length; i += 1) {
           const lesionName = lesions[i].name.value.toLowerCase();
           const studyDate = lesions[i].studydate.value;
-          const aimType = type ? lesions[i].type.value.toLowerCase() : 'target'; // just put target if we are not filtering for aimtype
-          const location = lesions[i].location.value.toLowerCase();
+          const aimType =
+            type && lesions[i].type.value ? lesions[i].type.value.toLowerCase() : 'target'; // just put target if we are not filtering for aimtype
+          const location = lesions[i].location.value ? lesions[i].location.value.toLowerCase() : '';
           const statusObject = lesions[i]['lesion status'];
           let aimStatus = null;
           if (statusObject) aimStatus = statusObject.value;
