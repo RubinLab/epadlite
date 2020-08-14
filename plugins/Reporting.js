@@ -3,14 +3,14 @@ const _ = require('lodash');
 // const config = require('../config/index');
 // const EpadNotification = require('../utils/EpadNotification');
 
-// const {
-//   InternalError,
-//   ResourceNotFoundError,
-//   BadRequestError,
-//   UnauthenticatedError,
-//   UnauthorizedError,
-//   ResourceAlreadyExistsError,
-// } = require('../utils/EpadErrors');
+const {
+  InternalError,
+  //   ResourceNotFoundError,
+  //   BadRequestError,
+  //   UnauthenticatedError,
+  //   UnauthorizedError,
+  //   ResourceAlreadyExistsError,
+} = require('../utils/EpadErrors');
 
 async function reporting(fastify) {
   fastify.decorate('numOfLongitudinalHeaderCols', 2);
@@ -1102,10 +1102,9 @@ async function reporting(fastify) {
             shapes = 'line';
           }
           const waterfallData = [];
-          const subjProjPairs = subjProjPairsIn ? JSON.parse(subjProjPairsIn) : [];
+          const subjProjPairs = subjProjPairsIn || [];
           if (subjProjPairs.length === 0 && subjectsIn && projectID) {
-            const subjects =
-              subjectsIn && typeof subjectsIn === 'string' ? subjectsIn.split(',') : subjectsIn;
+            const subjects = subjectsIn || [];
             for (let i = 0; i < subjects.length; i += 1) {
               subjProjPairs.push({ projectID, subjectID: subjects[i] });
             }
@@ -1188,6 +1187,32 @@ async function reporting(fastify) {
       );
     }
     return NaN;
+  });
+  fastify.decorate('getWaterfallReport', async (request, reply) => {
+    try {
+      let result;
+      if (request.body.pairs || request.body.subjectUIDs)
+        result = await fastify.getWaterfall(
+          request.body.subjectUIDs,
+          request.body.projectID,
+          request.body.pairs,
+          request.query.type,
+          request.epadAuth,
+          request.query.metric,
+          request.query.shapes
+        );
+      else if (request.body.projectID) {
+        result = await fastify.getWaterfallProject(
+          request.body.projectID,
+          request.query.type,
+          request.epadAuth,
+          request.query.metric
+        );
+      }
+      reply.send(result);
+    } catch (err) {
+      reply.send(new InternalError(`Getting waterfall report ${request.body}`, err));
+    }
   });
 }
 

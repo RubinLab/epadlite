@@ -4732,8 +4732,9 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/reporting/aims?report=WATERFALL&type=BASELINE&metric=RECIST')
+        .post('/reports/waterfall?type=BASELINE&metric=RECIST')
         .query({ username: 'admin' })
+        .send({ projectID: 'reporting' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.eql(jsonBuffer);
@@ -4747,8 +4748,9 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/reporting/aims?report=WATERFALL&type=BASELINE&metric=ADLA')
+        .post('/reports/waterfall?type=BASELINE&metric=ADLA')
         .query({ username: 'admin' })
+        .send({ projectID: 'reporting' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.eql(jsonBuffer);
@@ -4763,8 +4765,9 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/aims?subjectUIDs=7&projectID=reporting&report=WATERFALL&type=BASELINE&metric=RECIST')
+        .post('/reports/waterfall?type=BASELINE&metric=RECIST')
         .query({ username: 'admin' })
+        .send({ projectID: 'reporting', subjectUIDs: ['7'] })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.eql(jsonBuffer);
@@ -4778,8 +4781,9 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/aims?subjectUIDs=7&projectID=reporting&report=WATERFALL&type=BASELINE&metric=ADLA')
+        .post('/reports/waterfall?type=BASELINE&metric=ADLA')
         .query({ username: 'admin' })
+        .send({ projectID: 'reporting', subjectUIDs: ['7'] })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.eql(jsonBuffer);
@@ -4794,12 +4798,9 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get(
-          `/aims?report=WATERFALL&type=BASELINE&metric=RECIST&subj_proj_pairs=${JSON.stringify([
-            { subjectID: '7', projectID: 'reporting' },
-          ])}`
-        )
+        .post('/reports/waterfall?type=BASELINE&metric=RECIST')
         .query({ username: 'admin' })
+        .send({ pairs: [{ subjectID: '7', projectID: 'reporting' }] })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.eql(jsonBuffer);
@@ -4813,12 +4814,9 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get(
-          `/aims?report=WATERFALL&type=BASELINE&metric=ADLA&subj_proj_pairs=${JSON.stringify([
-            { subjectID: '7', projectID: 'reporting' },
-          ])}`
-        )
+        .post('/reports/waterfall?type=BASELINE&metric=ADLA')
         .query({ username: 'admin' })
+        .send({ pairs: [{ subjectID: '7', projectID: 'reporting' }] })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.eql(jsonBuffer);

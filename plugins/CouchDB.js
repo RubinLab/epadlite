@@ -565,23 +565,12 @@ async function couchdb(fastify, options) {
   fastify.decorate('getAims', async (request, reply) => {
     try {
       const filter = await fastify.getUserAccessibleAimUids(request.epadAuth);
-      let result = await fastify.getAimsInternal(
+      const result = await fastify.getAimsInternal(
         request.query.format,
         request.params,
         filter,
         request.epadAuth
       );
-      if (request.query.report && request.query.report === 'WATERFALL') {
-        result = await fastify.getWaterfall(
-          request.query.subjectUIDs,
-          request.query.projectID,
-          request.query.subj_proj_pairs,
-          request.query.type,
-          request.epadAuth,
-          request.query.metric,
-          request.query.shapes
-        );
-      }
       if (request.query.format === 'stream') {
         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
       }

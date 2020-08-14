@@ -4635,16 +4635,6 @@ async function epaddb(fastify, options, done) {
               return;
             }
             break;
-          case 'WATERFALL':
-            if (!request.params.subject) {
-              result = await fastify.getWaterfallProject(
-                request.params.project,
-                request.query.type,
-                request.epadAuth,
-                request.query.metric
-              );
-            }
-            break;
           default:
             break;
         }
