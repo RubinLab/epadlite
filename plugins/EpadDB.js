@@ -2302,6 +2302,9 @@ async function epaddb(fastify, options, done) {
         fs.mkdirSync(pluginsDataFolder, { recursive: true });
       }
 
+      const dock = new DockerService();
+      const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
+      console.log("getting epad_lite bind points to reflect : ",inspectResultContainerEpadLite);
       if (parametertype === 'default') {
         try {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
