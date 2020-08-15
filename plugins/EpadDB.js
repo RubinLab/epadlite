@@ -2313,7 +2313,8 @@ async function epaddb(fastify, options, done) {
             break;
          }
       }
-      const localServerBindPoint = epadLitePwd.split(":")[0];
+      const tmpLocalServerBindPoint = epadLitePwd.split(":")[0];
+      const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${queueObject.id}/`;
       console.log("getting epad_lite bind points and pwd local : ",localServerBindPoint);
       if (parametertype === 'default') {
         try {
@@ -2330,7 +2331,7 @@ async function epaddb(fastify, options, done) {
           );
           const returnObject = {
             params: paramsToSendToContainer,
-            serverfolder: pluginsDataFolder,
+            serverfolder: localServerBindPoint,
             projectid,
             projectdbid,
           };
@@ -2359,7 +2360,7 @@ async function epaddb(fastify, options, done) {
           );
           const returnObject = {
             params: paramsToSendToContainer,
-            serverfolder: pluginsDataFolder,
+            serverfolder: localServerBindPoint,
             projectid,
             projectdbid,
           };
@@ -2388,7 +2389,7 @@ async function epaddb(fastify, options, done) {
           );
           const returnObject = {
             params: paramsToSendToContainer,
-            serverfolder: pluginsDataFolder,
+            serverfolder: localServerBindPoint,
             projectid,
             projectdbid,
           };
