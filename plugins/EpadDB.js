@@ -2480,7 +2480,7 @@ async function epaddb(fastify, options, done) {
         }
 
         const tempLocalFolder = pluginParamsObj.serverfolder;
-
+        console.log("sorting params binding folders : ",tempLocalFolder);
         // eslint-disable-next-line func-names
         tempPluginParams.sort((first, second) => {
           if (first.inputBinding === '' && second.inputBinding === '') {
@@ -2505,9 +2505,7 @@ async function epaddb(fastify, options, done) {
         const onlyNameValues = [];
         const foldersToBind = [];
         for (let i = 0; i < tempPluginParams.length; i += 1) {
-          if (tempPluginParams[i].prefix !== '') {
-            onlyNameValues.push(tempPluginParams[i].prefix);
-          }
+          
           if (
             tempPluginParams[i].format === 'InputFolder' ||
             tempPluginParams[i].format === 'OutputFolder'
@@ -2520,11 +2518,16 @@ async function epaddb(fastify, options, done) {
               );
             }
           }
-          if (tempPluginParams[i].name !== '') {
-            onlyNameValues.push(tempPluginParams[i].name);
-          }
-          if (tempPluginParams[i].default_value !== '') {
-            onlyNameValues.push(tempPluginParams[i].default_value);
+          if (tempPluginParams[i].paramid === 'parameters'){
+            if (tempPluginParams[i].prefix !== '') {
+              onlyNameValues.push(tempPluginParams[i].prefix);
+            }
+            if (tempPluginParams[i].name !== '') {
+              onlyNameValues.push(tempPluginParams[i].name);
+            }
+            if (tempPluginParams[i].default_value !== '') {
+              onlyNameValues.push(tempPluginParams[i].default_value);
+            }
           }
         }
         const returnObj = {
