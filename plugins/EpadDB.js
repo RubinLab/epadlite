@@ -2304,7 +2304,17 @@ async function epaddb(fastify, options, done) {
 
       const dock = new DockerService();
       const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
-      console.log("getting epad_lite bind points to reflect : ",inspectResultContainerEpadLite.HostConfig.Binds);
+      const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
+      let epadLitePwd = "";
+      console.log("getting epad_lite bind points to reflect : ",epadLiteBindPoints);
+      for (let cntPoints = 0 ; cntPoints < epadLiteBindPoints.length ;  cntPoints++){
+         if  (epadLiteBindPoints[cntPoints].includes("pluginData")){
+            epadLitePwd = epadLiteBindPoints[cntPoints];
+            break;
+         }
+      }
+      const localServerBindPoint = epadLitePwd.split(":")[0];
+      console.log("getting epad_lite bind points and pwd local : ",localServerBindPoint);
       if (parametertype === 'default') {
         try {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
