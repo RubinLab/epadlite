@@ -2304,7 +2304,7 @@ async function epaddb(fastify, options, done) {
 
       const dock = new DockerService();
       const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
-      console.log("getting epad_lite bind points to reflect : ",inspectResultContainerEpadLite);
+      console.log("getting epad_lite bind points to reflect : ",inspectResultContainerEpadLite.HostConfig.Binds);
       if (parametertype === 'default') {
         try {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
