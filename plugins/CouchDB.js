@@ -587,7 +587,7 @@ async function couchdb(fastify, options) {
           } else {
             const db = fastify.couch.db.use(config.db);
             if (stream && (!query.format || query.format === 'json')) {
-              const qry = { selector: { _id: { $in: body } }, fields: ['aim'] };
+              const qry = { selector: { _id: { $in: body } }, fields: ['aim'], limit: 500 };
               stream.code(200).send(db.findAsStream(qry));
               resolve();
             } else {
