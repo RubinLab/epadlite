@@ -515,7 +515,11 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate('isCollaborator', (project, epadAuth) => {
-    return epadAuth.projectToRole.includes(`${project}:Collaborator`);
+    return (
+      epadAuth &&
+      epadAuth.projectToRole &&
+      epadAuth.projectToRole.includes(`${project}:Collaborator`)
+    );
   });
 
   // filter aims with aimId filter array
