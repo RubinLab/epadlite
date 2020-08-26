@@ -222,6 +222,11 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'project_id',
           });
 
+          models.project_aim.belongsTo(models.project, {
+            foreignKey: 'project_id',
+            onDelete: 'CASCADE',
+          });
+
           await fastify.orm.sync();
           if (config.env === 'test') {
             try {
@@ -4067,6 +4072,29 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('getSubjectUIDsFromAimsInProject', async projectID => {
+    try {
+      const projectAims = await models.project_aim.findAll({
+        include: [
+          {
+            model: models.project,
+            where: { projectid: projectID },
+          },
+        ],
+        attributes: ['subject_uid'],
+        group: ['subject_uid'],
+      });
+      return projectAims.map(subject => {
+        return subject.dataValues.subject_uid;
+      });
+    } catch (err) {
+      fastify.log.error(
+        `Couldn't retrieve list of subjectuids from project ${projectID} Error: ${err.message}`
+      );
+      return [];
+    }
+  });
+
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
       if (request.params.project === config.unassignedProjectID && config.pollDW === 0) {
@@ -4868,7 +4896,7 @@ async function epaddb(fastify, options, done) {
             new InternalError(
               `Aim project relation creation aimuid ${
                 aim.ImageAnnotationCollection.uniqueIdentifier.root
-              }, project ${project.projectid}`,
+              }, project ${project.projectid ? project.projectid : project}`,
               err
             )
           );
@@ -5058,7 +5086,14 @@ async function epaddb(fastify, options, done) {
             epadAuth,
             transaction
           );
-          await fastify.updateReports(projectId, projectUid, subjectUid, epadAuth, transaction);
+          // give warning but do not fail if you cannot update the report (it fails if dicoms are not in db)
+          try {
+            await fastify.updateReports(projectId, projectUid, subjectUid, epadAuth, transaction);
+          } catch (reportErr) {
+            fastify.log.warn(
+              `Could not update the report for patient ${subjectUid} Error: ${reportErr.message}`
+            );
+          }
           resolve('Aim gateway completed!');
         } catch (err) {
           reject(err);
