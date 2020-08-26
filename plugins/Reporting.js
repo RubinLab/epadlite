@@ -896,9 +896,9 @@ async function reporting(fastify) {
       try {
         const table = [];
         const row = [];
-        for (let i = 0; i < studyDates.length + numOfHeaderCols; i += 1) row.push('');
+        for (let i = 0; i < studyDates.length + numOfHeaderCols; i += 1) row.push(null);
         const uidRow = [];
-        for (let i = 0; i < studyDates.length; i += 1) uidRow.push('');
+        for (let i = 0; i < studyDates.length; i += 1) uidRow.push(null);
 
         index.forEach(() => table.push([...row]));
 
@@ -925,18 +925,14 @@ async function reporting(fastify) {
             continue;
           }
           const lesionIndex = fastify.getLesionIndex(index, mode, lesions[i]);
-          if (
-            table[lesionIndex][0] !== null &&
-            table[lesionIndex][0] !== '' &&
-            table[lesionIndex][0] !== lesionName
-          ) {
+          if (table[lesionIndex][0] !== null && table[lesionIndex][0] !== lesionName)
             fastify.log.warn(
               `Lesion name at ${studyDate} is different from the same lesion on a different date. The existing one is: ${
                 table[lesionIndex][0]
               } whereas this is: ${lesionName}`
             );
-            table[lesionIndex][0] = lesionName;
-          }
+          table[lesionIndex][0] = lesionName;
+
           // check if exists and if different and put warnings.
           // changes anyhow
           let nextCol = 1;
@@ -944,7 +940,6 @@ async function reporting(fastify) {
           if (numOfHeaderCols > 2) {
             if (
               table[lesionIndex][nextCol] != null &&
-              table[lesionIndex][nextCol] !== '' &&
               table[lesionIndex][nextCol].toLowerCase() !== aimType
             )
               fastify.log.warn(
@@ -958,7 +953,6 @@ async function reporting(fastify) {
 
           if (
             table[lesionIndex][nextCol] != null &&
-            table[lesionIndex][nextCol] !== '' &&
             table[lesionIndex][nextCol].toLowerCase() !== location
           )
             fastify.log.warn(
