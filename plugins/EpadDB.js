@@ -5103,21 +5103,13 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getAndSaveRecist',
-    (projectId, subjectUid, result, epadAuth, transaction) =>
+    (projectId, subject, result, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
           const recist = fastify.getRecist(result);
           if (recist && recist !== {}) {
             const bestResponseBaseline = recist.tRRBaseline ? Math.min(...recist.tRRBaseline) : 0;
             const bestResponseMin = recist.tRRMin ? Math.min(...recist.tRRMin) : 0;
-            const subject = await models.subject.findOne(
-              {
-                where: { subjectuid: subjectUid },
-                attributes: ['id'],
-                raw: true,
-              },
-              transaction ? { transaction } : {}
-            );
             await fastify.upsert(
               models.project_subject_report,
               {
@@ -5139,11 +5131,12 @@ async function epaddb(fastify, options, done) {
               transaction
             );
           }
+          fastify.log.info(`Recist report for ${subject.subjectuid} updated`);
           resolve('Recist got and saved it exists');
         } catch (err) {
           reject(
             new InternalError(
-              `Updating recist report for project ${projectId}, subject ${subjectUid}`,
+              `Updating recist report for project ${projectId}, subject ${subject.subjectuid}`,
               err
             )
           );
@@ -5156,15 +5149,28 @@ async function epaddb(fastify, options, done) {
     (projectId, projectUid, subjectUid, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
-          // just RECIST for now
-          const result = await fastify.filterProjectAims(
-            { project: projectUid, subject: subjectUid },
-            {},
-            epadAuth,
-            {}
+          // check if we have the subject in db so that we don't attempt if not
+          const subject = await models.subject.findOne(
+            {
+              where: { subjectuid: subjectUid },
+              attributes: ['id', 'subjectuid'],
+              raw: true,
+            },
+            transaction ? { transaction } : {}
           );
-          await fastify.getAndSaveRecist(projectId, subjectUid, result, epadAuth, transaction);
-          resolve('Reports updated!');
+          if (!subject) {
+            resolve('No DICOMS, skipping report generation');
+          } else {
+            // just RECIST for now
+            const result = await fastify.filterProjectAims(
+              { project: projectUid, subject: subjectUid },
+              {},
+              epadAuth,
+              {}
+            );
+            await fastify.getAndSaveRecist(projectId, subject, result, epadAuth, transaction);
+            resolve('Reports updated!');
+          }
         } catch (err) {
           reject(
             new InternalError(

@@ -729,7 +729,6 @@ async function other(fastify) {
                   .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                   .then(res => {
                     try {
-                      fastify.log.info(`Saving successful for ${filename}`);
                       resolve(res);
                     } catch (errProject) {
                       reject(errProject);
