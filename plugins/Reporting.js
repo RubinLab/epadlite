@@ -77,7 +77,7 @@ async function reporting(fastify) {
       // const aimUids = await fastify.getAimUidsForProjectFilter(params, filter);
       // const aimJSONs = await fastify.getAimsInternal('json', params, aimUids, epadAuth);
 
-      // TODO handle multiple templates
+      // TODO handle multiple templates (decided not to do it for now)
       const shapes = typeof shapesIn === 'string' ? shapesIn.split(',') : shapesIn;
       const table = [];
       const rowTemplate = {};
@@ -98,7 +98,7 @@ async function reporting(fastify) {
           ].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code.toLowerCase() !==
             template.toLowerCase()
         ) {
-          fastify.log.warn(
+          fastify.log.debug(
             `Aim template is ${
               aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
                 .code
@@ -232,12 +232,24 @@ async function reporting(fastify) {
               const iocs =
                 ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
               iocs.forEach(ioc => {
-                // TODO handle getCharacteristicQuantificationCollection
                 if (ioc.label.value.toLowerCase() in row) {
-                  row[ioc.label.value.toLowerCase()] = fastify.formJsonObj(
-                    ioc.typeCode[0][`iso:displayName`].value,
-                    ioc.typeCode[0].code
-                  );
+                  if (
+                    ioc.characteristicQuantificationCollection &&
+                    ioc.characteristicQuantificationCollection.CharacteristicQuantification.length >
+                      0
+                  ) {
+                    const iocq =
+                      ioc.characteristicQuantificationCollection.CharacteristicQuantification[0];
+                    row[ioc.label.value.toLowerCase()] = fastify.formJsonObj(
+                      iocq.value.value,
+                      ioc.typeCode[0].code
+                    );
+                  } else {
+                    row[ioc.label.value.toLowerCase()] = fastify.formJsonObj(
+                      ioc.typeCode[0][`iso:displayName`].value,
+                      ioc.typeCode[0].code
+                    );
+                  }
                 }
               });
             }
@@ -302,7 +314,33 @@ async function reporting(fastify) {
           });
         }
 
-        // TODO look through questions
+        // TODO test look through questions
+        if (
+          aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .questionCollection
+        ) {
+          let qs = [];
+          if (
+            Array.isArray(
+              aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .questionCollection.Question
+            )
+          ) {
+            qs =
+              aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .questionCollection.Question;
+          } else {
+            qs.push(
+              aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .questionCollection.Question
+            );
+          }
+          qs.forEach(q => {
+            if (q.question.value.toLowerCase() in row) {
+              row[q.question.value.toLowerCase()] = fastify.formJsonObj(q.answer.value);
+            }
+          });
+        }
 
         // calculations
         let hasCalcs = false;
@@ -338,7 +376,6 @@ async function reporting(fastify) {
               calc.calculationResultCollection.CalculationResult[0]
             ) {
               const calcResult = calc.calculationResultCollection.CalculationResult[0];
-              // TODO handle old aims ExtendedCalculationResult
               if (calcResult['xsi:type'] === 'CompactCalculationResult') {
                 let { value } = calcResult.value;
                 if (value == null || value.trim() === '') value = '0';
@@ -482,7 +519,7 @@ async function reporting(fastify) {
       let mode = 'name';
       let tIndex = tLesionNames;
       let ntIndex = ntLesionNames;
-      if (lesionWTrackingUIDCount === lesions.length) {
+      if (lesionWTrackingUIDCount === lesions.length && lesions.length > 0) {
         fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
         mode = 'trackingUID';
         tIndex = tTrackingUIDs;
@@ -506,9 +543,9 @@ async function reporting(fastify) {
             if (
               nonTarget.table[i][j + 3] != null &&
               nonTarget.table[i][j + 3].trim().toLowerCase() === 'new lesion' &&
-              !ntNewLesionStudyDates.includes(studyDates.get(j))
+              !ntNewLesionStudyDates.includes(studyDates[j])
             ) {
-              ntNewLesionStudyDates.push(studyDates.get(j));
+              ntNewLesionStudyDates.push(studyDates[j]);
             }
           }
         }
@@ -614,10 +651,10 @@ async function reporting(fastify) {
     const numOfHeaderCols = metric && metric !== 'RECIST' ? fastify.numOfLongitudinalHeaderCols : 3;
     for (let k = 0; k < table[0].length - numOfHeaderCols; k += 1) {
       sums[k] = 0.0;
-      fastify.log.info(`k is ${k}`);
+      fastify.log.debug(`k is ${k}`);
       let j = k;
       for (j = k; j < table[0].length - numOfHeaderCols; j += 1) {
-        fastify.log.info(`j is ${j}`);
+        fastify.log.debug(`j is ${j}`);
         if (timepoints[j] === timepoints[k]) {
           if (j !== k) sums[j] = null;
 
@@ -630,7 +667,7 @@ async function reporting(fastify) {
             if (!Number.isNaN(cellValue)) {
               sums[k] += cellValue;
             } else {
-              fastify.log.warn(`Couldn't convert to double value=${table[i][j + numOfHeaderCols]}`);
+              fastify.log.debug(`Couldn't convert to double value=${cell}`);
             }
           }
         } else {
@@ -639,9 +676,9 @@ async function reporting(fastify) {
         }
       }
       k = j - 1;
-      fastify.log.info(`jumping to ${k + 1}`);
+      fastify.log.debug(`jumping to ${k + 1}`);
     }
-    for (let i = 0; i < sums.length; i += 1) fastify.log.info(`sum ${i} ${sums[i]}`);
+    for (let i = 0; i < sums.length; i += 1) fastify.log.debug(`sum ${i} ${sums[i]}`);
     return sums;
   });
 
@@ -658,10 +695,10 @@ async function reporting(fastify) {
       if (sums[i] != null) {
         if (timepoints[i] != null && timepoints[i] === 0) {
           baseline = sums[i];
-          fastify.log.info(`baseline changed. New baseline is:${i}`);
+          fastify.log.debug(`baseline changed. New baseline is:${i}`);
         }
         if (baseline === 0) {
-          fastify.log.warn('baseline is 0. returning 999999.9 for rr');
+          fastify.log.debug('baseline is 0. returning 999999.9 for rr');
           rrBaseline[i] = 999999.9;
         } else rrBaseline[i] = ((sums[i] - baseline) * 100.0) / baseline;
       }
@@ -682,17 +719,17 @@ async function reporting(fastify) {
    */
   fastify.decorate('calcRRMin', (sums, timepoints) => {
     let min = sums[0];
-    fastify.log.info(`Min is ${min}`);
+    fastify.log.debug(`Min is ${min}`);
     const rr = [];
     for (let i = 0; i < timepoints.length; i += 1) rr.push(0.0);
     for (let i = 0; i < sums.length; i += 1) {
       if (sums[i] != null) {
         if (timepoints[i] != null && timepoints[i] === 0) {
           min = sums[i];
-          fastify.log.info(`Min changed. New baseline.min is:${min}`);
+          fastify.log.debug(`Min changed. New baseline.min is:${min}`);
         }
         if (min === 0) {
-          fastify.log.warn('min is 0. returning 999999.9 for rr');
+          fastify.log.debug('min is 0. returning 999999.9 for rr');
           rr[i] = 999999.9;
         } else rr[i] = ((sums[i] - min) * 100.0) / min;
         if (sums[i] < min) {
@@ -703,7 +740,7 @@ async function reporting(fastify) {
           }
           if (i + j < sums.length && sums[i + j] != null && sums[i + j] > sums[i]) {
             min = sums[i];
-            fastify.log.info(`Min changed. Smaller rr. min is:${min}`);
+            fastify.log.debug(`Min changed. Smaller rr. min is:${min}`);
           }
         }
       }
@@ -888,11 +925,15 @@ async function reporting(fastify) {
             continue;
           }
           const lesionIndex = fastify.getLesionIndex(index, mode, lesions[i]);
-          if (table[lesionIndex][0] !== null && table[lesionIndex][0] !== lesionName) {
+          if (
+            table[lesionIndex][0] !== null &&
+            table[lesionIndex][0] !== '' &&
+            table[lesionIndex][0] !== lesionName
+          ) {
             fastify.log.warn(
               `Lesion name at ${studyDate} is different from the same lesion on a different date. The existing one is: ${
                 table[lesionIndex][0]
-              } whereas this is: ${aimType}`
+              } whereas this is: ${lesionName}`
             );
             table[lesionIndex][0] = lesionName;
           }
@@ -903,6 +944,7 @@ async function reporting(fastify) {
           if (numOfHeaderCols > 2) {
             if (
               table[lesionIndex][nextCol] != null &&
+              table[lesionIndex][nextCol] !== '' &&
               table[lesionIndex][nextCol].toLowerCase() !== aimType
             )
               fastify.log.warn(
@@ -916,6 +958,7 @@ async function reporting(fastify) {
 
           if (
             table[lesionIndex][nextCol] != null &&
+            table[lesionIndex][nextCol] !== '' &&
             table[lesionIndex][nextCol].toLowerCase() !== location
           )
             fastify.log.warn(
@@ -929,7 +972,7 @@ async function reporting(fastify) {
           const lesionTimepoint = tpObj && tpObj.value ? tpObj.value : '0';
           let timepoint = parseInt(lesionTimepoint, 10);
           if (Number.isNaN(timepoint)) {
-            fastify.log.info(`Trying to get timepoint from text ${lesionTimepoint}`);
+            fastify.log.debug(`Trying to get timepoint from text ${lesionTimepoint}`);
             if (lesionTimepoint.toLowerCase().includes('baseline')) {
               timepoint = 0;
             } else {
@@ -942,10 +985,12 @@ async function reporting(fastify) {
             timepoints[studyDates.indexOf(studyDate)] !== timepoint
           ) {
             // TODO How to handle timepoint changes? I currently override with the latest for now
-            fastify.log.info(
+            fastify.log.warn(
               `why is the timepoint ${timepoint} different from the already existing ${
                 timepoints[studyDates.indexOf(studyDate)]
-              } ${studyDate}`
+              } ${studyDate} timepoints =${JSON.stringify(
+                timepoints
+              )} studydates = ${JSON.stringify(studyDates)}`
             );
           }
           // eslint-disable-next-line no-param-reassign
@@ -1018,13 +1063,13 @@ async function reporting(fastify) {
         // I need to do this after the table is populated
         if (nonTarget && type.includes('nontarget')) {
           for (let i = 0; i < table.length; i += 1) {
-            for (let j = 0; j < studyDates.size(); j += 1) {
+            for (let j = 0; j < studyDates.length; j += 1) {
               // if this is new lesion mark all following consecutive new lesions as present
               if (
                 table[i][j + numOfHeaderCols] != null &&
                 table[i][j + 3].trim().toLowerCase() === 'new lesion'
               ) {
-                for (let k = j + 1; k < studyDates.size(); k += 1) {
+                for (let k = j + 1; k < studyDates.length; k += 1) {
                   if (
                     table[i][k + numOfHeaderCols] != null &&
                     table[i][k + numOfHeaderCols].trim().toLowerCase() === 'new lesion'
@@ -1044,7 +1089,7 @@ async function reporting(fastify) {
                 table[i][j + numOfHeaderCols].trim().toLowerCase() === 'resolved lesion'
               ) {
                 if (
-                  j < studyDates.size() - 1 &&
+                  j < studyDates.length - 1 &&
                   table[i][j + numOfHeaderCols + 1] != null &&
                   table[i][j + numOfHeaderCols + 1].trim().toLowerCase() === 'present lesion'
                 ) {
@@ -1068,7 +1113,8 @@ async function reporting(fastify) {
   // ----  waterfall --------
   fastify.decorate('getWaterfallProject', async (projectID, type, epadAuth, metric) => {
     try {
-      const subjects = await fastify.getSubjectUIDsFromProject(projectID);
+      // const subjects = await fastify.getSubjectUIDsFromProject(projectID);
+      const subjects = await fastify.getSubjectUIDsFromAimsInProject(projectID);
       return await fastify.getWaterfall(subjects, projectID, undefined, type, epadAuth, metric);
     } catch (err) {
       fastify.log.error(
@@ -1170,7 +1216,7 @@ async function reporting(fastify) {
             const sums = fastify.calcSums(report.tTable, report.stTimepoints, metric);
             rr = fastify.calcRRMin(sums, report.stTimepoints);
           }
-          return Math.min(...rr);
+          break;
         default:
           // BASELINE
           rr = report.tRRBaseline;
@@ -1178,8 +1224,12 @@ async function reporting(fastify) {
             const sums = fastify.calcSums(report.tTable, report.stTimepoints, metric);
             rr = fastify.calcRRBaseline(sums, report.stTimepoints);
           }
-          return Math.min(...rr);
+          break;
       }
+
+      const min = Math.min(...rr);
+      if (min === 0 && rr.length > 1) return rr[1];
+      return min;
     } catch (err) {
       fastify.log.error(
         `Error generating best response for report ${JSON.stringify(
