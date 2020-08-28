@@ -1620,6 +1620,7 @@ async function other(fastify) {
         // eslint-disable-next-line prefer-destructuring
         obj[keyValue[0]] = keyValue[1];
       }
+      obj.patientID = obj.PatientID;
       if (obj.expiry) {
         const expiryDate = new Date(obj.expiry * 1000);
         const now = new Date();
