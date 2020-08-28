@@ -62,7 +62,7 @@ config.XNATUploadProjectID = config.XNATUploadProjectID || 'all';
 config.pollDW =
   // eslint-disable-next-line no-nested-ternary
   process.env.POLL_DW !== undefined
-    ? process.env.POLL_DW
+    ? Number(process.env.POLL_DW)
     : config.pollDW !== undefined
     ? config.pollDW
     : 3; // in minutes, 0 => no poll
