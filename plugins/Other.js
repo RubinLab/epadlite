@@ -1569,8 +1569,7 @@ async function other(fastify) {
                 subject: patientStudyPairs[i].patientID,
                 study: patientStudyPairs[i].studyUID,
               },
-              request.epadAuth,
-              {}
+              request.epadAuth
             );
           reply.send({
             projectID,

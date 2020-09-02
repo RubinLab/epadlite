@@ -534,7 +534,9 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
-          const query = params.subject ? `?PatientID=${params.subject}` : limit;
+          let query = limit;
+          if (params.study) query = `?StudyUID=${params.study}`;
+          else if (params.subject) query = `?PatientID=${params.subject}`;
           const promisses = [];
           promisses.push(
             this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
