@@ -535,7 +535,7 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
-          if (params.study) query = `?StudyUID=${params.study}`;
+          if (params.study) query = `?StudyInstanceUID=${params.study}`;
           else if (params.subject) query = `?PatientID=${params.subject}`;
           const promisses = [];
           promisses.push(
