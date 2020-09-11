@@ -129,38 +129,38 @@ async function epaddb(fastify, options, done) {
           });
           //  for plugins
 
-          models.plugin_docker.belongsToMany(models.project, {
+          models.plugin.belongsToMany(models.project, {
             through: 'project_plugin',
             as: 'pluginproject',
             foreignKey: 'plugin_id',
           });
-          models.project.belongsToMany(models.plugin_docker, {
+          models.project.belongsToMany(models.plugin, {
             through: 'project_plugin',
             as: 'projectplugin',
             foreignKey: 'project_id',
           });
 
-          models.plugin_docker.belongsToMany(models.template, {
+          models.plugin.belongsToMany(models.template, {
             through: 'plugin_template',
             as: 'plugintemplate',
             foreignKey: 'plugin_id',
           });
-          models.template.belongsToMany(models.plugin_docker, {
+          models.template.belongsToMany(models.plugin, {
             through: 'plugin_template',
             as: 'templateplugin',
             foreignKey: 'template_id',
           });
 
-          models.plugin_docker.hasMany(models.plugin_parameters, {
+          models.plugin.hasMany(models.plugin_parameters, {
             as: 'defaultparameters',
             foreignKey: 'plugin_id',
           });
-          models.plugin_parameters.belongsTo(models.plugin_docker, { foreignKey: 'plugin_id' });
+          models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'plugin_id' });
           models.project_plugin.belongsTo(models.project, {
             as: 'projectpluginrowbyrow',
             foreignKey: 'project_id',
           });
-          models.plugin_queue.belongsTo(models.plugin_docker, {
+          models.plugin_queue.belongsTo(models.plugin, {
             as: 'queueplugin',
             foreignKey: 'plugin_id',
           });
@@ -669,7 +669,7 @@ async function epaddb(fastify, options, done) {
   });
   // not used for now
   // fastify.decorate('getPlugins', async (request, reply) => {
-  //   models.plugin_docker
+  //   models.plugin
   //     .findAll()
   //     .then(plugins => {
   //       reply.code(200).send(plugins);
@@ -705,7 +705,7 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('getPluginsWithProject', (request, reply) => {
-    models.plugin_docker
+    models.plugin
       .findAll({
         include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
         required: false,
@@ -782,7 +782,7 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('getOnePlugin', (request, reply) => {
     const { plugindbid } = request.params;
-    models.plugin_docker
+    models.plugin
       .findOne({
         include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
         where: { id: plugindbid },
@@ -881,7 +881,7 @@ async function epaddb(fastify, options, done) {
           });
 
           return Promise.all(dbPromisesForCreate).then(() => {
-            models.plugin_docker
+            models.plugin
               .findOne({
                 include: ['pluginproject'],
                 required: false,
@@ -960,7 +960,7 @@ async function epaddb(fastify, options, done) {
           });
 
           return Promise.all(dbPromisesForCreate).then(() => {
-            models.plugin_docker
+            models.plugin
               .findOne({
                 include: ['plugintemplate'],
                 required: false,
@@ -1066,7 +1066,7 @@ async function epaddb(fastify, options, done) {
               },
             });
             // eslint-disable-next-line no-await-in-loop
-            await models.plugin_docker.destroy({
+            await models.plugin.destroy({
               where: {
                 id: pluginid[cnt],
               },
@@ -1098,38 +1098,61 @@ async function epaddb(fastify, options, done) {
       //  new UnauthorizedError('User has no access to project')
       reply.send(new UnauthorizedError('User has no right to create plugin'));
     } else {
-      models.plugin_docker
-        .create({
-          plugin_id: pluginform.plugin_id,
-          name: pluginform.name,
-          description: pluginform.description,
-          image_repo: pluginform.image_repo,
-          image_tag: pluginform.image_tag,
-          image_name: pluginform.image_name,
-          image_id: pluginform.image_id,
-          enabled: pluginform.enabled,
-          modality: pluginform.modality,
-          creator: request.epadAuth.username,
-          createdtime: Date.now(),
-          updatetime: '1970-01-01 00:00:01',
-          developer: pluginform.developer,
-          documentation: pluginform.documentation,
-          processmultipleaims: tempprocessmultipleaims,
+      // check if plugin_id exist
+      models.plugin
+        .findAll({
+          where: { plugin_id: pluginform.plugin_id },
         })
-        .then(() => {
-          //  new UnauthorizedError('User has no access to project')
-          reply.code(200).send('Plugin saved seccessfully');
+        .then(result => {
+          if (result.length === 0) {
+            // save plugin
+            models.plugin
+              .create({
+                plugin_id: pluginform.plugin_id,
+                name: pluginform.name,
+                description: pluginform.description,
+                image_repo: pluginform.image_repo,
+                image_tag: pluginform.image_tag,
+                image_name: pluginform.image_name,
+                image_id: pluginform.image_id,
+                enabled: pluginform.enabled,
+                modality: pluginform.modality,
+                creator: request.epadAuth.username,
+                createdtime: Date.now(),
+                updatetime: '1970-01-01 00:00:01',
+                developer: pluginform.developer,
+                documentation: pluginform.documentation,
+                processmultipleaims: tempprocessmultipleaims,
+              })
+              .then(() => {
+                //  new UnauthorizedError('User has no access to project')
+                reply.code(200).send('Plugin saved seccessfully');
+              })
+              .catch(err => {
+                reply
+                  .code(500)
+                  .send(
+                    new InternalError(
+                      'Something went wrong while creating a new plugin in plugin table',
+                      err
+                    )
+                  );
+              });
+            // save plugin end
+          } else {
+            reply
+              .code(500)
+              .send(new InternalError('Select different id ', new Error('id exist already')));
+          }
         })
         .catch(err => {
           reply
             .code(500)
             .send(
-              new InternalError(
-                'Something went wrong while creating a new plugin in plugin table',
-                err
-              )
+              new InternalError('Something went wrong while verifying duplicate plugin_id', err)
             );
         });
+      // check plugin id end
     }
   });
 
@@ -1139,7 +1162,7 @@ async function epaddb(fastify, options, done) {
     if (pluginform.processmultipleaims !== '') {
       tempprocessmultipleaims = pluginform.processmultipleaims;
     }
-    models.plugin_docker
+    models.plugin
       .update(
         {
           ...pluginform,
@@ -8354,7 +8377,7 @@ async function epaddb(fastify, options, done) {
                 await fastify.updateStudyBuffers(
                   params,
                   body,
-                  studyUids[i],
+                  studyUids[i].study,
                   epadAuth,
                   applyPatient,
                   applyStudy
@@ -8763,7 +8786,7 @@ async function epaddb(fastify, options, done) {
           const templates = await fastify.getTemplatesInternal('summary');
           const numOfTemplates = templates.length;
 
-          const numOfPlugins = await models.plugin_docker.count();
+          const numOfPlugins = await models.plugin.count();
 
           // no plans to implement these yet
           // const numOfPacs = RemotePACService.getInstance().getRemotePACs().size();
@@ -9413,7 +9436,23 @@ async function epaddb(fastify, options, done) {
                 ADD FOREIGN KEY IF NOT EXISTS FK_study_subject (subject_id) REFERENCES subject (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
               { transaction: t }
             );
+            // cavit
+            // 15. plugin
+            // new columns below added to support dockerized plugins
 
+            await fastify.orm.query(
+              `ALTER TABLE plugin
+                ADD COLUMN IF NOT EXISTS image_repo varchar(128) AFTER name,
+                ADD COLUMN IF NOT EXISTS image_tag varchar(32) AFTER image_repo,
+                ADD COLUMN IF NOT EXISTS type varchar(5) AFTER image_tag,
+                ADD COLUMN IF NOT EXISTS image_name varchar(128) AFTER type,
+                ADD COLUMN IF NOT EXISTS image_id varchar(128) AFTER image_name,
+                ADD COLUMN IF NOT EXISTS basecommand varchar(128) AFTER image_id,
+                ADD COLUMN IF NOT EXISTS memory int(5) AFTER basecommand,
+                ADD COLUMN IF NOT EXISTS maxruntime int(10) AFTER memory;`,
+              { transaction: t }
+            );
+            // cavit
             // set the orphaned project_user entities to the first admin
             await fastify.orm.query(
               `UPDATE project_user SET user_id = (SELECT id FROM user WHERE admin = true LIMIT 1) 
@@ -9480,6 +9519,12 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS num_of_series int(10) DEFAULT NULL AFTER num_of_images,
                 ADD COLUMN IF NOT EXISTS study_id varchar(32) DEFAULT NULL AFTER num_of_series,
                 ADD COLUMN IF NOT EXISTS study_time varchar(32) DEFAULT NULL AFTER study_id;`,
+              { transaction: t }
+            );
+
+            await fastify.orm.query(
+              `ALTER TABLE upload_processing 
+                MODIFY COLUMN path varchar(1024) NOT NULL;`,
               { transaction: t }
             );
           });
@@ -9882,6 +9927,7 @@ async function epaddb(fastify, options, done) {
             await fastify.pollDWStudies();
           }, config.pollDW * 60000);
         }
+
         if (!config.noResume) fastify.resumeProcessing();
       }
       done();
