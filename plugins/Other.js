@@ -1485,7 +1485,9 @@ async function other(fastify) {
               // not really a good way to check it but
               // 'file', 'template', 'subject', 'study' are just associacion levels
               if (
-                fastify.hasAccessToProject(request, reqInfo.project) === undefined ||
+                (!request.req.url.startsWith('/decrypt') &&
+                  !request.req.url.startsWith(`/${config.prefix}/decrypt`) &&
+                  fastify.hasAccessToProject(request, reqInfo.project) === undefined) ||
                 (['project', 'worklist', 'user', 'aim'].includes(reqInfo.level) &&
                   fastify.isOwnerOfProject(request, reqInfo.project) === false &&
                   (await fastify.isCreatorOfObject(request, reqInfo)) === false)
