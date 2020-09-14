@@ -1485,9 +1485,7 @@ async function other(fastify) {
               // not really a good way to check it but
               // 'file', 'template', 'subject', 'study' are just associacion levels
               if (
-                (!request.req.url.startsWith('/decrypt') &&
-                  !request.req.url.startsWith(`/${config.prefix}/decrypt`) &&
-                  fastify.hasAccessToProject(request, reqInfo.project) === undefined) ||
+                fastify.hasAccessToProject(request, reqInfo.project) === undefined ||
                 (['project', 'worklist', 'user', 'aim'].includes(reqInfo.level) &&
                   fastify.isOwnerOfProject(request, reqInfo.project) === false &&
                   (await fastify.isCreatorOfObject(request, reqInfo)) === false)
@@ -1517,7 +1515,11 @@ async function other(fastify) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
-              if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
+              if (
+                !request.req.url.startsWith('/decrypt') &&
+                !request.req.url.startsWith(`/${config.prefix}/decrypt`) &&
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false
+              )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
