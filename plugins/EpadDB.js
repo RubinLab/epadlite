@@ -688,6 +688,98 @@ async function epaddb(fastify, options, done) {
         reply.code(500).send(new InternalError('Getting templates from db', err));
       });
   });
+  // fastify.decorate('getContainerLog', async (request, reply) => {
+  //   console.log('*');
+  //   console.log('*');
+  //   console.log('*');
+  //   console.log('*');
+  //   console.log('*');
+  //   console.log('*');
+  //   //  console.log('container id to call he log for : ', request);
+  //   const pluginDataRootPath = await fastify.getUserPluginDataPathInternal();
+  //   //  console.log('pluginDataRootPath : ', pluginDataRootPath);
+  //   //  console.log('request', request.body);
+  //   const containerid = request.body.id;
+  //   const { creator } = request.body;
+  //   const dock = new DockerService();
+  //   console.log('hop hop called');
+  //   // const mainPath = await dock.inspectContainer('epad_lite');
+  //   // console.log('main path : ', mainPath);
+  //   const inspectResultObject = await dock.inspectContainer(`epadplugin_${containerid}`);
+  //   console.log('inspect result object', inspectResultObject);
+  //   console.log(
+  //     `tryinf to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+  //   );
+  //   const readStream = fs.createReadStream(
+  //     `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`,
+  //     'utf8'
+  //   );
+  //   // const readStream = fs.createReadStream(`${inspectResultObject.LogPath}`, 'utf8');
+  //   reply.res.setHeader('Content-type', 'application/octet-stream');
+  //   reply.res.setHeader('Access-Control-Allow-Origin', '*');
+  //   reply.send(readStream);
+  // });
+
+  fastify.decorate('stopContainerLog', (request, reply) => {
+    const dock = new DockerService();
+    dock.stopContainerLog(`5`).then(strm => {
+      console.log('stram returned obj', strm);
+      // strm.pipe(reply.res);
+      // strm.on('data', chunk => {
+      //   strm.pipe(reply.res);
+      // });
+
+      // reply.send(strm);
+      reply.send(200);
+    });
+  });
+  fastify.decorate('getContainerLog', (request, reply) => {
+    console.log('*');
+    console.log('*');
+    console.log('*');
+    console.log('*');
+    console.log('*');
+    console.log('*'); // eslint-disable-next-line no-unused-expressions
+    // reply.send(202);
+    //  console.log('container id to call he log for : ', request);
+    fastify.getUserPluginDataPathInternal().then(pluginDataRootPath => {
+      //  console.log('pluginDataRootPath : ', pluginDataRootPath);
+      //  console.log('request', request.body);
+      const containerid = request.body.id;
+      const { creator } = request.body;
+      const dock = new DockerService();
+      console.log('hop hop called');
+      // const mainPath = await dock.inspectContainer('epad_lite');
+      // console.log('main path : ', mainPath);
+      dock.inspectContainer(`epadplugin_${containerid}`).then(inspectResultObject => {
+        // console.log('inspect result object', inspectResultObject);
+        // console.log('status : ', inspectResultObject.State.Status);
+        console.log(
+          `tryinf to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+        );
+        if (inspectResultObject.State.Status === 'running') {
+          console.log('status running so sending stream');
+          reply.res.setHeader('Content-type', 'application/octet-stream');
+          reply.res.setHeader('Access-Control-Allow-Origin', '*');
+          reply.res.setHeader('connection', 'keep-alive');
+          dock
+            .getContainerLog(`${containerid}`)
+            .then(strm => {
+              console.log('stram returned obj', strm);
+              // strm.pipe(reply.res);
+              // strm.on('data', chunk => {
+              //   strm.pipe(reply.res);
+              // });
+              reply.send(strm);
+              // reply.send(strm);
+            })
+            .catch(() => {
+              console.log('hhhhhhyuyguyguguygugyuyguygyug');
+            });
+        }
+      });
+    });
+  });
 
   fastify.decorate('getPluginsWithProject', (request, reply) => {
     models.plugin
@@ -765,6 +857,7 @@ async function epaddb(fastify, options, done) {
         reply.code(500).send(new InternalError(`getPluginsWithProject error `, err));
       });
   });
+
   fastify.decorate('getOnePlugin', (request, reply) => {
     const { plugindbid } = request.params;
     models.plugin
@@ -1715,7 +1808,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('deleteFromPluginQueue', (request, reply) => {
     const pluginIdToDelete = [...request.body];
     const idsToDelete = [];
-    const dock = new DockerService();
+    const dock = new DockerService(fs);
     const promisesArray = [];
 
     for (let cnt = 0; cnt < pluginIdToDelete.length; cnt += 1) {
@@ -1912,18 +2005,22 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('stopPluginsQueue', async (request, reply) => {
     const queueIds = [...request.body];
-    const dock = new DockerService();
+    console.log('queueIds', queueIds);
+    const dock = new DockerService(fs);
     const containerLists = await dock.listContainers();
+    let containerFound = false;
+    reply.code(204).send();
     for (let cnt = 0; cnt < queueIds.length; cnt += 1) {
       const containerName = `/epadplugin_${queueIds[cnt]}`;
       let containerId = null;
-      let containerFound = false;
+      let queuid = null;
 
       for (let i = 0; i < containerLists.length; i += 1) {
         if (containerLists[i].names.includes(containerName)) {
           if (containerLists[i].state === 'running') {
             containerFound = true;
             containerId = containerLists[i].id;
+            queuid = queueIds[cnt];
 
             break;
           }
@@ -1934,7 +2031,15 @@ async function epaddb(fastify, options, done) {
         fastify.log.info('container name found  stopping : ', containerName);
         // eslint-disable-next-line no-await-in-loop
         const returnContainerStop = await dock.stopContainer(containerId);
-        fastify.log.info('stop container returned : ', returnContainerStop);
+        fastify.log.info('container stopped : ', returnContainerStop);
+        // eslint-disable-next-line no-await-in-loop
+        await fastify.updateStatusQueueProcessInternal(queuid, 'ended');
+        new EpadNotification(
+          request,
+          `plugin image ${containerName} set to ended`,
+          'success',
+          true
+        ).notify(fastify);
       }
     }
     reply.code(200).send('plugin stopped');
@@ -1975,7 +2080,7 @@ async function epaddb(fastify, options, done) {
               pluginObj.project = { ...data.dataValues.queueproject.dataValues };
             }
 
-            const dock = new DockerService();
+            const dock = new DockerService(fs);
             const containerName = `epadplugin_${pluginObj.id}`;
             dock
               .checkContainerExistance(containerName)
@@ -2282,6 +2387,38 @@ async function epaddb(fastify, options, done) {
       });
     }
   );
+  fastify.decorate('getUserPluginDataPathInternal', async () => {
+    const dock = new DockerService(fs);
+    const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
+    let epadLitePwd = '';
+    return new Promise((resolve, reject) => {
+      const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
+
+      console.log('finding plugin data root path : ', epadLiteBindPoints);
+      for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
+        if (epadLiteBindPoints[cntPoints].includes('pluginData')) {
+          // eslint-disable-next-line prefer-destructuring
+          epadLitePwd = epadLiteBindPoints[cntPoints].split(':')[0];
+          // epadLitePwd = epadLitePwd.split(':')[0];
+          break;
+        }
+      }
+      if (epadLitePwd === '') {
+        // console.log('oooo');
+        // console.log('oooo');
+        // console.log('oooo');
+        // console.log('rejecting getUserPluginDataPathInternal');
+        reject(new Error(`couldn't find epad_lite container. Please restart epad.`));
+      }
+      // console.log('resolved getUserPluginDataPathInternal ,,', epadLitePwd);
+      // console.log('oooo');
+      // console.log('oooo');
+      // console.log('oooo');
+      // console.log('oooo');
+      // console.log('resolved getUserPluginDataPathInternal ,,', epadLitePwd);
+      resolve(epadLitePwd);
+    });
+  });
   fastify.decorate('extractPluginParamtersInternal', (queueObject, request) => {
     return new Promise(async (resolve, reject) => {
       const parametertype = queueObject.plugin_parametertype;
@@ -2302,20 +2439,25 @@ async function epaddb(fastify, options, done) {
         fs.mkdirSync(pluginsDataFolder, { recursive: true });
       }
 
-      const dock = new DockerService();
+      const dock = new DockerService(fs);
       const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
       const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
-      let epadLitePwd = "";
-      console.log("getting epad_lite bind points to reflect : ",epadLiteBindPoints);
-      for (let cntPoints = 0 ; cntPoints < epadLiteBindPoints.length ;  cntPoints++){
-         if  (epadLiteBindPoints[cntPoints].includes("pluginData")){
-            epadLitePwd = epadLiteBindPoints[cntPoints];
-            break;
-         }
+      let epadLitePwd = '';
+      console.log('getting epad_lite bind points to reflect : ', epadLiteBindPoints);
+      for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
+        if (epadLiteBindPoints[cntPoints].includes('pluginData')) {
+          epadLitePwd = epadLiteBindPoints[cntPoints];
+          break;
+        }
       }
-      const tmpLocalServerBindPoint = epadLitePwd.split(":")[0];
-      const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${queueObject.id}/`;
-      console.log("getting epad_lite bind points and pwd local : ",localServerBindPoint);
+      const tmpLocalServerBindPoint = epadLitePwd.split(':')[0];
+      const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${
+        queueObject.id
+      }/`;
+      if (!fs.existsSync(`${localServerBindPoint}/logs`)) {
+        fs.mkdirSync(`${localServerBindPoint}/logs`, { recursive: true });
+      }
+      console.log('getting epad_lite bind points and pwd local : ', localServerBindPoint);
       if (parametertype === 'default') {
         try {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
@@ -2494,7 +2636,7 @@ async function epaddb(fastify, options, done) {
         }
 
         const tempLocalFolder = pluginParamsObj.serverfolder;
-        console.log("sorting params binding folders : ",tempLocalFolder);
+        console.log('sorting params binding folders : ', tempLocalFolder);
         // eslint-disable-next-line func-names
         tempPluginParams.sort((first, second) => {
           if (first.inputBinding === '' && second.inputBinding === '') {
@@ -2519,7 +2661,6 @@ async function epaddb(fastify, options, done) {
         const onlyNameValues = [];
         const foldersToBind = [];
         for (let i = 0; i < tempPluginParams.length; i += 1) {
-          
           if (
             tempPluginParams[i].format === 'InputFolder' ||
             tempPluginParams[i].format === 'OutputFolder'
@@ -2532,7 +2673,7 @@ async function epaddb(fastify, options, done) {
               );
             }
           }
-          if (tempPluginParams[i].paramid === 'parameters'){
+          if (tempPluginParams[i].paramid === 'parameters') {
             if (tempPluginParams[i].prefix !== '') {
               onlyNameValues.push(tempPluginParams[i].prefix);
             }
@@ -2616,7 +2757,7 @@ async function epaddb(fastify, options, done) {
       );
       fastify.log.info('first process is ready to send to docker ', pluginParameters);
       fastify.log.info('called image : ', imageRepo);
-      const dock = new DockerService();
+      const dock = new DockerService(fs);
       let checkImageExistOnHub = false;
       let checkImageExistLocal = false;
       try {
@@ -2648,13 +2789,16 @@ async function epaddb(fastify, options, done) {
       }
       if (checkImageExistOnHub === true || checkImageExistLocal === true) {
         try {
+          // eslint-disable-next-line no-await-in-loop
+          const userPluginRootPath = await fastify.getUserPluginDataPathInternal();
+
           let opreationresult = '';
           // eslint-disable-next-line no-await-in-loop
           const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
             pluginParameters
           );
-          fastify.log.info('sorted params : ', sortedParams);
-          fastify.log.info('plugin parameters', pluginParameters);
+          // fastify.log.info('sorted params : ', sortedParams);
+          // fastify.log.info('plugin parameters', pluginParameters);
 
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'running');
@@ -2665,8 +2809,15 @@ async function epaddb(fastify, options, done) {
             'success',
             true
           ).notify(fastify);
+
           // eslint-disable-next-line no-await-in-loop
-          await dock.createContainer(imageRepo, `epadplugin_${queueId}`, sortedParams);
+          opreationresult = await dock.createContainer(
+            imageRepo,
+            `epadplugin_${queueId}`,
+            sortedParams,
+            pluginQueueList[i],
+            userPluginRootPath
+          );
 
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
