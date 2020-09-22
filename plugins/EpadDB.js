@@ -7281,7 +7281,8 @@ async function epaddb(fastify, options, done) {
                   },
                   query,
                   epadAuth,
-                  false
+                  false,
+                  fileUids
                 );
                 isThereDataToWrite = isThereDataToWrite || isThereData;
               }
