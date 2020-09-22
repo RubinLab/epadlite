@@ -751,33 +751,49 @@ async function epaddb(fastify, options, done) {
       console.log('hop hop called');
       // const mainPath = await dock.inspectContainer('epad_lite');
       // console.log('main path : ', mainPath);
-      dock.inspectContainer(`epadplugin_${containerid}`).then(inspectResultObject => {
-        // console.log('inspect result object', inspectResultObject);
-        // console.log('status : ', inspectResultObject.State.Status);
-        console.log(
-          `tryinf to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-        );
-        if (inspectResultObject.State.Status === 'running') {
-          console.log('status running so sending stream');
+      dock
+        .inspectContainer(`epadplugin_${containerid}`)
+        .then(inspectResultObject => {
+          // console.log('inspect result object', inspectResultObject);
+          // console.log('status : ', inspectResultObject.State.Status);
+          console.log(
+            `tryinf to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+          );
+          if (inspectResultObject.State.Status === 'running') {
+            console.log('status running so sending stream');
+            reply.res.setHeader('Content-type', 'application/octet-stream');
+            reply.res.setHeader('Access-Control-Allow-Origin', '*');
+            reply.res.setHeader('connection', 'keep-alive');
+            const rdsrtm = fs.createReadStream(
+              `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+            );
+            reply.send(rdsrtm);
+            //  rdsrtm.pipe(reply.res);
+            // dock
+            //   .getContainerLog(`${containerid}`)
+            //   .then(strm => {
+            //     console.log('stram returned obj', strm);
+            //     // strm.pipe(reply.res);
+            //     // strm.on('data', chunk => {
+            //     //   strm.pipe(reply.res);
+            //     // });
+            //     reply.send(strm);
+            //     // reply.send(strm);
+            //   })
+            //   .catch(() => {
+            //     console.log('hhhhhhyuyguyguguygugyuyguygyug');
+            //   });
+          }
+        })
+        .catch(err => {
           reply.res.setHeader('Content-type', 'application/octet-stream');
           reply.res.setHeader('Access-Control-Allow-Origin', '*');
-          reply.res.setHeader('connection', 'keep-alive');
-          dock
-            .getContainerLog(`${containerid}`)
-            .then(strm => {
-              console.log('stram returned obj', strm);
-              // strm.pipe(reply.res);
-              // strm.on('data', chunk => {
-              //   strm.pipe(reply.res);
-              // });
-              reply.send(strm);
-              // reply.send(strm);
-            })
-            .catch(() => {
-              console.log('hhhhhhyuyguyguguygugyuyguygyug');
-            });
-        }
-      });
+          //  reply.res.charset = 'UTF-8';
+          reply.res.write('404');
+          reply.res.end();
+          console.log('err', err);
+          // reply.code(404).send(err);
+        });
     });
   });
 
@@ -2042,7 +2058,7 @@ async function epaddb(fastify, options, done) {
         ).notify(fastify);
       }
     }
-    reply.code(200).send('plugin stopped');
+    // reply.code(200).send('plugin stopped');
   });
   fastify.decorate('runPluginsQueue', async (request, reply) => {
     //  will receive a queue object which contains plugin id

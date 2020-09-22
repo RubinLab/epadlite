@@ -192,7 +192,7 @@ class DockerService {
         .createContainer({
           Image: imageId,
           name: containerNameToGive,
-          AttachStdin: false,
+          AttachStdin: true,
           AttachStdout: true,
           AttachStderr: true,
           Tty: true,
@@ -241,23 +241,26 @@ class DockerService {
             containerNameToGive
           );
           process.chdir(filename);
-          if (fs.existsSync(`logfile.txt`)) {
-            fs.unlink(`logfile.txt`, errc => {
-              if (errc) throw errc;
-              console.log(`logfile.txt`, 'was deleted');
-            });
-            // fs.mkdirSync(`${filename}/logfile.txt`, { recursive: true });
-          }
+          // if (fs.existsSync(`logfile.txt`)) {
+          //   fs.unlink(`logfile.txt`, errc => {
+          //     if (errc) throw errc;
+          //     console.log(`logfile.txt`, 'was deleted');
+          //   });
+          //   // fs.mkdirSync(`${filename}/logfile.txt`, { recursive: true });
+          // }
           console.log('currentPath = ', process.cwd());
           // eslint-disable-next-line func-names
           tmpContainer.attach({ stream: true, stdout: true, stderr: true }, function(err, stream) {
-            stream.on('data', chunk => {
-              // eslint-disable-next-line func-names
-              fs.appendFile(`logfile.txt`, chunk, function(erra) {
-                if (erra) throw erra;
-                console.log('Saved!', chunk);
-              });
-            });
+            const strm = fs.createWriteStream(`${filename}/logfile.txt`);
+            stream.pipe(strm);
+            // stream.on('data', chunk => {
+            //   // eslint-disable-next-line func-names
+            //   fs.appendFile(`logfile.txt`, chunk, function(erra) {
+            //     if (erra) throw erra;
+            //     console.log('Saved!', chunk);
+            //   });
+            // });
+            // above here
             // stream.pipe(process.stdout);
           });
 
