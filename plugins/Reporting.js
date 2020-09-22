@@ -1,16 +1,7 @@
 const fp = require('fastify-plugin');
 const _ = require('lodash');
-// const config = require('../config/index');
-// const EpadNotification = require('../utils/EpadNotification');
 
-const {
-  InternalError,
-  //   ResourceNotFoundError,
-  //   BadRequestError,
-  //   UnauthenticatedError,
-  //   UnauthorizedError,
-  //   ResourceAlreadyExistsError,
-} = require('../utils/EpadErrors');
+const { InternalError } = require('../utils/EpadErrors');
 
 async function reporting(fastify) {
   fastify.decorate('numOfLongitudinalHeaderCols', 2);
@@ -74,9 +65,6 @@ async function reporting(fastify) {
 
   fastify.decorate('fillTable', (aimJSONs, template, columns, shapesIn) => {
     try {
-      // const aimUids = await fastify.getAimUidsForProjectFilter(params, filter);
-      // const aimJSONs = await fastify.getAimsInternal('json', params, aimUids, epadAuth);
-
       // TODO handle multiple templates (decided not to do it for now)
       const shapes = typeof shapesIn === 'string' ? shapesIn.split(',') : shapesIn;
       const table = [];
@@ -499,10 +487,6 @@ async function reporting(fastify) {
           if (!tLesionNames.includes(lesionName)) tLesionNames.push(lesionName);
           if (trackingUID && !tTrackingUIDs.includes(trackingUID)) tTrackingUIDs.push(trackingUID);
         } else {
-          // will not work with the new version, but should keep for the old version
-          if (type.toLowerCase() === 'new lesion' && !ntNewLesionStudyDates.includes(studyDate)) {
-            ntNewLesionStudyDates.push(studyDate);
-          }
           if (!ntLesionNames.includes(lesionName)) ntLesionNames.push(lesionName);
           if (trackingUID && !ntTrackingUIDs.includes(trackingUID))
             ntTrackingUIDs.push(trackingUID);
@@ -999,8 +983,7 @@ async function reporting(fastify) {
               table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] = aimStatus;
             } else {
               let status = '';
-              if (aimType.equals('resolved lesion') || aimType.equals('new lesion'))
-                status = aimType;
+              if (aimType === 'resolved lesion' || aimType === 'new lesion') status = aimType;
               else status = 'present lesion';
 
               table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] = status;
@@ -1099,8 +1082,8 @@ async function reporting(fastify) {
         fastify.log.error(
           `Error during filling report table for ${index} and ${studyDates} Error: ${err.message}`
         );
+        throw err;
       }
-      return { table: [], UIDs: [] };
     }
   );
 

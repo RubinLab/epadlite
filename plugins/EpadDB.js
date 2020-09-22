@@ -5153,9 +5153,28 @@ async function epaddb(fastify, options, done) {
               epadAuth.username,
               transaction
             );
+            fastify.log.info(`Recist report for ${subject.subjectuid} updated`);
+            resolve('Recist got and saved');
+          } else {
+            fastify.log.info(
+              `Recist report generation failed, deleting old report for ${
+                subject.subjectuid
+              } if exists`
+            );
+            await models.project_subject_report.destroy({
+              where: {
+                project_id: projectId,
+                subject_id: subject.id,
+                type: 'recist',
+              },
+            });
+            reject(
+              new InternalError(
+                `Updating recist report for project ${projectId}, subject ${subject.subjectuid}`,
+                new Error('Report not generated')
+              )
+            );
           }
-          fastify.log.info(`Recist report for ${subject.subjectuid} updated`);
-          resolve('Recist got and saved it exists');
         } catch (err) {
           reject(
             new InternalError(
