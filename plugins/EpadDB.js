@@ -190,6 +190,10 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'subject_id',
           });
 
+          models.project_subject.belongsTo(models.project, {
+            foreignKey: 'project_id',
+          });
+
           models.study.hasMany(models.project_subject_study, {
             foreignKey: 'study_id',
           });
@@ -200,8 +204,14 @@ async function epaddb(fastify, options, done) {
             otherKey: 'study_id',
           });
 
-          models.study.hasMany(models.project_subject_study, {
-            foreignKey: 'study_id',
+          models.project_subject_report.belongsTo(models.subject, {
+            foreignKey: 'subject_id',
+            onDelete: 'CASCADE',
+          });
+
+          models.project_subject_report.belongsTo(models.project, {
+            foreignKey: 'project_id',
+            onDelete: 'CASCADE',
           });
 
           models.project.hasMany(models.project_aim, {
@@ -210,6 +220,11 @@ async function epaddb(fastify, options, done) {
 
           models.project_template.belongsTo(models.project, {
             foreignKey: 'project_id',
+          });
+
+          models.project_aim.belongsTo(models.project, {
+            foreignKey: 'project_id',
+            onDelete: 'CASCADE',
           });
 
           await fastify.orm.sync();
@@ -4059,6 +4074,50 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate('getSubjectUIDsFromProject', async projectID => {
+    try {
+      const subjects = await models.subject.findAll({
+        include: [
+          {
+            model: models.project_subject,
+            include: [{ model: models.project, where: { projectid: projectID } }],
+          },
+        ],
+      });
+      return subjects.map(subject => {
+        return subject.dataValues.subjectuid;
+      });
+    } catch (err) {
+      fastify.log.error(
+        `Couldn't retrieve list of subjectuids from project ${projectID} Error: ${err.message}`
+      );
+      return [];
+    }
+  });
+
+  fastify.decorate('getSubjectUIDsFromAimsInProject', async projectID => {
+    try {
+      const projectAims = await models.project_aim.findAll({
+        include: [
+          {
+            model: models.project,
+            where: { projectid: projectID },
+          },
+        ],
+        attributes: ['subject_uid'],
+        group: ['subject_uid'],
+      });
+      return projectAims.map(subject => {
+        return subject.dataValues.subject_uid;
+      });
+    } catch (err) {
+      fastify.log.error(
+        `Couldn't retrieve list of subjectuids from project ${projectID} Error: ${err.message}`
+      );
+      return [];
+    }
+  });
+
   fastify.decorate('getPatientsFromProject', async (request, reply) => {
     try {
       if (request.params.project === config.unassignedProjectID && config.pollDW === 0) {
@@ -4445,7 +4504,7 @@ async function epaddb(fastify, options, done) {
             }
           } else if (config.mode === 'lite') {
             // if mode is like just return lite projects aims
-            const aimUids = await fastify.getAimUidsForProject({ project: 'lite' });
+            const aimUids = await fastify.getAimUidsForProjectFilter({ project: 'lite' });
             resolve(aimUids);
           }
         } catch (err) {
@@ -4455,8 +4514,8 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
-    'getAimUidsForProject',
-    params =>
+    'getAimUidsForProjectFilter',
+    (params, filter) =>
       new Promise(async (resolve, reject) => {
         try {
           const project = await models.project.findOne(
@@ -4474,9 +4533,11 @@ async function epaddb(fastify, options, done) {
               )
             );
           else {
+            let whereJSON = { project_id: project.id };
+            if (filter) whereJSON = { ...whereJSON, ...filter };
             const aimUids = [];
             const projectAims = await models.project_aim.findAll({
-              where: { project_id: project.id },
+              where: whereJSON,
             });
             // projects will be an array of Project instances with the specified name
             for (let i = 0; i < projectAims.length; i += 1) {
@@ -4493,10 +4554,10 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'filterProjectAims',
-    (params, query, epadAuth) =>
+    (params, query, epadAuth, filter) =>
       new Promise(async (resolve, reject) => {
         try {
-          const aimUids = await fastify.getAimUidsForProject(params);
+          const aimUids = await fastify.getAimUidsForProjectFilter(params, filter);
           const result = await fastify.getAimsInternal(query.format, params, aimUids, epadAuth);
           resolve(result);
         } catch (err) {
@@ -4542,95 +4603,196 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate('getReportFromDB', async (params, report, bestResponseType) => {
+    try {
+      const projSubjReport = await models.project_subject_report.findOne({
+        where: {
+          '$subject.subjectuid$': params.subject,
+          '$project.projectid$': params.project,
+          type: report.toLowerCase(),
+        },
+        include: [{ model: models.project }, { model: models.subject }],
+      });
+
+      if (projSubjReport) {
+        if (bestResponseType) {
+          if (bestResponseType.toLowerCase() === 'min')
+            return Number(projSubjReport.dataValues.best_response_min);
+          if (bestResponseType.toLowerCase() === 'baseline')
+            return Number(projSubjReport.dataValues.best_response_baseline);
+          fastify.log.warn(`Unsupported bestResponseType ${bestResponseType}`);
+          return null;
+        }
+        if (projSubjReport.dataValues.report) {
+          return JSON.parse(projSubjReport.dataValues.report);
+        }
+      }
+      return null;
+    } catch (err) {
+      throw new InternalError(
+        `Getting report ${report} from params ${JSON.stringify(params)}`,
+        err
+      );
+    }
+  });
+
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
-      let result = await fastify.filterProjectAims(request.params, request.query, request.epadAuth);
-      if (request.query.format === 'stream') {
-        reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-      } else if (request.query.format === 'summary') {
-        result = result.map(obj => ({ ...obj, projectID: request.params.project }));
-      } else if (request.query.longitudinal_ref) {
-        const aimsByName = {};
-        const aimsByTUID = {};
-        let tUIDCount = 0;
-        result.forEach(aim => {
-          const name = aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
-            '~'
-          )[0];
-          const studyDate =
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate.value;
-          let type;
-          // recist
-          if (
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .imagingObservationEntityCollection &&
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .imagingObservationEntityCollection.ImagingObservationEntity[0]
-              .imagingObservationCharacteristicCollection &&
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imagingObservationEntityCollection.ImagingObservationEntity[0].imagingObservationCharacteristicCollection.ImagingObservationCharacteristic[0].label.value.toLowerCase() ===
-              'type'
-          )
-            type =
-              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                .imagingObservationEntityCollection.ImagingObservationEntity[0]
-                .imagingObservationCharacteristicCollection.ImagingObservationCharacteristic[0]
-                .typeCode[0]['iso:displayName'].value;
-          // recist v2
-          if (
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .imagingObservationEntityCollection &&
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .imagingObservationEntityCollection.ImagingObservationEntity[0]
-              .imagingObservationCharacteristicCollection &&
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .imagingObservationEntityCollection.ImagingObservationEntity[0]
-              .imagingObservationCharacteristicCollection.ImagingObservationCharacteristic[1] &&
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imagingObservationEntityCollection.ImagingObservationEntity[0].imagingObservationCharacteristicCollection.ImagingObservationCharacteristic[1].label.value.toLowerCase() ===
-              'type'
-          )
-            type =
-              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                .imagingObservationEntityCollection.ImagingObservationEntity[0]
-                .imagingObservationCharacteristicCollection.ImagingObservationCharacteristic[1]
-                .typeCode[0]['iso:displayName'].value;
+      let filter;
+      if (request.query.format === 'returnTable' && request.query.templatecode) {
+        filter = { template: request.query.templatecode };
+      }
+      let result;
+      // check for saved reports
+      if (request.query.report) {
+        switch (request.query.report) {
+          case 'RECIST':
+            // should be one patient
+            if (request.params.subject) {
+              result = await fastify.getReportFromDB(request.params, request.query.report);
+              if (result) {
+                reply.code(200).send(result);
+                return;
+              }
+            } else {
+              reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
+              return;
+            }
+            break;
+          default:
+            fastify.log.info(`Report ${request.query.report} not in db. trying to generate`);
+        }
+      }
+      result = await fastify.filterProjectAims(
+        request.params,
+        request.query,
+        request.epadAuth,
+        filter
+      );
+      if (request.query.report) {
+        switch (request.query.report) {
+          case 'RECIST':
+            // should be one patient
+            if (request.params.subject) result = fastify.getRecist(result);
+            else {
+              reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
+              return;
+            }
+            break;
+          case 'Longitudinal':
+            if (request.params.subject) result = fastify.getLongitudinal(result);
+            else {
+              reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
+              return;
+            }
+            break;
+          default:
+            break;
+        }
+      } else {
+        switch (request.query.format) {
+          case 'returnTable':
+            result = fastify.fillTable(
+              result,
+              request.query.templatecode,
+              request.query.columns.split(','),
+              request.query.shapes
+            );
+            break;
+          case 'stream':
+            reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+            break;
+          case 'summary':
+            result = result.map(obj => ({ ...obj, projectID: request.params.project }));
+            break;
+          default:
+            if (request.query.longitudinal_ref) {
+              const aimsByName = {};
+              const aimsByTUID = {};
+              let tUIDCount = 0;
+              result.forEach(aim => {
+                const name = aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+                  '~'
+                )[0];
+                const studyDate =
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
+                    .value;
+                let type;
+                // recist
+                if (
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                    .imagingObservationCharacteristicCollection &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imagingObservationEntityCollection.ImagingObservationEntity[0].imagingObservationCharacteristicCollection.ImagingObservationCharacteristic[0].label.value.toLowerCase() ===
+                    'type'
+                )
+                  type =
+                    aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                      .imagingObservationCharacteristicCollection
+                      .ImagingObservationCharacteristic[0].typeCode[0]['iso:displayName'].value;
+                // recist v2
+                if (
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                    .imagingObservationCharacteristicCollection &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                    .imagingObservationCharacteristicCollection
+                    .ImagingObservationCharacteristic[1] &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imagingObservationEntityCollection.ImagingObservationEntity[0].imagingObservationCharacteristicCollection.ImagingObservationCharacteristic[1].label.value.toLowerCase() ===
+                    'type'
+                )
+                  type =
+                    aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                      .imagingObservationCharacteristicCollection
+                      .ImagingObservationCharacteristic[1].typeCode[0]['iso:displayName'].value;
 
-          if (name && !aimsByName[name]) aimsByName[name] = { aim, type };
-          else if (
-            aimsByName[name].aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate.value <
-            studyDate
-          )
-            aimsByName[name] = { aim, type };
-          if (
-            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .trackingUniqueIdentifier
-          ) {
-            if (
-              !aimsByTUID[
-                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .trackingUniqueIdentifier.root
-              ]
-            )
-              aimsByTUID[
-                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].trackingUniqueIdentifier.root
-              ] = { aim, type };
-            else if (
-              aimsByTUID[
-                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .trackingUniqueIdentifier.root
-              ].aim.ImageAnnotationCollection.imaÎgeAnnotations.ImageAnnotation[0]
-                .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate.value <
-              studyDate
-            )
-              aimsByTUID[
-                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].trackingUniqueIdentifier.root
-              ] = { aim, type };
-            tUIDCount += 1;
-          }
-        });
-        if (tUIDCount === result.length) result = aimsByTUID;
-        else result = aimsByName;
+                if (name && !aimsByName[name]) aimsByName[name] = { aim, type };
+                else if (
+                  aimsByName[name].aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
+                    .value < studyDate
+                )
+                  aimsByName[name] = { aim, type };
+                if (
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .trackingUniqueIdentifier
+                ) {
+                  if (
+                    !aimsByTUID[
+                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                        .trackingUniqueIdentifier.root
+                    ]
+                  )
+                    aimsByTUID[
+                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].trackingUniqueIdentifier.root
+                    ] = { aim, type };
+                  else if (
+                    aimsByTUID[
+                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                        .trackingUniqueIdentifier.root
+                    ].aim.ImageAnnotationCollection.imaÎgeAnnotations.ImageAnnotation[0]
+                      .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
+                      .value < studyDate
+                  )
+                    aimsByTUID[
+                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].trackingUniqueIdentifier.root
+                    ] = { aim, type };
+                  tUIDCount += 1;
+                }
+              });
+              if (tUIDCount === result.length) result = aimsByTUID;
+              else result = aimsByName;
+            }
+            break;
+        }
       }
       reply.code(200).send(result);
     } catch (err) {
@@ -4794,10 +4956,13 @@ async function epaddb(fastify, options, done) {
               : '';
 
           let projectId = '';
+          let projectUid = '';
           if (typeof project === 'string') {
             projectId = await fastify.findProjectIdInternal(project);
+            projectUid = project;
           } else {
             projectId = project.id;
+            projectUid = project.dataValues.projectid;
           }
           await fastify.upsert(
             models.project_aim,
@@ -4823,13 +4988,14 @@ async function epaddb(fastify, options, done) {
           );
 
           // update the worklist completeness if in any
-          await fastify.updateWorklistCompleteness(
+          await fastify.aimUpdateGateway(
             projectId,
             subjectUid,
             studyUid,
             user,
             epadAuth,
-            transaction
+            transaction,
+            projectUid
           );
 
           resolve('Aim project relation is created');
@@ -4838,7 +5004,7 @@ async function epaddb(fastify, options, done) {
             new InternalError(
               `Aim project relation creation aimuid ${
                 aim.ImageAnnotationCollection.uniqueIdentifier.root
-              }, project ${project.project}`,
+              }, project ${project.projectid ? project.projectid : project}`,
               err
             )
           );
@@ -5014,6 +5180,134 @@ async function epaddb(fastify, options, done) {
       reply.send(new InternalError(`Worklist requirement ${request.params.worklist} add`, err));
     }
   });
+
+  fastify.decorate(
+    'aimUpdateGateway',
+    (projectId, subjectUid, studyUid, user, epadAuth, transaction, projectUid) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await fastify.updateWorklistCompleteness(
+            projectId,
+            subjectUid,
+            studyUid,
+            user,
+            epadAuth,
+            transaction
+          );
+          // give warning but do not fail if you cannot update the report (it fails if dicoms are not in db)
+          try {
+            await fastify.updateReports(projectId, projectUid, subjectUid, epadAuth, transaction);
+          } catch (reportErr) {
+            fastify.log.warn(
+              `Could not update the report for patient ${subjectUid} Error: ${reportErr.message}`
+            );
+          }
+          resolve('Aim gateway completed!');
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getAndSaveRecist',
+    (projectId, subject, result, epadAuth, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const recist = fastify.getRecist(result);
+          if (recist && recist !== {}) {
+            const bestResponseBaseline = recist.tRRBaseline ? Math.min(...recist.tRRBaseline) : 0;
+            const bestResponseMin = recist.tRRMin ? Math.min(...recist.tRRMin) : 0;
+            await fastify.upsert(
+              models.project_subject_report,
+              {
+                project_id: projectId,
+                subject_id: subject.id,
+                type: 'recist',
+                report: JSON.stringify(recist),
+                best_response_baseline: bestResponseBaseline,
+                best_response_min: bestResponseMin,
+                updated: true,
+                updatetime: Date.now(),
+              },
+              {
+                project_id: projectId,
+                subject_id: subject.id,
+                type: 'recist',
+              },
+              epadAuth.username,
+              transaction
+            );
+            fastify.log.info(`Recist report for ${subject.subjectuid} updated`);
+            resolve('Recist got and saved');
+          } else {
+            fastify.log.info(
+              `Recist report generation failed, deleting old report for ${
+                subject.subjectuid
+              } if exists`
+            );
+            await models.project_subject_report.destroy({
+              where: {
+                project_id: projectId,
+                subject_id: subject.id,
+                type: 'recist',
+              },
+            });
+            reject(
+              new InternalError(
+                `Updating recist report for project ${projectId}, subject ${subject.subjectuid}`,
+                new Error('Report not generated')
+              )
+            );
+          }
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating recist report for project ${projectId}, subject ${subject.subjectuid}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'updateReports',
+    (projectId, projectUid, subjectUid, epadAuth, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // check if we have the subject in db so that we don't attempt if not
+          const subject = await models.subject.findOne(
+            {
+              where: { subjectuid: subjectUid },
+              attributes: ['id', 'subjectuid'],
+              raw: true,
+            },
+            transaction ? { transaction } : {}
+          );
+          if (!subject) {
+            resolve('No DICOMS, skipping report generation');
+          } else {
+            // just RECIST for now
+            const result = await fastify.filterProjectAims(
+              { project: projectUid, subject: subjectUid },
+              {},
+              epadAuth,
+              {}
+            );
+            await fastify.getAndSaveRecist(projectId, subject, result, epadAuth, transaction);
+            resolve('Reports updated!');
+          }
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating reports for project ${projectId}, subject ${subjectUid}`,
+              err
+            )
+          );
+        }
+      })
+  );
 
   fastify.decorate(
     'updateWorklistCompleteness',
@@ -5343,6 +5637,7 @@ async function epaddb(fastify, options, done) {
     }
     return { completed, required };
   });
+
   fastify.decorate('deleteAimFromProject', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -5373,12 +5668,14 @@ async function epaddb(fastify, options, done) {
         });
 
         if (args) {
-          await fastify.updateWorklistCompleteness(
+          await fastify.aimUpdateGateway(
             args.project_id,
             args.subject_uid,
             args.study_uid,
             args.user,
-            request.epadAuth
+            request.epadAuth,
+            undefined,
+            request.params.project
           );
         }
 
@@ -7069,7 +7366,8 @@ async function epaddb(fastify, options, done) {
                   },
                   query,
                   epadAuth,
-                  false
+                  false,
+                  fileUids
                 );
                 isThereDataToWrite = isThereDataToWrite || isThereData;
               }
