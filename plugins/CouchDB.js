@@ -103,7 +103,7 @@ async function couchdb(fastify, options) {
       ioes.forEach(ioe => {
         // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
         header.push({ id: ioe.label.value.toLowerCase(), title: ioe.label.value });
-        if (ioe.imagingObservationEntityCharacteristicCollection) {
+        if (ioe.imagingObservationCharacteristicCollection) {
           const iocs =
             ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
           iocs.forEach(ioc => {
@@ -515,7 +515,11 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate('isCollaborator', (project, epadAuth) => {
-    return epadAuth.projectToRole.includes(`${project}:Collaborator`);
+    return (
+      epadAuth &&
+      epadAuth.projectToRole &&
+      epadAuth.projectToRole.includes(`${project}:Collaborator`)
+    );
   });
 
   // filter aims with aimId filter array

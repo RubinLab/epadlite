@@ -306,5 +306,14 @@ async function otherRoutes(fastify) {
     url: '/decrypt',
     handler: fastify.decrypt,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/reports/waterfall',
+    schema: {
+      tags: ['report'],
+    },
+    handler: fastify.getWaterfallReport,
+  });
 }
 module.exports = otherRoutes;
