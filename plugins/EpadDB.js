@@ -2301,15 +2301,31 @@ async function epaddb(fastify, options, done) {
                   const aimsKeysLength = Object.keys(aims).length;
                   const aimsKeys = Object.keys(aims);
                   for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
+                    const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
                     const writeStream = fs
                       .createWriteStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
                       // eslint-disable-next-line func-names
                       .on('finish', function() {
                         fastify.log.info('dicom copy finished');
                         // unzip part
+                        // added aims[aimsKeys[aimsCnt]] for the folder name we will use aim uid
                         fs.createReadStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
-                          .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                          .pipe(
+                            unzip.Extract({
+                              path: aimNamedExtractFolder,
+                            })
+                          )
                           .on('close', () => {
+                            console.log(' *******');
+                            console.log(' *******');
+                            console.log(' *******');
+                            console.log(' *******');
+                            console.log(' *******');
+                            console.log(' *******');
+                            console.log(' *******');
+                            console.log(' *******');
+                            console.log(`${inputfolder}${aims[aimsKeys[aimsCnt]]}`);
+
                             fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip extracted`);
                             fs.remove(`${inputfolder}/dicoms${aimsCnt}.zip`, error => {
                               if (error) {
