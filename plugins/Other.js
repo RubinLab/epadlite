@@ -1368,7 +1368,10 @@ async function other(fastify) {
       const methodText = { GET: 'GET', POST: 'CREATE', PUT: 'UPDATE', DELETE: 'DELETE' };
       reqInfo.methodText = methodText[request.req.method];
       const queryStart = request.req.url.indexOf('?');
-      let cleanUrl = request.req.url.replace(`/${config.prefix}`, '');
+      let cleanUrl = config.prefix
+        ? request.req.url.replace(`/${config.prefix}`, '')
+        : request.req.url;
+
       if (queryStart !== -1) cleanUrl = cleanUrl.substring(0, queryStart);
       const urlParts = cleanUrl.split('/');
       const levels = {
@@ -1775,7 +1778,7 @@ async function other(fastify) {
   });
 
   fastify.decorate('isProjectRoute', request =>
-    request.req.url.startsWith(`/${config.prefix}/projects/`)
+    request.req.url.startsWith(config.prefix ? `/${config.prefix}/projects/` : '/projects/')
   );
 
   // remove null in patient id
