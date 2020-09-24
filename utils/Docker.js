@@ -168,25 +168,7 @@ class DockerService {
     const paramsDocker = [...params.paramsDocker];
     const dockerFoldersToBind = [...params.dockerFoldersToBind];
     // dockerFoldersToBind = ['/Users/cavit/pluginDevelop/pluginData/admin/5/logs:/logs'];
-    console.log('params list used in container : ', paramsDocker);
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log(
-      '@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ mapping these dockerFoldersToBind : ',
-      dockerFoldersToBind
-    );
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
-    console.log('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@');
+
     return (
       this.docker
         .createContainer({
@@ -221,7 +203,7 @@ class DockerService {
           return tmpContainer.start();
         })
         // eslint-disable-next-line func-names
-        .then(function() {
+        .then(async function() {
           // eslint-disable-next-line func-names
           // tmpContainer.inspect(function(err, data) {
           //   if (err) {
@@ -263,21 +245,32 @@ class DockerService {
             // above here
             // stream.pipe(process.stdout);
           });
-
-          return tmpContainer.wait();
+          const runRes = await tmpContainer.wait();
+          console.log('waiting result', runRes);
+          // if (waitRes.StatusCode > 0) {
+          //   throw new Error(
+          //     `Plugin exited with error code (${waitRes.StatusCode}). PLease check plugin logs`
+          //   );
+          // }
+          return runRes.StatusCode;
         })
         // eslint-disable-next-line func-names
-        .then(function() {
+        .then(async function(errcode) {
+          // errcode is recevied when container finishes and exited with an error code > 0
           console.log(
-            'plugin container is done processing. Removing the container',
-            containerNameToGive
+            `${errcode} plugin container is done processing. Removing the containe ${containerNameToGive}`
           );
           // // eslint-disable-next-line func-names
           // fs.appendFile('mynewfile1.txt', 'Hello content!', function(err) {
           //   if (err) throw err;
           //   console.log('Saved!');
           // });
-          return tmpContainer.remove();
+          const waitRes = await tmpContainer.remove();
+          console.log(`wait response status ${waitRes}`);
+          if (errcode > 0) {
+            throw new Error(`Plugin exited with error code (${errcode}). PLease check plugin logs`);
+          }
+          return 0; //tmpContainer.remove();
         })
         // eslint-disable-next-line func-names
         .catch(function(err) {
