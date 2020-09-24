@@ -9431,6 +9431,12 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS maxruntime int(10) AFTER memory;`,
               { transaction: t }
             );
+
+            await fastify.orm.query(
+              `ALTER TABLE plugin_queue
+              MODIFY COLUMN status varchar(10) ;`,
+              { transaction: t }
+            );
             // cavit
             // set the orphaned project_user entities to the first admin
             await fastify.orm.query(
