@@ -2067,6 +2067,14 @@ async function epaddb(fastify, options, done) {
         }
       }
       if (containerFound === true) {
+        // eslint-disable-next-line no-await-in-loop
+        await fastify.updateStatusQueueProcessInternal(queuid, 'stopping');
+        new EpadNotification(
+          request,
+          `plugin image ${containerName} set to stopping`,
+          'success',
+          true
+        ).notify(fastify);
         containerFound = false;
         fastify.log.info('container name found  stopping : ', containerName);
         // eslint-disable-next-line no-await-in-loop
@@ -2660,6 +2668,26 @@ async function epaddb(fastify, options, done) {
             'error while updating queue process status for ended or error',
             err
           );
+        });
+    }
+    if (status === 'stopping') {
+      console.log('db is writing stopping ', status);
+      models.plugin_queue
+        .update(
+          {
+            status,
+          },
+          {
+            where: {
+              id: queuid,
+            },
+          }
+        )
+        .then(data => {
+          return data;
+        })
+        .catch(err => {
+          return new InternalError('error while updating queue process status for stopping', err);
         });
     }
   });
