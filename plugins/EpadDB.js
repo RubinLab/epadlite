@@ -4706,6 +4706,91 @@ async function epaddb(fastify, options, done) {
             result = result.map(obj => ({ ...obj, projectID: request.params.project }));
             break;
           default:
+            if (request.query.longitudinal_ref) {
+              const aimsByName = {};
+              const aimsByTUID = {};
+              let tUIDCount = 0;
+              result.forEach(aim => {
+                const name = aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+                  '~'
+                )[0];
+                const studyDate =
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
+                    .value;
+                let type;
+                // recist
+                if (
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                    .imagingObservationCharacteristicCollection &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imagingObservationEntityCollection.ImagingObservationEntity[0].imagingObservationCharacteristicCollection.ImagingObservationCharacteristic[0].label.value.toLowerCase() ===
+                    'type'
+                )
+                  type =
+                    aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                      .imagingObservationCharacteristicCollection
+                      .ImagingObservationCharacteristic[0].typeCode[0]['iso:displayName'].value;
+                // recist v2
+                if (
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                    .imagingObservationCharacteristicCollection &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                    .imagingObservationCharacteristicCollection
+                    .ImagingObservationCharacteristic[1] &&
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imagingObservationEntityCollection.ImagingObservationEntity[0].imagingObservationCharacteristicCollection.ImagingObservationCharacteristic[1].label.value.toLowerCase() ===
+                    'type'
+                )
+                  type =
+                    aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .imagingObservationEntityCollection.ImagingObservationEntity[0]
+                      .imagingObservationCharacteristicCollection
+                      .ImagingObservationCharacteristic[1].typeCode[0]['iso:displayName'].value;
+
+                if (name && !aimsByName[name]) aimsByName[name] = { aim, type };
+                else if (
+                  aimsByName[name].aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
+                    .value < studyDate
+                )
+                  aimsByName[name] = { aim, type };
+                if (
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .trackingUniqueIdentifier
+                ) {
+                  if (
+                    !aimsByTUID[
+                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                        .trackingUniqueIdentifier.root
+                    ]
+                  )
+                    aimsByTUID[
+                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].trackingUniqueIdentifier.root
+                    ] = { aim, type };
+                  else if (
+                    aimsByTUID[
+                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                        .trackingUniqueIdentifier.root
+                    ].aim.ImageAnnotationCollection.imaÎgeAnnotations.ImageAnnotation[0]
+                      .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
+                      .value < studyDate
+                  )
+                    aimsByTUID[
+                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].trackingUniqueIdentifier.root
+                    ] = { aim, type };
+                  tUIDCount += 1;
+                }
+              });
+              if (tUIDCount === result.length) result = aimsByTUID;
+              else result = aimsByName;
+            }
             break;
         }
       }
