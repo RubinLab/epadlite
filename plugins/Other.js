@@ -729,7 +729,6 @@ async function other(fastify) {
                   .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                   .then(res => {
                     try {
-                      fastify.log.info(`Saving successful for ${filename}`);
                       resolve(res);
                     } catch (errProject) {
                       reject(errProject);
@@ -1369,7 +1368,10 @@ async function other(fastify) {
       const methodText = { GET: 'GET', POST: 'CREATE', PUT: 'UPDATE', DELETE: 'DELETE' };
       reqInfo.methodText = methodText[request.req.method];
       const queryStart = request.req.url.indexOf('?');
-      let cleanUrl = request.req.url;
+      let cleanUrl = config.prefix
+        ? request.req.url.replace(`/${config.prefix}`, '')
+        : request.req.url;
+
       if (queryStart !== -1) cleanUrl = cleanUrl.substring(0, queryStart);
       const urlParts = cleanUrl.split('/');
       const levels = {
@@ -1628,9 +1630,9 @@ async function other(fastify) {
     if (
       config.auth &&
       config.auth !== 'none' &&
-      !req.req.url.startsWith(`${config.prefix}/documentation`) &&
-      !req.req.url.startsWith(`${config.prefix}/epads/stats`) &&
-      !req.req.url.startsWith(`${config.prefix}/epad/statistics`) // disabling auth for put is dangerous
+      !req.req.url.startsWith(`/${config.prefix}/documentation`) &&
+      !req.req.url.startsWith(`/${config.prefix}/epads/stats`) &&
+      !req.req.url.startsWith(`/${config.prefix}/epad/statistics`) // disabling auth for put is dangerous
     ) {
       // if auth has been given in config, verify authentication
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
@@ -1776,7 +1778,7 @@ async function other(fastify) {
   });
 
   fastify.decorate('isProjectRoute', request =>
-    request.req.url.startsWith(`${config.prefix}/projects/`)
+    request.req.url.startsWith(config.prefix ? `/${config.prefix}/projects/` : '/projects/')
   );
 
   // remove null in patient id

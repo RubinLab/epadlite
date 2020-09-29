@@ -1877,6 +1877,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1907,6 +1908,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1922,6 +1924,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims/2.25.211702350959705565754863799143359605362')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1966,6 +1969,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim2/aims/2.25.211702350959705565754863799143359605362')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -1983,6 +1987,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim2/aims/56547547373')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(404);
@@ -1998,6 +2003,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
         )
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2018,6 +2024,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
         )
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2036,6 +2043,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/subjects/13116/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2056,6 +2064,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims/2.25.211702350959705565754863799143359605362'
         )
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2076,6 +2085,7 @@ describe('Project Tests', () => {
         .get(
           '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims/2.25.211702350959705565754863799143359605362'
         )
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2094,6 +2104,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/subjects/13116/aims/2.25.211702350959705565754863799143359605362')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2134,6 +2145,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2166,6 +2178,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2181,6 +2194,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim2/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2196,6 +2210,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim3/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2225,6 +2240,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim2/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -2239,6 +2255,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim3/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -4021,6 +4038,7 @@ describe('Project Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc/aims')
+        .set('accept', 'application/json')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -4603,6 +4621,278 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
           expect(res.body[0].subjectID).to.be.eql('3');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
+  describe('Project Reporting Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'reporting',
+          projectName: 'reporting',
+          projectDescription: 'reporting desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+    });
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/reporting')
+        .query({ username: 'admin' });
+    });
+    // just adding 7 like a nondicom to not messup other tests
+    // and to make sure it exists in the project for the waterfallproject tests
+    it('should add subject 7 to project reporting', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/reporting/subjects')
+        .query({ username: 'admin' })
+        .send({ subjectUid: '7', name: 'fake7' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should save 12 aims', done => {
+      fs.readdir('test/data/recist_annotations', async (err, files) => {
+        if (err) {
+          throw new Error(`Reading directory test/data/recist_annotations`, err);
+        } else {
+          for (let i = 0; i < files.length; i += 1) {
+            const jsonBuffer = JSON.parse(
+              fs.readFileSync(`test/data/recist_annotations/${files[i]}`)
+            );
+            // eslint-disable-next-line no-await-in-loop
+            await chai
+              .request(`http://${process.env.host}:${process.env.port}`)
+              .post('/projects/reporting/aims')
+              .send(jsonBuffer)
+              .query({ username: 'admin' });
+          }
+
+          done();
+        }
+      });
+    });
+
+    it('project reporting should have 12 aims', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims')
+        .set('accept', 'application/json')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.a('array');
+          expect(res.body.length).to.be.eql(12);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct recist report', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_recist.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?report=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal report', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_longitudinal.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?report=Longitudinal')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA report', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_adla.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?report=Longitudinal&shapes=line')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal_ref list', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/longitudinal_ref_7.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?longitudinal_ref=true')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct RECIST waterfall report for project', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=RECIST')
+        .query({ username: 'admin' })
+        .send({ projectID: 'reporting' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA waterfall report for project', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=ADLA')
+        .query({ username: 'admin' })
+        .send({ projectID: 'reporting' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should return correct RECIST waterfall report for subject selection with subjectuids', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=RECIST')
+        .query({ username: 'admin' })
+        .send({ projectID: 'reporting', subjectUIDs: ['7'] })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA waterfall report subject selection with subjectuids', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=ADLA')
+        .query({ username: 'admin' })
+        .send({ projectID: 'reporting', subjectUIDs: ['7'] })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should return correct RECIST waterfall report for subject projects pairs selection', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=RECIST')
+        .query({ username: 'admin' })
+        .send({ pairs: [{ subjectID: '7', projectID: 'reporting' }] })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA waterfall report for subject projects pairs selection', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=ADLA')
+        .query({ username: 'admin' })
+        .send({ pairs: [{ subjectID: '7', projectID: 'reporting' }] })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail getting  recist report without subject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail getting longitudinal report without subject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=Longitudinal')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail getting ADLA report without subject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=Longitudinal&shapes=line')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
           done();
         })
         .catch(e => {

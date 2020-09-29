@@ -317,6 +317,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims')
+        .set('accept', 'application/json')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -331,6 +332,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims')
+        .set('accept', 'application/json')
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -345,6 +347,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims')
+        .set('accept', 'application/json')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -359,6 +362,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .set('accept', 'application/json')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -384,6 +388,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .set('accept', 'application/json')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -400,6 +405,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .set('accept', 'application/json')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -425,6 +431,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .set('accept', 'application/json')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -441,6 +448,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .set('accept', 'application/json')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -466,6 +474,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .set('accept', 'application/json')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -482,6 +491,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .set('accept', 'application/json')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -507,6 +517,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .set('accept', 'application/json')
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -524,6 +535,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .set('accept', 'application/json')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -549,6 +561,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .set('accept', 'application/json')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -565,6 +578,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .set('accept', 'application/json')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(404);
@@ -599,6 +613,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .set('accept', 'application/json')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(404);
@@ -633,6 +648,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .set('accept', 'application/json')
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(404);
@@ -667,6 +683,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .set('accept', 'application/json')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -692,6 +709,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .set('accept', 'application/json')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -708,6 +726,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .set('accept', 'application/json')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -733,6 +752,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .set('accept', 'application/json')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -749,6 +769,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .set('accept', 'application/json')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -774,6 +795,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .set('accept', 'application/json')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -790,6 +812,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .set('accept', 'application/json')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -815,6 +838,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .set('accept', 'application/json')
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -831,6 +855,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
+        .set('accept', 'application/json')
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -856,6 +881,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
+        .set('accept', 'application/json')
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -881,6 +907,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .set('accept', 'application/json')
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
@@ -906,6 +933,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
+        .set('accept', 'application/json')
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
@@ -922,6 +950,7 @@ describe('User Rights Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
+        .set('accept', 'application/json')
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
