@@ -1565,9 +1565,11 @@ async function other(fastify) {
                 updatetime: Date.now(),
               };
               await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
+              await fastify.updateUserInWorklistCompleteness(userInfo.email, username);
               user = await fastify.getUserInternal({
                 user: username,
               });
+
             } else reject(err);
           }
           if (user) {
