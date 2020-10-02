@@ -44,11 +44,18 @@ async function couchdb(fastify, options) {
           // define an empty design document
           let viewDoc = {};
           viewDoc.views = {};
+          let searchDoc = {};
+          searchDoc.indexes = {};
           // try and get the design document
           try {
             viewDoc = await dicomDB.get('_design/instances');
           } catch (e) {
             fastify.log.info('View document not found! Creating new one');
+          }
+          try {
+            searchDoc = await dicomDB.get('_design/search');
+          } catch (e) {
+            fastify.log.info('Search document not found! Creating new one');
           }
           const keys = Object.keys(viewsjs.views);
           const values = Object.values(viewsjs.views);
@@ -56,6 +63,7 @@ async function couchdb(fastify, options) {
           for (let i = 0; i < keys.length; i += 1) {
             viewDoc.views[keys[i]] = values[i];
           }
+          searchDoc.indexes.aimSearch = viewsjs.searchIndexes.aimSearch;
           // insert the updated/created design document
           await dicomDB.insert(viewDoc, '_design/instances', insertErr => {
             if (insertErr) {
@@ -63,6 +71,15 @@ async function couchdb(fastify, options) {
               reject(new InternalError('Error updating couchdb design document', insertErr));
             } else {
               fastify.log.info('Design document updated successfully ');
+              resolve();
+            }
+          });
+          await dicomDB.insert(searchDoc, '_design/search', insertErr => {
+            if (insertErr) {
+              fastify.log.error(`Error updating the search design document ${insertErr.message}`);
+              reject(new InternalError('Error updating search design document', insertErr));
+            } else {
+              fastify.log.info('Search design document updated successfully ');
               resolve();
             }
           });
@@ -446,41 +463,65 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('generateSearchQuery', (params, epadAuth, filter) => {
+    const qryParts = [];
+    if (params.project) qryParts.push(`project:'${params.project}'`);
+    if (params.subject) qryParts.push(`patient_id:'${params.subject}'`);
+    if (params.study) qryParts.push(`study_uid:'${params.study}'`);
+    if (params.series) qryParts.push(`series_uid:'${params.series}'`);
+    if (fastify.isCollaborator(params.project, epadAuth))
+      qryParts.push(`user:'${epadAuth.username}'`);
+    if (filter) {
+      if (filter.template) qryParts.push(`template_code:'${filter.template}'`);
+      if (filter.aims) qryParts.push(`(${filter.aims.join(' OR ')})`);
+    }
+    if (qryParts.length === 0) return '*:*';
+    return qryParts.join(' AND ');
+  });
+
   // add accessor methods with decorate
   fastify.decorate(
     'getAimsInternal',
-    (format, params, filter, epadAuth, stream) =>
+    (format, params, filter, epadAuth) =>
       new Promise((resolve, reject) => {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
             reject(new UnauthenticatedError('No epadauth in request'));
-
-          if (format === 'summary') {
-            const paramsFilter = fastify.getFilter(params);
-
-            const db = fastify.couch.db.use(config.db);
-            // for some reason, when I remove instancsuid from the view, this filter does not work for series
-            const filterOptions = {
-              ...paramsFilter,
-              reduce: true,
-              group_level: 5,
-            };
-            db.view('instances', 'aims_summary', filterOptions, async (error, body) => {
-              if (!error) {
-                const filteredRows = await fastify.filterAims(body.rows, filter);
-                const res = [];
-                for (let i = 0; i < filteredRows.length; i += 1)
-                  // get the actual instance object (tags only)
-                  res.push(filteredRows[i].key[4]);
+          const db = fastify.couch.db.use(config.db);
+          const qry = fastify.generateSearchQuery(params, epadAuth, filter);
+          const dbFilter = { q: qry, sort: 'name<string>', limit: 100 };
+          if (format !== 'summary') dbFilter.include_docs = true;
+          db.search('search', 'aimSearch', dbFilter, (error, body) => {
+            if (!error) {
+              const res = [];
+              if (format === 'summary') {
+                for (let i = 0; i < body.rows.length; i += 1) {
+                  // not putting project id. getprojectaims puts the project that was called from
+                  res.push({
+                    aimID: body.rows[i].id,
+                    subjectID: body.rows[i].fields.patient_id,
+                    studyUID: body.rows[i].fields.study_uid,
+                    seriesUID: body.rows[i].fields.series_uid,
+                    instanceUID: body.rows[i].fields.instance_uid,
+                    instanceOrFrameNumber: 'NA',
+                    name: body.rows[i].fields.name,
+                    template: body.rows[i].fields.template_code,
+                    date: `${body.rows[i].fields.creation_date}${
+                      body.rows[i].fields.creation_time
+                    }`,
+                    patientName: body.rows[i].fields.patient_name,
+                    studyDate: body.rows[i].fields.study_date,
+                    comment: body.rows[i].fields.programmed_comment,
+                    templateType: body.rows[i].fields.template_name,
+                    color: 'NA',
+                    dsoFrameNo: 'NA',
+                    isDicomSR: 'NA',
+                    originalSubjectID: 'NA',
+                  });
+                }
                 resolve(res);
               } else {
-                reject(new InternalError('Get aims from couchdb', error));
-              }
-            });
-          } else {
-            fastify
-              .getAimsFromUIDsInternal({ aim: 'true' }, filter, stream)
-              .then(res => {
+                for (let i = 0; i < body.rows.length; i += 1) res.push(body.rows[i].doc.aim);
                 if (format === 'stream') {
                   // download aims only
                   fastify
@@ -491,9 +532,9 @@ async function couchdb(fastify, options) {
                   // the default is json! The old APIs were XML, no XML in epadlite
                   resolve(res);
                 }
-              })
-              .catch(err => reject(err));
-          }
+              }
+            }
+          });
         } catch (err) {
           reject(new InternalError('Get aims', err));
         }
@@ -655,19 +696,41 @@ async function couchdb(fastify, options) {
       });
   });
 
+  // if aim is string, it is aimuid and the call is being made to update the projects (it can be from delete which sends removeProject = true)
   fastify.decorate(
     'saveAimInternal',
-    aim =>
+    (aim, projectId, removeProject) =>
       new Promise((resolve, reject) => {
-        const couchDoc = {
-          _id: aim.ImageAnnotationCollection.uniqueIdentifier.root,
-          aim,
-        };
+        const couchDoc =
+          typeof aim !== 'string'
+            ? {
+                _id: aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                aim,
+              }
+            : {
+                _id: aim,
+              };
         const db = fastify.couch.db.use(config.db);
         db.get(couchDoc._id, (error, existing) => {
           if (!error) {
+            // for updating project
+            if (typeof aim === 'string') {
+              couchDoc.aim = existing.aim;
+            }
             couchDoc._rev = existing._rev;
+            if (existing.projects) {
+              couchDoc.projects = existing.projects;
+            }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
+          }
+          if (projectId) {
+            if (removeProject) {
+              if (couchDoc.projects) {
+                couchDoc.projects = couchDoc.projects.filter(project => project !== projectId);
+              }
+            } else if (couchDoc.projects) {
+              if (!couchDoc.projects.includes(projectId)) couchDoc.projects.push(projectId);
+            } else couchDoc.projects = [projectId];
           }
 
           db.insert(couchDoc, couchDoc._id)
@@ -680,6 +743,70 @@ async function couchdb(fastify, options) {
         });
       })
   );
+
+  fastify.decorate(
+    'addProjectIdsToAimsInternal',
+    aimsWithProjects =>
+      new Promise((resolve, reject) => {
+        let editCount = 0;
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const docUpdatePromisses = [];
+          for (let i = 0; i < aimsWithProjects.length; i += 1) {
+            // eslint-disable-next-line no-loop-func
+            docUpdatePromisses.push(() => {
+              return new Promise(resolveDocUpdate => {
+                // eslint-disable-next-line no-loop-func
+                db.get(aimsWithProjects[i].aim, (error, existing) => {
+                  const couchDoc = existing;
+                  if (!error) {
+                    if (couchDoc.projects) {
+                      if (!couchDoc.projects.includes(aimsWithProjects[i].project))
+                        couchDoc.projects.push(aimsWithProjects[i].project);
+                    }
+                    couchDoc.projects = [aimsWithProjects[i].project];
+
+                    fastify.log.info(
+                      `Adding project ${aimsWithProjects[i].project} to aimuid ${
+                        aimsWithProjects[i].aim
+                      }`
+                    );
+
+                    db.insert(couchDoc, aimsWithProjects[i].aim)
+                      .then(() => {
+                        resolveDocUpdate(`Aim ${aimsWithProjects[i].aim} is saved successfully`);
+                        editCount += 1;
+                      })
+                      .catch(err => {
+                        fastify.log.error(`Saving aim ${aimsWithProjects[i].aim} to couchdb`, err);
+                        // resolve anyways
+                        resolveDocUpdate(`Saving aim ${aimsWithProjects[i].aim} to couchdb`);
+                      });
+                  } else {
+                    fastify.log.error(`Aim ${aimsWithProjects[i].aim} is not in couchdb`);
+                    // resolve anyways
+                    resolveDocUpdate(`Saving aim ${aimsWithProjects[i].aim} to couchdb`);
+                  }
+                });
+              });
+            });
+          }
+          fastify.pq.addAll(docUpdatePromisses).then(() => {
+            resolve(`Edited ${editCount} of ${aimsWithProjects.length}`);
+          });
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Failed adding project ids to aims. Edited ${editCount} of ${
+                aimsWithProjects.length
+              } in process`,
+              err
+            )
+          );
+        }
+      })
+  );
+
   fastify.decorate(
     'deleteAimInternal',
     aimuid =>
@@ -1139,7 +1266,7 @@ async function couchdb(fastify, options) {
       .getAimsInternal(
         request.query.format,
         request.params,
-        [request.params.aimuid],
+        { aims: [request.params.aimuid] },
         request.epadAuth
       )
       .then(result => {

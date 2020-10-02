@@ -2132,7 +2132,7 @@ async function epaddb(fastify, options, done) {
                 const source = await fastify.getAimsInternal(
                   'stream',
                   {},
-                  Object.keys(aims),
+                  { aims: Object.keys(aims) },
                   request.epadAuth
                 );
 
@@ -4569,25 +4569,25 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate(
-    'filterProjectAims',
-    (params, query, epadAuth, stream) =>
-      new Promise(async (resolve, reject) => {
-        try {
-          const aimUids = await fastify.getUserAccessibleAimUids(params, epadAuth);
-          const result = await fastify.getAimsInternal(
-            query.format,
-            params,
-            aimUids,
-            epadAuth,
-            stream
-          );
-          resolve(result);
-        } catch (err) {
-          reject(err);
-        }
-      })
-  );
+  // fastify.decorate(
+  //   'filterProjectAims',
+  //   (params, query, epadAuth, stream) =>
+  //     new Promise(async (resolve, reject) => {
+  //       try {
+  //         const aimUids = await fastify.getUserAccessibleAimUids(params, epadAuth);
+  //         const result = await fastify.getAimsInternal(
+  //           query.format,
+  //           params,
+  //           aimUids,
+  //           epadAuth,
+  //           stream
+  //         );
+  //         resolve(result);
+  //       } catch (err) {
+  //         reject(err);
+  //       }
+  //     })
+  // );
 
   fastify.decorate(
     'getFileUidsForProject',
@@ -4686,11 +4686,11 @@ async function epaddb(fastify, options, done) {
             fastify.log.info(`Report ${request.query.report} not in db. trying to generate`);
         }
       }
-      result = await fastify.filterProjectAims(
+      result = await fastify.getAimsInternal(
+        request.query.format,
         request.params,
-        request.query,
-        request.epadAuth,
-        filter
+        filter,
+        request.epadAuth
       );
       if (request.query.report) {
         switch (request.query.report) {
@@ -4870,7 +4870,7 @@ async function epaddb(fastify, options, done) {
           const result = await fastify.getAimsInternal(
             request.query.format,
             request.params,
-            [request.params.aimuid],
+            { aims: [request.params.aimuid] },
             request.epadAuth
           );
           if (request.query.format === 'stream') {
@@ -4917,11 +4917,19 @@ async function epaddb(fastify, options, done) {
                 )
               )
             );
-          } else await fastify.saveAimInternal(aim);
+          } else await fastify.saveAimInternal(aim, request.params.project);
           // TODO check if the aim is already associated with any project. warn and update the project_aim entries accordingly
         } else {
           // get aim to populate project_aim data
-          [aim] = await fastify.getAimsInternal('json', request.params, [aimUid], request.epadAuth);
+
+          [aim] = await fastify.getAimsInternal(
+            'json',
+            {}, // I do not need params, looking for a specific aim (not in this project)
+            { aims: [aimUid] },
+            request.epadAuth
+          );
+          // just update the projects
+          await fastify.saveAimInternal(aimUid, request.params.project);
         }
         await fastify.addProjectAimRelInternal(aim, project, request.epadAuth);
         reply.code(200).send('Saving successful');
@@ -5334,11 +5342,11 @@ async function epaddb(fastify, options, done) {
             resolve('No DICOMS, skipping report generation');
           } else {
             // just RECIST for now
-            const result = await fastify.filterProjectAims(
+            const result = await fastify.getAimsInternal(
+              'json',
               { project: projectUid, subject: subjectUid },
-              {},
-              epadAuth,
-              {}
+              undefined,
+              epadAuth
             );
             await fastify.getAndSaveRecist(projectId, subject, result, epadAuth, transaction);
             resolve('Reports updated!');
@@ -5743,8 +5751,10 @@ async function epaddb(fastify, options, done) {
               reply
                 .code(200)
                 .send(`Aim deleted from system as it didn't exist in any other project`);
-            } else
+            } else {
+              await fastify.saveAimInternal(request.params.aimuid, request.params.project, true);
               reply.code(200).send(`Aim not deleted from system as it exists in other project`);
+            }
           }
         } catch (deleteErr) {
           reply.send(
@@ -7170,7 +7180,7 @@ async function epaddb(fastify, options, done) {
           if (query.includeAims && query.includeAims === 'true') {
             // get aims
             const aimPromises = [];
-            const aims = await fastify.filterProjectAims(params, {}, epadAuth);
+            const aims = await fastify.getAimsInternal('json', params, undefined, epadAuth);
             const segRetrievePromises = [];
             for (let i = 0; i < aims.length; i += 1) {
               aimPromises.push(() => {
@@ -9312,6 +9322,34 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'addProjectIDToAims',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const projectAims = await models.project_aim.findAll({
+            include: [
+              {
+                model: models.project,
+                attributes: ['projectid'],
+              },
+            ],
+            attributes: ['aim_uid'],
+          });
+          const aimProjects = projectAims.map(projectAim => {
+            return {
+              aim: projectAim.dataValues.aim_uid,
+              project: projectAim.dataValues.project.dataValues.projectid,
+            };
+          });
+          fastify.addProjectIdsToAimsInternal(aimProjects);
+          resolve();
+        } catch (err) {
+          reject(new InternalError('Migrating aims', err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'fixSchema',
     () =>
       new Promise(async (resolve, reject) => {
@@ -10062,7 +10100,7 @@ async function epaddb(fastify, options, done) {
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
-
+      // await fastify.addProjectIDToAims();
       if (config.env !== 'test') {
         // schedule calculating statistics at 1 am at night
         schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {

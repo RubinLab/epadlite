@@ -1148,7 +1148,7 @@ async function reporting(fastify) {
               });
             } else {
               // eslint-disable-next-line no-await-in-loop
-              const aims = await fastify.filterProjectAims(params, {}, epadAuth);
+              const aims = await fastify.getAimsInternal('json', params, undefined, epadAuth);
               fastify.log.info(`${aims.length} aims found for ${subjProjPairs[i].subjectID}`);
 
               const report =

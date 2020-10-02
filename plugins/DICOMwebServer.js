@@ -193,14 +193,15 @@ async function dicomwebserver(fastify) {
           if (!noStats)
             if (params.project)
               promisses.push(
-                fastify.filterProjectAims(
+                fastify.getAimsInternal(
+                  'summary',
                   {
                     project: params.project,
                     subject: '',
                     study: '',
                     series: '',
                   },
-                  { format: 'summary' },
+                  undefined,
                   epadAuth
                 )
               );
@@ -502,14 +503,15 @@ async function dicomwebserver(fastify) {
           if (!noStats) {
             if (params.project)
               promisses.push(
-                fastify.filterProjectAims(
+                fastify.getAimsInternal(
+                  'summary',
                   {
                     project: params.project,
                     subject: params.subject ? params.subject : '',
                     study: '',
                     series: '',
                   },
-                  { format: 'summary' },
+                  undefined,
                   epadAuth
                 )
               );
@@ -694,14 +696,15 @@ async function dicomwebserver(fastify) {
           if (noStats === undefined || noStats === false)
             if (params.project)
               promisses.push(
-                fastify.filterProjectAims(
+                fastify.getAimsInternal(
+                  'summary',
                   {
                     project: params.project,
                     subject: params.subject,
                     study: params.study,
                     series: '',
                   },
-                  { format: 'summary' },
+                  undefined,
                   epadAuth
                 )
               );

@@ -359,7 +359,7 @@ async function other(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           fastify
-            .saveAimInternal(aimJson)
+            .saveAimInternal(aimJson, params.project)
             .then(async () => {
               try {
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
