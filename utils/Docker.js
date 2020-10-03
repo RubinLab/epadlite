@@ -79,13 +79,6 @@ class DockerService {
   }
 
   getContainerLog(containerId) {
-    try {
-      if (this.fs.existsSync('/var/run/docker.sock')) {
-        console.error('var / run found');
-      }
-    } catch (err) {
-      console.error(err);
-    }
     let tmpContainer;
     let strm = null;
     return new Promise((resolve, reject) => {
@@ -150,6 +143,14 @@ class DockerService {
   inspectContainer(containerId) {
     // eslint-disable-next-line func-names
     return new Promise((resolve, reject) => {
+      try {
+        if (this.fs.existsSync('/var/run/docker.sock')) {
+          console.error('var / run found');
+        }
+      } catch (err) {
+        console.log('var run not found');
+        console.error(err);
+      }
       const containerTemp = this.docker.getContainer(containerId);
       // eslint-disable-next-line func-names
       containerTemp.inspect(function(err, data) {
