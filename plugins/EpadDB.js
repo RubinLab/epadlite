@@ -2490,7 +2490,7 @@ async function epaddb(fastify, options, done) {
       );
       if (!fs.existsSync(pluginsDataFolder)) {
         fs.mkdirSync(pluginsDataFolder, { recursive: true });
-        fs.chmod(`${pluginsDataFolder}`, 0o600, () => {
+        fs.chmodSync(`${pluginsDataFolder}`, '777', () => {
           console.log(`file rights changed by epad_lite for the folder ${pluginsDataFolder}`);
         });
       }
