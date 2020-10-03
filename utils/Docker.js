@@ -79,6 +79,13 @@ class DockerService {
   }
 
   getContainerLog(containerId) {
+    try {
+      if (this.fs.existsSync('/var/run/docker.sock')) {
+        console.error('var / run found');
+      }
+    } catch (err) {
+      console.error(err);
+    }
     let tmpContainer;
     let strm = null;
     return new Promise((resolve, reject) => {
