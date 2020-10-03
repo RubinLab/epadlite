@@ -2507,8 +2507,13 @@ async function epaddb(fastify, options, done) {
       const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${
         queueObject.id
       }/`;
-      if (!fs.existsSync(`${localServerBindPoint}/logs`)) {
-        fs.mkdirSync(`${localServerBindPoint}/logs`, { recursive: true });
+      if (!fs.existsSync(`${localServerBindPoint}logs`)) {
+        fs.mkdirSync(`${localServerBindPoint}logs`, { recursive: true });
+        fs.chmod(`${localServerBindPoint}logs`, 0o600, () => {
+          console.log(
+            `file rights changed by epad_lite for the folder ${localServerBindPoint}logs`
+          );
+        });
       }
       console.log('getting epad_lite bind points and pwd local : ', localServerBindPoint);
       if (parametertype === 'default') {
