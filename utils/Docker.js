@@ -143,14 +143,6 @@ class DockerService {
   inspectContainer(containerId) {
     // eslint-disable-next-line func-names
     return new Promise((resolve, reject) => {
-      try {
-        if (this.fs.existsSync('/var/run/docker.sock')) {
-          console.error('var / run found');
-        }
-      } catch (err) {
-        console.log('var run not found');
-        console.error(err);
-      }
       const containerTemp = this.docker.getContainer(containerId);
       // eslint-disable-next-line func-names
       containerTemp.inspect(function(err, data) {
@@ -389,6 +381,14 @@ class DockerService {
 
   checkContainerExistance(containerName) {
     return new Promise((resolve, reject) => {
+      try {
+        if (this.fs.existsSync('/var/run/docker.sock')) {
+          console.error('var / run found');
+        }
+      } catch (err) {
+        console.log('var run not found');
+        console.error(err);
+      }
       const container = this.docker.getContainer(containerName);
 
       // eslint-disable-next-line prefer-destructuring
@@ -397,7 +397,7 @@ class DockerService {
       container.inspect(function(err, data) {
         if (err) {
           //  console.log(err);
-          console.log('error happened while checking container presence : ');
+          console.log('error happened while checking container presence : ', err);
           reject(err);
         }
         if (data) {
