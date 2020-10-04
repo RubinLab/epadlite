@@ -222,6 +222,7 @@ class DockerService {
             'waiting for plugin to finish processing for container :',
             containerNameToGive
           );
+          console.log('docker info path to look for log', filename);
           process.chdir(filename);
           // if (fs.existsSync(`logfile.txt`)) {
           //   fs.unlink(`logfile.txt`, errc => {

@@ -756,7 +756,7 @@ async function epaddb(fastify, options, done) {
           // console.log('inspect result object', inspectResultObject);
           // console.log('status : ', inspectResultObject.State.Status);
           console.log(
-            `tryinf to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+            `trying to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
           );
           if (inspectResultObject.State.Status === 'running') {
             console.log('status running so sending stream');
@@ -2451,7 +2451,7 @@ async function epaddb(fastify, options, done) {
       for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
         if (epadLiteBindPoints[cntPoints].includes('pluginData')) {
           // eslint-disable-next-line prefer-destructuring
-          epadLitePwd = epadLiteBindPoints[cntPoints].split(':')[0];
+          epadLitePwd = epadLiteBindPoints[cntPoints].split(':')[1];
           // epadLitePwd = epadLitePwd.split(':')[0];
           break;
         }
@@ -2490,9 +2490,9 @@ async function epaddb(fastify, options, done) {
       );
       if (!fs.existsSync(pluginsDataFolder)) {
         fs.mkdirSync(pluginsDataFolder, { recursive: true });
-        fs.chmodSync(`${pluginsDataFolder}`, '777', () => {
-          console.log(`file rights changed by epad_lite for the folder ${pluginsDataFolder}`);
-        });
+        // fs.chmodSync(`${pluginsDataFolder}`, '777', { recursive: true }, () => {
+        //   console.log(`file rights changed by epad_lite for the folder ${pluginsDataFolder}`);
+        // });
       }
 
       const dock = new DockerService(fs);
@@ -2510,13 +2510,33 @@ async function epaddb(fastify, options, done) {
       const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${
         queueObject.id
       }/`;
-      if (!fs.existsSync(`${localServerBindPoint}logs`)) {
-        fs.mkdirSync(`${localServerBindPoint}logs`, { recursive: true });
-        fs.chmod(`${localServerBindPoint}logs`, 0o600, () => {
-          console.log(
-            `file rights changed by epad_lite for the folder ${localServerBindPoint}logs`
-          );
-        });
+      // console.log('_____dirname : ', __dirname);
+      // let pluginsDataFolderx = path.join(__dirname, `../pluginsDataFolder/${queueObject.creator}`);
+      // if (!fs.existsSync(`${pluginsDataFolderx}`)) {
+      //   fs.mkdirSync(`${pluginsDataFolderx}`);
+      //   fs.chmod(`${pluginsDataFolderx}`, '777', () => {
+      //     console.log(`file rights changed by epad_lite for the folder ${pluginsDataFolderx}`);
+      //   });
+      // }
+      // pluginsDataFolderx = path.join(
+      //   __dirname,
+      //   `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}`
+      // );
+      // if (!fs.existsSync(`${pluginsDataFolderx}`)) {
+      //   fs.mkdirSync(`${pluginsDataFolderx}`);
+      //   fs.chmod(`${pluginsDataFolderx}`, '777', () => {
+      //     console.log(`file rights changed by epad_lite for the folder ${pluginsDataFolderx}`);
+      //   });
+      // }
+      pluginsDataFolderx = path.join(
+        __dirname,
+        `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/logs`
+      );
+      if (!fs.existsSync(`${pluginsDataFolderx}`)) {
+        fs.mkdirSync(`${pluginsDataFolderx}`);
+        // fs.chmod(`${pluginsDataFolderx}`, '777', () => {
+        //   console.log(`file rights changed by epad_lite for the folder ${pluginsDataFolderx}`);
+        // });
       }
       console.log('getting epad_lite bind points and pwd local : ', localServerBindPoint);
       if (parametertype === 'default') {
