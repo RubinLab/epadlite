@@ -1154,7 +1154,8 @@ async function other(fastify) {
   });
 
   fastify.decorate('checkFileType', filename => {
-    return config.validExt.includes(fastify.getExtension(filename));
+    const ext = fastify.getExtension(filename);
+    return ext !== '' && config.validExt.includes(fastify.getExtension(filename));
   });
 
   fastify.decorate('deleteSubject', (request, reply) => {
