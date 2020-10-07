@@ -109,9 +109,10 @@ async function dicomwebserver(fastify) {
     (studyUid, seriesUid, instanceUid) =>
       new Promise(async (resolve, reject) => {
         try {
-          const url = fastify.getWadoPath(studyUid, seriesUid, instanceUid);
+          let url = fastify.getWadoPath(studyUid, seriesUid, instanceUid);
+          url = `${config.authConfig.authServerUrl.replace('/keycloak', '/api/wado')}${url}`;
           console.log('url', url);
-          const result = await this.request({
+          const result = await Axios({
             method: 'purge',
             url,
           });
