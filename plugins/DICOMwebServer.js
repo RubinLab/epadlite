@@ -102,6 +102,38 @@ async function dicomwebserver(fastify) {
         }
       })
   );
+
+  // add accessor methods with decorate
+  fastify.decorate(
+    'purgeWado',
+    (studyUid, seriesUid, instanceUid) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const url = fastify.getWadoPath(studyUid, seriesUid, instanceUid);
+          console.log('url', url);
+          const result = await this.request({
+            method: 'purge',
+            url,
+          });
+          console.log('result', result);
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Purging wado path for study ${studyUid} seriesUID ${seriesUid} objectUID ${instanceUid}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getWadoPath',
+    (studyUid, seriesUid, instanceUid) =>
+      `/?requestType=WADO&studyUID=${studyUid}&seriesUID=${seriesUid}&objectUID=${instanceUid}`
+  );
+
   // add accessor methods with decorate
   fastify.decorate(
     'saveDicomsInternal',
@@ -830,9 +862,11 @@ async function dicomwebserver(fastify) {
                     //   value['00080018'].Value[0]
                     // }`,
                     // send wado-uri instead of wado-rs
-                    lossyImage: `/?requestType=WADO&studyUID=${params.study}&seriesUID=${
-                      params.series
-                    }&objectUID=${value['00080018'].Value[0]}`,
+                    lossyImage: fastify.getWadoPath(
+                      params.study,
+                      params.series,
+                      value['00080018'].Value[0]
+                    ),
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
                     numberOfFrames:
