@@ -103,7 +103,7 @@ async function couchdb(fastify, options) {
       ioes.forEach(ioe => {
         // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
         header.push({ id: ioe.label.value.toLowerCase(), title: ioe.label.value });
-        if (ioe.imagingObservationEntityCharacteristicCollection) {
+        if (ioe.imagingObservationCharacteristicCollection) {
           const iocs =
             ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
           iocs.forEach(ioc => {
@@ -515,7 +515,11 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate('isCollaborator', (project, epadAuth) => {
-    return epadAuth.projectToRole.includes(`${project}:Collaborator`);
+    return (
+      epadAuth &&
+      epadAuth.projectToRole &&
+      epadAuth.projectToRole.includes(`${project}:Collaborator`)
+    );
   });
 
   // filter aims with aimId filter array
@@ -1040,7 +1044,7 @@ async function couchdb(fastify, options) {
       db.fetch({ keys: request.body }).then(data => {
         data.rows.forEach(item => {
           // if not found it returns the record with no doc, error: 'not_found'
-          if ('doc' in item) res.push(item.doc.template);
+          if (item.doc) res.push(item.doc.template);
         });
         reply.header('Content-Disposition', `attachment; filename=templates.zip`);
         fastify
@@ -1093,13 +1097,15 @@ async function couchdb(fastify, options) {
           db.fetch({ keys: ids }).then(data => {
             if (format === 'summary') {
               data.rows.forEach(item => {
-                const summary = fastify.getSummaryFromTemplate(item.doc.template);
-                res.push(summary);
+                if (item.doc) {
+                  const summary = fastify.getSummaryFromTemplate(item.doc.template);
+                  res.push(summary);
+                }
               });
               resolve(res);
             } else if (format === 'stream') {
               data.rows.forEach(item => {
-                if ('doc' in item) res.push(item.doc.template);
+                if (item.doc) res.push(item.doc.template);
               });
               fastify
                 .downloadTemplates(res)
@@ -1108,7 +1114,7 @@ async function couchdb(fastify, options) {
             } else {
               // the default is json! The old APIs were XML, no XML in epadlite
               data.rows.forEach(item => {
-                if ('doc' in item) res.push(item.doc.template);
+                if (item.doc) res.push(item.doc.template);
               });
               resolve(res);
             }
