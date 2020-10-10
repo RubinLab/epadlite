@@ -116,7 +116,7 @@ async function dicomwebserver(fastify) {
             url,
           })
             .then(() => {
-              fastify.log.debug(`Purged ${url}`);
+              fastify.log.info(`Purged ${url}`);
             })
             .catch(err => {
               if (err.response.status !== 404 && err.response.status !== 412)
@@ -126,7 +126,7 @@ async function dicomwebserver(fastify) {
                     err
                   )
                 );
-              else fastify.log.debug(`Url ${url} not cached`);
+              else fastify.log.info(`Url ${url} not cached`);
             });
           resolve();
         } catch (err) {
