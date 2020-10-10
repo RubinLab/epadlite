@@ -296,12 +296,6 @@ async function otherRoutes(fastify) {
   });
 
   fastify.route({
-    method: 'PURGE',
-    url: '/wado/',
-    handler: fastify.purge,
-  });
-
-  fastify.route({
     method: 'POST',
     url: '/polldw',
     handler: fastify.triggerPollDW,

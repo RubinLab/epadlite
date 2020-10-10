@@ -103,10 +103,6 @@ async function dicomwebserver(fastify) {
       })
   );
 
-  fastify.decorate('purge', (request, reply) => {
-    console.log('this is just a purge url');
-    reply.code(200).send();
-  });
   // add accessor methods with decorate
   fastify.decorate(
     'purgeWado',
@@ -115,19 +111,17 @@ async function dicomwebserver(fastify) {
         try {
           let url = fastify.getWadoPath(studyUid, seriesUid, instanceUid);
           url = `${config.authConfig.authServerUrl.replace('/keycloak', '/api/wado')}${url}`;
-          console.log('url', url);
           Axios({
             method: 'purge',
             url,
           })
             .then(() => {
-              console.log('purged');
+              fastify.log.degub(`Purged ${url}`);
             })
             .catch(err => {
               if (err.response.status !== 404) throw err;
-              else console.log('not cahced');
+              else fastify.log.degub(`Url ${url} not cached`);
             });
-          // console.log('result', result);
           resolve();
         } catch (err) {
           reject(
