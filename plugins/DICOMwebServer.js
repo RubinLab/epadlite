@@ -116,11 +116,17 @@ async function dicomwebserver(fastify) {
             url,
           })
             .then(() => {
-              fastify.log.degub(`Purged ${url}`);
+              fastify.log.debug(`Purged ${url}`);
             })
             .catch(err => {
-              if (err.response.status !== 404) throw err;
-              else fastify.log.degub(`Url ${url} not cached`);
+              if (err.response.status !== 404 && err.response.status !== 412)
+                reject(
+                  new InternalError(
+                    `Purging wado path for study ${studyUid} seriesUID ${seriesUid} objectUID ${instanceUid}`,
+                    err
+                  )
+                );
+              else fastify.log.debug(`Url ${url} not cached`);
             });
           resolve();
         } catch (err) {
