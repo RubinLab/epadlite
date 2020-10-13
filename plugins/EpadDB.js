@@ -10106,16 +10106,17 @@ async function epaddb(fastify, options, done) {
     () =>
       new Promise(async (resolve, reject) => {
         try {
-          const dbversion = (await models.dbversion.findOne({
+          const dbVersionTuple = await models.dbversion.findOne({
             attributes: ['version'],
             raw: true,
-          })).version;
-          if (appVersion === '0.4.0' && dbversion !== '0.4.0') await fastify.version0_4_0();
+          });
+          const dbVersion = dbVersionTuple ? dbVersionTuple.version : undefined;
+          if (appVersion === '0.4.0' && dbVersion !== '0.4.0') await fastify.version0_4_0();
           await models.dbversion.update(
             { appVersion },
             {
               where: {
-                version: dbversion,
+                version: dbVersion,
               },
             }
           );

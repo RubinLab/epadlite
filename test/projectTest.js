@@ -3,11 +3,13 @@ const chai = require('chai');
 const chaiHttp = require('chai-http');
 const fs = require('fs');
 const nock = require('nock');
+const deepEqualInAnyOrder = require('deep-equal-in-any-order');
 const studiesResponse = require('./data/studiesResponse.json');
 const seriesResponse = require('./data/seriesResponse.json');
 const config = require('../config/index');
 
 chai.use(chaiHttp);
+chai.use(deepEqualInAnyOrder);
 const { expect } = chai;
 
 let server;
@@ -4628,7 +4630,7 @@ describe('Project Tests', () => {
         });
     });
   });
-  describe.only('Project Reporting Tests', () => {
+  describe('Project Reporting Tests', () => {
     before(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -4900,7 +4902,7 @@ describe('Project Tests', () => {
         });
     });
     it('should return return correct output for search with project and template query', done => {
-      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/searc_proj_temp.json`));
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_proj_temp.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/search?project=reporting&template=RECIST')
@@ -4908,7 +4910,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.be.eql(jsonBuffer);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch(e => {

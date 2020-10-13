@@ -465,6 +465,21 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate('generateSearchQuery', (params, epadAuth, filter) => {
+    // if new search indexes are added, it should be added here too
+    const validQryParams = [
+      'patient_name',
+      'user',
+      'creation_date',
+      'creation_time',
+      'unknown_creation_date',
+      'name',
+      'programmed_comment',
+      'anatomy',
+      'observation',
+      'study_date',
+      'modality',
+      'instance_uid',
+    ];
     const qryParts = [];
     if (params.project) qryParts.push(`project:'${params.project}'`);
     if (params.subject) qryParts.push(`patient_id:'${params.subject}'`);
@@ -477,7 +492,7 @@ async function couchdb(fastify, options) {
       for (const [key, value] of Object.entries(filter)) {
         if (key === 'template') qryParts.push(`template_code:'${value}'`);
         else if (key === 'aims') qryParts.push(`(${value.join(' OR ')})`);
-        else qryParts.push(`${key}:'${value}'`);
+        else if (validQryParams.includes(key)) qryParts.push(`${key}:'${value}'`);
       }
     }
     if (qryParts.length === 0) return '*:*';
@@ -524,7 +539,7 @@ async function couchdb(fastify, options) {
                     color: 'NA',
                     dsoFrameNo: 'NA',
                     isDicomSR: 'NA',
-                    originalSubjectID: 'NA',
+                    originalSubjectID: body.rows[i].fields.patient_id,
                   });
                 }
                 resolve(res);
@@ -559,6 +574,7 @@ async function couchdb(fastify, options) {
     const attachments = [];
     // separate attachments
     if (
+      aim.ImageAnnotationCollection &&
       aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection &&
       aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
         .MarkupEntity &&
@@ -580,6 +596,7 @@ async function couchdb(fastify, options) {
     }
     // if calculations are more than 10 make both calculationEntityCollection and imageAnnotationStatementCollection attachments
     if (
+      aim.ImageAnnotationCollection &&
       aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
         .calculationEntityCollection &&
       aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection
@@ -601,6 +618,7 @@ async function couchdb(fastify, options) {
       delete aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
         .calculationEntityCollection;
       if (
+        aim.ImageAnnotationCollection &&
         aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
           .imageAnnotationStatementCollection
       ) {
