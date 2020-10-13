@@ -13,7 +13,7 @@ const unzip = require('unzip-stream');
 window = {};
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
-const { version } = require('../package.json');
+const appVersion = require('../package.json').version;
 const DockerService = require('../utils/Docker');
 const {
   InternalError,
@@ -10110,10 +10110,9 @@ async function epaddb(fastify, options, done) {
             attributes: ['version'],
             raw: true,
           })).version;
-          console.log(version, dbversion);
-          if (version === '0.4.0' && dbversion !== '0.4.0') await fastify.version0_4_0();
+          if (appVersion === '0.4.0' && dbversion !== '0.4.0') await fastify.version0_4_0();
           await models.dbversion.update(
-            { version },
+            { appVersion },
             {
               where: {
                 version: dbversion,

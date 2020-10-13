@@ -473,8 +473,12 @@ async function couchdb(fastify, options) {
     if (fastify.isCollaborator(params.project, epadAuth))
       qryParts.push(`user:'${epadAuth.username}'`);
     if (filter) {
-      if (filter.template) qryParts.push(`template_code:'${filter.template}'`);
-      if (filter.aims) qryParts.push(`(${filter.aims.join(' OR ')})`);
+      // eslint-disable-next-line no-restricted-syntax
+      for (const [key, value] of Object.entries(filter)) {
+        if (key === 'template') qryParts.push(`template_code:'${value}'`);
+        else if (key === 'aims') qryParts.push(`(${value.join(' OR ')})`);
+        else qryParts.push(`${key}:'${value}'`);
+      }
     }
     if (qryParts.length === 0) return '*:*';
     return qryParts.join(' AND ');

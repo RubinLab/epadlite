@@ -4628,7 +4628,7 @@ describe('Project Tests', () => {
         });
     });
   });
-  describe('Project Reporting Tests', () => {
+  describe.only('Project Reporting Tests', () => {
     before(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -4893,6 +4893,22 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with project and template query', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/searc_proj_temp.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?project=reporting&template=RECIST')
+        .set('accept', 'application/json')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
           done();
         })
         .catch(e => {
