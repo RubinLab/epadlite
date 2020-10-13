@@ -409,6 +409,18 @@ async function other(fastify) {
               await fastify.saveAimJsonWithProjectRef(aimJson, params, epadAuth);
             }
           }
+
+          await fastify.purgeWado(
+            dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
+              ? dicomTags.dict['0020000D'].Value[0]
+              : '',
+            dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
+              ? dicomTags.dict['0020000E'].Value[0]
+              : '',
+            dicomTags.dict['00080018'] && dicomTags.dict['00080018'].Value
+              ? dicomTags.dict['00080018'].Value[0]
+              : ''
+          );
           resolve(
             JSON.stringify({
               subject:
@@ -1154,7 +1166,8 @@ async function other(fastify) {
   });
 
   fastify.decorate('checkFileType', filename => {
-    return config.validExt.includes(fastify.getExtension(filename));
+    const ext = fastify.getExtension(filename);
+    return ext !== '' && config.validExt.includes(fastify.getExtension(filename));
   });
 
   fastify.decorate('deleteSubject', (request, reply) => {
@@ -1565,6 +1578,7 @@ async function other(fastify) {
                 updatetime: Date.now(),
               };
               await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
+              await fastify.updateUserInWorklistCompleteness(userInfo.email, username);
               user = await fastify.getUserInternal({
                 user: username,
               });

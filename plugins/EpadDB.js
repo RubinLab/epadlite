@@ -4818,14 +4818,7 @@ async function epaddb(fastify, options, done) {
             break;
         }
       }
-      // if it is not json send the result, if json it streams
-      if (
-        (request.query.format && request.query.format !== 'json') ||
-        request.headers.accept === 'application/json' ||
-        request.query !== {} // other reports
-      ) {
-        reply.code(200).send(result);
-      }
+      reply.code(200).send(result);
     } catch (err) {
       reply.send(new InternalError(`Getting aims for project ${request.params.project}`, err));
     }
@@ -7017,6 +7010,9 @@ async function epaddb(fastify, options, done) {
       });
   });
 
+  // updating username may affect the data in the tables below
+  // eventlog, events, reviewer, user_flaggdimage, project_aim
+  // updateUserInternal won't handle these tables
   fastify.decorate(
     'updateUserInternal',
     (rowsUpdated, params) =>
@@ -7028,6 +7024,21 @@ async function epaddb(fastify, options, done) {
           })
           .catch(err => {
             reject(new InternalError(`Updating user ${params.user}`, err));
+          });
+      })
+  );
+
+  fastify.decorate(
+    'updateUserInWorklistCompleteness',
+    (email, username) =>
+      new Promise(async (resolve, reject) => {
+        models.worklist_study_completeness
+          .update({ assignee: username }, { where: { assignee: email } })
+          .then(() => {
+            resolve();
+          })
+          .catch(err => {
+            reject(new InternalError(` Updating worklist_study_completeness ${username}`, err));
           });
       })
   );
