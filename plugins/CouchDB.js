@@ -5,6 +5,7 @@ const archiver = require('archiver');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
 const _ = require('underscore');
+const atob = require('atob');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 const {
@@ -490,7 +491,10 @@ async function couchdb(fastify, options) {
           const db = fastify.couch.db.use(config.db);
           const qry = fastify.generateSearchQuery(params, epadAuth, filter);
           const dbFilter = { q: qry, sort: 'name<string>', limit: 100 };
-          if (format !== 'summary') dbFilter.include_docs = true;
+          if (format !== 'summary') {
+            dbFilter.include_docs = true;
+            dbFilter.attachments = true;
+          }
           db.search('search', 'aimSearch', dbFilter, (error, body) => {
             if (!error) {
               const res = [];
@@ -521,7 +525,13 @@ async function couchdb(fastify, options) {
                 }
                 resolve(res);
               } else {
-                for (let i = 0; i < body.rows.length; i += 1) res.push(body.rows[i].doc.aim);
+                for (let i = 0; i < body.rows.length; i += 1) {
+                  const aim = fastify.addAttachmentParts(
+                    body.rows[i].doc.aim,
+                    body.rows[i].doc._attachments
+                  );
+                  res.push(aim);
+                }
                 if (format === 'stream') {
                   // download aims only
                   fastify
@@ -540,6 +550,108 @@ async function couchdb(fastify, options) {
         }
       })
   );
+  // manipulates the input aim
+  fastify.decorate('extractAttachmentParts', aim => {
+    const attachments = [];
+    // separate attachments
+    if (
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
+        .MarkupEntity &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
+        .MarkupEntity.length > 1
+    ) {
+      attachments.push({
+        name: 'markupEntityCollection',
+        data: Buffer.from(
+          JSON.stringify(
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
+          )
+        ),
+        content_type: 'text/plain',
+      });
+      // eslint-disable-next-line no-param-reassign
+      delete aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+        .markupEntityCollection;
+    }
+    // if calculations are more than 10 make both calculationEntityCollection and imageAnnotationStatementCollection attachments
+    if (
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+        .calculationEntityCollection &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection
+        .CalculationEntity &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection
+        .CalculationEntity.length > 10
+    ) {
+      attachments.push({
+        name: 'calculationEntityCollection',
+        data: Buffer.from(
+          JSON.stringify(
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .calculationEntityCollection
+          )
+        ),
+        content_type: 'text/plain',
+      });
+      // eslint-disable-next-line no-param-reassign
+      delete aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+        .calculationEntityCollection;
+      if (
+        aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+          .imageAnnotationStatementCollection
+      ) {
+        attachments.push({
+          name: 'imageAnnotationStatementCollection',
+          data: Buffer.from(
+            JSON.stringify(
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .imageAnnotationStatementCollection
+            )
+          ),
+          content_type: 'text/plain',
+        });
+        // eslint-disable-next-line no-param-reassign
+        delete aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+          .imageAnnotationStatementCollection;
+      }
+    }
+    return attachments;
+  });
+
+  fastify.decorate('addAttachmentParts', (aimIn, attachments) => {
+    const aim = aimIn;
+    if (attachments) {
+      if (
+        aim.ImageAnnotationCollection &&
+        aim.ImageAnnotationCollection.imageAnnotations &&
+        aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation &&
+        aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation.length > 0
+      ) {
+        if (attachments.markupEntityCollection && attachments.markupEntityCollection.data) {
+          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection = JSON.parse(
+            atob(attachments.markupEntityCollection.data).toString()
+          );
+        }
+        if (
+          attachments.calculationEntityCollection &&
+          attachments.calculationEntityCollection.data
+        ) {
+          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection = JSON.parse(
+            atob(attachments.calculationEntityCollection.data).toString()
+          );
+        }
+        if (
+          attachments.imageAnnotationStatementCollection &&
+          attachments.imageAnnotationStatementCollection.data
+        ) {
+          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection = JSON.parse(
+            atob(attachments.imageAnnotationStatementCollection.data).toString()
+          );
+        }
+      }
+    }
+    return aim;
+  });
 
   fastify.decorate('isCollaborator', (project, epadAuth) => {
     return (
@@ -619,7 +731,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'getAimsFromUIDsInternal',
-    (query, body, stream) =>
+    (query, body) =>
       new Promise((resolve, reject) => {
         try {
           if (query.summary === undefined && query.aim === undefined && query.seg === undefined) {
@@ -631,20 +743,18 @@ async function couchdb(fastify, options) {
             );
           } else {
             const db = fastify.couch.db.use(config.db);
-            if (stream && (!query.format || query.format === 'json')) {
-              const qry = { selector: { _id: { $in: body } }, fields: ['aim'], limit: 500 };
-              stream.code(200).send(db.findAsStream(qry));
-              resolve();
-            } else {
-              db.fetch({ keys: body }).then(data => {
-                const res = [];
-                data.rows.forEach(item => {
-                  // if not found it returns the record with no doc, error: 'not_found'
-                  if (item.doc && item.doc.aim) res.push(item.doc.aim);
-                });
-                resolve(res);
+
+            db.fetch({ keys: body }, { attachments: true }).then(data => {
+              const res = [];
+              data.rows.forEach(item => {
+                // if not found it returns the record with no doc, error: 'not_found'
+                if (item.doc && item.doc.aim) {
+                  const aim = fastify.addAttachmentParts(item.doc.aim, item.doc._attachments);
+                  res.push(aim);
+                }
               });
-            }
+              resolve(res);
+            });
           }
         } catch (err) {
           reject(new InternalError('Getting aims with uids', err));
@@ -699,8 +809,9 @@ async function couchdb(fastify, options) {
   // if aim is string, it is aimuid and the call is being made to update the projects (it can be from delete which sends removeProject = true)
   fastify.decorate(
     'saveAimInternal',
-    (aim, projectId, removeProject) =>
+    (aimIn, projectId, removeProject) =>
       new Promise((resolve, reject) => {
+        const aim = aimIn;
         const couchDoc =
           typeof aim !== 'string'
             ? {
@@ -710,6 +821,7 @@ async function couchdb(fastify, options) {
             : {
                 _id: aim,
               };
+        const attachments = fastify.extractAttachmentParts(aim);
         const db = fastify.couch.db.use(config.db);
         db.get(couchDoc._id, (error, existing) => {
           if (!error) {
@@ -733,7 +845,8 @@ async function couchdb(fastify, options) {
             } else couchDoc.projects = [projectId];
           }
 
-          db.insert(couchDoc, couchDoc._id)
+          db.multipart
+            .insert(couchDoc, attachments, couchDoc._id)
             .then(() => {
               resolve(`Aim ${couchDoc._id} is saved successfully`);
             })
@@ -747,53 +860,58 @@ async function couchdb(fastify, options) {
   fastify.decorate(
     'addProjectIdsToAimsInternal',
     aimsWithProjects =>
-      new Promise((resolve, reject) => {
+      new Promise(async (resolve, reject) => {
         let editCount = 0;
         try {
           const db = fastify.couch.db.use(config.db);
-          const docUpdatePromisses = [];
+          const aimsNotSaved = [];
           for (let i = 0; i < aimsWithProjects.length; i += 1) {
-            // eslint-disable-next-line no-loop-func
-            docUpdatePromisses.push(() => {
-              return new Promise(resolveDocUpdate => {
-                // eslint-disable-next-line no-loop-func
-                db.get(aimsWithProjects[i].aim, (error, existing) => {
-                  const couchDoc = existing;
-                  if (!error) {
-                    if (couchDoc.projects) {
-                      if (!couchDoc.projects.includes(aimsWithProjects[i].project))
-                        couchDoc.projects.push(aimsWithProjects[i].project);
-                    }
-                    couchDoc.projects = [aimsWithProjects[i].project];
+            try {
+              let noChange = false;
+              // eslint-disable-next-line no-await-in-loop
+              const couchDoc = await db.get(aimsWithProjects[i].aim);
+              if (couchDoc.projects) {
+                if (!couchDoc.projects.includes(aimsWithProjects[i].project))
+                  couchDoc.projects.push(aimsWithProjects[i].project);
+                noChange = true;
+              }
+              couchDoc.projects = [aimsWithProjects[i].project];
 
-                    fastify.log.info(
-                      `Adding project ${aimsWithProjects[i].project} to aimuid ${
-                        aimsWithProjects[i].aim
-                      }`
-                    );
+              fastify.log.info(
+                `Adding project ${aimsWithProjects[i].project} to aimuid ${aimsWithProjects[i].aim}`
+              );
+              const attachments = fastify.extractAttachmentParts(couchDoc.aim);
+              if (attachments && attachments.length > 0) {
+                // eslint-disable-next-line no-await-in-loop
+                await db.multipart.insert(couchDoc, attachments, aimsWithProjects[i].aim);
+                fastify.log.info(
+                  `Added project ${aimsWithProjects[i].project} to aimuid ${
+                    aimsWithProjects[i].aim
+                  } with attachments`
+                );
+              } else if (!noChange) {
+                // eslint-disable-next-line no-await-in-loop
+                await db.insert(couchDoc, aimsWithProjects[i].aim);
+                fastify.log.info(
+                  `Added project ${aimsWithProjects[i].project} to aimuid ${
+                    aimsWithProjects[i].aim
+                  }`
+                );
+              } else {
+                fastify.log.info(`No update for aimuid ${aimsWithProjects[i].aim}`);
+              }
 
-                    db.insert(couchDoc, aimsWithProjects[i].aim)
-                      .then(() => {
-                        resolveDocUpdate(`Aim ${aimsWithProjects[i].aim} is saved successfully`);
-                        editCount += 1;
-                      })
-                      .catch(err => {
-                        fastify.log.error(`Saving aim ${aimsWithProjects[i].aim} to couchdb`, err);
-                        // resolve anyways
-                        resolveDocUpdate(`Saving aim ${aimsWithProjects[i].aim} to couchdb`);
-                      });
-                  } else {
-                    fastify.log.error(`Aim ${aimsWithProjects[i].aim} is not in couchdb`);
-                    // resolve anyways
-                    resolveDocUpdate(`Saving aim ${aimsWithProjects[i].aim} to couchdb`);
-                  }
-                });
-              });
-            });
+              editCount += 1;
+            } catch (err) {
+              fastify.log.error(`Error in saving aim ${aimsWithProjects[i].aim} to couchdb`, err);
+              // wait for couchdb to get healthy
+              aimsNotSaved.push(aimsWithProjects[i]);
+            }
           }
-          fastify.pq.addAll(docUpdatePromisses).then(() => {
-            resolve(`Edited ${editCount} of ${aimsWithProjects.length}`);
-          });
+          fastify.log.warn(
+            ` ${aimsNotSaved.length} aims not saved ${JSON.stringify(aimsNotSaved)}`
+          );
+          fastify.log.info(`Edited ${editCount} aims`);
         } catch (err) {
           reject(
             new InternalError(
