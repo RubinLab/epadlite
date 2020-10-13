@@ -60,6 +60,8 @@ async function couchdb(fastify, options) {
           }
           const keys = Object.keys(viewsjs.views);
           const values = Object.values(viewsjs.views);
+          // clear views inside couch
+          viewDoc.views = {};
           // update the views
           for (let i = 0; i < keys.length; i += 1) {
             viewDoc.views[keys[i]] = values[i];
