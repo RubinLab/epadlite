@@ -4897,5 +4897,50 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should return return correct output for search with anatomy query', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_liver.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?project=reporting&template=RECIST&anatomy=liver')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with anatomy query with astericks', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_liver.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?project=reporting&template=RECIST&anatomy=li*')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with observation baseline query', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_baseline.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?project=reporting&template=RECIST&observation=baseline')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
   });
 });

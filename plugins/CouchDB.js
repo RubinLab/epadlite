@@ -481,18 +481,19 @@ async function couchdb(fastify, options) {
       'instance_uid',
     ];
     const qryParts = [];
+    // use ' for uids not other ones
     if (params.project) qryParts.push(`project:'${params.project}'`);
     if (params.subject) qryParts.push(`patient_id:'${params.subject}'`);
     if (params.study) qryParts.push(`study_uid:'${params.study}'`);
     if (params.series) qryParts.push(`series_uid:'${params.series}'`);
     if (fastify.isCollaborator(params.project, epadAuth))
-      qryParts.push(`user:'${epadAuth.username}'`);
+      qryParts.push(`user:${epadAuth.username}`);
     if (filter) {
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(filter)) {
-        if (key === 'template') qryParts.push(`template_code:'${value}'`);
+        if (key === 'template') qryParts.push(`template_code:${value}`);
         else if (key === 'aims') qryParts.push(`(${value.join(' OR ')})`);
-        else if (validQryParams.includes(key)) qryParts.push(`${key}:'${value}'`);
+        else if (validQryParams.includes(key)) qryParts.push(`${key}:${value}`);
       }
     }
     if (qryParts.length === 0) return '*:*';
