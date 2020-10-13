@@ -9359,10 +9359,11 @@ async function epaddb(fastify, options, done) {
           await fastify.orm.transaction(async t => {
             // first version is just lite
             // we might need to do checks for later versions
-            await fastify.orm.query(`DELETE FROM dbversion`, { transaction: t });
-            await fastify.orm.query(`INSERT INTO dbversion(version) VALUES('lite')`, {
-              transaction: t,
-            });
+            // TODO we do version check in checkAndMigrateVersion now, double check removing this is ok
+            // await fastify.orm.query(`DELETE FROM dbversion`, { transaction: t });
+            // await fastify.orm.query(`INSERT INTO dbversion(version) VALUES('lite')`, {
+            //   transaction: t,
+            // });
 
             // go over each table that has schema changes
             // // 1. epad_file
@@ -10098,10 +10099,38 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate('version0_4_0', () => fastify.addProjectIDToAims());
+
+  fastify.decorate(
+    'checkAndMigrateVersion',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const dbversion = (await models.dbversion.findOne({
+            attributes: ['version'],
+            raw: true,
+          })).version;
+          console.log(version, dbversion);
+          if (version === '0.4.0' && dbversion !== '0.4.0') await fastify.version0_4_0();
+          await models.dbversion.update(
+            { version },
+            {
+              where: {
+                version: dbversion,
+              },
+            }
+          );
+          resolve();
+        } catch (err) {
+          reject(new InternalError('afterDBReady', err));
+        }
+      })
+  );
+
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
-      if (version === '0.4.0') await fastify.addProjectIDToAims();
+      await fastify.checkAndMigrateVersion();
       if (config.env !== 'test') {
         // schedule calculating statistics at 1 am at night
         schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
