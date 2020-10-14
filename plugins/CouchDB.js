@@ -1124,7 +1124,7 @@ async function couchdb(fastify, options) {
     query =>
       new Promise((resolve, reject) => {
         try {
-          let type = 'image';
+          let type;
           let format = 'json';
           // eslint-disable-next-line prefer-destructuring
           if (query.type) type = query.type.toLowerCase();
@@ -1134,45 +1134,42 @@ async function couchdb(fastify, options) {
             if (format === 'json') view = 'templates_json';
             else if (format === 'summary') view = 'templates_summary';
           }
+          let filter = { reduce: true, group_level: 3 };
+          if (type)
+            filter = {
+              ...filter,
+              ...{ startkey: [type, '', ''], endkey: [`${type}\u9999`, '{}', '{}'] },
+            };
           const db = fastify.couch.db.use(config.db);
-          db.view(
-            'instances',
-            view,
-            {
-              startkey: [type, '', ''],
-              endkey: [`${type}\u9999`, '{}', '{}'],
-              reduce: true,
-              group_level: 3,
-            },
-            (error, body) => {
-              if (!error) {
-                const res = [];
-
-                if (format === 'summary') {
-                  body.rows.forEach(template => {
-                    res.push(template.key[2]);
-                  });
-                  resolve(res);
-                } else if (format === 'stream') {
-                  body.rows.forEach(template => {
-                    res.push(template.key[2]);
-                  });
-                  fastify
-                    .downloadTemplates(res)
-                    .then(result => resolve(result))
-                    .catch(err => reject(err));
-                } else {
-                  // the default is json! The old APIs were XML, no XML in epadlite
-                  body.rows.forEach(template => {
-                    res.push(template.key[2]);
-                  });
-                  resolve(res);
-                }
+          db.view('instances', view, filter, (error, body) => {
+            if (!error) {
+              const res = [];
+              // lets filter only the emit values starting with template type (as view emits 2 for each doc)
+              const validTempateTypes = ['image', 'series', 'study'];
+              if (format === 'summary') {
+                body.rows.forEach(template => {
+                  if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
+                });
+                resolve(res);
+              } else if (format === 'stream') {
+                body.rows.forEach(template => {
+                  if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
+                });
+                fastify
+                  .downloadTemplates(res)
+                  .then(result => resolve(result))
+                  .catch(err => reject(err));
               } else {
-                reject(new InternalError('Getting templates from couchdb', error));
+                // the default is json! The old APIs were XML, no XML in epadlite
+                body.rows.forEach(template => {
+                  if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
+                });
+                resolve(res);
               }
+            } else {
+              reject(new InternalError('Getting templates from couchdb', error));
             }
-          );
+          });
         } catch (err) {
           reject(new InternalError('Getting templates', err));
         }

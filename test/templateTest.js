@@ -119,14 +119,31 @@ describe('Template Tests', () => {
       });
   });
 
-  it('templates should be empty without filter (defaults to type=image)', done => {
+  it('templates should be empty with image filter', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/templates?type=image')
+      .query({ username: 'admin' })
+      .then(res => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(0);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
+
+  // we do not have default anymore
+  it('templates should return one template without filter and it should be ROI Only2', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/templates')
       .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(0);
+        expect(res.body.length).to.be.eql(1);
+        expect(res.body[0].TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only2');
         done();
       })
       .catch(e => {
