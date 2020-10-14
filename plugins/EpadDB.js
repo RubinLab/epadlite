@@ -10123,14 +10123,16 @@ async function epaddb(fastify, options, done) {
           });
           const dbVersion = dbVersionTuple ? dbVersionTuple.version : undefined;
           if (appVersion === '0.4.0' && dbVersion !== '0.4.0') await fastify.version0_4_0();
-          await models.dbversion.update(
-            { version: appVersion },
-            {
-              where: {
-                version: dbVersion,
-              },
-            }
-          );
+          if (dbVersion) {
+            await models.dbversion.update(
+              { version: appVersion },
+              {
+                where: {
+                  version: dbVersion,
+                },
+              }
+            );
+          }
           resolve();
         } catch (err) {
           reject(new InternalError('afterDBReady', err));
@@ -10141,8 +10143,8 @@ async function epaddb(fastify, options, done) {
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
-      await fastify.checkAndMigrateVersion();
       if (config.env !== 'test') {
+        await fastify.checkAndMigrateVersion();
         // schedule calculating statistics at 1 am at night
         schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
           const random = Math.random() * 1800 + 1;
