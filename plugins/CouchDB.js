@@ -937,6 +937,7 @@ async function couchdb(fastify, options) {
             ` ${aimsNotSaved.length} aims not saved ${JSON.stringify(aimsNotSaved)}`
           );
           fastify.log.info(`Edited ${editCount} aims`);
+          resolve();
         } catch (err) {
           reject(
             new InternalError(

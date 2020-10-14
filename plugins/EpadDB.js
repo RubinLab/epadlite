@@ -9353,7 +9353,7 @@ async function epaddb(fastify, options, done) {
               project: projectAim.dataValues.project.dataValues.projectid,
             };
           });
-          fastify.addProjectIdsToAimsInternal(aimProjects);
+          await fastify.addProjectIdsToAimsInternal(aimProjects);
           resolve();
         } catch (err) {
           reject(new InternalError('Migrating aims', err));
@@ -10124,7 +10124,7 @@ async function epaddb(fastify, options, done) {
           const dbVersion = dbVersionTuple ? dbVersionTuple.version : undefined;
           if (appVersion === '0.4.0' && dbVersion !== '0.4.0') await fastify.version0_4_0();
           await models.dbversion.update(
-            { appVersion },
+            { version: appVersion },
             {
               where: {
                 version: dbVersion,
