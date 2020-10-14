@@ -933,9 +933,10 @@ async function couchdb(fastify, options) {
               aimsNotSaved.push(aimsWithProjects[i]);
             }
           }
-          fastify.log.warn(
-            ` ${aimsNotSaved.length} aims not saved ${JSON.stringify(aimsNotSaved)}`
-          );
+          if (aimsNotSaved.length > 0)
+            fastify.log.warn(
+              `${aimsNotSaved.length} aims not saved ${JSON.stringify(aimsNotSaved)}`
+            );
           fastify.log.info(`Edited ${editCount} aims`);
           resolve();
         } catch (err) {
