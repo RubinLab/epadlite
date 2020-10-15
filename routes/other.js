@@ -315,5 +315,11 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.getWaterfallReport,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/search',
+    handler: fastify.search,
+  });
 }
 module.exports = otherRoutes;

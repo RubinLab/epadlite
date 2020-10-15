@@ -359,7 +359,7 @@ async function other(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           fastify
-            .saveAimInternal(aimJson)
+            .saveAimInternal(aimJson, params.project)
             .then(async () => {
               try {
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
@@ -1582,7 +1582,6 @@ async function other(fastify) {
               user = await fastify.getUserInternal({
                 user: username,
               });
-
             } else reject(err);
           }
           if (user) {
@@ -1915,6 +1914,35 @@ async function other(fastify) {
       }
     } catch (err) {
       reply.send(new InternalError('Decrypt', err));
+    }
+  });
+
+  fastify.decorate('search', (request, reply) => {
+    try {
+      const params = {};
+      const queryObj = { ...request.query };
+      if (queryObj.project) {
+        params.project = queryObj.project;
+        delete queryObj.project;
+      }
+      if (queryObj.subject) {
+        params.subject = queryObj.subject;
+        delete queryObj.subject;
+      }
+      if (queryObj.study) {
+        params.study = queryObj.study;
+        delete queryObj.study;
+      }
+      if (queryObj.series) {
+        params.series = queryObj.series;
+        delete queryObj.series;
+      }
+      fastify
+        .getAimsInternal('summary', params, queryObj, request.epadAuth)
+        .then(result => reply.code(200).send(result))
+        .catch(err => reply.send(err));
+    } catch (err) {
+      reply.send(new InternalError(`Search ${JSON.stringify(request.query)}`, err));
     }
   });
 
