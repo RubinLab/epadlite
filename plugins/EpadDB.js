@@ -431,7 +431,7 @@ async function epaddb(fastify, options, done) {
                 where: { project_id: dbProjectId },
               });
               const uidsLeftObjects = await models[relationTable].findAll({
-                attributes: [uidField, 'project_id'],
+                attributes: [uidField],
                 distinct: true,
                 where: { [uidField]: uidsToDelete },
                 order: [[uidField, 'ASC']],
