@@ -4,7 +4,6 @@ const fs = require('fs-extra');
 const archiver = require('archiver');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
-const _ = require('underscore');
 const atob = require('atob');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
@@ -686,59 +685,8 @@ async function couchdb(fastify, options) {
     );
   });
 
-  // filter aims with aimId filter array
-  fastify.decorate(
-    'filterAims',
-    (aimsRows, filter) =>
-      new Promise((resolve, reject) => {
-        try {
-          const keyNum = 4; // view dependent
-          let filteredRows = aimsRows;
-          if (filter) {
-            // only working with aims_summary view now
-            filteredRows = _.filter(filteredRows, obj => filter.includes(obj.key[keyNum].aimID));
-          }
-          resolve(filteredRows);
-        } catch (err) {
-          reject(new InternalError('Filtering aims', err));
-        }
-      })
-  );
-
-  // TODO attempt for json filtering for getAims
-  fastify.decorate(
-    'filterResultingAimObjectsWithUserRights',
-    (aimsObjects, format, params, epadAuth) =>
-      new Promise(async (resolve, reject) => {
-        try {
-          let filteredRows = aimsObjects;
-          // if we have project we should filter for project and user rights
-          if (params.project) {
-            // TODO if we want to return sth other than 404 for aim access we should check if this filtering empties filteredAims
-            // if the user is a collaborator in the project he should only see his annotations
-            if (fastify.isCollaborator(params.project, epadAuth)) {
-              if (format && format === 'summary') {
-                filteredRows = _.filter(filteredRows, obj => epadAuth.username === obj.userName);
-              } else {
-                filteredRows = _.filter(
-                  filteredRows,
-                  obj => epadAuth.username === obj.ImageAnnotationCollection.user.loginName.value
-                );
-              }
-            }
-          }
-          resolve(filteredRows);
-        } catch (err) {
-          reject(new InternalError('Filtering aims', err));
-        }
-      })
-  );
-
   fastify.decorate('getAims', async (request, reply) => {
     try {
-      // TODO handle filtering properly! /aims?format=json without project doesn't filter for subject/study now
-      // const filter = await fastify.getUserAccessibleAimUids(request.params, request.epadAuth);
-      // console.log('filter', filter);
       const result = await fastify.getAimsInternal(
         request.query.format,
         request.params,
@@ -898,7 +846,7 @@ async function couchdb(fastify, options) {
               if (couchDoc.projects) {
                 if (!couchDoc.projects.includes(aimsWithProjects[i].project))
                   couchDoc.projects.push(aimsWithProjects[i].project);
-                noChange = true;
+                else noChange = true;
               }
               couchDoc.projects = [aimsWithProjects[i].project];
 
@@ -929,7 +877,6 @@ async function couchdb(fastify, options) {
               editCount += 1;
             } catch (err) {
               fastify.log.error(`Error in saving aim ${aimsWithProjects[i].aim} to couchdb`, err);
-              // wait for couchdb to get healthy
               aimsNotSaved.push(aimsWithProjects[i]);
             }
           }
@@ -1699,6 +1646,32 @@ async function couchdb(fastify, options) {
               reject(new InternalError('Deleting file from couchdb', err));
             });
         });
+      })
+  );
+
+  fastify.decorate(
+    'removeProjectFromCouchDocsInternal',
+    (ids, projectId) =>
+      new Promise(async (resolve, reject) => {
+        const aimsNotUpdated = [];
+        if (ids.length > 0) {
+          for (let i = 0; i < ids.length; i += 1) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.saveAimInternal(ids[i], projectId, true);
+            } catch (err) {
+              fastify.log.warn(`Project ${projectId} can not be removed from aim ${ids[i]}`);
+              aimsNotUpdated.push(ids[0]);
+            }
+          }
+          // only reject if I couldn't update any
+          if (ids.length === aimsNotUpdated.length)
+            reject(
+              new InternalError(`Deleting project ${projectId} from aims ${JSON.stringify(ids)}`)
+            );
+          fastify.log.warn(`${aimsNotUpdated.length} aims not updated`);
+          resolve();
+        } else resolve();
       })
   );
 

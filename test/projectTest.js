@@ -4047,6 +4047,73 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should create testassoc2 project ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testassoc2',
+          projectName: 'testassoc2',
+          projectDescription: 'testassoc2desc',
+          defaultTemplate: '', // giving default template automatically adds the template to the project
+          type: 'private',
+        })
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testassoc2 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testassoc2/aims/2.25.211702350959705565754863799143359605362')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim endpoint should return aim 2.25.211702350959705565754863799143359605362 for project testassoc ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc/aims')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+            '2.25.211702350959705565754863799143359605362'
+          );
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim endpoint should return aim 2.25.211702350959705565754863799143359605362 for project testassoc2 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc2/aims')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+            '2.25.211702350959705565754863799143359605362'
+          );
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('should delete project testassoc', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -4060,20 +4127,31 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should create testassoc2 project ', done => {
+    it('project aim endpoint should return no aim for project testassoc ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/projects')
-        .send({
-          projectId: 'testassoc2',
-          projectName: 'testassoc2',
-          projectDescription: 'testassoc2desc',
-          defaultTemplate: 'ROI',
-          type: 'private',
-        })
+        .get('/projects/testassoc/aims')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim endpoint should return aim 2.25.211702350959705565754863799143359605362 for project testassoc2 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc2/aims')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+            '2.25.211702350959705565754863799143359605362'
+          );
           done();
         })
         .catch(e => {
@@ -4114,7 +4192,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should add first file to testfile2 project (filename retrieval is done via get all) ', done => {
+    it('should add first file to testassoc2 project (filename retrieval is done via get all) ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc2/files')

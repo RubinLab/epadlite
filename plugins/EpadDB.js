@@ -414,7 +414,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'deleteRelationAndOrphanedCouchDocInternal',
-    (dbProjectId, relationTable, uidField) =>
+    (dbProjectId, relationTable, uidField, projectId) =>
       new Promise(async (resolve, reject) => {
         try {
           const uidsToDeleteObjects = await models[relationTable].findAll({
@@ -431,23 +431,28 @@ async function epaddb(fastify, options, done) {
                 where: { project_id: dbProjectId },
               });
               const uidsLeftObjects = await models[relationTable].findAll({
-                attributes: [uidField],
+                attributes: [uidField, 'project_id'],
                 distinct: true,
                 where: { [uidField]: uidsToDelete },
                 order: [[uidField, 'ASC']],
               });
-              if (uidsToDelete.length === uidsLeftObjects.length)
+              if (uidsToDelete.length === uidsLeftObjects.length) {
                 fastify.log.info(
                   `All ${relationTable} entries of project ${dbProjectId} are being used by other projects`
                 );
-              else {
+                // update projects if aim
+                if (relationTable === 'project_aim')
+                  await fastify.removeProjectFromCouchDocsInternal(uidsToDelete, projectId);
+              } else {
                 const safeToDelete = [];
+                const updateIfAim = [];
                 let i = 0;
                 let j = 0;
                 // traverse the arrays once to find the ones that only exists in the first
                 // assumptions arrays are both sorted according to uid, second list is a subset of first
                 while (i < uidsToDelete.length && j < uidsLeftObjects.length) {
                   if (uidsToDelete[i] === uidsLeftObjects[j][uidField]) {
+                    updateIfAim.push(uidsToDelete[i]);
                     i += 1;
                     j += 1;
                   } else if (uidsToDelete[i] < uidsLeftObjects[j][uidField]) {
@@ -455,6 +460,8 @@ async function epaddb(fastify, options, done) {
                     i += 1;
                   } else if (uidsToDelete[i] > uidsLeftObjects[j][uidField]) {
                     // cannot happen!
+                    // just in case
+                    updateIfAim.push(uidsToDelete[i]);
                   }
                 }
                 // add leftovers
@@ -463,6 +470,8 @@ async function epaddb(fastify, options, done) {
                   i += 1;
                 }
                 if (safeToDelete.length > 0) await fastify.deleteCouchDocsInternal(safeToDelete);
+                if (updateIfAim.length > 0 && relationTable === 'project_aim')
+                  await fastify.removeProjectFromCouchDocsInternal(safeToDelete, projectId);
                 fastify.log.info(
                   `Deleted ${numDeleted} records from ${relationTable} and ${
                     safeToDelete.length
@@ -518,19 +527,22 @@ async function epaddb(fastify, options, done) {
         await fastify.deleteRelationAndOrphanedCouchDocInternal(
           project.id,
           'project_file',
-          'file_uid'
+          'file_uid',
+          request.params.project
         );
         // delete projects aims (delete orphan aims)
         await fastify.deleteRelationAndOrphanedCouchDocInternal(
           project.id,
           'project_aim',
-          'aim_uid'
+          'aim_uid',
+          request.params.project
         );
         // delete projects templates (delete orphan templates)
         await fastify.deleteRelationAndOrphanedCouchDocInternal(
           project.id,
           'project_template',
-          'template_uid'
+          'template_uid',
+          request.params.project
         );
 
         // delete projects subjects (delete orphan dicom files)
@@ -4480,50 +4492,6 @@ async function epaddb(fastify, options, done) {
   // });
 
   fastify.decorate(
-    'getUserAccessibleAimUids',
-    (params, epadAuth) =>
-      new Promise(async (resolve, reject) => {
-        try {
-          // if in thick mode
-          // get other peoples aims from projects user is member or owner, or public project
-          // union with user's annotations
-          let qry = '';
-          if (epadAuth.admin) {
-            // no user filtering
-            qry += `SELECT a.aim_uid 
-                FROM project_aim a, project p
-                WHERE a.project_id =p.id
-              `;
-          } else {
-            qry += `SELECT a.aim_uid 
-                FROM project_aim a, project_user pu, user u, project p
-                WHERE u.id = pu.user_id AND a.project_id = pu.project_id and p.id=pu.project_id 
-                AND u.username = '${epadAuth.username}' 
-                AND (pu.role <> 'Collaborator' or a.user = '${epadAuth.username}' or u.admin=true)
-              `;
-          }
-          if (params.project) {
-            qry += ` AND p.projectid='${params.project}' `;
-          }
-          if (params.subject) {
-            qry += ` AND a.subject_uid='${params.subject}' `;
-          }
-          if (params.study) {
-            qry += ` AND a.study_uid='${params.study}' `;
-          }
-          if (params.series) {
-            qry += ` AND a.series_uid='${params.series}' `;
-          }
-          const result = await fastify.orm.query(qry, { raw: true, type: QueryTypes.SELECT });
-          const aimUids = result.map(val => val.aim_uid);
-          resolve(aimUids);
-        } catch (err) {
-          reject(err);
-        }
-      })
-  );
-
-  fastify.decorate(
     'getAimUidsForProjectFilter',
     (params, filter) =>
       new Promise(async (resolve, reject) => {
@@ -4569,26 +4537,6 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
-
-  // fastify.decorate(
-  //   'filterProjectAims',
-  //   (params, query, epadAuth, stream) =>
-  //     new Promise(async (resolve, reject) => {
-  //       try {
-  //         const aimUids = await fastify.getUserAccessibleAimUids(params, epadAuth);
-  //         const result = await fastify.getAimsInternal(
-  //           query.format,
-  //           params,
-  //           aimUids,
-  //           epadAuth,
-  //           stream
-  //         );
-  //         resolve(result);
-  //       } catch (err) {
-  //         reject(err);
-  //       }
-  //     })
-  // );
 
   fastify.decorate(
     'getFileUidsForProject',
@@ -4826,55 +4774,18 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectAim', async (request, reply) => {
     try {
-      const project = await models.project.findOne({
-        where: { projectid: request.params.project },
-      });
-      if (project === null)
-        reply.send(
-          new BadRequestError(
-            `Getting aim ${request.params.aimuid} from project`,
-            new ResourceNotFoundError('Project', request.params.project)
-          )
-        );
+      const result = await fastify.getAimsInternal(
+        request.query.format,
+        request.params,
+        { aims: [request.params.aimuid] },
+        request.epadAuth
+      );
+      if (request.query.format === 'stream') {
+        reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+      }
+      if (result.length === 1) reply.code(200).send(result[0]);
       else {
-        let qry = `SELECT count(*) as count
-              FROM project_aim a, project_user pu, user u
-              WHERE u.id = pu.user_id AND a.project_id = pu.project_id
-              AND u.username = '${request.epadAuth.username}' 
-              AND (pu.role <> 'Collaborator' or a.user = '${
-                request.epadAuth.username
-              }' or u.admin=true)
-              AND a.project_id=${project.id}
-              AND a.aim_uid='${request.params.aimuid}'
-            `;
-        if (request.epadAuth.admin) {
-          qry = `SELECT count(*) as count
-              FROM project_aim a
-              WHERE a.project_id=${project.id}
-              AND a.aim_uid='${request.params.aimuid}'
-            `;
-        }
-        const projectAim = await fastify.orm.query(qry, {
-          raw: true,
-          type: QueryTypes.SELECT,
-        });
-        if (projectAim && projectAim[0] && projectAim[0].count !== 1)
-          reply.send(new ResourceNotFoundError('Project aim', request.params.aimuid));
-        else {
-          const result = await fastify.getAimsInternal(
-            request.query.format,
-            request.params,
-            { aims: [request.params.aimuid] },
-            request.epadAuth
-          );
-          if (request.query.format === 'stream') {
-            reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-          }
-          if (result.length === 1) reply.code(200).send(result[0]);
-          else {
-            reply.send(new ResourceNotFoundError('Aim', request.params.aimuid));
-          }
-        }
+        reply.send(new ResourceNotFoundError('Aim', request.params.aimuid));
       }
     } catch (err) {
       reply.send(new InternalError(`Getting project aim`, err));
