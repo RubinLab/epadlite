@@ -1,13 +1,13 @@
 /* eslint-disable no-console */
 //  const { Docker } = require('node-docker-api');
 //  const docker = new Docker({ socketPath: '/var/run/docker.sock' });
-//  const { Docker } = require('dockerode');
+const { Docker } = require('dockerode');
 
 class DockerService {
   constructor(varFs) {
     // eslint-disable-next-line global-require
 
-    const Docker = require('dockerode');
+    // const Docker = require('dockerode');
     this.fs = varFs;
     this.counter = 0;
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
@@ -271,7 +271,7 @@ class DockerService {
           if (errcode > 0) {
             throw new Error(`Plugin exited with error code (${errcode}). PLease check plugin logs`);
           }
-          return 0; //tmpContainer.remove();
+          return 0;
         })
         // eslint-disable-next-line func-names
         .catch(function(err) {

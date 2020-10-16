@@ -1570,7 +1570,6 @@ async function other(fastify) {
               user = await fastify.getUserInternal({
                 user: username,
               });
-
             } else reject(err);
           }
           if (user) {
