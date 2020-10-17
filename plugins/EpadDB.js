@@ -10014,6 +10014,23 @@ async function epaddb(fastify, options, done) {
           // do the schema and migration operations after the connection is established
           await fastify.fixSchema();
           await fastify.migrateDataLite2Thick({ username: 'admin' });
+          if (config.env !== 'test') {
+            await fastify.checkAndMigrateVersion();
+            // schedule calculating statistics at 1 am at night
+            schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
+              const random = Math.random() * 1800 + 1;
+              setTimeout(() => {
+                fastify.log.info(`Calculating and sending statistics at ${new Date()}`);
+                fastify.calcStats();
+              }, random * 1000);
+            });
+            if (config.pollDW) {
+              setInterval(async () => {
+                await fastify.pollDWStudies();
+              }, config.pollDW * 60000);
+            }
+            if (!config.noResume) fastify.resumeProcessing();
+          }
           resolve();
         } catch (err) {
           reject(new InternalError('afterDBReady', err));
@@ -10054,24 +10071,6 @@ async function epaddb(fastify, options, done) {
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
-      if (config.env !== 'test') {
-        await fastify.checkAndMigrateVersion();
-        // schedule calculating statistics at 1 am at night
-        schedule.scheduleJob('stats', '0 1 * * *', 'America/Los_Angeles', () => {
-          const random = Math.random() * 1800 + 1;
-          setTimeout(() => {
-            fastify.log.info(`Calculating and sending statistics at ${new Date()}`);
-            fastify.calcStats();
-          }, random * 1000);
-        });
-        if (config.pollDW) {
-          setInterval(async () => {
-            await fastify.pollDWStudies();
-          }, config.pollDW * 60000);
-        }
-
-        if (!config.noResume) fastify.resumeProcessing();
-      }
       done();
     } catch (err) {
       fastify.log.error(`Cannot connect to mariadb (err:${err.message}), shutting down the server`);
