@@ -67,7 +67,7 @@ fastify.register(
   // eslint-disable-next-line import/no-dynamic-require
   require('fastify-swagger'),
   {
-    routePrefix: '/documentation',
+    routePrefix: `${fastify.getPrefixForRoute()}/documentation`,
     exposeRoute: true,
     swagger: {
       info: {
