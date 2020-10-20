@@ -15,4 +15,4 @@ install:
 
 before_script:
   - npm ci
-  - curl -X PUT localhost:5984/epadlite
+  - curl -X PUT http://admin:admin@localhost:5984/epadlite
