@@ -8,10 +8,9 @@ services:
 before_install:
   - docker pull ibmcom/couchdb3:latest
   - docker pull rubinlab/mariadb:latest
-
-install:
-  - docker run -p 5984:5984 -d ibmcom/couchdb3 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=admin
-  - docker run -p 3306:3306 -d rubinlab/mariadb -e MYSQL_DATABASE=epaddb -e MYSQL_USER=pacs -e MYSQL_PASSWORD=pacs -e MYSQL_ROOT_PASSWORD=mymariasecret
+  - docker run -d -p 5984:5984 -e COUCHDB_USER=admin -e COUCHDB_PASSWORD=admin ibmcom/couchdb3 
+  - docker run -d -p 3306:3306 -e MYSQL_DATABASE=epaddb -e MYSQL_USER=pacs -e MYSQL_PASSWORD=pacs -e MYSQL_ROOT_PASSWORD=mymariasecret rubinlab/mariadb 
 
 before_script:
   - npm ci
+  - while [ $? -ne 0 ]; do sleep 1 && curl -v http://admin:admin@localhost:5984; done
