@@ -1644,9 +1644,9 @@ async function other(fastify) {
     if (
       config.auth &&
       config.auth !== 'none' &&
-      !req.req.url.startsWith(`/${config.prefix}/documentation`) &&
-      !req.req.url.startsWith(`/${config.prefix}/epads/stats`) &&
-      !req.req.url.startsWith(`/${config.prefix}/epad/statistics`) // disabling auth for put is dangerous
+      !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
+      !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
+      !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) // disabling auth for put is dangerous
     ) {
       // if auth has been given in config, verify authentication
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
@@ -1791,8 +1791,13 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('getPrefixForRoute', () => {
+    if (config.prefix && config.prefix !== '') return `/${config.prefix}`;
+    return '';
+  });
+
   fastify.decorate('isProjectRoute', request =>
-    request.req.url.startsWith(config.prefix ? `/${config.prefix}/projects/` : '/projects/')
+    request.req.url.startsWith(`${fastify.getPrefixForRoute()}/projects/`)
   );
 
   // remove null in patient id

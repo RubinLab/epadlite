@@ -65,11 +65,14 @@ fastify.register(require('./plugins/Reporting'));
 const port = process.env.port || '8080';
 const host = process.env.host || '0.0.0.0';
 
+const documentationPath =
+  config.prefix && config.prefix !== '' ? `/${config.prefix}/documentation` : '/documentation';
+
 fastify.register(
   // eslint-disable-next-line import/no-dynamic-require
   require('fastify-swagger'),
   {
-    routePrefix: '/documentation',
+    routePrefix: documentationPath,
     exposeRoute: true,
     swagger: {
       info: {
