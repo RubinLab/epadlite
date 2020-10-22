@@ -60,6 +60,8 @@ fastify.register(require('./plugins/DICOMwebServer'), {
 // register Other plugin we created
 fastify.register(require('./plugins/Other'));
 
+fastify.register(require('./plugins/Reporting'));
+
 const port = process.env.port || '8080';
 const host = process.env.host || '0.0.0.0';
 

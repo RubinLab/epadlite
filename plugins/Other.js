@@ -359,7 +359,7 @@ async function other(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           fastify
-            .saveAimInternal(aimJson)
+            .saveAimInternal(aimJson, params.project)
             .then(async () => {
               try {
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
@@ -409,6 +409,18 @@ async function other(fastify) {
               await fastify.saveAimJsonWithProjectRef(aimJson, params, epadAuth);
             }
           }
+
+          await fastify.purgeWado(
+            dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
+              ? dicomTags.dict['0020000D'].Value[0]
+              : '',
+            dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
+              ? dicomTags.dict['0020000E'].Value[0]
+              : '',
+            dicomTags.dict['00080018'] && dicomTags.dict['00080018'].Value
+              ? dicomTags.dict['00080018'].Value[0]
+              : ''
+          );
           resolve(
             JSON.stringify({
               subject:
@@ -729,7 +741,6 @@ async function other(fastify) {
                   .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                   .then(res => {
                     try {
-                      fastify.log.info(`Saving successful for ${filename}`);
                       resolve(res);
                     } catch (errProject) {
                       reject(errProject);
@@ -1155,7 +1166,8 @@ async function other(fastify) {
   });
 
   fastify.decorate('checkFileType', filename => {
-    return config.validExt.includes(fastify.getExtension(filename));
+    const ext = fastify.getExtension(filename);
+    return ext !== '' && config.validExt.includes(fastify.getExtension(filename));
   });
 
   fastify.decorate('deleteSubject', (request, reply) => {
@@ -1369,7 +1381,10 @@ async function other(fastify) {
       const methodText = { GET: 'GET', POST: 'CREATE', PUT: 'UPDATE', DELETE: 'DELETE' };
       reqInfo.methodText = methodText[request.req.method];
       const queryStart = request.req.url.indexOf('?');
-      let cleanUrl = request.req.url.replace(`/${config.prefix}`, '');
+      let cleanUrl = config.prefix
+        ? request.req.url.replace(`/${config.prefix}`, '')
+        : request.req.url;
+
       if (queryStart !== -1) cleanUrl = cleanUrl.substring(0, queryStart);
       const urlParts = cleanUrl.split('/');
       const levels = {
@@ -1563,6 +1578,7 @@ async function other(fastify) {
                 updatetime: Date.now(),
               };
               await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
+              await fastify.updateUserInWorklistCompleteness(userInfo.email, username);
               user = await fastify.getUserInternal({
                 user: username,
               });
@@ -1781,7 +1797,11 @@ async function other(fastify) {
   });
 
   fastify.decorate('isProjectRoute', request =>
+<<<<<<< HEAD
     request.req.url.startsWith(`${fastify.getPrefixForRoute()}/projects/`)
+=======
+    request.req.url.startsWith(config.prefix ? `/${config.prefix}/projects/` : '/projects/')
+>>>>>>> develop
   );
 
   // remove null in patient id
@@ -1903,6 +1923,35 @@ async function other(fastify) {
       }
     } catch (err) {
       reply.send(new InternalError('Decrypt', err));
+    }
+  });
+
+  fastify.decorate('search', (request, reply) => {
+    try {
+      const params = {};
+      const queryObj = { ...request.query };
+      if (queryObj.project) {
+        params.project = queryObj.project;
+        delete queryObj.project;
+      }
+      if (queryObj.subject) {
+        params.subject = queryObj.subject;
+        delete queryObj.subject;
+      }
+      if (queryObj.study) {
+        params.study = queryObj.study;
+        delete queryObj.study;
+      }
+      if (queryObj.series) {
+        params.series = queryObj.series;
+        delete queryObj.series;
+      }
+      fastify
+        .getAimsInternal('summary', params, queryObj, request.epadAuth)
+        .then(result => reply.code(200).send(result))
+        .catch(err => reply.send(err));
+    } catch (err) {
+      reply.send(new InternalError(`Search ${JSON.stringify(request.query)}`, err));
     }
   });
 

@@ -1,6 +1,6 @@
 {
   "name": "epadlite",
-  "version": "1.0.0",
+  "version": "0.4.0",
   "description": "Lightweight ePad Backend",
   "main": "server.js",
   "dependencies": {
@@ -14,6 +14,7 @@
     "csv-writer": "^1.3.0",
     "date-format": "^2.0.0",
     "dcmjs": "^0.12.0",
+    "deep-equal-in-any-order": "^1.0.28",
     "dockerode": "^3.1.0",
     "fastify": "^2.7.1",
     "fastify-basic-auth": "^0.3.1",
@@ -35,7 +36,7 @@
     "swagger-ui-dist": "^3.23.6",
     "to-array-buffer": "^3.2.0",
     "underscore": "^1.9.1",
-    "unzip-stream": "^0.3.0",
+    "unzip-stream": "^0.3.1",
     "xmlhttprequest": "^1.8.0"
   },
   "devDependencies": {
