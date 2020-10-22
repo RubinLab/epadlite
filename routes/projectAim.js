@@ -159,6 +159,7 @@ async function routes(fastify) {
       tags: ['project', 'aim'],
       querystring: {
         format: { type: 'string' },
+        longitudinal_ref: { type: 'boolean' },
       },
       params: {
         type: 'object',

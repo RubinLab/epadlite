@@ -3,11 +3,13 @@ const chai = require('chai');
 const chaiHttp = require('chai-http');
 const fs = require('fs');
 const nock = require('nock');
+const deepEqualInAnyOrder = require('deep-equal-in-any-order');
 const studiesResponse = require('./data/studiesResponse.json');
 const seriesResponse = require('./data/seriesResponse.json');
 const config = require('../config/index');
 
 chai.use(chaiHttp);
+chai.use(deepEqualInAnyOrder);
 const { expect } = chai;
 
 let server;
@@ -4045,6 +4047,73 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should create testassoc2 project ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testassoc2',
+          projectName: 'testassoc2',
+          projectDescription: 'testassoc2desc',
+          defaultTemplate: '', // giving default template automatically adds the template to the project
+          type: 'private',
+        })
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testassoc2 should be successful ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testassoc2/aims/2.25.211702350959705565754863799143359605362')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim endpoint should return aim 2.25.211702350959705565754863799143359605362 for project testassoc ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc/aims')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+            '2.25.211702350959705565754863799143359605362'
+          );
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim endpoint should return aim 2.25.211702350959705565754863799143359605362 for project testassoc2 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc2/aims')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+            '2.25.211702350959705565754863799143359605362'
+          );
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('should delete project testassoc', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -4058,20 +4127,31 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should create testassoc2 project ', done => {
+    it('project aim endpoint should return no aim for project testassoc ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/projects')
-        .send({
-          projectId: 'testassoc2',
-          projectName: 'testassoc2',
-          projectDescription: 'testassoc2desc',
-          defaultTemplate: 'ROI',
-          type: 'private',
-        })
+        .get('/projects/testassoc/aims')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('project aim endpoint should return aim 2.25.211702350959705565754863799143359605362 for project testassoc2 ', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testassoc2/aims')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+            '2.25.211702350959705565754863799143359605362'
+          );
           done();
         })
         .catch(e => {
@@ -4112,7 +4192,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should add first file to testfile2 project (filename retrieval is done via get all) ', done => {
+    it('should add first file to testassoc2 project (filename retrieval is done via get all) ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testassoc2/files')
@@ -4603,6 +4683,337 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
           expect(res.body[0].subjectID).to.be.eql('3');
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+  });
+  describe('Project Reporting Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'reporting',
+          projectName: 'reporting',
+          projectDescription: 'reporting desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+    });
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/reporting')
+        .query({ username: 'admin' });
+    });
+    // just adding 7 like a nondicom to not messup other tests
+    // and to make sure it exists in the project for the waterfallproject tests
+    it('should add subject 7 to project reporting', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/reporting/subjects')
+        .query({ username: 'admin' })
+        .send({ subjectUid: '7', name: 'fake7' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should save 12 aims', done => {
+      fs.readdir('test/data/recist_annotations', async (err, files) => {
+        if (err) {
+          throw new Error(`Reading directory test/data/recist_annotations`, err);
+        } else {
+          for (let i = 0; i < files.length; i += 1) {
+            const jsonBuffer = JSON.parse(
+              fs.readFileSync(`test/data/recist_annotations/${files[i]}`)
+            );
+            // eslint-disable-next-line no-await-in-loop
+            await chai
+              .request(`http://${process.env.host}:${process.env.port}`)
+              .post('/projects/reporting/aims')
+              .send(jsonBuffer)
+              .query({ username: 'admin' });
+          }
+
+          done();
+        }
+      });
+    });
+
+    it('project reporting should have 12 aims', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.a('array');
+          expect(res.body.length).to.be.eql(12);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct recist report', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_recist.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?report=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal report', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_longitudinal.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?report=Longitudinal')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA report', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_adla.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?report=Longitudinal&shapes=line')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal_ref list', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/longitudinal_ref_7.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?longitudinal_ref=true')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct RECIST waterfall report for project', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=RECIST')
+        .query({ username: 'admin' })
+        .send({ projectID: 'reporting' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA waterfall report for project', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=ADLA')
+        .query({ username: 'admin' })
+        .send({ projectID: 'reporting' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should return correct RECIST waterfall report for subject selection with subjectuids', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=RECIST')
+        .query({ username: 'admin' })
+        .send({ projectID: 'reporting', subjectUIDs: ['7'] })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA waterfall report subject selection with subjectuids', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=ADLA')
+        .query({ username: 'admin' })
+        .send({ projectID: 'reporting', subjectUIDs: ['7'] })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+
+    it('should return correct RECIST waterfall report for subject projects pairs selection', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_recist_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=RECIST')
+        .query({ username: 'admin' })
+        .send({ pairs: [{ subjectID: '7', projectID: 'reporting' }] })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return correct ADLA waterfall report for subject projects pairs selection', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/waterfall_adla_project.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/reports/waterfall?type=BASELINE&metric=ADLA')
+        .query({ username: 'admin' })
+        .send({ pairs: [{ subjectID: '7', projectID: 'reporting' }] })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail getting  recist report without subject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail getting longitudinal report without subject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=Longitudinal')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should fail getting ADLA report without subject', done => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/aims?report=Longitudinal&shapes=line')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with project and template query', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_proj_temp.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?project=reporting&template=RECIST')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with anatomy query', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_liver.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?project=reporting&template=RECIST&anatomy=liver')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with anatomy query with astericks', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_liver.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?project=reporting&template=RECIST&anatomy=li*')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with observation baseline query', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_baseline.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?project=reporting&template=RECIST&observation=baseline')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch(e => {
