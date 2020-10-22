@@ -1797,11 +1797,7 @@ async function other(fastify) {
   });
 
   fastify.decorate('isProjectRoute', request =>
-<<<<<<< HEAD
     request.req.url.startsWith(`${fastify.getPrefixForRoute()}/projects/`)
-=======
-    request.req.url.startsWith(config.prefix ? `/${config.prefix}/projects/` : '/projects/')
->>>>>>> develop
   );
 
   // remove null in patient id
