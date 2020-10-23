@@ -516,7 +516,7 @@ async function couchdb(fastify, options) {
             dbFilter.include_docs = true;
             dbFilter.attachments = true;
           }
-          db.search('search', 'aimSearch', dbFilter, (error, body) => {
+          db.search('search', 'aimSearch', dbFilter, async (error, body) => {
             if (!error) {
               const res = [];
               if (format === 'summary') {
@@ -547,7 +547,8 @@ async function couchdb(fastify, options) {
                 resolve(res);
               } else {
                 for (let i = 0; i < body.rows.length; i += 1) {
-                  const aim = fastify.addAttachmentParts(
+                  // eslint-disable-next-line no-await-in-loop
+                  const aim = await fastify.addAttachmentParts(
                     body.rows[i].doc.aim,
                     body.rows[i].doc._attachments
                   );
@@ -642,35 +643,60 @@ async function couchdb(fastify, options) {
     return attachments;
   });
 
-  fastify.decorate('addAttachmentParts', (aimIn, attachments) => {
+  fastify.decorate('addAttachmentParts', async (aimIn, attachments) => {
     const aim = aimIn;
     if (attachments) {
+      const dicomDB = fastify.couch.db.use(config.db);
       if (
         aim.ImageAnnotationCollection &&
         aim.ImageAnnotationCollection.imageAnnotations &&
         aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation &&
         aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation.length > 0
       ) {
-        if (attachments.markupEntityCollection && attachments.markupEntityCollection.data) {
-          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection = JSON.parse(
-            atob(attachments.markupEntityCollection.data).toString()
-          );
+        if (attachments.markupEntityCollection) {
+          if (attachments.markupEntityCollection.data) {
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection = JSON.parse(
+              atob(attachments.markupEntityCollection.data).toString()
+            );
+          } else {
+            // retrieve attachment
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection = JSON.parse(
+              await dicomDB.attachment.get(
+                aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                'markupEntityCollection'
+              )
+            );
+          }
         }
-        if (
-          attachments.calculationEntityCollection &&
-          attachments.calculationEntityCollection.data
-        ) {
-          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection = JSON.parse(
-            atob(attachments.calculationEntityCollection.data).toString()
-          );
+        if (attachments.calculationEntityCollection) {
+          if (attachments.calculationEntityCollection.data) {
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection = JSON.parse(
+              atob(attachments.calculationEntityCollection.data).toString()
+            );
+          } else {
+            // retrieve attachment
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection = JSON.parse(
+              await dicomDB.attachment.get(
+                aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                'calculationEntityCollection'
+              )
+            );
+          }
         }
-        if (
-          attachments.imageAnnotationStatementCollection &&
-          attachments.imageAnnotationStatementCollection.data
-        ) {
-          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection = JSON.parse(
-            atob(attachments.imageAnnotationStatementCollection.data).toString()
-          );
+        if (attachments.imageAnnotationStatementCollection) {
+          if (attachments.imageAnnotationStatementCollection.data) {
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection = JSON.parse(
+              atob(attachments.imageAnnotationStatementCollection.data).toString()
+            );
+          } else {
+            // retrieve attachment
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection = JSON.parse(
+              await dicomDB.attachment.get(
+                aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                'imageAnnotationStatementCollection'
+              )
+            );
+          }
         }
       }
     }
@@ -717,15 +743,19 @@ async function couchdb(fastify, options) {
           } else {
             const db = fastify.couch.db.use(config.db);
 
-            db.fetch({ keys: body }, { attachments: true }).then(data => {
+            db.fetch({ keys: body }, { attachments: true }).then(async data => {
               const res = [];
-              data.rows.forEach(item => {
+              for (let i = 0; i < data.rows.length; i += 1) {
                 // if not found it returns the record with no doc, error: 'not_found'
-                if (item.doc && item.doc.aim) {
-                  const aim = fastify.addAttachmentParts(item.doc.aim, item.doc._attachments);
+                if (data.rows[i].doc && data.rows[i].doc.aim) {
+                  // eslint-disable-next-line no-await-in-loop
+                  const aim = await fastify.addAttachmentParts(
+                    data.rows[i].doc.aim,
+                    data.rows[i].doc._attachments
+                  );
                   res.push(aim);
                 }
-              });
+              }
               resolve(res);
             });
           }
