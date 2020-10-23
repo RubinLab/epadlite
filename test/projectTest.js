@@ -1938,6 +1938,36 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('aim returned for project testaim with uid 2.25.211702350959705565754863799143359605362 should be correct', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims/2.25.211702350959705565754863799143359605362')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
+    it('aims returned for project testaim should have one aim and it should be correct', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .query({ username: 'admin' })
+        .then(res => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql([jsonBuffer]);
+          done();
+        })
+        .catch(e => {
+          done(e);
+        });
+    });
     it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testaim2 should be successful ', done => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
