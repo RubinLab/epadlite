@@ -6088,7 +6088,7 @@ async function epaddb(fastify, options, done) {
                     'study_uid'
                   );
                 }
-                nondicoms = _.sortBy(nondicoms, 'study.dataValues.description');
+                nondicoms = _.sortBy(nondicoms, 'study.dataValues.studydate');
                 if (studyUids.length !== result.length)
                   if (studyUids.length === result.length + nondicoms.length) {
                     for (let i = 0; i < nondicoms.length; i += 1) {

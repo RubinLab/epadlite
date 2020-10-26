@@ -631,7 +631,6 @@ async function dicomwebserver(fastify) {
                                   ? value['00201208'].Value[0]
                                   : '',
                             };
-
                       return {
                         projectID: params.project ? params.project : projectID,
                         patientID: fastify.replaceNull(value['00100020'].Value[0]),
@@ -671,7 +670,7 @@ async function dicomwebserver(fastify) {
                         studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '',
                       };
                     })
-                    .sortBy('studyDescription')
+                    .sortBy('studyDate')
                     .value()
                 );
                 resolve(result);
