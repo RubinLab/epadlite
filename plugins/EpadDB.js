@@ -7000,12 +7000,17 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate('deleteUser', (request, reply) => {
-    models.user
-      .destroy({
-        where: {
-          username: request.params.user,
-        },
-      })
+    const deleteFromUser = models.user.destroy({
+      where: {
+        username: request.params.user,
+      },
+    });
+    const deleteFromProgress = models.worklist_study_completeness.destroy({
+      where: {
+        assignee: request.params.user,
+      },
+    });
+    Promise.all([deleteFromUser, deleteFromProgress])
       .then(() => {
         reply.code(200).send(`User ${request.params.user} is deleted successfully`);
       })
