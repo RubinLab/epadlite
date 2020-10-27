@@ -18,22 +18,22 @@ async function routes(fastify) {
   });
 
   fastify.route({
-    method: 'POST',
-    url: '/container/',
+    method: 'GET',
+    url: '/container/:containerid',
     schema: {
       tags: ['plugins'],
     },
     handler: fastify.getContainerLog,
   });
-
-  fastify.route({
-    method: 'POST',
-    url: '/container/stop/',
-    schema: {
-      tags: ['plugins'],
-    },
-    handler: fastify.stopContainerLog,
-  });
+  // not used needs to be removed if everything works correctly
+  // fastify.route({
+  //   method: 'POST',
+  //   url: '/container/stop/',
+  //   schema: {
+  //     tags: ['plugins'],
+  //   },
+  //   handler: fastify.stopContainerLog,
+  // });
 
   // not used for now
   // fastify.route({

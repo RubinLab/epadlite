@@ -108,37 +108,37 @@ class DockerService {
       }
     });
   }
-
-  stopContainerLog(containerId) {
-    let tmpContainer;
-    let strm = null;
-    return new Promise((resolve, reject) => {
-      try {
-        console.log('docker is working on getting log for container', containerId);
-        // eslint-disable-next-line func-names
-        tmpContainer = this.docker.getContainer(`epadplugin_${containerId}`);
-        console.log('docker service getting log for ', `epadplugin_${containerId}`);
-        // eslint-disable-next-line func-names
-        tmpContainer.attach({ stream: false, stdout: true, stderr: true }, function(err, stream) {
-          console.log('docker catched stream and resolving');
-          // stream.pipe(process.stdout);
-          strm = stream;
-          if (err) {
-            reject(err);
-          }
-          // stream.pipe(res);
-          // console.log('stream catched', stream);
-          // return stream;
-          resolve(stream);
-        });
-        console.log('strm : ', strm);
-        // resolve(strm);
-      } catch (err) {
-        console.log('error happened while streaming the log   : ', containerId);
-        reject(err);
-      }
-    });
-  }
+  // not used
+  // stopContainerLog(containerId) {
+  //   let tmpContainer;
+  //   let strm = null;
+  //   return new Promise((resolve, reject) => {
+  //     try {
+  //       console.log('docker is working on getting log for container', containerId);
+  //       // eslint-disable-next-line func-names
+  //       tmpContainer = this.docker.getContainer(`epadplugin_${containerId}`);
+  //       console.log('docker service getting log for ', `epadplugin_${containerId}`);
+  //       // eslint-disable-next-line func-names
+  //       tmpContainer.attach({ stream: false, stdout: true, stderr: true }, function(err, stream) {
+  //         console.log('docker catched stream and resolving');
+  //         // stream.pipe(process.stdout);
+  //         strm = stream;
+  //         if (err) {
+  //           reject(err);
+  //         }
+  //         // stream.pipe(res);
+  //         // console.log('stream catched', stream);
+  //         // return stream;
+  //         resolve(stream);
+  //       });
+  //       console.log('strm : ', strm);
+  //       // resolve(strm);
+  //     } catch (err) {
+  //       console.log('error happened while streaming the log   : ', containerId);
+  //       reject(err);
+  //     }
+  //   });
+  // }
 
   inspectContainer(containerId) {
     // eslint-disable-next-line func-names
@@ -150,7 +150,10 @@ class DockerService {
         if (err) {
           reject(err);
         }
-        resolve(data);
+        if (data) {
+          resolve(data);
+        }
+        resolve('container inspection took too long');
       });
     });
 
@@ -174,7 +177,7 @@ class DockerService {
         .createContainer({
           Image: imageId,
           name: containerNameToGive,
-          AttachStdin: true,
+          AttachStdin: false,
           AttachStdout: true,
           AttachStderr: true,
           Tty: true,
@@ -195,12 +198,14 @@ class DockerService {
             if (err) {
               //  console.log(err);
               console.log('error happened while inspecting plugin container : ', err);
+              return err;
             }
             if (data) {
               console.log('inspect result for plugin container: ', data.Name);
+              return tmpContainer.start();
             }
+            return 'container took too long to create';
           });
-          return tmpContainer.start();
         })
         // eslint-disable-next-line func-names
         .then(async function() {

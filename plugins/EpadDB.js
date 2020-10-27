@@ -703,77 +703,34 @@ async function epaddb(fastify, options, done) {
         reply.code(500).send(new InternalError('Getting templates from db', err));
       });
   });
-  // fastify.decorate('getContainerLog', async (request, reply) => {
-  //   fastify.log.info('*');
-  //   fastify.log.info('*');
-  //   fastify.log.info('*');
-  //   fastify.log.info('*');
-  //   fastify.log.info('*');
-  //   fastify.log.info('*');
-  //   //  fastify.log.info('container id to call he log for : ', request);
-  //   const pluginDataRootPath = await fastify.getUserPluginDataPathInternal();
-  //   //  fastify.log.info('pluginDataRootPath : ', pluginDataRootPath);
-  //   //  fastify.log.info('request', request.body);
-  //   const containerid = request.body.id;
-  //   const { creator } = request.body;
+  // not used will be removed
+  // fastify.decorate('stopContainerLog', (request, reply) => {
   //   const dock = new DockerService();
-  //   fastify.log.info('hop hop called');
-  //   // const mainPath = await dock.inspectContainer('epad_lite');
-  //   // fastify.log.info('main path : ', mainPath);
-  //   const inspectResultObject = await dock.inspectContainer(`epadplugin_${containerid}`);
-  //   fastify.log.info('inspect result object', inspectResultObject);
-  //   fastify.log.info(
-  //     `tryinf to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-  //   );
-  //   const readStream = fs.createReadStream(
-  //     `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`,
-  //     'utf8'
-  //   );
-  //   // const readStream = fs.createReadStream(`${inspectResultObject.LogPath}`, 'utf8');
-  //   reply.res.setHeader('Content-type', 'application/octet-stream');
-  //   reply.res.setHeader('Access-Control-Allow-Origin', '*');
-  //   reply.send(readStream);
+  //   dock.stopContainerLog(`5`).then(strm => {
+  //     fastify.log.info('stram returned obj', strm);
+  //     reply.send(200);
+  //   });
   // });
 
-  fastify.decorate('stopContainerLog', (request, reply) => {
-    const dock = new DockerService();
-    dock.stopContainerLog(`5`).then(strm => {
-      fastify.log.info('stram returned obj', strm);
-      // strm.pipe(reply.res);
-      // strm.on('data', chunk => {
-      //   strm.pipe(reply.res);
-      // });
+  fastify.decorate('getContainerLog', async (request, reply) => {
+    const { containerid } = request.params;
+    fastify
+      .getUserPluginDataPathInternal()
+      .then(async pluginDataRootPath => {
+        // const { creator } = request.body;
+        const creator = await fastify.getObjectCreator('pluginqueue', containerid, '');
+        // need to get the creator internally
+        const dock = new DockerService();
 
-      // reply.send(strm);
-      reply.send(200);
-    });
-  });
-  fastify.decorate('getContainerLog', (request, reply) => {
-    fastify.log.info('*');
-    fastify.log.info('*');
-    fastify.log.info('*');
-    fastify.log.info('*');
-    fastify.log.info('*');
-    fastify.log.info('*'); // eslint-disable-next-line no-unused-expressions
-    // reply.send(202);
-    //  fastify.log.info('container id to call he log for : ', request);
-    fastify.getUserPluginDataPathInternal().then(pluginDataRootPath => {
-      //  fastify.log.info('pluginDataRootPath : ', pluginDataRootPath);
-      //  fastify.log.info('request', request.body);
-      const containerid = request.body.id;
-      const { creator } = request.body;
-      const dock = new DockerService();
-      // const mainPath = await dock.inspectContainer('epad_lite');
-      // fastify.log.info('main path : ', mainPath);
-      dock
-        .inspectContainer(`epadplugin_${containerid}`)
-        .then(inspectResultObject => {
-          // fastify.log.info('inspect result object', inspectResultObject);
-          // fastify.log.info('status : ', inspectResultObject.State.Status);
-          fastify.log.info(
-            `trying to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-          );
-          if (inspectResultObject.State.Status === 'running') {
+        dock
+          .inspectContainer(`epadplugin_${containerid}`)
+          .then(inspectResultObject => {
+            fastify.log.info('inspect result object', inspectResultObject);
+            // fastify.log.info('status : ', inspectResultObject.State.Status);
+            fastify.log.info(
+              `trying to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+            );
+            //  if (inspectResultObject.State.Status === 'running') {
             fastify.log.info('status running so sending stream');
             reply.res.setHeader('Content-type', 'application/octet-stream');
             reply.res.setHeader('Access-Control-Allow-Origin', '*');
@@ -782,58 +739,55 @@ async function epaddb(fastify, options, done) {
               `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
             );
             reply.send(rdsrtm);
-            //  rdsrtm.pipe(reply.res);
-            // dock
-            //   .getContainerLog(`${containerid}`)
-            //   .then(strm => {
-            //     fastify.log.info('stram returned obj', strm);
-            //     // strm.pipe(reply.res);
-            //     // strm.on('data', chunk => {
-            //     //   strm.pipe(reply.res);
-            //     // });
-            //     reply.send(strm);
-            //     // reply.send(strm);
-            //   })
-            //   .catch(() => {
-            //     fastify.log.info('hhhhhhyuyguyguguygugyuyguygyug');
-            //   });
-          } else {
-            reply.res.setHeader('Content-type', 'application/octet-stream');
-            reply.res.setHeader('Access-Control-Allow-Origin', '*');
+            //  } else {
+            //  reply.res.setHeader('Content-type', 'application/octet-stream');
+            //  reply.res.setHeader('Access-Control-Allow-Origin', '*');
             //  reply.res.charset = 'UTF-8';
             fastify.log.info(
               `container not running but trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
             );
-            if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
-              fastify.log.info('log file found ');
-              const rdsrtm = fs.createReadStream(
-                `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-              );
-              reply.send(rdsrtm);
-            }
-          }
-        })
-        .catch(err => {
-          reply.res.setHeader('Content-type', 'application/octet-stream');
-          reply.res.setHeader('Access-Control-Allow-Origin', '*');
-          //  reply.res.charset = 'UTF-8';
-          fastify.log.info(
-            `trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-          );
-          if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
-            fastify.log.info('log file found ');
-            const rdsrtm = fs.createReadStream(
-              `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            );
-            reply.send(rdsrtm);
-          } else {
+            // if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
+            //   fastify.log.info('log file found ');
+            //   const rdsrtm = fs.createReadStream(
+            //     `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+            //   );
+            //   reply.send(rdsrtm);
+            // }
+            //  }
+          })
+          .catch(err => {
+            reply.res.setHeader('Content-type', 'application/octet-stream');
+            reply.res.setHeader('Access-Control-Allow-Origin', '*');
+            // fastify.log.info(
+            //   `trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+            // );
             reply.res.write('404');
             reply.res.end();
             fastify.log.info('err', err);
-          }
-          // reply.code(404).send(err);
-        });
-    });
+            // if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
+            //   fastify.log.info('log file found ');
+            //   const rdsrtm = fs.createReadStream(
+            //     `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+            //   );
+            //   reply.send(rdsrtm);
+            // } else {
+            //   reply.res.write('404');
+            //   reply.res.end();
+            //   fastify.log.info('err', err);
+            // }
+          });
+      })
+      .catch(err => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              `Error happened while trying ot get the log file for container: epadplugin_${containerid}`,
+              err
+            )
+          );
+        fastify.log.info('error on getting plugin fata path for log file ', err);
+      });
   });
 
   fastify.decorate('getPluginsWithProject', (request, reply) => {
@@ -2086,7 +2040,7 @@ async function epaddb(fastify, options, done) {
         await fastify.updateStatusQueueProcessInternal(queuid, 'stopping');
         new EpadNotification(
           request,
-          `plugin image ${containerName} set to stopping`,
+          `container: ${containerName} is stopping the process `,
           'success',
           true
         ).notify(fastify);
@@ -2099,7 +2053,7 @@ async function epaddb(fastify, options, done) {
         await fastify.updateStatusQueueProcessInternal(queuid, 'ended');
         new EpadNotification(
           request,
-          `plugin image ${containerName} set to ended`,
+          `container: ${containerName} has ended processing`,
           'success',
           true
         ).notify(fastify);
@@ -2472,18 +2426,8 @@ async function epaddb(fastify, options, done) {
         }
       }
       if (epadLitePwd === '') {
-        // fastify.log.info('oooo');
-        // fastify.log.info('oooo');
-        // fastify.log.info('oooo');
-        // fastify.log.info('rejecting getUserPluginDataPathInternal');
         reject(new Error(`couldn't find epad_lite container. Please restart epad.`));
       }
-      // fastify.log.info('resolved getUserPluginDataPathInternal ,,', epadLitePwd);
-      // fastify.log.info('oooo');
-      // fastify.log.info('oooo');
-      // fastify.log.info('oooo');
-      // fastify.log.info('oooo');
-      // fastify.log.info('resolved getUserPluginDataPathInternal ,,', epadLitePwd);
       resolve(epadLitePwd);
     });
   });
@@ -2525,33 +2469,13 @@ async function epaddb(fastify, options, done) {
       const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${
         queueObject.id
       }/`;
-      // fastify.log.info('_____dirname : ', __dirname);
-      // let pluginsDataFolderx = path.join(__dirname, `../pluginsDataFolder/${queueObject.creator}`);
-      // if (!fs.existsSync(`${pluginsDataFolderx}`)) {
-      //   fs.mkdirSync(`${pluginsDataFolderx}`);
-      //   fs.chmod(`${pluginsDataFolderx}`, '777', () => {
-      //     fastify.log.info(`file rights changed by epad_lite for the folder ${pluginsDataFolderx}`);
-      //   });
-      // }
-      // pluginsDataFolderx = path.join(
-      //   __dirname,
-      //   `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}`
-      // );
-      // if (!fs.existsSync(`${pluginsDataFolderx}`)) {
-      //   fs.mkdirSync(`${pluginsDataFolderx}`);
-      //   fs.chmod(`${pluginsDataFolderx}`, '777', () => {
-      //     fastify.log.info(`file rights changed by epad_lite for the folder ${pluginsDataFolderx}`);
-      //   });
-      // }
+
       const pluginsDataFolderx = path.join(
         __dirname,
         `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/logs`
       );
       if (!fs.existsSync(`${pluginsDataFolderx}`)) {
         fs.mkdirSync(`${pluginsDataFolderx}`);
-        // fs.chmod(`${pluginsDataFolderx}`, '777', () => {
-        //   fastify.log.info(`file rights changed by epad_lite for the folder ${pluginsDataFolderx}`);
-        // });
       }
       fastify.log.info('getting epad_lite bind points and pwd local : ', localServerBindPoint);
       if (parametertype === 'default') {
@@ -2605,7 +2529,6 @@ async function epaddb(fastify, options, done) {
           resolve(returnObject);
         } catch (err) {
           reject(new InternalError('error while getting plugin project paraeters', err));
-          //  reject(err);
         }
       }
 
@@ -2819,24 +2742,10 @@ async function epaddb(fastify, options, done) {
     const outputPath = `${queueObject.creator}/${queueObject.id}/output/`;
     const dest = path.join(__dirname, `../pluginsDataFolder/${outputPath}`);
     fastify.writeHead(`${queueObject.name}.output.zip`, reply.res, request.headers.origin);
-    // reply.res.writeHead(200, {
-    //   'Content-Type': 'application/zip',
-    //   'Content-disposition': `attachment; filename=${queueObject.name}.output.zip`,
-    //   'Access-Control-Allow-Origin': '*',
-    // });
+
     const archive = archiver('zip', {
       zlib: { level: 9 }, // Sets the compression level.
     });
-
-    // eslint-disable-next-line func-names
-    // check if commenting out this affects
-    // archive.on('warning', function(err) {
-    //   if (err.code === 'ENOENT') {
-    //     // log warning
-    //   } else {
-    //     throw err;
-    //   }
-    // });
 
     // eslint-disable-next-line func-names
     archive.on('error', function(err) {
@@ -2860,7 +2769,7 @@ async function epaddb(fastify, options, done) {
       await fastify.updateStatusQueueProcessInternal(queueId, 'waiting');
       new EpadNotification(
         request,
-        `plugin image ${imageRepo} set to waiting`,
+        `ePad is preparing folder structure for plugin image: ${imageRepo} `,
         'success',
         true
       ).notify(fastify);
@@ -2913,15 +2822,13 @@ async function epaddb(fastify, options, done) {
           const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
             pluginParameters
           );
-          // fastify.log.info('sorted params : ', sortedParams);
-          // fastify.log.info('plugin parameters', pluginParameters);
 
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'running');
-          opreationresult = ` plugin image : ${imageRepo} is runing`;
+          // opreationresult = ` plugin image : ${imageRepo} is runing`;
           new EpadNotification(
             request,
-            `plugin image ${imageRepo} set to runnning`,
+            `plugin image: ${imageRepo} started the process and container is running`,
             'success',
             true
           ).notify(fastify);
@@ -2934,10 +2841,7 @@ async function epaddb(fastify, options, done) {
             pluginQueueList[i],
             userPluginRootPath
           );
-          fastify.log.info('opreationresult');
-          fastify.log.info('opreationresult');
-          fastify.log.info('opreationresult');
-          fastify.log.info('opreationresult');
+
           fastify.log.info('opreationresult', JSON.stringify(opreationresult));
 
           // eslint-disable-next-line no-prototype-builtins
@@ -2950,7 +2854,7 @@ async function epaddb(fastify, options, done) {
 
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
-          opreationresult = ` plugin image : ${imageRepo} terminated with success`;
+          opreationresult = ` plugin image : ${imageRepo} terminated the container process with success`;
           new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
           fastify.log.info('plugin finished working', imageRepo);
 
@@ -2990,7 +2894,7 @@ async function epaddb(fastify, options, done) {
           }
           return 'completed';
         } catch (err) {
-          const operationresult = ` plugin image : ${imageRepo} terminated with error`;
+          const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'error');
           return new EpadNotification(request, operationresult, err, true).notify(fastify);
@@ -9047,6 +8951,10 @@ async function epaddb(fastify, options, done) {
             // uidField='projectid';
             // model='project';
             // break;
+            case 'pluginqueue':
+              uidField = 'id';
+              model = 'plugin_queue';
+              break;
             case 'subject':
               uidField = 'subjectuid';
               model = 'subject';
