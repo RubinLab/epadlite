@@ -10050,10 +10050,10 @@ async function epaddb(fastify, options, done) {
             raw: true,
           });
           const dbVersion = dbVersionTuple ? dbVersionTuple.version : undefined;
-          if (appVersion === '0.4.0' && dbVersion !== '0.4.0') await fastify.version0_4_0();
+          if (appVersion === '0.4.0' && dbVersion !== 'v0.4.0') await fastify.version0_4_0();
           if (dbVersion) {
             await models.dbversion.update(
-              { version: appVersion },
+              { version: `v${appVersion}` },
               {
                 where: {
                   version: dbVersion,
