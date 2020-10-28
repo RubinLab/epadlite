@@ -201,10 +201,12 @@ class DockerService {
             }
             if (data) {
               console.log('inspect result for plugin container: ', data.Name);
-              return tmpContainer.start();
+              return data.Name;
             }
-            return 'container took too long to create';
+            return 0;
+            // return 'container took too long to create';
           });
+          return tmpContainer.start();
         })
         // eslint-disable-next-line func-names
         .then(async function() {
