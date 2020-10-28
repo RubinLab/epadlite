@@ -1,13 +1,12 @@
 /* eslint-disable no-console */
 //  const { Docker } = require('node-docker-api');
 //  const docker = new Docker({ socketPath: '/var/run/docker.sock' });
-const { Docker } = require('dockerode');
+//  const { Docker } = require('dockerode');
 
 class DockerService {
   constructor(varFs) {
     // eslint-disable-next-line global-require
-
-    // const Docker = require('dockerode');
+    const Docker = require('dockerode');
     this.fs = varFs;
     this.counter = 0;
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
