@@ -2135,7 +2135,8 @@ async function epaddb(fastify, options, done) {
           });
         });
     } catch (err) {
-      reply.send(new InternalError(' plugin queue error while starting', err));
+      // reply.send(new InternalError(' plugin queue error while starting', err));
+      fastify.log.error(`runPluginsQueue error : ${err}`);
     }
   });
   //  internal functions
