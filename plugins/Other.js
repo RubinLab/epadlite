@@ -1380,11 +1380,10 @@ async function other(fastify) {
       reqInfo.method = request.req.method;
       const methodText = { GET: 'GET', POST: 'CREATE', PUT: 'UPDATE', DELETE: 'DELETE' };
       reqInfo.methodText = methodText[request.req.method];
-      const queryStart = request.req.url.indexOf('?');
       let cleanUrl = config.prefix
         ? request.req.url.replace(`/${config.prefix}`, '')
         : request.req.url;
-
+      const queryStart = cleanUrl.indexOf('?');
       if (queryStart !== -1) cleanUrl = cleanUrl.substring(0, queryStart);
       const urlParts = cleanUrl.split('/');
       const levels = {
