@@ -6,7 +6,6 @@
 class DockerService {
   constructor(varFs) {
     // eslint-disable-next-line global-require
-
     const Docker = require('dockerode');
     this.fs = varFs;
     this.counter = 0;
