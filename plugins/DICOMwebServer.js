@@ -102,6 +102,50 @@ async function dicomwebserver(fastify) {
         }
       })
   );
+
+  // add accessor methods with decorate
+  fastify.decorate(
+    'purgeWado',
+    (studyUid, seriesUid, instanceUid) =>
+      new Promise((resolve, reject) => {
+        try {
+          let url = fastify.getWadoPath(studyUid, seriesUid, instanceUid);
+          url = `${config.authConfig.authServerUrl.replace('/keycloak', '/api/wado')}${url}`;
+          Axios({
+            method: 'purge',
+            url,
+          })
+            .then(() => {
+              fastify.log.info(`Purged ${url}`);
+            })
+            .catch(err => {
+              if (err.response.status !== 404 && err.response.status !== 412)
+                reject(
+                  new InternalError(
+                    `Purging wado path for study ${studyUid} seriesUID ${seriesUid} objectUID ${instanceUid}`,
+                    err
+                  )
+                );
+              else fastify.log.info(`Url ${url} not cached`);
+            });
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Purging wado path for study ${studyUid} seriesUID ${seriesUid} objectUID ${instanceUid}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getWadoPath',
+    (studyUid, seriesUid, instanceUid) =>
+      `/?requestType=WADO&studyUID=${studyUid}&seriesUID=${seriesUid}&objectUID=${instanceUid}`
+  );
+
   // add accessor methods with decorate
   fastify.decorate(
     'saveDicomsInternal',
@@ -193,14 +237,15 @@ async function dicomwebserver(fastify) {
           if (!noStats)
             if (params.project)
               promisses.push(
-                fastify.filterProjectAims(
+                fastify.getAimsInternal(
+                  'summary',
                   {
                     project: params.project,
                     subject: '',
                     study: '',
                     series: '',
                   },
-                  { format: 'summary' },
+                  undefined,
                   epadAuth
                 )
               );
@@ -502,14 +547,15 @@ async function dicomwebserver(fastify) {
           if (!noStats) {
             if (params.project)
               promisses.push(
-                fastify.filterProjectAims(
+                fastify.getAimsInternal(
+                  'summary',
                   {
                     project: params.project,
                     subject: params.subject ? params.subject : '',
                     study: '',
                     series: '',
                   },
-                  { format: 'summary' },
+                  undefined,
                   epadAuth
                 )
               );
@@ -585,7 +631,6 @@ async function dicomwebserver(fastify) {
                                   ? value['00201208'].Value[0]
                                   : '',
                             };
-
                       return {
                         projectID: params.project ? params.project : projectID,
                         patientID: fastify.replaceNull(value['00100020'].Value[0]),
@@ -625,7 +670,7 @@ async function dicomwebserver(fastify) {
                         studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '',
                       };
                     })
-                    .sortBy('studyDescription')
+                    .sortBy('studyDate')
                     .value()
                 );
                 resolve(result);
@@ -694,14 +739,15 @@ async function dicomwebserver(fastify) {
           if (noStats === undefined || noStats === false)
             if (params.project)
               promisses.push(
-                fastify.filterProjectAims(
+                fastify.getAimsInternal(
+                  'summary',
                   {
                     project: params.project,
                     subject: params.subject,
                     study: params.study,
                     series: '',
                   },
-                  { format: 'summary' },
+                  undefined,
                   epadAuth
                 )
               );
@@ -830,9 +876,11 @@ async function dicomwebserver(fastify) {
                     //   value['00080018'].Value[0]
                     // }`,
                     // send wado-uri instead of wado-rs
-                    lossyImage: `/?requestType=WADO&studyUID=${params.study}&seriesUID=${
-                      params.series
-                    }&objectUID=${value['00080018'].Value[0]}`,
+                    lossyImage: fastify.getWadoPath(
+                      params.study,
+                      params.series,
+                      value['00080018'].Value[0]
+                    ),
                     dicomElements: '', // TODO
                     defaultDICOMElements: '', // TODO
                     numberOfFrames:

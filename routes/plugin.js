@@ -16,6 +16,25 @@ async function routes(fastify) {
     },
     handler: fastify.getPluginsForProject,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/container/:containerid',
+    schema: {
+      tags: ['plugins'],
+    },
+    handler: fastify.getContainerLog,
+  });
+  // not used needs to be removed if everything works correctly
+  // fastify.route({
+  //   method: 'POST',
+  //   url: '/container/stop/',
+  //   schema: {
+  //     tags: ['plugins'],
+  //   },
+  //   handler: fastify.stopContainerLog,
+  // });
+
   // not used for now
   // fastify.route({
   //   method: 'GET',

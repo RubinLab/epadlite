@@ -4,7 +4,7 @@ const fs = require('fs-extra');
 const archiver = require('archiver');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
-const _ = require('underscore');
+const atob = require('atob');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 const {
@@ -44,18 +44,28 @@ async function couchdb(fastify, options) {
           // define an empty design document
           let viewDoc = {};
           viewDoc.views = {};
+          let searchDoc = {};
+          searchDoc.indexes = {};
           // try and get the design document
           try {
             viewDoc = await dicomDB.get('_design/instances');
           } catch (e) {
             fastify.log.info('View document not found! Creating new one');
           }
+          try {
+            searchDoc = await dicomDB.get('_design/search');
+          } catch (e) {
+            fastify.log.info('Search document not found! Creating new one');
+          }
           const keys = Object.keys(viewsjs.views);
           const values = Object.values(viewsjs.views);
+          // clear views inside couch
+          viewDoc.views = {};
           // update the views
           for (let i = 0; i < keys.length; i += 1) {
             viewDoc.views[keys[i]] = values[i];
           }
+          searchDoc.indexes.aimSearch = viewsjs.searchIndexes.aimSearch;
           // insert the updated/created design document
           await dicomDB.insert(viewDoc, '_design/instances', insertErr => {
             if (insertErr) {
@@ -63,6 +73,15 @@ async function couchdb(fastify, options) {
               reject(new InternalError('Error updating couchdb design document', insertErr));
             } else {
               fastify.log.info('Design document updated successfully ');
+              resolve();
+            }
+          });
+          await dicomDB.insert(searchDoc, '_design/search', insertErr => {
+            if (insertErr) {
+              fastify.log.error(`Error updating the search design document ${insertErr.message}`);
+              reject(new InternalError('Error updating search design document', insertErr));
+            } else {
+              fastify.log.info('Search design document updated successfully ');
               resolve();
             }
           });
@@ -103,7 +122,7 @@ async function couchdb(fastify, options) {
       ioes.forEach(ioe => {
         // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
         header.push({ id: ioe.label.value.toLowerCase(), title: ioe.label.value });
-        if (ioe.imagingObservationEntityCharacteristicCollection) {
+        if (ioe.imagingObservationCharacteristicCollection) {
           const iocs =
             ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
           iocs.forEach(ioc => {
@@ -446,6 +465,42 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('generateSearchQuery', (params, epadAuth, filter) => {
+    // if new search indexes are added, it should be added here too
+    const validQryParams = [
+      'patient_name',
+      'user',
+      'creation_date',
+      'creation_time',
+      'unknown_creation_date',
+      'name',
+      'programmed_comment',
+      'anatomy',
+      'observation',
+      'study_date',
+      'modality',
+      'instance_uid',
+    ];
+    const qryParts = [];
+    // use ' for uids not other ones
+    if (params.project) qryParts.push(`project:'${params.project}'`);
+    if (params.subject) qryParts.push(`patient_id:'${params.subject}'`);
+    if (params.study) qryParts.push(`study_uid:'${params.study}'`);
+    if (params.series) qryParts.push(`series_uid:'${params.series}'`);
+    if (fastify.isCollaborator(params.project, epadAuth))
+      qryParts.push(`user:${epadAuth.username}`);
+    if (filter) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const [key, value] of Object.entries(filter)) {
+        if (key === 'template') qryParts.push(`template_code:${value}`);
+        else if (key === 'aims') qryParts.push(`(${value.join(' OR ')})`);
+        else if (validQryParams.includes(key)) qryParts.push(`${key}:${value}`);
+      }
+    }
+    if (qryParts.length === 0) return '*:*';
+    return qryParts.join(' AND ');
+  });
+
   // add accessor methods with decorate
   fastify.decorate(
     'getAimsInternal',
@@ -454,58 +509,62 @@ async function couchdb(fastify, options) {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
             reject(new UnauthenticatedError('No epadauth in request'));
-          const paramsFilter = fastify.getFilter(params);
-
-          const filterOptions = {
-            ...paramsFilter,
-            reduce: true,
-            group_level: 5,
-          };
-
-          // define which view to use according to the parameter format
-          // default is json
-          let view = 'aims_json';
-          if (format) {
-            if (format === 'json') view = 'aims_json';
-            else if (format === 'summary') view = 'aims_summary';
-          }
           const db = fastify.couch.db.use(config.db);
-          db.view('instances', view, filterOptions, async (error, body) => {
+          const qry = fastify.generateSearchQuery(params, epadAuth, filter);
+          const dbFilter = { q: qry, sort: 'name<string>', limit: 100 };
+          if (format !== 'summary') {
+            dbFilter.include_docs = true;
+            dbFilter.attachments = true;
+          }
+          db.search('search', 'aimSearch', dbFilter, async (error, body) => {
             if (!error) {
-              const filteredRows = await fastify.filterAims(
-                body.rows,
-                filter,
-                format,
-                params,
-                epadAuth
-              );
               const res = [];
               if (format === 'summary') {
-                for (let i = 0; i < filteredRows.length; i += 1)
-                  // get the actual instance object (tags only)
-                  res.push(filteredRows[i].key[4]);
+                for (let i = 0; i < body.rows.length; i += 1) {
+                  // not putting project id. getprojectaims puts the project that was called from
+                  res.push({
+                    aimID: body.rows[i].id,
+                    subjectID: body.rows[i].fields.patient_id,
+                    studyUID: body.rows[i].fields.study_uid,
+                    seriesUID: body.rows[i].fields.series_uid,
+                    instanceUID: body.rows[i].fields.instance_uid,
+                    instanceOrFrameNumber: 'NA',
+                    name: body.rows[i].fields.name,
+                    template: body.rows[i].fields.template_code,
+                    date: `${body.rows[i].fields.creation_date}${
+                      body.rows[i].fields.creation_time
+                    }`,
+                    patientName: body.rows[i].fields.patient_name,
+                    studyDate: body.rows[i].fields.study_date,
+                    comment: body.rows[i].fields.programmed_comment,
+                    templateType: body.rows[i].fields.template_name,
+                    color: 'NA',
+                    dsoFrameNo: 'NA',
+                    isDicomSR: 'NA',
+                    originalSubjectID: body.rows[i].fields.patient_id,
+                  });
+                }
                 resolve(res);
-              } else if (format === 'stream') {
-                for (let i = 0; i < filteredRows.length; i += 1)
-                  // get the actual instance object (tags only)
-                  // the first 3 keys are patient, study, series, image
-                  res.push(filteredRows[i].key[4]);
-
-                // download aims only
-                fastify
-                  .downloadAims({ aim: 'true' }, res)
-                  .then(result => resolve(result))
-                  .catch(err => reject(err));
               } else {
-                // the default is json! The old APIs were XML, no XML in epadlite
-                for (let i = 0; i < filteredRows.length; i += 1)
-                  // get the actual instance object (tags only)
-                  // the first 3 keys are patient, study, series, image
-                  res.push(filteredRows[i].key[4]);
-                resolve(res);
+                for (let i = 0; i < body.rows.length; i += 1) {
+                  // eslint-disable-next-line no-await-in-loop
+                  const aim = await fastify.addAttachmentParts(
+                    body.rows[i].doc.aim,
+                    body.rows[i].doc._attachments
+                  );
+                  res.push(aim);
+                }
+                if (format === 'stream') {
+                  // download aims only
+                  fastify
+                    .downloadAims({ aim: 'true' }, res)
+                    .then(result => resolve(result))
+                    .catch(err => reject(err));
+                } else {
+                  // the default is json! The old APIs were XML, no XML in epadlite
+                  resolve(res);
+                }
               }
-            } else {
-              reject(new InternalError('Get aims from couchdb', error));
             }
           });
         } catch (err) {
@@ -513,62 +572,151 @@ async function couchdb(fastify, options) {
         }
       })
   );
-
-  fastify.decorate('isCollaborator', (project, epadAuth) => {
-    return epadAuth.projectToRole.includes(`${project}:Collaborator`);
+  // manipulates the input aim
+  fastify.decorate('extractAttachmentParts', aim => {
+    const attachments = [];
+    // separate attachments
+    if (
+      aim.ImageAnnotationCollection &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
+        .MarkupEntity &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
+        .MarkupEntity.length > 1
+    ) {
+      attachments.push({
+        name: 'markupEntityCollection',
+        data: Buffer.from(
+          JSON.stringify(
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection
+          )
+        ),
+        content_type: 'text/plain',
+      });
+      // eslint-disable-next-line no-param-reassign
+      delete aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+        .markupEntityCollection;
+    }
+    // if calculations are more than 10 make both calculationEntityCollection and imageAnnotationStatementCollection attachments
+    if (
+      aim.ImageAnnotationCollection &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+        .calculationEntityCollection &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection
+        .CalculationEntity &&
+      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection
+        .CalculationEntity.length > 10
+    ) {
+      attachments.push({
+        name: 'calculationEntityCollection',
+        data: Buffer.from(
+          JSON.stringify(
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .calculationEntityCollection
+          )
+        ),
+        content_type: 'text/plain',
+      });
+      // eslint-disable-next-line no-param-reassign
+      delete aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+        .calculationEntityCollection;
+      if (
+        aim.ImageAnnotationCollection &&
+        aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+          .imageAnnotationStatementCollection
+      ) {
+        attachments.push({
+          name: 'imageAnnotationStatementCollection',
+          data: Buffer.from(
+            JSON.stringify(
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .imageAnnotationStatementCollection
+            )
+          ),
+          content_type: 'text/plain',
+        });
+        // eslint-disable-next-line no-param-reassign
+        delete aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+          .imageAnnotationStatementCollection;
+      }
+    }
+    return attachments;
   });
 
-  // filter aims with aimId filter array
-  fastify.decorate(
-    'filterAims',
-    (aimsRows, filter, format, params, epadAuth) =>
-      new Promise((resolve, reject) => {
-        try {
-          const keyNum = 4; // view dependent
-          let filteredRows = aimsRows;
-          if (filter) {
-            if (format && format === 'summary') {
-              filteredRows = _.filter(filteredRows, obj => filter.includes(obj.key[keyNum].aimID));
-            } else {
-              filteredRows = _.filter(filteredRows, obj =>
-                filter.includes(obj.key[keyNum].ImageAnnotationCollection.uniqueIdentifier.root)
-              );
-            }
+  fastify.decorate('addAttachmentParts', async (aimIn, attachments) => {
+    const aim = aimIn;
+    if (attachments) {
+      const dicomDB = fastify.couch.db.use(config.db);
+      if (
+        aim.ImageAnnotationCollection &&
+        aim.ImageAnnotationCollection.imageAnnotations &&
+        aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation &&
+        aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation.length > 0
+      ) {
+        if (attachments.markupEntityCollection) {
+          if (attachments.markupEntityCollection.data) {
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection = JSON.parse(
+              atob(attachments.markupEntityCollection.data).toString()
+            );
+          } else {
+            // retrieve attachment
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection = JSON.parse(
+              await dicomDB.attachment.get(
+                aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                'markupEntityCollection'
+              )
+            );
           }
-          // if we have project we should filter for project and user rights
-          if (params.project) {
-            // TODO if we want to return sth other than 404 for aim access we should check if this filtering empties filteredAims
-            // if the user is a collaborator in the project he should only see his annotations
-            if (fastify.isCollaborator(params.project, epadAuth)) {
-              if (format && format === 'summary') {
-                filteredRows = _.filter(
-                  filteredRows,
-                  obj => epadAuth.username === obj.key[keyNum].userName
-                );
-              } else {
-                filteredRows = _.filter(
-                  filteredRows,
-                  obj =>
-                    epadAuth.username ===
-                    obj.key[keyNum].ImageAnnotationCollection.user.loginName.value
-                );
-              }
-            }
-          }
-          resolve(filteredRows);
-        } catch (err) {
-          reject(new InternalError('Filtering aims', err));
         }
-      })
-  );
+        if (attachments.calculationEntityCollection) {
+          if (attachments.calculationEntityCollection.data) {
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection = JSON.parse(
+              atob(attachments.calculationEntityCollection.data).toString()
+            );
+          } else {
+            // retrieve attachment
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection = JSON.parse(
+              await dicomDB.attachment.get(
+                aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                'calculationEntityCollection'
+              )
+            );
+          }
+        }
+        if (attachments.imageAnnotationStatementCollection) {
+          if (attachments.imageAnnotationStatementCollection.data) {
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection = JSON.parse(
+              atob(attachments.imageAnnotationStatementCollection.data).toString()
+            );
+          } else {
+            // retrieve attachment
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection = JSON.parse(
+              await dicomDB.attachment.get(
+                aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                'imageAnnotationStatementCollection'
+              )
+            );
+          }
+        }
+      }
+    }
+    return aim;
+  });
+
+  fastify.decorate('isCollaborator', (project, epadAuth) => {
+    return (
+      epadAuth &&
+      epadAuth.projectToRole &&
+      epadAuth.projectToRole.includes(`${project}:Collaborator`)
+    );
+  });
 
   fastify.decorate('getAims', async (request, reply) => {
     try {
-      const filter = await fastify.getUserAccessibleAimUids(request.epadAuth);
       const result = await fastify.getAimsInternal(
         request.query.format,
         request.params,
-        filter,
+        undefined,
         request.epadAuth
       );
       if (request.query.format === 'stream') {
@@ -580,37 +728,56 @@ async function couchdb(fastify, options) {
     }
   });
 
+  fastify.decorate(
+    'getAimsFromUIDsInternal',
+    (query, body) =>
+      new Promise((resolve, reject) => {
+        try {
+          if (query.summary === undefined && query.aim === undefined && query.seg === undefined) {
+            reject(
+              new BadRequestError(
+                'Getting aims with uids',
+                new Error("Query params shouldn't be empty")
+              )
+            );
+          } else {
+            const db = fastify.couch.db.use(config.db);
+
+            db.fetch({ keys: body }, { attachments: true }).then(async data => {
+              const res = [];
+              for (let i = 0; i < data.rows.length; i += 1) {
+                // if not found it returns the record with no doc, error: 'not_found'
+                if (data.rows[i].doc && data.rows[i].doc.aim) {
+                  // eslint-disable-next-line no-await-in-loop
+                  const aim = await fastify.addAttachmentParts(
+                    data.rows[i].doc.aim,
+                    data.rows[i].doc._attachments
+                  );
+                  res.push(aim);
+                }
+              }
+              resolve(res);
+            });
+          }
+        } catch (err) {
+          reject(new InternalError('Getting aims with uids', err));
+        }
+      })
+  );
+
   fastify.decorate('getAimsFromUIDs', (request, reply) => {
-    try {
-      if (
-        request.query.summary === undefined &&
-        request.query.aim === undefined &&
-        request.query.seg === undefined
-      ) {
-        reply.send(
-          new BadRequestError(
-            'Getting aims with uids',
-            new Error("Query params shouldn't be empty")
-          )
-        );
-      } else {
-        const db = fastify.couch.db.use(config.db);
-        const res = [];
-        db.fetch({ keys: request.body }).then(data => {
-          data.rows.forEach(item => {
-            // if not found it returns the record with no doc, error: 'not_found'
-            if ('doc' in item) res.push(item.doc.aim);
-          });
-          reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-          fastify
-            .downloadAims(request.query, res)
-            .then(result => reply.code(200).send(result))
-            .catch(err => reply.send(err));
-        });
-      }
-    } catch (err) {
-      reply.send(new InternalError('Getting aims with uids', err));
-    }
+    fastify
+      .getAimsFromUIDsInternal(request.query, request.body)
+      .then(res => {
+        fastify
+          .downloadAims(request.query, res)
+          .then(result => {
+            reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
+            reply.code(200).send(result);
+          })
+          .catch(err => reply.send(err));
+      })
+      .catch(err => reply.send(err));
   });
 
   fastify.decorate('saveAim', (request, reply) => {
@@ -642,22 +809,47 @@ async function couchdb(fastify, options) {
       });
   });
 
+  // if aim is string, it is aimuid and the call is being made to update the projects (it can be from delete which sends removeProject = true)
   fastify.decorate(
     'saveAimInternal',
-    aim =>
+    (aimIn, projectId, removeProject) =>
       new Promise((resolve, reject) => {
-        const couchDoc = {
-          _id: aim.ImageAnnotationCollection.uniqueIdentifier.root,
-          aim,
-        };
+        const aim = aimIn;
+        const couchDoc =
+          typeof aim !== 'string'
+            ? {
+                _id: aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                aim,
+              }
+            : {
+                _id: aim,
+              };
+        const attachments = fastify.extractAttachmentParts(aim);
         const db = fastify.couch.db.use(config.db);
         db.get(couchDoc._id, (error, existing) => {
           if (!error) {
+            // for updating project
+            if (typeof aim === 'string') {
+              couchDoc.aim = existing.aim;
+            }
             couchDoc._rev = existing._rev;
+            if (existing.projects) {
+              couchDoc.projects = existing.projects;
+            }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
           }
+          if (projectId) {
+            if (removeProject) {
+              if (couchDoc.projects) {
+                couchDoc.projects = couchDoc.projects.filter(project => project !== projectId);
+              }
+            } else if (couchDoc.projects) {
+              if (!couchDoc.projects.includes(projectId)) couchDoc.projects.push(projectId);
+            } else couchDoc.projects = [projectId];
+          }
 
-          db.insert(couchDoc, couchDoc._id)
+          db.multipart
+            .insert(couchDoc, attachments, couchDoc._id)
             .then(() => {
               resolve(`Aim ${couchDoc._id} is saved successfully`);
             })
@@ -667,6 +859,76 @@ async function couchdb(fastify, options) {
         });
       })
   );
+
+  fastify.decorate(
+    'addProjectIdsToAimsInternal',
+    aimsWithProjects =>
+      new Promise(async (resolve, reject) => {
+        let editCount = 0;
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const aimsNotSaved = [];
+          for (let i = 0; i < aimsWithProjects.length; i += 1) {
+            try {
+              let noChange = false;
+              // eslint-disable-next-line no-await-in-loop
+              const couchDoc = await db.get(aimsWithProjects[i].aim);
+              if (couchDoc.projects) {
+                if (!couchDoc.projects.includes(aimsWithProjects[i].project))
+                  couchDoc.projects.push(aimsWithProjects[i].project);
+                else noChange = true;
+              }
+              couchDoc.projects = [aimsWithProjects[i].project];
+
+              fastify.log.info(
+                `Adding project ${aimsWithProjects[i].project} to aimuid ${aimsWithProjects[i].aim}`
+              );
+              const attachments = fastify.extractAttachmentParts(couchDoc.aim);
+              if (attachments && attachments.length > 0) {
+                // eslint-disable-next-line no-await-in-loop
+                await db.multipart.insert(couchDoc, attachments, aimsWithProjects[i].aim);
+                fastify.log.info(
+                  `Added project ${aimsWithProjects[i].project} to aimuid ${
+                    aimsWithProjects[i].aim
+                  } with attachments`
+                );
+              } else if (!noChange) {
+                // eslint-disable-next-line no-await-in-loop
+                await db.insert(couchDoc, aimsWithProjects[i].aim);
+                fastify.log.info(
+                  `Added project ${aimsWithProjects[i].project} to aimuid ${
+                    aimsWithProjects[i].aim
+                  }`
+                );
+              } else {
+                fastify.log.info(`No update for aimuid ${aimsWithProjects[i].aim}`);
+              }
+
+              editCount += 1;
+            } catch (err) {
+              fastify.log.error(`Error in saving aim ${aimsWithProjects[i].aim} to couchdb`, err);
+              aimsNotSaved.push(aimsWithProjects[i]);
+            }
+          }
+          if (aimsNotSaved.length > 0)
+            fastify.log.warn(
+              `${aimsNotSaved.length} aims not saved ${JSON.stringify(aimsNotSaved)}`
+            );
+          fastify.log.info(`Edited ${editCount} aims`);
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Failed adding project ids to aims. Edited ${editCount} of ${
+                aimsWithProjects.length
+              } in process`,
+              err
+            )
+          );
+        }
+      })
+  );
+
   fastify.decorate(
     'deleteAimInternal',
     aimuid =>
@@ -839,7 +1101,7 @@ async function couchdb(fastify, options) {
     query =>
       new Promise((resolve, reject) => {
         try {
-          let type = 'image';
+          let type;
           let format = 'json';
           // eslint-disable-next-line prefer-destructuring
           if (query.type) type = query.type.toLowerCase();
@@ -849,45 +1111,42 @@ async function couchdb(fastify, options) {
             if (format === 'json') view = 'templates_json';
             else if (format === 'summary') view = 'templates_summary';
           }
+          let filter = { reduce: true, group_level: 3 };
+          if (type)
+            filter = {
+              ...filter,
+              ...{ startkey: [type, '', ''], endkey: [`${type}\u9999`, '{}', '{}'] },
+            };
           const db = fastify.couch.db.use(config.db);
-          db.view(
-            'instances',
-            view,
-            {
-              startkey: [type, '', ''],
-              endkey: [`${type}\u9999`, '{}', '{}'],
-              reduce: true,
-              group_level: 3,
-            },
-            (error, body) => {
-              if (!error) {
-                const res = [];
-
-                if (format === 'summary') {
-                  body.rows.forEach(template => {
-                    res.push(template.key[2]);
-                  });
-                  resolve(res);
-                } else if (format === 'stream') {
-                  body.rows.forEach(template => {
-                    res.push(template.key[2]);
-                  });
-                  fastify
-                    .downloadTemplates(res)
-                    .then(result => resolve(result))
-                    .catch(err => reject(err));
-                } else {
-                  // the default is json! The old APIs were XML, no XML in epadlite
-                  body.rows.forEach(template => {
-                    res.push(template.key[2]);
-                  });
-                  resolve(res);
-                }
+          db.view('instances', view, filter, (error, body) => {
+            if (!error) {
+              const res = [];
+              // lets filter only the emit values starting with template type (as view emits 2 for each doc)
+              const validTempateTypes = ['image', 'series', 'study'];
+              if (format === 'summary') {
+                body.rows.forEach(template => {
+                  if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
+                });
+                resolve(res);
+              } else if (format === 'stream') {
+                body.rows.forEach(template => {
+                  if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
+                });
+                fastify
+                  .downloadTemplates(res)
+                  .then(result => resolve(result))
+                  .catch(err => reject(err));
               } else {
-                reject(new InternalError('Getting templates from couchdb', error));
+                // the default is json! The old APIs were XML, no XML in epadlite
+                body.rows.forEach(template => {
+                  if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
+                });
+                resolve(res);
               }
+            } else {
+              reject(new InternalError('Getting templates from couchdb', error));
             }
-          );
+          });
         } catch (err) {
           reject(new InternalError('Getting templates', err));
         }
@@ -1126,7 +1385,7 @@ async function couchdb(fastify, options) {
       .getAimsInternal(
         request.query.format,
         request.params,
-        [request.params.aimuid],
+        { aims: [request.params.aimuid] },
         request.epadAuth
       )
       .then(result => {
@@ -1231,7 +1490,7 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('getFilter', params => {
+  fastify.decorate('getFilter', (params, length = 5) => {
     const startKey = [];
     const endKey = [];
     let isFiltered = false;
@@ -1249,7 +1508,7 @@ async function couchdb(fastify, options) {
       isFiltered = true;
     }
 
-    for (let i = endKey.length; i < 5; i += 1) endKey.push({});
+    for (let i = endKey.length; i < length; i += 1) endKey.push({});
     if (isFiltered) {
       return {
         startkey: startKey,
@@ -1407,11 +1666,39 @@ async function couchdb(fastify, options) {
           }
 
           db.destroy(params.filename, existing._rev)
-            .then(() => resolve())
+            .then(() => {
+              resolve();
+            })
             .catch(err => {
               reject(new InternalError('Deleting file from couchdb', err));
             });
         });
+      })
+  );
+
+  fastify.decorate(
+    'removeProjectFromCouchDocsInternal',
+    (ids, projectId) =>
+      new Promise(async (resolve, reject) => {
+        const aimsNotUpdated = [];
+        if (ids.length > 0) {
+          for (let i = 0; i < ids.length; i += 1) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.saveAimInternal(ids[i], projectId, true);
+            } catch (err) {
+              fastify.log.warn(`Project ${projectId} can not be removed from aim ${ids[i]}`);
+              aimsNotUpdated.push(ids[0]);
+            }
+          }
+          // only reject if I couldn't update any
+          if (ids.length === aimsNotUpdated.length)
+            reject(
+              new InternalError(`Deleting project ${projectId} from aims ${JSON.stringify(ids)}`)
+            );
+          fastify.log.warn(`${aimsNotUpdated.length} aims not updated`);
+          resolve();
+        } else resolve();
       })
   );
 
