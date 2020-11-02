@@ -542,6 +542,7 @@ async function couchdb(fastify, options) {
                     dsoFrameNo: 'NA',
                     isDicomSR: 'NA',
                     originalSubjectID: body.rows[i].fields.patient_id,
+                    userName: body.rows[i].fields.user,
                   });
                 }
                 resolve(res);
