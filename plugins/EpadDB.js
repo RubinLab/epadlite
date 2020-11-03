@@ -3823,6 +3823,7 @@ async function epaddb(fastify, options, done) {
           startDate: list[i].dataValues.startdate,
           subjectID: list[i].dataValues.subject.dataValues.subjectuid,
           studyUID: list[i].dataValues.study.dataValues.studyuid,
+          studyDate: list[i].dataValues.study.dataValues.studydate,
           workListID: request.params.worklist,
           workListName,
           worklistDuedate,
