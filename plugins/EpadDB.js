@@ -2936,7 +2936,7 @@ async function epaddb(fastify, options, done) {
       // eslint-disable-next-line no-else-return
     } else if ((name.length === 2 && name.includes(' ')) || name.length < 2) {
       return EpadError.messages.shortName;
-    } else if (id.includes('/')) {
+    } else if (id.includes('/') || id.includes(' ')) {
       return EpadError.messages.badChar;
     }
     return null;
