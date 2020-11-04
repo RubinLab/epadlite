@@ -4811,14 +4811,16 @@ describe('Project Tests', () => {
     });
 
     it('project reporting should have 12 aims', done => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/aims_summary.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/reporting/aims')
+        .get('/projects/reporting/aims?format=summary')
         .query({ username: 'admin' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.a('array');
           expect(res.body.length).to.be.eql(12);
+          expect(res.body).to.be.eql(jsonBuffer);
           done();
         })
         .catch(e => {
