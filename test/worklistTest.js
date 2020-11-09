@@ -84,6 +84,25 @@ describe('Worklist Tests', () => {
         done(e);
       });
   });
+  it('should not create a new worklist with an invalid id', done => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/worklists?username=testCreator@gmail.com')
+      .send({
+        name: 'test',
+        worklistId: 'test create',
+        description: 'testdesc',
+        duedate: '2019-12-01',
+        assignees: ['testAssignee@gmail.com'],
+      })
+      .then(res => {
+        expect(res.statusCode).to.equal(400);
+        done();
+      })
+      .catch(e => {
+        done(e);
+      });
+  });
   it('should create a new worklist', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
