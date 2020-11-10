@@ -511,7 +511,7 @@ async function couchdb(fastify, options) {
             reject(new UnauthenticatedError('No epadauth in request'));
           const db = fastify.couch.db.use(config.db);
           const qry = fastify.generateSearchQuery(params, epadAuth, filter);
-          const dbFilter = { q: qry, sort: 'name<string>', limit: 100 };
+          const dbFilter = { q: qry, sort: 'name<string>', limit: 1000 };
           if (format !== 'summary') {
             dbFilter.include_docs = true;
             dbFilter.attachments = true;
