@@ -5869,6 +5869,136 @@ async function epaddb(fastify, options, done) {
       );
     }
   });
+  fastify.decorate('deleteAimsFromProject', async (request, reply) => {
+    try {
+      const project = await models.project.findOne({
+        where: { projectid: request.params.project },
+      });
+      if (project === null)
+        reply.send(
+          new BadRequestError(
+            `Deleting aims ${JSON.stringify(request.body)} from project`,
+            new ResourceNotFoundError('Project', request.params.project)
+          )
+        );
+      else if (
+        request.query.all &&
+        request.query.all === 'true' &&
+        request.epadAuth.admin === false
+      )
+        reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
+      else {
+        let numDeleted;
+        const qry =
+          request.query.all && request.query.all === 'true'
+            ? { aim_uid: request.body }
+            : { project_id: project.id, aim_uid: request.body };
+        if (request.body && Array.isArray(request.body)) {
+          const args = await models.project_aim.findAll({
+            where: qry,
+            attributes: ['project_id', 'subject_uid', 'study_uid', 'user', 'aim_uid'],
+            raw: true,
+          });
+
+          numDeleted = await models.project_aim.destroy({
+            where: qry,
+          });
+
+          // if delete from all or it doesn't exist in any other project, delete from system
+          try {
+            if (request.query.all && request.query.all === 'true') {
+              await fastify.deleteCouchDocsInternal(request.body);
+              await fastify.aimUpdateGatewayInBulk(args, request.epadAuth, request.params.project);
+              reply
+                .code(200)
+                .send(`Aims deleted from system and removed from ${numDeleted} projects`);
+            } else {
+              const leftovers = await models.project_aim.findAll({
+                where: { aim_uid: request.body },
+                attributes: ['project_id', 'subject_uid', 'study_uid', 'user', 'aim_uid'],
+              });
+              if (leftovers.length === 0) {
+                await fastify.deleteCouchDocsInternal(request.body);
+                await fastify.aimUpdateGatewayInBulk(
+                  args,
+                  request.epadAuth,
+                  request.params.project
+                );
+                reply
+                  .code(200)
+                  .send(`Aims deleted from system as they didn't exist in any other project`);
+              } else {
+                for (let i = 0; i < leftovers.length; i += 1) {
+                  // go one one by
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.saveAimInternal(leftovers[i].aim_uid, request.params.project, true);
+                  fastify.log.info(`Aim not deleted from system as it exists in other project`);
+                }
+                const deletedAims = request.body.filter(e => {
+                  return !leftovers.includes(e);
+                });
+                await fastify.deleteCouchDocsInternal(deletedAims);
+                await fastify.aimUpdateGatewayInBulk(
+                  args,
+                  request.epadAuth,
+                  request.params.project
+                );
+                reply
+                  .code(200)
+                  .send(
+                    `${
+                      leftovers.length
+                    } aims not deleted from system as they exist in other project`
+                  );
+              }
+            }
+          } catch (deleteErr) {
+            reply.send(
+              new InternalError(
+                `Aims ${JSON.stringify(request.body)} deletion from system ${
+                  request.params.project
+                }`,
+                deleteErr
+              )
+            );
+          }
+        }
+      }
+    } catch (err) {
+      reply.send(
+        new InternalError(
+          `Aims ${JSON.stringify(request.body)}  deletion from project ${request.params.project}`,
+          err
+        )
+      );
+    }
+  });
+
+  fastify.decorate(
+    'aimUpdateGatewayInBulk',
+    (args, epadAuth, projectId) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          if (args) {
+            for (let i = 0; i < args.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.aimUpdateGateway(
+                args[i].project_id,
+                args[i].subject_uid,
+                args[i].study_uid,
+                args[i].user,
+                epadAuth,
+                undefined,
+                projectId
+              );
+            }
+          }
+          resolve('Finished bulk update');
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
   fastify.decorate('deleteAimFromSystem', async (request, reply) => {
     try {
       const aimUid = request.params.aimuid;

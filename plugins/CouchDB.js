@@ -940,17 +940,19 @@ async function couchdb(fastify, options) {
             reject(new ResourceNotFoundError('Aim', aimuid));
           }
           const promisses = [];
-          // check if it is a segmentation aim and delete dso
-          const segEntity =
-            existing.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .segmentationEntityCollection;
-          // this is a segmentation aim
-          if (segEntity) {
-            const params = {
-              study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
-              series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
-            };
-            promisses.push(fastify.deleteSeriesDicomsInternal(params));
+          if (existing.aim) {
+            // check if it is a segmentation aim and delete dso
+            const segEntity =
+              existing.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .segmentationEntityCollection;
+            // this is a segmentation aim
+            if (segEntity) {
+              const params = {
+                study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
+                series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
+              };
+              promisses.push(fastify.deleteSeriesDicomsInternal(params));
+            }
           }
 
           promisses.push(db.destroy(aimuid, existing._rev));
@@ -1001,13 +1003,14 @@ async function couchdb(fastify, options) {
                   .then(res => {
                     aimUsersArr.forEach(userName => {
                       updateWorklistPromises.push(
-                        fastify.updateWorklistCompleteness(
+                        fastify.aimUpdateGateway(
                           res,
                           subject,
                           study,
                           userName,
-                          epadAuth
-                          // transaction
+                          epadAuth,
+                          undefined,
+                          params.project
                         )
                       );
                     });
