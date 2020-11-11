@@ -946,7 +946,7 @@ async function couchdb(fastify, options) {
       new Promise((resolve, reject) => {
         const db = fastify.couch.db.use(config.db);
         db.get(aimuid, (error, existing) => {
-          if (error) {
+          if (error || !existing) {
             reject(new ResourceNotFoundError('Aim', aimuid));
           }
           const promisses = [];
