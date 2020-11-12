@@ -716,20 +716,14 @@ async function epaddb(fastify, options, done) {
         reply.code(500).send(new InternalError('Getting templates from db', err));
       });
   });
-  // not used will be removed
-  // fastify.decorate('stopContainerLog', (request, reply) => {
-  //   const dock = new DockerService();
-  //   dock.stopContainerLog(`5`).then(strm => {
-  //     fastify.log.info('stram returned obj', strm);
-  //     reply.send(200);
-  //   });
-  // });
 
   fastify.decorate('getContainerLog', async (request, reply) => {
     const { containerid } = request.params;
     fastify
       .getUserPluginDataPathInternal()
       .then(async pluginDataRootPath => {
+        // eslint-disable-next-line no-param-reassign
+        pluginDataRootPath = path.join(__dirname, `../pluginsDataFolder`);
         // const { creator } = request.body;
         const creator = await fastify.getObjectCreator('pluginqueue', containerid, '');
         // need to get the creator internally
@@ -743,6 +737,7 @@ async function epaddb(fastify, options, done) {
             fastify.log.info(
               `trying to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
             );
+            // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
             //  if (inspectResultObject.State.Status === 'running') {
             fastify.log.info('status running so sending stream');
             reply.res.setHeader('Content-type', 'application/octet-stream');
@@ -751,6 +746,7 @@ async function epaddb(fastify, options, done) {
             const rdsrtm = fs.createReadStream(
               `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
             );
+             // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
             reply.send(rdsrtm);
             //  } else {
             //  reply.res.setHeader('Content-type', 'application/octet-stream');
@@ -759,6 +755,7 @@ async function epaddb(fastify, options, done) {
             fastify.log.info(
               `container not running but trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
             );
+             // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
             // if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
             //   fastify.log.info('log file found ');
             //   const rdsrtm = fs.createReadStream(
@@ -2226,22 +2223,54 @@ async function epaddb(fastify, options, done) {
           tempPluginparams = [...temValuesArray];
         }
 
+        fastify.log.info(
+          '__________plugin params main  ***************_____________',
+          tempPluginparams
+        );
         for (let i = 0; i < tempPluginparams.length; i += 1) {
-          fastify.log.info(tempPluginparams[i].format);
+          fastify.log.info(
+            '__________checking plugin params ***************_____________',
+            tempPluginparams[i].format
+          );
           // output folder
           if (tempPluginparams[i].format === 'OutputFolder') {
             try {
+              fastify.log.info(
+                '__________output folder found ***************_____________',
+                tempPluginparams[i].format
+              );
               const outputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
               fastify.log.info(outputfolder);
               if (!fs.existsSync(outputfolder)) {
                 fs.mkdirSync(outputfolder, { recursive: true });
               }
             } catch (err) {
+              fastify.log.info('__________output folder error ***************_____________', err);
               reject(err);
             }
           }
           // outputfolder end
           if (tempPluginparams[i].format === 'InputFolder') {
+            fastify.log.info(
+              '__________input folder found ***************_____________',
+              tempPluginparams[i].format
+            );
+            fastify.log.info(
+              '__________ tempPluginparams[i].paramid ***************_____________',
+              tempPluginparams[i].paramid
+            );
+            fastify.log.info(
+              '__________Object.keys(aims).length  ***************_____________',
+              Object.keys(aims).length
+            );
+            fastify.log.info(
+              '__________ typeof processmultipleaims***************_____________',
+              typeof processmultipleaims
+            );
+            fastify.log.info(
+              '__________ typeof processmultipleaims value ***************_____________',
+              processmultipleaims
+            );
             // get selected aims
             if (
               tempPluginparams[i].paramid === 'aims' &&
@@ -2249,6 +2278,10 @@ async function epaddb(fastify, options, done) {
               typeof processmultipleaims !== 'object'
             ) {
               try {
+                fastify.log.info(
+                  '__________param id aim innnnnnnn nnnnnn nnnnn***************_____________',
+                  tempPluginparams[i].format
+                );
                 // eslint-disable-next-line no-await-in-loop
                 const source = await fastify.getAimsInternal(
                   'stream',
@@ -2256,8 +2289,12 @@ async function epaddb(fastify, options, done) {
                   { aims: Object.keys(aims) },
                   request.epadAuth
                 );
-
+                fastify.log.info(
+                  '__________param id aim did wait aim download ? nnnnn***************_____________',
+                  tempPluginparams[i].format
+                );
                 const inputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
+                console.log('will write aims : ', inputfolder);
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                 }
@@ -2306,17 +2343,26 @@ async function epaddb(fastify, options, done) {
               const inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
               fastify.log.info('creating dicoms in this folder', inputfolder);
               try {
+                fastify.log.info(
+                  '__________param id dicoms   nnnnn***************_____________',
+                  tempPluginparams[i].paramid
+                );
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                 }
                 // eslint-disable-next-line no-case-declarations
 
                 if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
+                  fastify.log.info(
+                    '__________param id dicoms processmultipleaims not an object and  Object.keys(aims).length > 0 ***************_____________',
+                    tempPluginparams[i].paramid
+                  );
                   // aim level dicoms
                   const aimsKeysLength = Object.keys(aims).length;
                   const aimsKeys = Object.keys(aims);
                   for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
                     const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
+                    console.log('xxxx xxxx xxx x x x x x x x  ', aimNamedExtractFolder);
                     const writeStream = fs
                       .createWriteStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
                       // eslint-disable-next-line func-names
@@ -2484,17 +2530,18 @@ async function epaddb(fastify, options, done) {
         queueObject.id
       }/`;
 
-      const pluginsDataFolderx = path.join(
+      const pluginsDataFolderlog = path.join(
         __dirname,
         `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/logs`
       );
-      if (!fs.existsSync(`${pluginsDataFolderx}`)) {
-        fs.mkdirSync(`${pluginsDataFolderx}`);
+      if (!fs.existsSync(`${pluginsDataFolderlog}`)) {
+        fs.mkdirSync(`${pluginsDataFolderlog}`);
       }
       fastify.log.info('getting epad_lite bind points and pwd local : ', localServerBindPoint);
       if (parametertype === 'default') {
         try {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
+          console.log('plugin test : ', paramsToSendToContainer);
 
           await fastify.createPluginfoldersInternal(
             paramsToSendToContainer,
@@ -2511,6 +2558,7 @@ async function epaddb(fastify, options, done) {
             projectid,
             projectdbid,
           };
+          console.log('plugin test localServerBindPoint: ', localServerBindPoint);
           resolve(returnObject);
         } catch (err) {
           reject(new InternalError('error while getting plugin default paraeters', err));

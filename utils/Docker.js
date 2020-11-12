@@ -1,8 +1,3 @@
-/* eslint-disable no-console */
-//  const { Docker } = require('node-docker-api');
-//  const docker = new Docker({ socketPath: '/var/run/docker.sock' });
-//  const { Docker } = require('dockerode');
-
 class DockerService {
   constructor(varFs) {
     // eslint-disable-next-line global-require
@@ -10,10 +5,6 @@ class DockerService {
     this.fs = varFs;
     this.counter = 0;
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
-  }
-
-  getdockerObj() {
-    return this.docker;
   }
 
   // eslint-disable-next-line no-unused-vars
@@ -49,18 +40,6 @@ class DockerService {
     });
   }
 
-  // eslint-disable-next-line no-unused-vars
-  // createVolume(_name) {
-  //   this.docker
-  //     .createVolume({ Name: 'testvolume' })
-  //     .then(() => {
-  //       //  console.log('volume created');
-  //     })
-  //     .catch(() => {
-  //       //  console.log('error happened while creating volume');
-  //     });
-  // }
-
   stopContainer(containerId) {
     return new Promise((resolve, reject) => {
       try {
@@ -94,9 +73,7 @@ class DockerService {
           if (err) {
             reject(err);
           }
-          // stream.pipe(res);
-          // console.log('stream catched', stream);
-          // return stream;
+
           resolve(stream);
         });
         console.log('strm : ', strm);
@@ -107,37 +84,6 @@ class DockerService {
       }
     });
   }
-  // not used
-  // stopContainerLog(containerId) {
-  //   let tmpContainer;
-  //   let strm = null;
-  //   return new Promise((resolve, reject) => {
-  //     try {
-  //       console.log('docker is working on getting log for container', containerId);
-  //       // eslint-disable-next-line func-names
-  //       tmpContainer = this.docker.getContainer(`epadplugin_${containerId}`);
-  //       console.log('docker service getting log for ', `epadplugin_${containerId}`);
-  //       // eslint-disable-next-line func-names
-  //       tmpContainer.attach({ stream: false, stdout: true, stderr: true }, function(err, stream) {
-  //         console.log('docker catched stream and resolving');
-  //         // stream.pipe(process.stdout);
-  //         strm = stream;
-  //         if (err) {
-  //           reject(err);
-  //         }
-  //         // stream.pipe(res);
-  //         // console.log('stream catched', stream);
-  //         // return stream;
-  //         resolve(stream);
-  //       });
-  //       console.log('strm : ', strm);
-  //       // resolve(strm);
-  //     } catch (err) {
-  //       console.log('error happened while streaming the log   : ', containerId);
-  //       reject(err);
-  //     }
-  //   });
-  // }
 
   inspectContainer(containerId) {
     // eslint-disable-next-line func-names
@@ -210,17 +156,14 @@ class DockerService {
         })
         // eslint-disable-next-line func-names
         .then(async function() {
-          // eslint-disable-next-line func-names
-          // tmpContainer.inspect(function(err, data) {
-          //   if (err) {
-          //     //  console.log(err);
-          //     console.log('error happened while inspecting plugin container : ', err);
-          //   }
-          //   if (data) {
-          //     // console.log('inspect result for log file mapping: ', data);
-          //     // console.log('inspect result for log file mapping: ', data.LogPath);
-          //   }
-          // });
+          console.log('IMPORTANT !!!!!!!!!!!');
+          console.log('IMPORTANT !!!!!!!!!!!');
+          console.log('IMPORTANT !!!!!!!!!!!');
+          console.log('IMPORTANT !!!!!!!!!!!');
+          console.log('IMPORTANT !!!!!!!!!!!');
+          console.log('IMPORTANT !!!!!!!!!!!');
+          
+          console.log(' docker will use this folder location to put logs in *****************', pluginDataRootPath);_
           const filename = `${pluginDataRootPath}/${tempContainerInfo.creator}/${
             tempContainerInfo.id
           }/logs`;
@@ -230,58 +173,32 @@ class DockerService {
           );
           console.log('docker info path to look for log', filename);
           process.chdir(filename);
-          // if (fs.existsSync(`logfile.txt`)) {
-          //   fs.unlink(`logfile.txt`, errc => {
-          //     if (errc) throw errc;
-          //     console.log(`logfile.txt`, 'was deleted');
-          //   });
-          //   // fs.mkdirSync(`${filename}/logfile.txt`, { recursive: true });
-          // }
           console.log('currentPath = ', process.cwd());
+
           // eslint-disable-next-line func-names
           tmpContainer.attach({ stream: true, stdout: true, stderr: true }, function(err, stream) {
             const strm = fs.createWriteStream(`${filename}/logfile.txt`);
             stream.pipe(strm);
-            // stream.on('data', chunk => {
-            //   // eslint-disable-next-line func-names
-            //   fs.appendFile(`logfile.txt`, chunk, function(erra) {
-            //     if (erra) throw erra;
-            //     console.log('Saved!', chunk);
-            //   });
-            // });
-            // above here
-            // stream.pipe(process.stdout);
           });
           const runRes = await tmpContainer.wait();
           console.log('waiting result', runRes);
-          // if (waitRes.StatusCode > 0) {
-          //   throw new Error(
-          //     `Plugin exited with error code (${waitRes.StatusCode}). PLease check plugin logs`
-          //   );
-          // }
           return runRes.StatusCode;
         })
         // eslint-disable-next-line func-names
         .then(async function(errcode) {
           // errcode is recevied when container finishes and exited with an error code > 0
           console.log(
-            `${errcode} plugin container is done processing. Removing the containe ${containerNameToGive}`
+            `${errcode} plugin container is done processing. Removing the container ${containerNameToGive}`
           );
           // // eslint-disable-next-line func-names
-          // fs.appendFile('mynewfile1.txt', 'Hello content!', function(err) {
-          //   if (err) throw err;
-          //   console.log('Saved!');
-          // });
           const waitRes = await tmpContainer.remove();
           console.log(`wait response status ${waitRes}`);
-          if (errcode > 0) {
-            throw new Error(`Plugin exited with error code (${errcode}). PLease check plugin logs`);
-          }
-          return 0;
+
+          return waitRes;
         })
         // eslint-disable-next-line func-names
         .catch(function(err) {
-          console.log('error while creating container : ', err);
+          console.log('error in catch docker utils creating container phase: ', err);
           return err;
         })
     );
