@@ -162,8 +162,8 @@ class DockerService {
           console.log('IMPORTANT !!!!!!!!!!!');
           console.log('IMPORTANT !!!!!!!!!!!');
           console.log('IMPORTANT !!!!!!!!!!!');
-          
-          console.log(' docker will use this folder location to put logs in *****************', pluginDataRootPath);_
+
+          console.log(' docker will use this folder location to put logs in *****************', pluginDataRootPath);
           const filename = `${pluginDataRootPath}/${tempContainerInfo.creator}/${
             tempContainerInfo.id
           }/logs`;
