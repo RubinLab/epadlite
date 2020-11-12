@@ -739,23 +739,27 @@ async function epaddb(fastify, options, done) {
             );
             // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
             //  if (inspectResultObject.State.Status === 'running') {
-            fastify.log.info('status running so sending stream');
-            reply.res.setHeader('Content-type', 'application/octet-stream');
-            reply.res.setHeader('Access-Control-Allow-Origin', '*');
-            reply.res.setHeader('connection', 'keep-alive');
-            const rdsrtm = fs.createReadStream(
-              `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            );
-             // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
-            reply.send(rdsrtm);
-            //  } else {
-            //  reply.res.setHeader('Content-type', 'application/octet-stream');
-            //  reply.res.setHeader('Access-Control-Allow-Origin', '*');
-            //  reply.res.charset = 'UTF-8';
-            fastify.log.info(
-              `container not running but trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            );
-             // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
+            if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
+              fastify.log.info('slog file found sending to frontend');
+              reply.res.setHeader('Content-type', 'application/octet-stream');
+              reply.res.setHeader('Access-Control-Allow-Origin', '*');
+              reply.res.setHeader('connection', 'keep-alive');
+              const rdsrtm = fs.createReadStream(
+                `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+              );
+              // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
+              reply.send(rdsrtm);
+              //  } else {
+              //  reply.res.setHeader('Content-type', 'application/octet-stream');
+              //  reply.res.setHeader('Access-Control-Allow-Origin', '*');
+              //  reply.res.charset = 'UTF-8';
+              fastify.log.info(
+                `container not running but trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+              );
+            } else {
+              reply.code(404).send('log file not found');
+            }
+            // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
             // if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
             //   fastify.log.info('log file found ');
             //   const rdsrtm = fs.createReadStream(
@@ -766,25 +770,16 @@ async function epaddb(fastify, options, done) {
             //  }
           })
           .catch(err => {
-            reply.res.setHeader('Content-type', 'application/octet-stream');
-            reply.res.setHeader('Access-Control-Allow-Origin', '*');
-            // fastify.log.info(
-            //   `trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            // );
-            reply.res.write('404');
-            reply.res.end();
+            reply.code(500).send(err);
+            // reply.res.setHeader('Content-type', 'application/octet-stream');
+            // reply.res.setHeader('Access-Control-Allow-Origin', '*');
+            // // fastify.log.info(
+            // //   `trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+            // // );
+            // reply.res.write('404');
+            // reply.res.end();
             fastify.log.info('err', err);
-            // if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
-            //   fastify.log.info('log file found ');
-            //   const rdsrtm = fs.createReadStream(
-            //     `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            //   );
-            //   reply.send(rdsrtm);
-            // } else {
-            //   reply.res.write('404');
-            //   reply.res.end();
-            //   fastify.log.info('err', err);
-            // }
+
           });
       })
       .catch(err => {
