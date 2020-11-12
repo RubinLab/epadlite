@@ -779,7 +779,6 @@ async function epaddb(fastify, options, done) {
             // reply.res.write('404');
             // reply.res.end();
             fastify.log.info('err', err);
-
           });
       })
       .catch(err => {

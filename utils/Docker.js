@@ -10,7 +10,6 @@ class DockerService {
 
   // eslint-disable-next-line no-unused-vars
   startContainer(containerId, _containerName) {
-    const tempFastify = this.fastify;
     //  this.fastify.log.info('container started dockerode');
     const container = this.docker.getContainer(containerId);
     return new Promise((resolve, reject) => {
@@ -52,7 +51,7 @@ class DockerService {
           resolve('stopped');
         });
       } catch (err) {
-        tempFastify.log.info('error happened while stopping container  : ', containerId);
+        tempFastify.log.error('error happened while stopping container  : ', containerId);
         reject(err);
       }
     });
@@ -77,7 +76,7 @@ class DockerService {
           resolve(stream);
         });
       } catch (err) {
-        tempFastify.log.info(
+        tempFastify.log.error(
           'error happened while streaming the log  for the container with the id : ',
           containerId
         );
@@ -87,15 +86,15 @@ class DockerService {
   }
 
   inspectContainer(containerId) {
-    const tempFastify = this.fastify;
     // eslint-disable-next-line func-names
+    // eslint-disable-next-line no-unused-vars
     return new Promise((resolve, reject) => {
       const containerTemp = this.docker.getContainer(containerId);
       // eslint-disable-next-line func-names
       containerTemp.inspect(function(err, data) {
         // this.fastify.log.info('container came back with inspection', data);
         if (err) {
-          reject(err);
+          resolve('no container');
         }
         if (data) {
           resolve(data);
@@ -187,14 +186,13 @@ class DockerService {
         })
         // eslint-disable-next-line func-names
         .catch(function(err) {
-          tempFastify.log.info('error in catch docker utils creating container phase: ', err);
+          tempFastify.log.error('error in catch docker utils creating container phase: ', err);
           return err;
         })
     );
   }
 
   listContainers() {
-    const tempFastify = this.fastify;
     const contianerList = [];
     return this.docker
       .listContainers({ all: true })
@@ -233,7 +231,7 @@ class DockerService {
         return imageList;
       })
       .catch(error => {
-        tempFastify.log.info('Something went wrong while getting docker image list');
+        tempFastify.log.error('Something went wrong while getting docker image list');
         return new Error('Something went wrong while getting docker image list', error);
       });
   }
@@ -247,7 +245,7 @@ class DockerService {
         tempFastify.log.info('pulling image succeed : ', img);
       })
       .catch(() => {
-        tempFastify.log.info('error happened while pulling the image', img);
+        tempFastify.log.error('error happened while pulling the image', img);
       });
   }
 
@@ -301,11 +299,11 @@ class DockerService {
     return new Promise((resolve, reject) => {
       try {
         if (this.fs.existsSync('/var/run/docker.sock')) {
-          console.error('var/run/docker.sock found');
+          tempFastify.log.error('var/run/docker.sock found');
         }
       } catch (err) {
-        tempFastify.log.info('var/run/docker.sock not found. Check your docker installation');
-        console.error(err);
+        tempFastify.log.error('var/run/docker.sock not found. Check your docker installation');
+        tempFastify.log.error(err);
       }
       const container = this.docker.getContainer(containerName);
 
@@ -315,7 +313,7 @@ class DockerService {
       container.inspect(function(err, data) {
         if (err) {
           //  this.fastify.log.info(err);
-          tempFastify.log.info('error happened while checking container presence : ', err);
+          tempFastify.log.error('error happened while checking container presence : ', err);
           reject(err);
         }
         if (data) {
@@ -335,7 +333,7 @@ class DockerService {
         tempFastify.log.info('deleting container succeed : ', containerName);
         resolve('success');
       } catch (err) {
-        tempFastify.log.info('error happened while deleting container  : ', containerName);
+        tempFastify.log.error('error happened while deleting container  : ', containerName);
         reject(err);
       }
     });
