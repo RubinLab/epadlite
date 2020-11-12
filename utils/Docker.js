@@ -172,7 +172,7 @@ class DockerService {
             containerNameToGive
           );
           console.log('docker info path to look for log', filename);
-          process.chdir(filename);
+          // process.chdir(filename);
           console.log('currentPath = ', process.cwd());
 
           // eslint-disable-next-line func-names
