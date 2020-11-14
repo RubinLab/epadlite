@@ -1,9 +1,10 @@
 class DockerService {
-  constructor(varFs, varFastify) {
+  constructor(prmFs, prmFastify, prmPath) {
     // eslint-disable-next-line global-require
     const Docker = require('dockerode');
-    this.fs = varFs;
-    this.fastify = varFastify;
+    this.path = prmPath;
+    this.fs = prmFs;
+    this.fastify = prmFastify;
     this.counter = 0;
     this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
   }
@@ -113,6 +114,7 @@ class DockerService {
     const tempFastify = this.fastify;
     let tmpContainer;
     // eslint-disable-next-line prefer-destructuring
+    const path = this.path;
     const fs = this.fs;
     const tempContainerInfo = containerInfo;
     const paramsDocker = [...params.paramsDocker];
@@ -156,7 +158,8 @@ class DockerService {
         })
         // eslint-disable-next-line func-names
         .then(async function() {
-          const filename = `${pluginDataRootPath}/${tempContainerInfo.creator}/${
+          const tempPluginDataRootPath = path.join(__dirname, `../pluginsDataFolder`);
+          const filename = `${tempPluginDataRootPath}/${tempContainerInfo.creator}/${
             tempContainerInfo.id
           }/logs`;
           tempFastify.log.info(

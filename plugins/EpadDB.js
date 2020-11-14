@@ -727,7 +727,7 @@ async function epaddb(fastify, options, done) {
         // const { creator } = request.body;
         const creator = await fastify.getObjectCreator('pluginqueue', containerid, '');
         // need to get the creator internally
-        const dock = new DockerService(fs, fastify);
+        const dock = new DockerService(fs, fastify, path);
 
         dock
           .inspectContainer(`epadplugin_${containerid}`)
@@ -1821,7 +1821,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('deleteFromPluginQueue', (request, reply) => {
     const pluginIdToDelete = [...request.body];
     const idsToDelete = [];
-    const dock = new DockerService(fs, fastify);
+    const dock = new DockerService(fs, fastify, path);
     const promisesArray = [];
 
     for (let cnt = 0; cnt < pluginIdToDelete.length; cnt += 1) {
@@ -2019,7 +2019,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('stopPluginsQueue', async (request, reply) => {
     const queueIds = [...request.body];
     fastify.log.info('queueIds', queueIds);
-    const dock = new DockerService(fs, fastify);
+    const dock = new DockerService(fs, fastify, path);
     const containerLists = await dock.listContainers();
     let containerFound = false;
     reply.code(204).send();
@@ -2101,7 +2101,7 @@ async function epaddb(fastify, options, done) {
               pluginObj.project = { ...data.dataValues.queueproject.dataValues };
             }
 
-            const dock = new DockerService(fs, fastify);
+            const dock = new DockerService(fs, fastify, path);
             const containerName = `epadplugin_${pluginObj.id}`;
             dock
               .checkContainerExistance(containerName)
@@ -2465,7 +2465,7 @@ async function epaddb(fastify, options, done) {
     }
   );
   fastify.decorate('getUserPluginDataPathInternal', async () => {
-    const dock = new DockerService(fs, fastify);
+    const dock = new DockerService(fs, fastify, path);
     const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
     let epadLitePwd = '';
     return new Promise((resolve, reject) => {
@@ -2508,7 +2508,7 @@ async function epaddb(fastify, options, done) {
         // });
       }
 
-      const dock = new DockerService(fs, fastify);
+      const dock = new DockerService(fs, fastify, path);
       const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
       const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
       let epadLitePwd = '';
@@ -2838,7 +2838,7 @@ async function epaddb(fastify, options, done) {
       );
 
       fastify.log.info('called image : ', imageRepo);
-      const dock = new DockerService(fs, fastify);
+      const dock = new DockerService(fs, fastify, path);
       let checkImageExistOnHub = false;
       let checkImageExistLocal = false;
       try {
