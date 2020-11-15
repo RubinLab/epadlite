@@ -110,12 +110,11 @@ class DockerService {
     // return _this.dataObject;
   }
 
-  createContainer(imageId, containerNameToGive, params, containerInfo, pluginDataRootPath) {
+  createContainer(imageId, containerNameToGive, params, containerInfo) {
     const tempFastify = this.fastify;
     let tmpContainer;
-    // eslint-disable-next-line prefer-destructuring
-    const path = this.path;
-    const fs = this.fs;
+    const { path } = this;
+    const { fs } = this;
     const tempContainerInfo = containerInfo;
     const paramsDocker = [...params.paramsDocker];
     const dockerFoldersToBind = [...params.dockerFoldersToBind];

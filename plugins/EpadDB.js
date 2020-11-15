@@ -2838,7 +2838,7 @@ async function epaddb(fastify, options, done) {
         if (checkImageExistOnHub === true || checkImageExistLocal === true) {
           try {
             // eslint-disable-next-line no-await-in-loop
-            const userPluginRootPath = await fastify.getUserPluginDataPathInternal();
+            // const userPluginRootPath = await fastify.getUserPluginDataPathInternal();
 
             let opreationresult = '';
             // eslint-disable-next-line no-await-in-loop
@@ -2861,8 +2861,7 @@ async function epaddb(fastify, options, done) {
               imageRepo,
               `epadplugin_${queueId}`,
               sortedParams,
-              pluginQueueList[i],
-              userPluginRootPath
+              pluginQueueList[i]
             );
 
             fastify.log.info('opreationresult', JSON.stringify(opreationresult));
