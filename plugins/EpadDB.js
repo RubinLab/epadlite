@@ -24,6 +24,7 @@ const {
   EpadError,
 } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
+const { resolve } = require('path');
 
 async function epaddb(fastify, options, done) {
   const models = {};
@@ -2201,6 +2202,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate(
     'createPluginfoldersInternal',
     (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) => {
+      // eslint-disable-next-line no-shadow
       return new Promise(async (resolve, reject) => {
         //  let aimsParamsProcessed = false;
         //  let dicomsParamsProcessed = false;
@@ -2468,6 +2470,7 @@ async function epaddb(fastify, options, done) {
     const dock = new DockerService(fs, fastify, path);
     const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
     let epadLitePwd = '';
+    // eslint-disable-next-line no-shadow
     return new Promise((resolve, reject) => {
       const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
 
@@ -2486,6 +2489,7 @@ async function epaddb(fastify, options, done) {
     });
   });
   fastify.decorate('extractPluginParamtersInternal', (queueObject, request) => {
+    // eslint-disable-next-line no-shadow
     return new Promise(async (resolve, reject) => {
       const parametertype = queueObject.plugin_parametertype;
       const pluginid = queueObject.plugin_id;
@@ -2615,6 +2619,8 @@ async function epaddb(fastify, options, done) {
           reject(new InternalError('error while getting plugin runtime paraeters', err));
         }
       }
+    }).catch(err => {
+      return new Error(err);
     });
   });
 
@@ -2815,157 +2821,174 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
-
-    for (let i = 0; i < pluginQueueList.length; i += 1) {
-      const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${
-        pluginQueueList[i].plugin.image_tag
-      }`;
-      const queueId = pluginQueueList[i].id;
-      // eslint-disable-next-line no-await-in-loop
-      await fastify.updateStatusQueueProcessInternal(queueId, 'waiting');
-      new EpadNotification(
-        request,
-        `ePad is preparing folder structure for plugin image: ${imageRepo} `,
-        'success',
-        true
-      ).notify(fastify);
-      fastify.log.info('running plugin for :', pluginQueueList[i]);
-
-      // eslint-disable-next-line no-await-in-loop
-      const pluginParameters = await fastify.extractPluginParamtersInternal(
-        pluginQueueList[i],
-        request
-      );
-
-      fastify.log.info('called image : ', imageRepo);
-      const dock = new DockerService(fs, fastify, path);
-      let checkImageExistOnHub = false;
-      let checkImageExistLocal = false;
-      try {
-        fastify.log.info(' tryitn to pull first ', imageRepo);
+    try {
+      for (let i = 0; i < pluginQueueList.length; i += 1) {
+        const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${
+          pluginQueueList[i].plugin.image_tag
+        }`;
+        const queueId = pluginQueueList[i].id;
         // eslint-disable-next-line no-await-in-loop
-        await dock.pullImageA(imageRepo);
-        checkImageExistOnHub = true;
-      } catch (err) {
-        fastify.log.info(
-          `${imageRepo} is not reachable , does not exist on the hub or requires login`
-        );
-      }
-      if (checkImageExistOnHub === false) {
-        // check local image existance
-
-        // eslint-disable-next-line no-await-in-loop
-        const imageList = await dock.listImages();
-        const litSize = imageList.length;
-
-        for (let cnt = 0; cnt < litSize; cnt += 1) {
-          if (imageRepo !== ':' && imageRepo !== '') {
-            if (imageList[cnt].RepoTags.includes(imageRepo)) {
-              checkImageExistLocal = true;
-              fastify.log.info('image found locally');
-              break;
-            }
-          }
-        }
-      }
-      if (checkImageExistOnHub === true || checkImageExistLocal === true) {
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const userPluginRootPath = await fastify.getUserPluginDataPathInternal();
-
-          let opreationresult = '';
-          // eslint-disable-next-line no-await-in-loop
-          const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
-            pluginParameters
-          );
-
-          // eslint-disable-next-line no-await-in-loop
-          await fastify.updateStatusQueueProcessInternal(queueId, 'running');
-          // opreationresult = ` plugin image : ${imageRepo} is runing`;
-          new EpadNotification(
-            request,
-            `plugin image: ${imageRepo} started the process and container is running`,
-            'success',
-            true
-          ).notify(fastify);
-
-          // eslint-disable-next-line no-await-in-loop
-          opreationresult = await dock.createContainer(
-            imageRepo,
-            `epadplugin_${queueId}`,
-            sortedParams,
-            pluginQueueList[i],
-            userPluginRootPath
-          );
-
-          fastify.log.info('opreationresult', JSON.stringify(opreationresult));
-
-          // eslint-disable-next-line no-prototype-builtins
-          if (opreationresult.hasOwnProperty('stack')) {
-            fastify.log.info('error catched in upper level ', opreationresult.stack);
-            // eslint-disable-next-line no-new
-            throw new InternalError('', opreationresult);
-          }
-          // return new Error(opreationresult.Error);
-
-          // eslint-disable-next-line no-await-in-loop
-          await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
-          opreationresult = ` plugin image : ${imageRepo} terminated the container process with success`;
-          new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
-          fastify.log.info('plugin finished working', imageRepo);
-
-          const checkFileExtension = fileName => {
-            const nameArry = fileName.split('.');
-            const ext = nameArry[nameArry.length - 1];
-            if (ext === 'dcm') {
-              return true;
-            }
-            return false;
-          };
-
-          //  upload the result from container to the series
-          if (fs.existsSync(`${pluginParameters.serverfolder}output`)) {
-            const fileArray = fs
-              .readdirSync(`${pluginParameters.serverfolder}output`)
-              // eslint-disable-next-line no-loop-func
-              .map(fileName => {
-                fastify.log.info('filename : ', fileName);
-                return fileName;
-              })
-              .filter(checkFileExtension);
-            fastify.log.info('file array : ', fileArray);
-            //  eslint-disable-next-line no-await-in-loop
-            const { success, errors } = await fastify.saveFiles(
-              `${pluginParameters.serverfolder}output`,
-              fileArray,
-              { project: pluginParameters.projectid },
-              {},
-              request.epadAuth
-            );
-            fastify.log.info('project id :', pluginParameters.projectid);
-            fastify.log.info('projectdb id :', pluginParameters.projectdbid);
-            fastify.log.info('upload dir back error: ', errors);
-            fastify.log.info('upload dir back success: ', success);
-            //  end
-          }
-          return 'completed';
-        } catch (err) {
-          const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
-          // eslint-disable-next-line no-await-in-loop
-          await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-          return new EpadNotification(request, operationresult, err, true).notify(fastify);
-        }
-      } else {
-        // eslint-disable-next-line no-await-in-loop
-        await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-        fastify.log.info('image not found ', imageRepo);
-        return new EpadNotification(
+        await fastify.updateStatusQueueProcessInternal(queueId, 'waiting');
+        new EpadNotification(
           request,
-          'error',
-          new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
+          `ePad is preparing folder structure for plugin image: ${imageRepo} `,
+          'success',
           true
         ).notify(fastify);
+        fastify.log.info('running plugin for :', pluginQueueList[i]);
+
+        // eslint-disable-next-line no-await-in-loop
+        const pluginParameters = await fastify.extractPluginParamtersInternal(
+          pluginQueueList[i],
+          request
+        );
+        if (pluginParameters.message.includes('Error')) {
+          console.log('*******************************');
+          console.log('*******************************');
+          console.log('*******************************', pluginParameters.message);
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+          new EpadNotification(
+            request,
+            `docker encountered an error while preparing the container  "${imageRepo}" `,
+            new Error(`${pluginParameters.message}`),
+            true
+          ).notify(fastify);
+          throw new InternalError('', pluginParameters.message);
+        }
+
+        fastify.log.info('called image : ', imageRepo);
+        const dock = new DockerService(fs, fastify, path);
+        let checkImageExistOnHub = false;
+        let checkImageExistLocal = false;
+        try {
+          fastify.log.info(' tryitn to pull first ', imageRepo);
+          // eslint-disable-next-line no-await-in-loop
+          await dock.pullImageA(imageRepo);
+          checkImageExistOnHub = true;
+        } catch (err) {
+          fastify.log.info(
+            `${imageRepo} is not reachable , does not exist on the hub or requires login`
+          );
+        }
+        if (checkImageExistOnHub === false) {
+          // check local image existance
+
+          // eslint-disable-next-line no-await-in-loop
+          const imageList = await dock.listImages();
+          const litSize = imageList.length;
+
+          for (let cnt = 0; cnt < litSize; cnt += 1) {
+            if (imageRepo !== ':' && imageRepo !== '') {
+              if (imageList[cnt].RepoTags.includes(imageRepo)) {
+                checkImageExistLocal = true;
+                fastify.log.info('image found locally');
+                break;
+              }
+            }
+          }
+        }
+        if (checkImageExistOnHub === true || checkImageExistLocal === true) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const userPluginRootPath = await fastify.getUserPluginDataPathInternal();
+
+            let opreationresult = '';
+            // eslint-disable-next-line no-await-in-loop
+            const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
+              pluginParameters
+            );
+
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'running');
+            // opreationresult = ` plugin image : ${imageRepo} is runing`;
+            new EpadNotification(
+              request,
+              `plugin image: ${imageRepo} started the process and container is running`,
+              'success',
+              true
+            ).notify(fastify);
+
+            // eslint-disable-next-line no-await-in-loop
+            opreationresult = await dock.createContainer(
+              imageRepo,
+              `epadplugin_${queueId}`,
+              sortedParams,
+              pluginQueueList[i],
+              userPluginRootPath
+            );
+
+            fastify.log.info('opreationresult', JSON.stringify(opreationresult));
+
+            // eslint-disable-next-line no-prototype-builtins
+            if (opreationresult.hasOwnProperty('stack')) {
+              fastify.log.info('error catched in upper level ', opreationresult.stack);
+              // eslint-disable-next-line no-new
+              throw new InternalError('', opreationresult);
+            }
+            // return new Error(opreationresult.Error);
+
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
+            opreationresult = ` plugin image : ${imageRepo} terminated the container process with success`;
+            new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
+            fastify.log.info('plugin finished working', imageRepo);
+
+            const checkFileExtension = fileName => {
+              const nameArry = fileName.split('.');
+              const ext = nameArry[nameArry.length - 1];
+              if (ext === 'dcm') {
+                return true;
+              }
+              return false;
+            };
+
+            //  upload the result from container to the series
+            if (fs.existsSync(`${pluginParameters.serverfolder}output`)) {
+              const fileArray = fs
+                .readdirSync(`${pluginParameters.serverfolder}output`)
+                // eslint-disable-next-line no-loop-func
+                .map(fileName => {
+                  fastify.log.info('filename : ', fileName);
+                  return fileName;
+                })
+                .filter(checkFileExtension);
+              fastify.log.info('file array : ', fileArray);
+              //  eslint-disable-next-line no-await-in-loop
+              const { success, errors } = await fastify.saveFiles(
+                `${pluginParameters.serverfolder}output`,
+                fileArray,
+                { project: pluginParameters.projectid },
+                {},
+                request.epadAuth
+              );
+              fastify.log.info('project id :', pluginParameters.projectid);
+              fastify.log.info('projectdb id :', pluginParameters.projectdbid);
+              fastify.log.info('upload dir back error: ', errors);
+              fastify.log.info('upload dir back success: ', success);
+              //  end
+            }
+            return 'completed';
+          } catch (err) {
+            const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+            return new EpadNotification(request, operationresult, err, true).notify(fastify);
+          }
+        } else {
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+          fastify.log.info('image not found ', imageRepo);
+          return new EpadNotification(
+            request,
+            'error',
+            new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
+            true
+          ).notify(fastify);
+        }
       }
+    } catch (err) {
+      return err;
     }
     return true;
   });
