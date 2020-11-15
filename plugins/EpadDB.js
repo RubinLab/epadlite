@@ -2219,54 +2219,21 @@ async function epaddb(fastify, options, done) {
           tempPluginparams = [...temValuesArray];
         }
 
-        fastify.log.info(
-          '__________plugin params main  ***************_____________',
-          tempPluginparams
-        );
         for (let i = 0; i < tempPluginparams.length; i += 1) {
-          fastify.log.info(
-            '__________checking plugin params ***************_____________',
-            tempPluginparams[i].format
-          );
           // output folder
           if (tempPluginparams[i].format === 'OutputFolder') {
             try {
-              fastify.log.info(
-                '__________output folder found ***************_____________',
-                tempPluginparams[i].format
-              );
               const outputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
               fastify.log.info(outputfolder);
               if (!fs.existsSync(outputfolder)) {
                 fs.mkdirSync(outputfolder, { recursive: true });
               }
             } catch (err) {
-              fastify.log.info('__________output folder error ***************_____________', err);
               reject(err);
             }
           }
           // outputfolder end
           if (tempPluginparams[i].format === 'InputFolder') {
-            fastify.log.info(
-              '__________input folder found ***************_____________',
-              tempPluginparams[i].format
-            );
-            fastify.log.info(
-              '__________ tempPluginparams[i].paramid ***************_____________',
-              tempPluginparams[i].paramid
-            );
-            fastify.log.info(
-              '__________Object.keys(aims).length  ***************_____________',
-              Object.keys(aims).length
-            );
-            fastify.log.info(
-              '__________ typeof processmultipleaims***************_____________',
-              typeof processmultipleaims
-            );
-            fastify.log.info(
-              '__________ typeof processmultipleaims value ***************_____________',
-              processmultipleaims
-            );
             // get selected aims
             if (
               tempPluginparams[i].paramid === 'aims' &&
@@ -2274,10 +2241,6 @@ async function epaddb(fastify, options, done) {
               typeof processmultipleaims !== 'object'
             ) {
               try {
-                fastify.log.info(
-                  '__________param id aim innnnnnnn nnnnnn nnnnn***************_____________',
-                  tempPluginparams[i].format
-                );
                 // eslint-disable-next-line no-await-in-loop
                 const source = await fastify.getAimsInternal(
                   'stream',
@@ -2285,12 +2248,7 @@ async function epaddb(fastify, options, done) {
                   { aims: Object.keys(aims) },
                   request.epadAuth
                 );
-                fastify.log.info(
-                  '__________param id aim did wait aim download ? nnnnn***************_____________',
-                  tempPluginparams[i].format
-                );
                 const inputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
-                console.log('will write aims : ', inputfolder);
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                 }
@@ -2339,26 +2297,17 @@ async function epaddb(fastify, options, done) {
               const inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
               fastify.log.info('creating dicoms in this folder', inputfolder);
               try {
-                fastify.log.info(
-                  '__________param id dicoms   nnnnn***************_____________',
-                  tempPluginparams[i].paramid
-                );
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                 }
                 // eslint-disable-next-line no-case-declarations
 
                 if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
-                  fastify.log.info(
-                    '__________param id dicoms processmultipleaims not an object and  Object.keys(aims).length > 0 ***************_____________',
-                    tempPluginparams[i].paramid
-                  );
                   // aim level dicoms
                   const aimsKeysLength = Object.keys(aims).length;
                   const aimsKeys = Object.keys(aims);
                   for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
                     const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
-                    console.log('xxxx xxxx xxx x x x x x x x  ', aimNamedExtractFolder);
                     const writeStream = fs
                       .createWriteStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
                       // eslint-disable-next-line func-names
@@ -2539,8 +2488,6 @@ async function epaddb(fastify, options, done) {
       if (parametertype === 'default') {
         try {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
-          console.log('plugin test : ', paramsToSendToContainer);
-
           await fastify.createPluginfoldersInternal(
             paramsToSendToContainer,
             pluginsDataFolder,
@@ -2556,11 +2503,9 @@ async function epaddb(fastify, options, done) {
             projectid,
             projectdbid,
           };
-          console.log('plugin test localServerBindPoint: ', localServerBindPoint);
           resolve(returnObject);
         } catch (err) {
           reject(new InternalError('error while getting plugin default paraeters', err));
-          //  reject(err);
         }
       }
 
@@ -2721,6 +2666,7 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('sortPluginParamsAndExtractWhatToMapInternal', async pluginParamsObj => {
+    // eslint-disable-next-line no-shadow
     return new Promise(async (resolve, reject) => {
       try {
         let tempPluginParams = null;
@@ -2843,9 +2789,6 @@ async function epaddb(fastify, options, done) {
           request
         );
         if (pluginParameters.message.includes('Error')) {
-          console.log('*******************************');
-          console.log('*******************************');
-          console.log('*******************************', pluginParameters.message);
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'error');
           new EpadNotification(
