@@ -24,7 +24,7 @@ const {
   EpadError,
 } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
-const { resolve } = require('path');
+// const { resolve } = require('path');
 
 async function epaddb(fastify, options, done) {
   const models = {};
@@ -262,6 +262,7 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('findUserIdInternal', username => {
+    // eslint-disable-next-line no-shadow
     const query = new Promise(async (resolve, reject) => {
       try {
         // find user id
@@ -344,6 +345,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate(
     'tryAddDefaultTemplateToProject',
     (defaultTemplate, project, epadAuth) =>
+      // eslint-disable-next-line no-shadow
       new Promise(async resolve => {
         if (defaultTemplate && defaultTemplate !== '') {
           try {
@@ -416,6 +418,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate(
     'deleteRelationAndOrphanedCouchDocInternal',
     (dbProjectId, relationTable, uidField, projectId) =>
+      // eslint-disable-next-line no-shadow
       new Promise(async (resolve, reject) => {
         try {
           const uidsToDeleteObjects = await models[relationTable].findAll({
@@ -493,6 +496,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate(
     'deleteRelationAndOrphanedSubjectsInternal',
     (dbProjectId, projectId, epadAuth) =>
+      // eslint-disable-next-line no-shadow
       new Promise(async (resolve, reject) => {
         try {
           const projectSubjects = await models.project_subject.findAll({
