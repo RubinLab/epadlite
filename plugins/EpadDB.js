@@ -557,6 +557,8 @@ async function epaddb(fastify, options, done) {
           request.epadAuth
         );
 
+        await fastify.deleteRelationAndOrphanedPluginInternal(project.id, request.epadAuth);
+
         await models.project.destroy({
           where: {
             projectId: request.params.project,
@@ -646,6 +648,52 @@ async function epaddb(fastify, options, done) {
   });
 
   //  Plugin section
+  fastify.decorate('deleteRelationAndOrphanedPluginInternal', projectId => {
+    /*  this section removes necessary data from plugin related tables
+        1. remove the row which matches project_id from project_plugin table
+        2. remove the rows matching project_id from plugin_queue
+        
+    */
+   console.log("deleting plugin reltaed rows from tables for the project ; ", projectId);
+    models.plugin_queue
+      .destroy({
+        where: {
+          project_id: projectId,
+        },
+      })
+      .then(() => {
+        models.project_plugin
+          .destroy({
+            where: {
+              project_id: projectId,
+            },
+          })
+          .then(() => {
+            models.projectplugin_project
+              .destroy({
+                where: {
+                  project_id: projectId,
+                },
+              })
+              .catch(err => {
+                return new InternalError(
+                  `Deleting project relation from projectplugin_project ${projectId}`,
+                  err
+                );
+              });
+            return 0;
+          })
+          .catch(err => {
+            return new InternalError(
+              `Deleting project relation from project_plugin ${projectId}`,
+              err
+            );
+          });
+      })
+      .catch(err => {
+        return new InternalError(`Deleting project relation from plugin_queue  ${projectId}`, err);
+      });
+  });
 
   fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
     models.project
