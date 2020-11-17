@@ -652,9 +652,9 @@ async function epaddb(fastify, options, done) {
     /*  this section removes necessary data from plugin related tables
         1. remove the row which matches project_id from project_plugin table
         2. remove the rows matching project_id from plugin_queue
+        3. remove the relation projectplugin_project
         
     */
-   console.log("deleting plugin reltaed rows from tables for the project ; ", projectId);
     models.plugin_queue
       .destroy({
         where: {
