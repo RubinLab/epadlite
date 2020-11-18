@@ -15,8 +15,8 @@ describe('System AIM Tests', () => {
       .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body).to.be.a('array');
-        expect(res.body.length).to.be.eql(0);
+        expect(res.body.rows).to.be.a('array');
+        expect(res.body.rows.length).to.be.eql(0);
         done();
       })
       .catch(e => {
@@ -31,8 +31,8 @@ describe('System AIM Tests', () => {
       .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body).to.be.a('array');
-        expect(res.body.length).to.be.eql(0);
+        expect(res.body.rows).to.be.a('array');
+        expect(res.body.rows.length).to.be.eql(0);
         done();
       })
       .catch(e => {
@@ -65,8 +65,8 @@ describe('System AIM Tests', () => {
       .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body).to.be.a('array');
-        expect(res.body.length).to.be.eql(1);
+        expect(res.body.rows).to.be.a('array');
+        expect(res.body.rows.length).to.be.eql(1);
         done();
       })
       .catch(e => {
@@ -83,8 +83,8 @@ describe('System AIM Tests', () => {
       .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body).to.be.a('array');
-        expect(res.body.length).to.be.eql(0);
+        expect(res.body.rows).to.be.a('array');
+        expect(res.body.rows.length).to.be.eql(0);
         done();
       })
       .catch(e => {
@@ -102,7 +102,7 @@ describe('System AIM Tests', () => {
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(
-          res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+          res.body.rows[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
             '~'
           )[0]
         ).to.be.eql('Lesion1');
@@ -165,7 +165,7 @@ describe('System AIM Tests', () => {
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(
-          res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+          res.body.rows[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
             '~'
           )[0]
         ).to.be.eql('Lesion2');
@@ -325,8 +325,8 @@ describe('System AIM Tests', () => {
       .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body).to.be.a('array');
-        expect(res.body.length).to.be.eql(0);
+        expect(res.body.rows).to.be.a('array');
+        expect(res.body.rows.length).to.be.eql(0);
         done();
       })
       .catch(e => {

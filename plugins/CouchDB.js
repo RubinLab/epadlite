@@ -527,55 +527,72 @@ async function couchdb(fastify, options) {
             dbFilter.attachments = true;
           }
           db.search('search', 'aimSearch', dbFilter, async (error, body) => {
-            if (!error) {
-              const res = [];
-              if (format === 'summary') {
-                for (let i = 0; i < body.rows.length; i += 1) {
-                  // not putting project id. getprojectaims puts the project that was called from
-                  res.push({
-                    aimID: body.rows[i].id,
-                    subjectID: body.rows[i].fields.patient_id,
-                    studyUID: body.rows[i].fields.study_uid,
-                    seriesUID: body.rows[i].fields.series_uid,
-                    instanceUID: body.rows[i].fields.instance_uid,
-                    instanceOrFrameNumber: 'NA',
-                    name: body.rows[i].fields.name,
-                    template: body.rows[i].fields.template_code,
-                    date: `${body.rows[i].fields.creation_date}${
-                      body.rows[i].fields.creation_time
-                    }`,
-                    patientName: body.rows[i].fields.patient_name,
-                    studyDate: body.rows[i].fields.study_date,
-                    comment: body.rows[i].fields.programmed_comment,
-                    templateType: body.rows[i].fields.template_name,
-                    color: 'NA',
-                    dsoFrameNo: 'NA',
-                    isDicomSR: 'NA',
-                    originalSubjectID: body.rows[i].fields.patient_id,
-                    userName: body.rows[i].fields.user,
-                  });
-                }
-                resolve(res);
-              } else {
-                for (let i = 0; i < body.rows.length; i += 1) {
-                  // eslint-disable-next-line no-await-in-loop
-                  const aim = await fastify.addAttachmentParts(
-                    body.rows[i].doc.aim,
-                    body.rows[i].doc._attachments
-                  );
-                  res.push(aim);
-                }
-                if (format === 'stream') {
-                  // download aims only
-                  fastify
-                    .downloadAims({ aim: 'true' }, res)
-                    .then(result => resolve(result))
-                    .catch(err => reject(err));
+            try {
+              if (!error) {
+                const resObj = { total_rows: body.total_rows, bookmark: body.bookmark };
+                const res = [];
+                if (format === 'summary') {
+                  for (let i = 0; i < body.rows.length; i += 1) {
+                    // not putting project id. getprojectaims puts the project that was called from
+                    res.push({
+                      aimID: body.rows[i].id,
+                      subjectID: body.rows[i].fields.patient_id,
+                      studyUID: body.rows[i].fields.study_uid,
+                      seriesUID: body.rows[i].fields.series_uid,
+                      instanceUID: body.rows[i].fields.instance_uid,
+                      instanceOrFrameNumber: 'NA',
+                      name: body.rows[i].fields.name,
+                      template: body.rows[i].fields.template_code,
+                      date: `${body.rows[i].fields.creation_date}${
+                        body.rows[i].fields.creation_time
+                      }`,
+                      patientName: body.rows[i].fields.patient_name,
+                      studyDate: body.rows[i].fields.study_date,
+                      comment: body.rows[i].fields.programmed_comment,
+                      templateType: body.rows[i].fields.template_name,
+                      color: 'NA',
+                      dsoFrameNo: 'NA',
+                      isDicomSR: 'NA',
+                      originalSubjectID: body.rows[i].fields.patient_id,
+                      userName: body.rows[i].fields.user,
+                    });
+                  }
+                  resObj.rows = res;
+                  resolve(resObj);
                 } else {
-                  // the default is json! The old APIs were XML, no XML in epadlite
-                  resolve(res);
+                  for (let i = 0; i < body.rows.length; i += 1) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const aim = await fastify.addAttachmentParts(
+                      body.rows[i].doc.aim,
+                      body.rows[i].doc._attachments
+                    );
+                    res.push(aim);
+                  }
+                  if (format === 'stream') {
+                    if (resObj.total_rows !== res.length) {
+                      // TODO get everything and send an email
+                      fastify
+                        .downloadAims({ aim: 'true' }, res)
+                        .then(result => resolve(result))
+                        .catch(err => reject(err));
+                    } else {
+                      // download aims only
+                      fastify
+                        .downloadAims({ aim: 'true' }, res)
+                        .then(result => resolve(result))
+                        .catch(err => reject(err));
+                    }
+                  } else {
+                    // the default is json! The old APIs were XML, no XML in epadlite
+                    resObj.rows = res;
+                    resolve(resObj);
+                  }
                 }
+              } else {
+                reject(error);
               }
+            } catch (err2) {
+              reject(new InternalError('Get aims', err2));
             }
           });
         } catch (err) {
@@ -996,7 +1013,7 @@ async function couchdb(fastify, options) {
         .getAimsInternal('summary', params, undefined, epadAuth)
         .then(result => {
           const aimPromisses = [];
-          result.forEach(aim => {
+          result.rows.forEach(aim => {
             aimUsers[aim.userName] = 'aim';
             aimPromisses.push(fastify.deleteAimInternal(aim.aimID));
           });
@@ -1406,7 +1423,7 @@ async function couchdb(fastify, options) {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
         }
-        if (result.length === 1) reply.code(200).send(result[0]);
+        if (result.rows.length === 1) reply.code(200).send(result.rows[0]);
         else {
           reply.send(new ResourceNotFoundError('Aim', request.params.aimuid));
         }

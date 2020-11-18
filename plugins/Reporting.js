@@ -1148,13 +1148,15 @@ async function reporting(fastify) {
               });
             } else {
               // eslint-disable-next-line no-await-in-loop
-              const aims = await fastify.getAimsInternal('json', params, undefined, epadAuth);
-              fastify.log.info(`${aims.length} aims found for ${subjProjPairs[i].subjectID}`);
+              const aimsRes = await fastify.getAimsInternal('json', params, undefined, epadAuth);
+              fastify.log.info(
+                `${aimsRes.rows.length} aims found for ${subjProjPairs[i].subjectID}`
+              );
 
               const report =
                 metric === 'RECIST'
-                  ? fastify.getRecist(aims)
-                  : fastify.getLongitudinal(aims, template, shapes);
+                  ? fastify.getRecist(aimsRes.rows)
+                  : fastify.getLongitudinal(aimsRes.rows, template, shapes);
               if (report == null) {
                 fastify.log.warn(
                   `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`

@@ -4833,14 +4833,14 @@ async function epaddb(fastify, options, done) {
         switch (request.query.report) {
           case 'RECIST':
             // should be one patient
-            if (request.params.subject) result = fastify.getRecist(result);
+            if (request.params.subject) result = fastify.getRecist(result.rows);
             else {
               reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
               return;
             }
             break;
           case 'Longitudinal':
-            if (request.params.subject) result = fastify.getLongitudinal(result);
+            if (request.params.subject) result = fastify.getLongitudinal(result.rows);
             else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
               return;
@@ -4853,7 +4853,7 @@ async function epaddb(fastify, options, done) {
         switch (request.query.format) {
           case 'returnTable':
             result = fastify.fillTable(
-              result,
+              result.rows,
               request.query.templatecode,
               request.query.columns.split(','),
               request.query.shapes
@@ -4863,14 +4863,14 @@ async function epaddb(fastify, options, done) {
             reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
             break;
           case 'summary':
-            result = result.map(obj => ({ ...obj, projectID: request.params.project }));
+            result.rows = result.rows.map(obj => ({ ...obj, projectID: request.params.project }));
             break;
           default:
             if (request.query.longitudinal_ref) {
               const aimsByName = {};
               const aimsByTUID = {};
               let tUIDCount = 0;
-              result.forEach(aim => {
+              result.rows.forEach(aim => {
                 const name = aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
                   '~'
                 )[0];
@@ -4971,7 +4971,7 @@ async function epaddb(fastify, options, done) {
       if (request.query.format === 'stream') {
         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
       }
-      if (result.length === 1) reply.code(200).send(result[0]);
+      if (result.rows.length === 1) reply.code(200).send(result.rows[0]);
       else {
         reply.send(new ResourceNotFoundError('Aim', request.params.aimuid));
       }
@@ -5015,12 +5015,13 @@ async function epaddb(fastify, options, done) {
         } else {
           // get aim to populate project_aim data
 
-          [aim] = await fastify.getAimsInternal(
+          const aimsRes = await fastify.getAimsInternal(
             'json',
             {}, // I do not need params, looking for a specific aim (not in this project)
             { aims: [aimUid] },
             request.epadAuth
           );
+          [aim] = aimsRes.rows;
           // just update the projects
           await fastify.saveAimInternal(aimUid, request.params.project);
         }
@@ -5441,7 +5442,7 @@ async function epaddb(fastify, options, done) {
               undefined,
               epadAuth
             );
-            await fastify.getAndSaveRecist(projectId, subject, result, epadAuth, transaction);
+            await fastify.getAndSaveRecist(projectId, subject, result.rows, epadAuth, transaction);
             resolve('Reports updated!');
           }
         } catch (err) {
@@ -7428,7 +7429,8 @@ async function epaddb(fastify, options, done) {
           if (query.includeAims && query.includeAims === 'true') {
             // get aims
             const aimPromises = [];
-            const aims = await fastify.getAimsInternal('json', params, undefined, epadAuth);
+            const aimsResult = await fastify.getAimsInternal('json', params, undefined, epadAuth);
+            const aims = aimsResult.rows;
             const segRetrievePromises = [];
             for (let i = 0; i < aims.length; i += 1) {
               aimPromises.push(() => {
@@ -9183,7 +9185,8 @@ async function epaddb(fastify, options, done) {
             });
           } else {
             // sending empty epadAuth, would fail in thick mode, but this is not called on thick mode
-            const aims = await fastify.getAimsInternal('summary', {}, undefined, {});
+            const aimsRes = await fastify.getAimsInternal('summary', {}, undefined, {});
+            const aims = aimsRes.rows;
             numOfAims = aims.length;
             for (let i = 0; i < aims.length; i += 1) {
               if (numOfTemplateAimsMap[aims[i].template])
@@ -10058,7 +10061,8 @@ async function epaddb(fastify, options, done) {
             // fill in each project relation table
             // 1. project_aim
             // get aims from couch and add entities
-            const aims = await fastify.getAimsInternal('json', {}, undefined, epadAuth);
+            const aimsRes = await fastify.getAimsInternal('json', {}, undefined, epadAuth);
+            const aims = aimsRes.rows;
             for (let i = 0; i < aims.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
               await fastify.addProjectAimRelInternal(aims[i], project, epadAuth, t);

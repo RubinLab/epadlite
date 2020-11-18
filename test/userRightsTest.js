@@ -306,7 +306,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testAdmin@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(4);
+          expect(res.body.rows.length).to.be.eql(4);
           done();
         })
         .catch(e => {
@@ -320,7 +320,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testOwner@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(4);
+          expect(res.body.rows.length).to.be.eql(4);
           done();
         })
         .catch(e => {
@@ -334,7 +334,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testMember@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(4);
+          expect(res.body.rows.length).to.be.eql(4);
           done();
         })
         .catch(e => {
@@ -348,7 +348,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testCollaborator@gmail.com' })
         .then(res => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.rows.length).to.be.eql(1);
           done();
         })
         .catch(e => {

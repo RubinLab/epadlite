@@ -256,7 +256,7 @@ async function dicomwebserver(fastify) {
               // filter the results if patient id filter is given
               const { filteredStudies, filteredAims } = await fastify.filter(
                 values[0].data,
-                values[1],
+                !noStats ? values[1].rows : [],
                 filter,
                 tag,
                 aimField,
@@ -568,7 +568,7 @@ async function dicomwebserver(fastify) {
               // eslint-disable-next-line prefer-const
               let { filteredStudies, filteredAims } = await fastify.filter(
                 values[0].data,
-                values[1],
+                !noStats ? values[1].rows : [],
                 filter,
                 tag,
                 aimField,
@@ -759,7 +759,7 @@ async function dicomwebserver(fastify) {
               // populate an aim counts map containing each series
               const aimsCountMap = {};
               if (noStats === undefined || noStats === false) {
-                _.chain(values[1])
+                _.chain(values[1].rows)
                   .groupBy(value => {
                     return value.seriesUID;
                   })
