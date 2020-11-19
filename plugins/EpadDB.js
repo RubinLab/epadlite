@@ -24,7 +24,6 @@ const {
   EpadError,
 } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
-// const { resolve } = require('path');
 
 async function epaddb(fastify, options, done) {
   const models = {};
@@ -262,7 +261,6 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('findUserIdInternal', username => {
-    // eslint-disable-next-line no-shadow
     const query = new Promise(async (resolve, reject) => {
       try {
         // find user id
@@ -345,7 +343,6 @@ async function epaddb(fastify, options, done) {
   fastify.decorate(
     'tryAddDefaultTemplateToProject',
     (defaultTemplate, project, epadAuth) =>
-      // eslint-disable-next-line no-shadow
       new Promise(async resolve => {
         if (defaultTemplate && defaultTemplate !== '') {
           try {
@@ -418,7 +415,6 @@ async function epaddb(fastify, options, done) {
   fastify.decorate(
     'deleteRelationAndOrphanedCouchDocInternal',
     (dbProjectId, relationTable, uidField, projectId) =>
-      // eslint-disable-next-line no-shadow
       new Promise(async (resolve, reject) => {
         try {
           const uidsToDeleteObjects = await models[relationTable].findAll({
@@ -496,7 +492,6 @@ async function epaddb(fastify, options, done) {
   fastify.decorate(
     'deleteRelationAndOrphanedSubjectsInternal',
     (dbProjectId, projectId, epadAuth) =>
-      // eslint-disable-next-line no-shadow
       new Promise(async (resolve, reject) => {
         try {
           const projectSubjects = await models.project_subject.findAll({
@@ -2254,7 +2249,6 @@ async function epaddb(fastify, options, done) {
   fastify.decorate(
     'createPluginfoldersInternal',
     (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) => {
-      // eslint-disable-next-line no-shadow
       return new Promise(async (resolve, reject) => {
         //  let aimsParamsProcessed = false;
         //  let dicomsParamsProcessed = false;
@@ -2471,7 +2465,6 @@ async function epaddb(fastify, options, done) {
     const dock = new DockerService(fs, fastify, path);
     const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
     let epadLitePwd = '';
-    // eslint-disable-next-line no-shadow
     return new Promise((resolve, reject) => {
       const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
 
@@ -2490,7 +2483,6 @@ async function epaddb(fastify, options, done) {
     });
   });
   fastify.decorate('extractPluginParamtersInternal', (queueObject, request) => {
-    // eslint-disable-next-line no-shadow
     return new Promise(async (resolve, reject) => {
       const parametertype = queueObject.plugin_parametertype;
       const pluginid = queueObject.plugin_id;
@@ -2718,7 +2710,6 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('sortPluginParamsAndExtractWhatToMapInternal', async pluginParamsObj => {
-    // eslint-disable-next-line no-shadow
     return new Promise(async (resolve, reject) => {
       try {
         let tempPluginParams = null;
