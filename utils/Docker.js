@@ -145,28 +145,22 @@ class DockerService {
         })
         // eslint-disable-next-line func-names
         .then(function(container) {
-          tempFastify.log.info('created container : *******************************');
-          tempFastify.log.info('created container : *******************************');
-          tempFastify.log.info('created container : *******************************');
-          tempFastify.log.info('created container : *******************************');
-          tempFastify.log.info('created container : *******************************');
-          tempFastify.log.info('created container : *******************************');
           tempFastify.log.info('created container : ', container.id);
           tmpContainer = container;
           // eslint-disable-next-line func-names
-          // tmpContainer.inspect(function(err, data) {
-          //   if (err) {
-          //     //  this.fastify.log.info(err);
-          //     tempFastify.log.info('error happened while inspecting plugin container : ', err);
-          //     return err;
-          //   }
-          //   if (data) {
-          //     tempFastify.log.info('inspect result for plugin container: ', data.Name);
-          //     return data.Name;
-          //   }
-          //   return 0;
-          //   // return 'container took too long to create';
-          // });
+          tmpContainer.inspect(function(err, data) {
+            if (err) {
+              //  this.fastify.log.info(err);
+              tempFastify.log.info('error happened while inspecting plugin container : ', err);
+              return err;
+            }
+            if (data) {
+              tempFastify.log.info('inspect result for plugin container: ', data.Name);
+              return data.Name;
+            }
+            // return 'container took too long to create';
+            return 0;
+          });
           return tmpContainer.start();
         })
         // eslint-disable-next-line func-names

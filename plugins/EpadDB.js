@@ -648,7 +648,6 @@ async function epaddb(fastify, options, done) {
         1. remove the row which matches project_id from project_plugin table
         2. remove the rows matching project_id from plugin_queue
         3. remove the relation projectplugin_project
-        
     */
     models.plugin_queue
       .destroy({
@@ -785,8 +784,6 @@ async function epaddb(fastify, options, done) {
             fastify.log.info(
               `trying to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
             );
-            // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
-            //  if (inspectResultObject.State.Status === 'running') {
             if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
               fastify.log.info('slog file found sending to frontend');
               reply.res.setHeader('Content-type', 'application/octet-stream');
@@ -795,37 +792,16 @@ async function epaddb(fastify, options, done) {
               const rdsrtm = fs.createReadStream(
                 `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
               );
-              // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
               reply.send(rdsrtm);
-              //  } else {
-              //  reply.res.setHeader('Content-type', 'application/octet-stream');
-              //  reply.res.setHeader('Access-Control-Allow-Origin', '*');
-              //  reply.res.charset = 'UTF-8';
               fastify.log.info(
                 `container not running but trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
               );
             } else {
               reply.code(404).send('log file not found');
             }
-            // replace back ${pluginDataRootPath} /Users/cavit/epadlite/epadlite/pluginsDataFolder
-            // if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
-            //   fastify.log.info('log file found ');
-            //   const rdsrtm = fs.createReadStream(
-            //     `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            //   );
-            //   reply.send(rdsrtm);
-            // }
-            //  }
           })
           .catch(err => {
             reply.code(500).send(err);
-            // reply.res.setHeader('Content-type', 'application/octet-stream');
-            // reply.res.setHeader('Access-Control-Allow-Origin', '*');
-            // // fastify.log.info(
-            // //   `trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            // // );
-            // reply.res.write('404');
-            // reply.res.end();
             fastify.log.info('err', err);
           });
       })
@@ -2834,25 +2810,13 @@ async function epaddb(fastify, options, done) {
           'success',
           true
         ).notify(fastify);
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info(' pluginQueueList[i] :', pluginQueueList[i]);
 
+        fastify.log.info(' pluginQueueList[i] :', pluginQueueList[i]);
         // eslint-disable-next-line no-await-in-loop
         const pluginParameters = await fastify.extractPluginParamtersInternal(
           pluginQueueList[i],
           request
         );
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
         fastify.log.info('pluginParameters :', pluginParameters);
         // eslint-disable-next-line no-prototype-builtins
         if (pluginParameters.hasOwnProperty('message')) {
@@ -2868,12 +2832,6 @@ async function epaddb(fastify, options, done) {
             throw new InternalError('', pluginParameters.message);
           }
         }
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
-        fastify.log.info('running plugin for :**********************');
         fastify.log.info('called image : ', imageRepo);
         const dock = new DockerService(fs, fastify, path);
         let checkImageExistOnHub = false;
