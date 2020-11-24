@@ -1880,8 +1880,13 @@ async function epaddb(fastify, options, done) {
           .then(resInspect => {
             fastify.log.info(
               'deleteFromPluginQueue inspect element result',
-              resInspect.State.Status
+              // resInspect.State.Status
+              resInspect.message
             );
+            if (resInspect.message === '404') {
+              fastify.log.info('need to throw an error here ');
+              throw new Error('404');
+            }
             if (resInspect.State.Status !== 'running') {
               idsToDelete.push(pluginIdToDelete[cnt]);
               fastify.log.info('deleteFromPluginQueue not running but container found');
@@ -1891,8 +1896,9 @@ async function epaddb(fastify, options, done) {
             }
           })
           .catch(err => {
-            fastify.log.info('inspect element err', err.statusCode);
-            if (err.statusCode === 404) {
+            fastify.log.info('inspect element err', err);
+            fastify.log.info('deleting from plugin queue ');
+            if (err.message === '404') {
               idsToDelete.push(pluginIdToDelete[cnt]);
             }
           })
@@ -2154,7 +2160,11 @@ async function epaddb(fastify, options, done) {
             dock
               .checkContainerExistance(containerName)
               .then(resInspect => {
-                fastify.log.info('inspect element result', resInspect.State.Status);
+                // fastify.log.info('inspect element result', resInspect);
+                if (resInspect.message === '404') {
+                  fastify.log.info('need to throw an error here ');
+                  throw new Error('404');
+                }
                 if (resInspect.State.Status !== 'running') {
                   fastify.log.info('container is not running : ', containerName);
                   dock.deleteContainer(containerName).then(deleteReturn => {
@@ -2165,8 +2175,8 @@ async function epaddb(fastify, options, done) {
                 }
               })
               .catch(err => {
-                fastify.log.info('inspect element err', err.statusCode);
-                if (err.statusCode === 404) {
+                fastify.log.info('inspect element err', err);
+                if (err.message === '404') {
                   result.push(pluginObj);
                   fastify.runPluginsQueueInternal(result, request);
                 }
@@ -2824,25 +2834,46 @@ async function epaddb(fastify, options, done) {
           'success',
           true
         ).notify(fastify);
-        fastify.log.info('running plugin for :', pluginQueueList[i]);
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info(' pluginQueueList[i] :', pluginQueueList[i]);
 
         // eslint-disable-next-line no-await-in-loop
         const pluginParameters = await fastify.extractPluginParamtersInternal(
           pluginQueueList[i],
           request
         );
-        if (pluginParameters.message.includes('Error')) {
-          // eslint-disable-next-line no-await-in-loop
-          await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-          new EpadNotification(
-            request,
-            `docker encountered an error while preparing the container  "${imageRepo}" `,
-            new Error(`${pluginParameters.message}`),
-            true
-          ).notify(fastify);
-          throw new InternalError('', pluginParameters.message);
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('pluginParameters :', pluginParameters);
+        // eslint-disable-next-line no-prototype-builtins
+        if (pluginParameters.hasOwnProperty('message')) {
+          if (pluginParameters.message.includes('Error')) {
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+            new EpadNotification(
+              request,
+              `docker encountered an error while preparing the container  "${imageRepo}" `,
+              new Error(`${pluginParameters.message}`),
+              true
+            ).notify(fastify);
+            throw new InternalError('', pluginParameters.message);
+          }
         }
-
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
+        fastify.log.info('running plugin for :**********************');
         fastify.log.info('called image : ', imageRepo);
         const dock = new DockerService(fs, fastify, path);
         let checkImageExistOnHub = false;

@@ -34,6 +34,8 @@ class DockerService {
                   }
                 });
               }, 3000);
+            }).catch(erra => {
+              return erra;
             })
           );
         }
@@ -55,6 +57,8 @@ class DockerService {
         tempFastify.log.error('error happened while stopping container  : ', containerId);
         reject(err);
       }
+    }).catch(err => {
+      return err;
     });
   }
 
@@ -83,6 +87,8 @@ class DockerService {
         );
         reject(err);
       }
+    }).catch(err => {
+      return err;
     });
   }
 
@@ -102,6 +108,8 @@ class DockerService {
         }
         resolve('container inspection took too long');
       });
+    }).catch(err => {
+      return err;
     });
 
     // query API for container info
@@ -137,22 +145,28 @@ class DockerService {
         })
         // eslint-disable-next-line func-names
         .then(function(container) {
+          tempFastify.log.info('created container : *******************************');
+          tempFastify.log.info('created container : *******************************');
+          tempFastify.log.info('created container : *******************************');
+          tempFastify.log.info('created container : *******************************');
+          tempFastify.log.info('created container : *******************************');
+          tempFastify.log.info('created container : *******************************');
           tempFastify.log.info('created container : ', container.id);
           tmpContainer = container;
           // eslint-disable-next-line func-names
-          tmpContainer.inspect(function(err, data) {
-            if (err) {
-              //  this.fastify.log.info(err);
-              tempFastify.log.info('error happened while inspecting plugin container : ', err);
-              return err;
-            }
-            if (data) {
-              tempFastify.log.info('inspect result for plugin container: ', data.Name);
-              return data.Name;
-            }
-            return 0;
-            // return 'container took too long to create';
-          });
+          // tmpContainer.inspect(function(err, data) {
+          //   if (err) {
+          //     //  this.fastify.log.info(err);
+          //     tempFastify.log.info('error happened while inspecting plugin container : ', err);
+          //     return err;
+          //   }
+          //   if (data) {
+          //     tempFastify.log.info('inspect result for plugin container: ', data.Name);
+          //     return data.Name;
+          //   }
+          //   return 0;
+          //   // return 'container took too long to create';
+          // });
           return tmpContainer.start();
         })
         // eslint-disable-next-line func-names
@@ -293,6 +307,8 @@ class DockerService {
       } catch (err) {
         resolve(err);
       }
+    }).catch(err => {
+      return err;
     });
   }
 
@@ -312,17 +328,19 @@ class DockerService {
       // eslint-disable-next-line prefer-destructuring
       // query API for container info
       // eslint-disable-next-line func-names
-      container.inspect(function(err, data) {
+      return container.inspect(function(err, data) {
         if (err) {
           //  this.fastify.log.info(err);
-          tempFastify.log.error('error happened while checking container presence : ', err);
-          reject(err);
+          // tempFastify.log.error('error happened while checking container presence : ', err);
+          reject(new Error(404));
         }
         if (data) {
           tempFastify.log.info('checking container presence succeed: ', containerName);
           resolve(data);
         }
       });
+    }).catch(err => {
+      return err;
     });
   }
 
@@ -338,6 +356,8 @@ class DockerService {
         tempFastify.log.error('error happened while deleting container  : ', containerName);
         reject(err);
       }
+    }).catch(err => {
+      return err;
     });
   }
 }
