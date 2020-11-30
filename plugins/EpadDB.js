@@ -552,6 +552,8 @@ async function epaddb(fastify, options, done) {
           request.epadAuth
         );
 
+        await fastify.deleteRelationAndOrphanedPluginInternal(project.id, request.epadAuth);
+
         await models.project.destroy({
           where: {
             projectId: request.params.project,
@@ -641,6 +643,51 @@ async function epaddb(fastify, options, done) {
   });
 
   //  Plugin section
+  fastify.decorate('deleteRelationAndOrphanedPluginInternal', projectId => {
+    /*  this section removes necessary data from plugin related tables
+        1. remove the row which matches project_id from project_plugin table
+        2. remove the rows matching project_id from plugin_queue
+        3. remove the relation projectplugin_project
+    */
+    models.plugin_queue
+      .destroy({
+        where: {
+          project_id: projectId,
+        },
+      })
+      .then(() => {
+        models.project_plugin
+          .destroy({
+            where: {
+              project_id: projectId,
+            },
+          })
+          .then(() => {
+            models.projectplugin_project
+              .destroy({
+                where: {
+                  project_id: projectId,
+                },
+              })
+              .catch(err => {
+                return new InternalError(
+                  `Deleting project relation from projectplugin_project ${projectId}`,
+                  err
+                );
+              });
+            return 0;
+          })
+          .catch(err => {
+            return new InternalError(
+              `Deleting project relation from project_plugin ${projectId}`,
+              err
+            );
+          });
+      })
+      .catch(err => {
+        return new InternalError(`Deleting project relation from plugin_queue  ${projectId}`, err);
+      });
+  });
 
   fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
     models.project
@@ -716,24 +763,18 @@ async function epaddb(fastify, options, done) {
         reply.code(500).send(new InternalError('Getting templates from db', err));
       });
   });
-  // not used will be removed
-  // fastify.decorate('stopContainerLog', (request, reply) => {
-  //   const dock = new DockerService();
-  //   dock.stopContainerLog(`5`).then(strm => {
-  //     fastify.log.info('stram returned obj', strm);
-  //     reply.send(200);
-  //   });
-  // });
 
   fastify.decorate('getContainerLog', async (request, reply) => {
     const { containerid } = request.params;
     fastify
       .getUserPluginDataPathInternal()
       .then(async pluginDataRootPath => {
+        // eslint-disable-next-line no-param-reassign
+        pluginDataRootPath = path.join(__dirname, `../pluginsDataFolder`);
         // const { creator } = request.body;
         const creator = await fastify.getObjectCreator('pluginqueue', containerid, '');
         // need to get the creator internally
-        const dock = new DockerService();
+        const dock = new DockerService(fs, fastify, path);
 
         dock
           .inspectContainer(`epadplugin_${containerid}`)
@@ -743,51 +784,25 @@ async function epaddb(fastify, options, done) {
             fastify.log.info(
               `trying to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
             );
-            //  if (inspectResultObject.State.Status === 'running') {
-            fastify.log.info('status running so sending stream');
-            reply.res.setHeader('Content-type', 'application/octet-stream');
-            reply.res.setHeader('Access-Control-Allow-Origin', '*');
-            reply.res.setHeader('connection', 'keep-alive');
-            const rdsrtm = fs.createReadStream(
-              `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            );
-            reply.send(rdsrtm);
-            //  } else {
-            //  reply.res.setHeader('Content-type', 'application/octet-stream');
-            //  reply.res.setHeader('Access-Control-Allow-Origin', '*');
-            //  reply.res.charset = 'UTF-8';
-            fastify.log.info(
-              `container not running but trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            );
-            // if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
-            //   fastify.log.info('log file found ');
-            //   const rdsrtm = fs.createReadStream(
-            //     `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            //   );
-            //   reply.send(rdsrtm);
-            // }
-            //  }
+            if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
+              fastify.log.info('slog file found sending to frontend');
+              reply.res.setHeader('Content-type', 'application/octet-stream');
+              reply.res.setHeader('Access-Control-Allow-Origin', '*');
+              reply.res.setHeader('connection', 'keep-alive');
+              const rdsrtm = fs.createReadStream(
+                `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+              );
+              reply.send(rdsrtm);
+              fastify.log.info(
+                `container not running but trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+              );
+            } else {
+              reply.code(404).send('log file not found');
+            }
           })
           .catch(err => {
-            reply.res.setHeader('Content-type', 'application/octet-stream');
-            reply.res.setHeader('Access-Control-Allow-Origin', '*');
-            // fastify.log.info(
-            //   `trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            // );
-            reply.res.write('404');
-            reply.res.end();
+            reply.code(500).send(err);
             fastify.log.info('err', err);
-            // if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
-            //   fastify.log.info('log file found ');
-            //   const rdsrtm = fs.createReadStream(
-            //     `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            //   );
-            //   reply.send(rdsrtm);
-            // } else {
-            //   reply.res.write('404');
-            //   reply.res.end();
-            //   fastify.log.info('err', err);
-            // }
           });
       })
       .catch(err => {
@@ -1830,7 +1845,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('deleteFromPluginQueue', (request, reply) => {
     const pluginIdToDelete = [...request.body];
     const idsToDelete = [];
-    const dock = new DockerService(fs);
+    const dock = new DockerService(fs, fastify, path);
     const promisesArray = [];
 
     for (let cnt = 0; cnt < pluginIdToDelete.length; cnt += 1) {
@@ -1841,8 +1856,13 @@ async function epaddb(fastify, options, done) {
           .then(resInspect => {
             fastify.log.info(
               'deleteFromPluginQueue inspect element result',
-              resInspect.State.Status
+              // resInspect.State.Status
+              resInspect.message
             );
+            if (resInspect.message === '404') {
+              fastify.log.info('need to throw an error here ');
+              throw new Error('404');
+            }
             if (resInspect.State.Status !== 'running') {
               idsToDelete.push(pluginIdToDelete[cnt]);
               fastify.log.info('deleteFromPluginQueue not running but container found');
@@ -1852,8 +1872,9 @@ async function epaddb(fastify, options, done) {
             }
           })
           .catch(err => {
-            fastify.log.info('inspect element err', err.statusCode);
-            if (err.statusCode === 404) {
+            fastify.log.info('inspect element err', err);
+            fastify.log.info('deleting from plugin queue ');
+            if (err.message === '404') {
               idsToDelete.push(pluginIdToDelete[cnt]);
             }
           })
@@ -2028,7 +2049,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('stopPluginsQueue', async (request, reply) => {
     const queueIds = [...request.body];
     fastify.log.info('queueIds', queueIds);
-    const dock = new DockerService(fs);
+    const dock = new DockerService(fs, fastify, path);
     const containerLists = await dock.listContainers();
     let containerFound = false;
     reply.code(204).send();
@@ -2110,12 +2131,16 @@ async function epaddb(fastify, options, done) {
               pluginObj.project = { ...data.dataValues.queueproject.dataValues };
             }
 
-            const dock = new DockerService(fs);
+            const dock = new DockerService(fs, fastify, path);
             const containerName = `epadplugin_${pluginObj.id}`;
             dock
               .checkContainerExistance(containerName)
               .then(resInspect => {
-                fastify.log.info('inspect element result', resInspect.State.Status);
+                // fastify.log.info('inspect element result', resInspect);
+                if (resInspect.message === '404') {
+                  fastify.log.info('need to throw an error here ');
+                  throw new Error('404');
+                }
                 if (resInspect.State.Status !== 'running') {
                   fastify.log.info('container is not running : ', containerName);
                   dock.deleteContainer(containerName).then(deleteReturn => {
@@ -2126,8 +2151,8 @@ async function epaddb(fastify, options, done) {
                 }
               })
               .catch(err => {
-                fastify.log.info('inspect element err', err.statusCode);
-                if (err.statusCode === 404) {
+                fastify.log.info('inspect element err', err);
+                if (err.message === '404') {
                   result.push(pluginObj);
                   fastify.runPluginsQueueInternal(result, request);
                 }
@@ -2227,7 +2252,6 @@ async function epaddb(fastify, options, done) {
         }
 
         for (let i = 0; i < tempPluginparams.length; i += 1) {
-          fastify.log.info(tempPluginparams[i].format);
           // output folder
           if (tempPluginparams[i].format === 'OutputFolder') {
             try {
@@ -2256,7 +2280,6 @@ async function epaddb(fastify, options, done) {
                   { aims: Object.keys(aims) },
                   request.epadAuth
                 );
-
                 const inputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
@@ -2425,7 +2448,7 @@ async function epaddb(fastify, options, done) {
     }
   );
   fastify.decorate('getUserPluginDataPathInternal', async () => {
-    const dock = new DockerService(fs);
+    const dock = new DockerService(fs, fastify, path);
     const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
     let epadLitePwd = '';
     return new Promise((resolve, reject) => {
@@ -2468,7 +2491,7 @@ async function epaddb(fastify, options, done) {
         // });
       }
 
-      const dock = new DockerService(fs);
+      const dock = new DockerService(fs, fastify, path);
       const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
       const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
       let epadLitePwd = '';
@@ -2484,18 +2507,17 @@ async function epaddb(fastify, options, done) {
         queueObject.id
       }/`;
 
-      const pluginsDataFolderx = path.join(
+      const pluginsDataFolderlog = path.join(
         __dirname,
         `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/logs`
       );
-      if (!fs.existsSync(`${pluginsDataFolderx}`)) {
-        fs.mkdirSync(`${pluginsDataFolderx}`);
+      if (!fs.existsSync(`${pluginsDataFolderlog}`)) {
+        fs.mkdirSync(`${pluginsDataFolderlog}`);
       }
       fastify.log.info('getting epad_lite bind points and pwd local : ', localServerBindPoint);
       if (parametertype === 'default') {
         try {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
-
           await fastify.createPluginfoldersInternal(
             paramsToSendToContainer,
             pluginsDataFolder,
@@ -2514,7 +2536,6 @@ async function epaddb(fastify, options, done) {
           resolve(returnObject);
         } catch (err) {
           reject(new InternalError('error while getting plugin default paraeters', err));
-          //  reject(err);
         }
       }
 
@@ -2573,6 +2594,8 @@ async function epaddb(fastify, options, done) {
           reject(new InternalError('error while getting plugin runtime paraeters', err));
         }
       }
+    }).catch(err => {
+      return new Error(err);
     });
   });
 
@@ -2773,157 +2796,173 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
-
-    for (let i = 0; i < pluginQueueList.length; i += 1) {
-      const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${
-        pluginQueueList[i].plugin.image_tag
-      }`;
-      const queueId = pluginQueueList[i].id;
-      // eslint-disable-next-line no-await-in-loop
-      await fastify.updateStatusQueueProcessInternal(queueId, 'waiting');
-      new EpadNotification(
-        request,
-        `ePad is preparing folder structure for plugin image: ${imageRepo} `,
-        'success',
-        true
-      ).notify(fastify);
-      fastify.log.info('running plugin for :', pluginQueueList[i]);
-
-      // eslint-disable-next-line no-await-in-loop
-      const pluginParameters = await fastify.extractPluginParamtersInternal(
-        pluginQueueList[i],
-        request
-      );
-
-      fastify.log.info('called image : ', imageRepo);
-      const dock = new DockerService(fs);
-      let checkImageExistOnHub = false;
-      let checkImageExistLocal = false;
-      try {
-        fastify.log.info(' tryitn to pull first ', imageRepo);
+    try {
+      for (let i = 0; i < pluginQueueList.length; i += 1) {
+        const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${
+          pluginQueueList[i].plugin.image_tag
+        }`;
+        const queueId = pluginQueueList[i].id;
         // eslint-disable-next-line no-await-in-loop
-        await dock.pullImageA(imageRepo);
-        checkImageExistOnHub = true;
-      } catch (err) {
-        fastify.log.info(
-          `${imageRepo} is not reachable , does not exist on the hub or requires login`
-        );
-      }
-      if (checkImageExistOnHub === false) {
-        // check local image existance
-
-        // eslint-disable-next-line no-await-in-loop
-        const imageList = await dock.listImages();
-        const litSize = imageList.length;
-
-        for (let cnt = 0; cnt < litSize; cnt += 1) {
-          if (imageRepo !== ':' && imageRepo !== '') {
-            if (imageList[cnt].RepoTags.includes(imageRepo)) {
-              checkImageExistLocal = true;
-              fastify.log.info('image found locally');
-              break;
-            }
-          }
-        }
-      }
-      if (checkImageExistOnHub === true || checkImageExistLocal === true) {
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const userPluginRootPath = await fastify.getUserPluginDataPathInternal();
-
-          let opreationresult = '';
-          // eslint-disable-next-line no-await-in-loop
-          const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
-            pluginParameters
-          );
-
-          // eslint-disable-next-line no-await-in-loop
-          await fastify.updateStatusQueueProcessInternal(queueId, 'running');
-          // opreationresult = ` plugin image : ${imageRepo} is runing`;
-          new EpadNotification(
-            request,
-            `plugin image: ${imageRepo} started the process and container is running`,
-            'success',
-            true
-          ).notify(fastify);
-
-          // eslint-disable-next-line no-await-in-loop
-          opreationresult = await dock.createContainer(
-            imageRepo,
-            `epadplugin_${queueId}`,
-            sortedParams,
-            pluginQueueList[i],
-            userPluginRootPath
-          );
-
-          fastify.log.info('opreationresult', JSON.stringify(opreationresult));
-
-          // eslint-disable-next-line no-prototype-builtins
-          if (opreationresult.hasOwnProperty('stack')) {
-            fastify.log.info('error catched in upper level ', opreationresult.stack);
-            // eslint-disable-next-line no-new
-            throw new InternalError('', opreationresult);
-          }
-          // return new Error(opreationresult.Error);
-
-          // eslint-disable-next-line no-await-in-loop
-          await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
-          opreationresult = ` plugin image : ${imageRepo} terminated the container process with success`;
-          new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
-          fastify.log.info('plugin finished working', imageRepo);
-
-          const checkFileExtension = fileName => {
-            const nameArry = fileName.split('.');
-            const ext = nameArry[nameArry.length - 1];
-            if (ext === 'dcm') {
-              return true;
-            }
-            return false;
-          };
-
-          //  upload the result from container to the series
-          if (fs.existsSync(`${pluginParameters.serverfolder}output`)) {
-            const fileArray = fs
-              .readdirSync(`${pluginParameters.serverfolder}output`)
-              // eslint-disable-next-line no-loop-func
-              .map(fileName => {
-                fastify.log.info('filename : ', fileName);
-                return fileName;
-              })
-              .filter(checkFileExtension);
-            fastify.log.info('file array : ', fileArray);
-            //  eslint-disable-next-line no-await-in-loop
-            const { success, errors } = await fastify.saveFiles(
-              `${pluginParameters.serverfolder}output`,
-              fileArray,
-              { project: pluginParameters.projectid },
-              {},
-              request.epadAuth
-            );
-            fastify.log.info('project id :', pluginParameters.projectid);
-            fastify.log.info('projectdb id :', pluginParameters.projectdbid);
-            fastify.log.info('upload dir back error: ', errors);
-            fastify.log.info('upload dir back success: ', success);
-            //  end
-          }
-          return 'completed';
-        } catch (err) {
-          const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
-          // eslint-disable-next-line no-await-in-loop
-          await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-          return new EpadNotification(request, operationresult, err, true).notify(fastify);
-        }
-      } else {
-        // eslint-disable-next-line no-await-in-loop
-        await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-        fastify.log.info('image not found ', imageRepo);
-        return new EpadNotification(
+        await fastify.updateStatusQueueProcessInternal(queueId, 'waiting');
+        new EpadNotification(
           request,
-          'error',
-          new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
+          `ePad is preparing folder structure for plugin image: ${imageRepo} `,
+          'success',
           true
         ).notify(fastify);
+
+        fastify.log.info(' pluginQueueList[i] :', pluginQueueList[i]);
+        // eslint-disable-next-line no-await-in-loop
+        const pluginParameters = await fastify.extractPluginParamtersInternal(
+          pluginQueueList[i],
+          request
+        );
+        fastify.log.info('pluginParameters :', pluginParameters);
+        // eslint-disable-next-line no-prototype-builtins
+        if (pluginParameters.hasOwnProperty('message')) {
+          if (pluginParameters.message.includes('Error')) {
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+            new EpadNotification(
+              request,
+              `docker encountered an error while preparing the container  "${imageRepo}" `,
+              new Error(`${pluginParameters.message}`),
+              true
+            ).notify(fastify);
+            throw new InternalError('', pluginParameters.message);
+          }
+        }
+        fastify.log.info('called image : ', imageRepo);
+        const dock = new DockerService(fs, fastify, path);
+        let checkImageExistOnHub = false;
+        let checkImageExistLocal = false;
+        try {
+          fastify.log.info(' tryitn to pull first ', imageRepo);
+          // eslint-disable-next-line no-await-in-loop
+          await dock.pullImageA(imageRepo);
+          checkImageExistOnHub = true;
+        } catch (err) {
+          fastify.log.info(
+            `${imageRepo} is not reachable , does not exist on the hub or requires login`
+          );
+        }
+        if (checkImageExistOnHub === false) {
+          // check local image existance
+
+          // eslint-disable-next-line no-await-in-loop
+          const imageList = await dock.listImages();
+          const litSize = imageList.length;
+
+          for (let cnt = 0; cnt < litSize; cnt += 1) {
+            if (imageRepo !== ':' && imageRepo !== '') {
+              if (imageList[cnt].RepoTags.includes(imageRepo)) {
+                checkImageExistLocal = true;
+                fastify.log.info('image found locally');
+                break;
+              }
+            }
+          }
+        }
+        if (checkImageExistOnHub === true || checkImageExistLocal === true) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            // const userPluginRootPath = await fastify.getUserPluginDataPathInternal();
+
+            let opreationresult = '';
+            // eslint-disable-next-line no-await-in-loop
+            const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
+              pluginParameters
+            );
+
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'running');
+            // opreationresult = ` plugin image : ${imageRepo} is runing`;
+            new EpadNotification(
+              request,
+              `plugin image: ${imageRepo} started the process and container is running`,
+              'success',
+              true
+            ).notify(fastify);
+
+            // eslint-disable-next-line no-await-in-loop
+            opreationresult = await dock.createContainer(
+              imageRepo,
+              `epadplugin_${queueId}`,
+              sortedParams,
+              pluginQueueList[i]
+            );
+
+            fastify.log.info('opreationresult', JSON.stringify(opreationresult));
+
+            // eslint-disable-next-line no-prototype-builtins
+            if (opreationresult.hasOwnProperty('stack')) {
+              fastify.log.info('error catched in upper level ', opreationresult.stack);
+              // eslint-disable-next-line no-new
+              throw new InternalError('', opreationresult);
+            }
+            // return new Error(opreationresult.Error);
+
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
+            opreationresult = ` plugin image : ${imageRepo} terminated the container process with success`;
+            new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
+            fastify.log.info('plugin finished working', imageRepo);
+
+            const checkFileExtension = fileName => {
+              const nameArry = fileName.split('.');
+              const ext = nameArry[nameArry.length - 1];
+              if (ext === 'dcm') {
+                return true;
+              }
+              return false;
+            };
+
+            //  upload the result from container to the series
+            if (fs.existsSync(`${pluginParameters.serverfolder}output`)) {
+              const fileArray = fs
+                .readdirSync(`${pluginParameters.serverfolder}output`)
+                // eslint-disable-next-line no-loop-func
+                .map(fileName => {
+                  fastify.log.info('filename : ', fileName);
+                  return fileName;
+                })
+                .filter(checkFileExtension);
+              fastify.log.info('file array : ', fileArray);
+              //  eslint-disable-next-line no-await-in-loop
+              const { success, errors } = await fastify.saveFiles(
+                `${pluginParameters.serverfolder}output`,
+                fileArray,
+                { project: pluginParameters.projectid },
+                {},
+                request.epadAuth
+              );
+              fastify.log.info('project id :', pluginParameters.projectid);
+              fastify.log.info('projectdb id :', pluginParameters.projectdbid);
+              fastify.log.info('upload dir back error: ', errors);
+              fastify.log.info('upload dir back success: ', success);
+              //  end
+            }
+            return 'completed';
+          } catch (err) {
+            const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+            return new EpadNotification(request, operationresult, err, true).notify(fastify);
+          }
+        } else {
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+          fastify.log.info('image not found ', imageRepo);
+          return new EpadNotification(
+            request,
+            'error',
+            new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
+            true
+          ).notify(fastify);
+        }
       }
+    } catch (err) {
+      return err;
     }
     return true;
   });
