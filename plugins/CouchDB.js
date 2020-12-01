@@ -120,7 +120,7 @@ async function couchdb(fastify, options) {
     if (imageAnnotation.imagingObservationEntityCollection) {
       const ioes = imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity;
       ioes.forEach(ioe => {
-        // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
+        // imagingObservationEntity can have both ImagingObservationCharacteristic and imagingPhysicalEntityCharacteristic
         header.push({ id: ioe.label.value.toLowerCase(), title: ioe.label.value });
         if (ioe.imagingObservationCharacteristicCollection) {
           const iocs =
@@ -194,14 +194,13 @@ async function couchdb(fastify, options) {
         ioes.push(imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity);
       }
       ioes.forEach(ioe => {
-        // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
+        // imagingObservationEntity can have both ImagingObservationCharacteristic and imagingPhysicalEntityCharacteristic
         row[ioe.label.value.toLowerCase()] = ioe.typeCode[0]['iso:displayName'].value;
-        if (ioe.imagingObservationEntityCharacteristicCollection) {
+        if (ioe.imagingObservationCharacteristicCollection) {
           let iocs = [];
           if (
             Array.isArray(
-              ioe.imagingObservationEntityCharacteristicCollection
-                .ImagingObservationEntityCharacteristic
+              ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic
             )
           ) {
             iocs = ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
@@ -211,7 +210,16 @@ async function couchdb(fastify, options) {
             );
           }
           iocs.forEach(ioc => {
-            row[ioc.label.value.toLowerCase()] = ioc.typeCode[0]['iso:displayName'].value;
+            if (
+              ioc.characteristicQuantificationCollection &&
+              ioc.characteristicQuantificationCollection.CharacteristicQuantification.length > 0
+            ) {
+              const iocq =
+                ioc.characteristicQuantificationCollection.CharacteristicQuantification[0];
+              row[ioc.label.value.toLowerCase()] = iocq.valueLabel.value;
+            } else {
+              row[ioc.label.value.toLowerCase()] = ioc.typeCode[0][`iso:displayName`].value;
+            }
           });
         }
         if (ioe.imagingPhysicalEntityCharacteristicCollection) {
@@ -300,6 +308,7 @@ async function couchdb(fastify, options) {
             // create the header base
             let header = [
               // Date_Created	Patient_Name	Patient_ID	Reviewer	Name Comment	Points	Study_UID	Series_UID	Image_UID
+              { id: 'aimUid', title: 'Aim_UID' },
               { id: 'date', title: 'Date_Created' },
               { id: 'patientName', title: 'Patient_Name' },
               { id: 'patientId', title: 'Patient_ID' },
@@ -340,6 +349,7 @@ async function couchdb(fastify, options) {
                   header = fastify.arrayUnique(header, 'id');
                   // add values common to all annotations
                   let row = {
+                    aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
                     date: dateFormatter.asString(
                       dateFormatter.ISO8601_FORMAT,
                       dateFormatter.parse(
@@ -511,7 +521,7 @@ async function couchdb(fastify, options) {
             reject(new UnauthenticatedError('No epadauth in request'));
           const db = fastify.couch.db.use(config.db);
           const qry = fastify.generateSearchQuery(params, epadAuth, filter);
-          const dbFilter = { q: qry, sort: 'name<string>', limit: 100 };
+          const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
           if (format !== 'summary') {
             dbFilter.include_docs = true;
             dbFilter.attachments = true;
@@ -542,6 +552,7 @@ async function couchdb(fastify, options) {
                     dsoFrameNo: 'NA',
                     isDicomSR: 'NA',
                     originalSubjectID: body.rows[i].fields.patient_id,
+                    userName: body.rows[i].fields.user,
                   });
                 }
                 resolve(res);
@@ -935,21 +946,23 @@ async function couchdb(fastify, options) {
       new Promise((resolve, reject) => {
         const db = fastify.couch.db.use(config.db);
         db.get(aimuid, (error, existing) => {
-          if (error) {
+          if (error || !existing) {
             reject(new ResourceNotFoundError('Aim', aimuid));
           }
           const promisses = [];
-          // check if it is a segmentation aim and delete dso
-          const segEntity =
-            existing.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .segmentationEntityCollection;
-          // this is a segmentation aim
-          if (segEntity) {
-            const params = {
-              study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
-              series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
-            };
-            promisses.push(fastify.deleteSeriesDicomsInternal(params));
+          if (existing.aim) {
+            // check if it is a segmentation aim and delete dso
+            const segEntity =
+              existing.aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .segmentationEntityCollection;
+            // this is a segmentation aim
+            if (segEntity) {
+              const params = {
+                study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
+                series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
+              };
+              promisses.push(fastify.deleteSeriesDicomsInternal(params));
+            }
           }
 
           promisses.push(db.destroy(aimuid, existing._rev));
@@ -1000,13 +1013,14 @@ async function couchdb(fastify, options) {
                   .then(res => {
                     aimUsersArr.forEach(userName => {
                       updateWorklistPromises.push(
-                        fastify.updateWorklistCompleteness(
+                        fastify.aimUpdateGateway(
                           res,
                           subject,
                           study,
                           userName,
-                          epadAuth
-                          // transaction
+                          epadAuth,
+                          undefined,
+                          params.project
                         )
                       );
                     });

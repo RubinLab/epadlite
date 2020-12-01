@@ -15,7 +15,7 @@ class EpadError extends Error {
       requiredField: 'Name and id required!',
       shortName: 'Name should have at least two alphanumeric characters!',
       // allSpace: 'Name should include at least two alphanumeric characters!',
-      badChar: 'ID can not include "/" character',
+      badChar: 'ID can not include "/" character or space',
     };
   }
 }
