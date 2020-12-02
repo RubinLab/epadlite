@@ -1942,7 +1942,7 @@ async function other(fastify) {
         delete queryObj.series;
       }
       fastify
-        .getAimsInternal('summary', params, queryObj, request.epadAuth)
+        .getAimsInternal('summary', params, queryObj, request.epadAuth, request.query.bookmark)
         .then(result => reply.code(200).send(result))
         .catch(err => reply.send(err));
     } catch (err) {

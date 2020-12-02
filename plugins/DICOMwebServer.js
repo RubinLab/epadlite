@@ -236,6 +236,7 @@ async function dicomwebserver(fastify) {
           promisses.push(this.request.get(`/studies${query}`, header));
           if (!noStats)
             if (params.project)
+              // TODO replace with a new method get aim counts!
               promisses.push(
                 fastify.getAimsInternal(
                   'summary',
@@ -546,6 +547,7 @@ async function dicomwebserver(fastify) {
           // get aims for a specific patient
           if (!noStats) {
             if (params.project)
+              // TODO replace with a new method get aim counts!
               promisses.push(
                 fastify.getAimsInternal(
                   'summary',
@@ -738,6 +740,7 @@ async function dicomwebserver(fastify) {
           // get aims for a specific study
           if (noStats === undefined || noStats === false)
             if (params.project)
+              // TODO replace with a new method get aim counts!
               promisses.push(
                 fastify.getAimsInternal(
                   'summary',

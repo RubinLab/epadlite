@@ -9,6 +9,9 @@ const schedule = require('node-schedule-tz');
 const archiver = require('archiver');
 const toArrayBuffer = require('to-array-buffer');
 const unzip = require('unzip-stream');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const dateFormatter = require('date-format');
+
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -2249,6 +2252,8 @@ async function epaddb(fastify, options, done) {
               typeof processmultipleaims !== 'object'
             ) {
               try {
+                // @cavit TODO if the plugin is trying to get more than 200 aims this will get only the first 200
+                // use prepaimdownload instead
                 // eslint-disable-next-line no-await-in-loop
                 const source = await fastify.getAimsInternal(
                   'stream',
@@ -4827,7 +4832,8 @@ async function epaddb(fastify, options, done) {
         request.query.format,
         request.params,
         filter,
-        request.epadAuth
+        request.epadAuth,
+        request.query.bookmark
       );
       if (request.query.report) {
         switch (request.query.report) {
@@ -5435,6 +5441,7 @@ async function epaddb(fastify, options, done) {
           if (!subject) {
             resolve('No DICOMS, skipping report generation');
           } else {
+            // TODO assuming one patient won't have over 200 aims in one project. if so handle it
             // just RECIST for now
             const result = await fastify.getAimsInternal(
               'json',
@@ -7405,6 +7412,224 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  // downloadParams = { aim: 'true', seg: 'true', summary: 'true' }
+  fastify.decorate(
+    'prepAimDownloadOneBatch',
+    (dataDir, params, downloadParams, aims, header, data) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // have a boolean just to avoid filesystem check for empty annotations directory
+          let isThereDataToWrite = false;
+          // get aims
+          const aimPromises = [];
+          const segRetrievePromises = [];
+          aims.forEach(aim => {
+            if (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') {
+              const imageAnnotations =
+                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
+
+              imageAnnotations.forEach(imageAnnotation => {
+                const commentSplit = imageAnnotation.comment.value.split('~~');
+                const points = [];
+                if (
+                  imageAnnotation.markupEntityCollection &&
+                  imageAnnotation.markupEntityCollection.MarkupEntity[0]
+                ) {
+                  imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
+                    coor => {
+                      points.push(`(${coor.x.value} ${coor.y.value})`);
+                    }
+                  );
+                }
+
+                // eslint-disable-next-line no-param-reassign
+                header = fastify.getCalculationHeaders(imageAnnotation, header);
+                // eslint-disable-next-line no-param-reassign
+                header = fastify.getOtherHeaders(imageAnnotation, header);
+                // eslint-disable-next-line no-param-reassign
+                header = fastify.arrayUnique(header, 'id');
+                // add values common to all annotations
+                let row = {
+                  aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                  date: dateFormatter.asString(
+                    dateFormatter.ISO8601_FORMAT,
+                    dateFormatter.parse('yyyyMMddhhmmssSSS', `${imageAnnotation.dateTime.value}000`)
+                  ),
+                  patientName: aim.ImageAnnotationCollection.person.name.value,
+                  patientId: aim.ImageAnnotationCollection.person.id.value,
+                  reviewer: aim.ImageAnnotationCollection.user.name.value,
+                  name: imageAnnotation.name.value.split('~')[0],
+                  comment: commentSplit[0],
+                  userComment: commentSplit.length > 1 ? commentSplit[1] : '',
+                  points: `[${points}]`,
+                  dsoSeriesUid:
+                    imageAnnotation.segmentationEntityCollection &&
+                    imageAnnotation.segmentationEntityCollection.SegmentationEntity
+                      ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                          .seriesInstanceUid.root
+                      : '',
+                  studyUid:
+                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                      .imageStudy.instanceUid.root,
+                  seriesUid:
+                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                      .imageStudy.imageSeries.instanceUid.root,
+                  imageUid:
+                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                      .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
+                };
+
+                row = fastify.getCalculationData(imageAnnotation, row);
+                row = fastify.getOtherData(imageAnnotation, row);
+                data.push(row);
+              });
+            }
+            if (downloadParams.aim && downloadParams.aim.toLowerCase() === 'true') {
+              aimPromises.push(() => {
+                return fs.writeFile(
+                  `${dataDir}/${aim.ImageAnnotationCollection.uniqueIdentifier.root}.json`,
+                  JSON.stringify(aim)
+                );
+              });
+            }
+            // only get the segs if we are retrieving series. study already gets it
+            if (
+              downloadParams.seg &&
+              downloadParams.seg.toLowerCase() === 'true' &&
+              params.series &&
+              aims.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .segmentationEntityCollection
+            ) {
+              const segEntity =
+                aims.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .segmentationEntityCollection.SegmentationEntity[0];
+              segRetrievePromises.push(() => {
+                return fastify.getSegDicom(segEntity);
+              });
+            }
+            isThereDataToWrite = true;
+          });
+          await fastify.pq.addAll(aimPromises);
+
+          if (
+            downloadParams.seg &&
+            downloadParams.seg.toLowerCase() === 'true' &&
+            segRetrievePromises.length > 0
+          ) {
+            // we need to create the segs dir. this should only happen with retrieveSegs
+            fs.mkdirSync(`${dataDir}/segs`);
+            const segWritePromises = [];
+            const segs = await fastify.pq.addAll(segRetrievePromises);
+            for (let i = 0; i < segs.length; i += 1) {
+              segWritePromises.push(() => {
+                return fs.writeFile(`${dataDir}/segs/${segs[i].uid}.dcm`, segs[i].buffer);
+              });
+              isThereDataToWrite = true;
+            }
+            await fastify.pq.addAll(segWritePromises);
+          }
+          resolve(isThereDataToWrite);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  // TODO does not handle study aims!!!
+  fastify.decorate(
+    'prepAimDownload',
+    (dataDir, params, epadAuth, downloadParams, aimsResult) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // have a boolean just to avoid filesystem check for empty annotations directory
+          let isThereDataToWrite = false;
+          // create the header base
+          const header = [
+            // Date_Created	Patient_Name	Patient_ID	Reviewer	Name Comment	Points	Study_UID	Series_UID	Image_UID
+            { id: 'aimUid', title: 'Aim_UID' },
+            { id: 'date', title: 'Date_Created' },
+            { id: 'patientName', title: 'Patient_Name' },
+            { id: 'patientId', title: 'Patient_ID' },
+            { id: 'reviewer', title: 'Reviewer' },
+            { id: 'name', title: 'Name' },
+            { id: 'comment', title: 'Comment' },
+            { id: 'userComment', title: 'User_Comment' },
+            { id: 'points', title: 'Points' },
+            { id: 'dsoSeriesUid', title: 'DSO_Series_UID' },
+            { id: 'studyUid', title: 'Study_UID' },
+            { id: 'seriesUid', title: 'Series_UID' },
+            { id: 'imageUid', title: 'Image_UID' },
+          ];
+          const data = [];
+          const aims = aimsResult.rows;
+          if (aims.count < aimsResult.total_rows) {
+            let totalAimCount = aims.count;
+            let { bookmark } = aimsResult;
+            // put the first batch
+            isThereDataToWrite =
+              isThereDataToWrite ||
+              (await fastify.prepAimDownloadOneBatch(
+                dataDir,
+                params,
+                downloadParams,
+                aims,
+                header,
+                data
+              ));
+            // get batches and put them in download dir till we get all aims
+            while (totalAimCount < aimsResult.total_rows) {
+              // eslint-disable-next-line no-await-in-loop
+              const newResult = await fastify.getAimsInternal(
+                'json',
+                params,
+                undefined,
+                epadAuth,
+                bookmark
+              );
+              isThereDataToWrite =
+                isThereDataToWrite ||
+                // eslint-disable-next-line no-await-in-loop
+                (await fastify.prepAimDownloadOneBatch(
+                  dataDir,
+                  params,
+                  downloadParams,
+                  newResult.rows,
+                  header,
+                  data
+                ));
+              // eslint-disable-next-line prefer-destructuring
+              bookmark = newResult.bookmark;
+              totalAimCount += newResult.rows.count;
+            }
+          } else {
+            isThereDataToWrite = await fastify.prepAimDownloadOneBatch(
+              dataDir,
+              params,
+              downloadParams,
+              aims,
+              header,
+              data
+            );
+          }
+          if (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') {
+            // create the csv writer and write the summary
+            const csvWriter = createCsvWriter({
+              path: `${dataDir}/summary.csv`,
+              header,
+            });
+            csvWriter
+              .writeRecords(data)
+              .then(() => fastify.log.info('The summary CSV file was written successfully'));
+            isThereDataToWrite = true;
+          }
+          resolve(isThereDataToWrite);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  // TODO check reasoning behind retrieveSegs
   fastify.decorate(
     'prepSeriesDownloadDir',
     (dataDir, params, query, epadAuth, retrieveSegs, fileUids) =>
@@ -7427,57 +7652,23 @@ async function epaddb(fastify, options, done) {
           }
           await fastify.pq.addAll(dcmPromises);
           if (query.includeAims && query.includeAims === 'true') {
-            // get aims
-            const aimPromises = [];
             const aimsResult = await fastify.getAimsInternal('json', params, undefined, epadAuth);
-            const aims = aimsResult.rows;
-            const segRetrievePromises = [];
-            for (let i = 0; i < aims.length; i += 1) {
-              aimPromises.push(() => {
-                return fs.writeFile(
-                  `${dataDir}/${aims[i].ImageAnnotationCollection.uniqueIdentifier.root}.json`,
-                  JSON.stringify(aims[i])
-                );
-              });
-              // only get the segs if we are retrieving series. study already gets it
-              if (
-                retrieveSegs &&
-                params.series &&
-                aims[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .segmentationEntityCollection
-              ) {
-                const segEntity =
-                  aims[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                    .segmentationEntityCollection.SegmentationEntity[0];
-                segRetrievePromises.push(() => {
-                  return fastify.getSegDicom(segEntity);
-                });
-              }
-              isThereDataToWrite = true;
-            }
-            await fastify.pq.addAll(aimPromises);
-
-            if (retrieveSegs && segRetrievePromises.length > 0) {
-              // we need to create the segs dir. this should only happen with retrieveSegs
-              fs.mkdirSync(`${dataDir}/segs`);
-              const segWritePromises = [];
-              const segs = await fastify.pq.addAll(segRetrievePromises);
-              for (let i = 0; i < segs.length; i += 1) {
-                segWritePromises.push(() => {
-                  return fs.writeFile(`${dataDir}/segs/${segs[i].uid}.dcm`, segs[i].buffer);
-                });
-                isThereDataToWrite = true;
-              }
-              await fastify.pq.addAll(segWritePromises);
-            }
-            const files = await fastify.getFilesFromUIDsInternal(
-              { format: 'stream' },
-              fileUids,
+            const isThereAimToWrite = await fastify.prepAimDownload(
+              dataDir,
               params,
-              dataDir
+              epadAuth,
+              retrieveSegs ? { aim: 'true', seg: 'true' } : { aim: 'true' },
+              aimsResult
             );
-            isThereDataToWrite = isThereDataToWrite || files;
+            isThereDataToWrite = isThereDataToWrite || isThereAimToWrite;
           }
+          const files = await fastify.getFilesFromUIDsInternal(
+            { format: 'stream' },
+            fileUids,
+            params,
+            dataDir
+          );
+          isThereDataToWrite = isThereDataToWrite || files;
           resolve(isThereDataToWrite);
         } catch (err) {
           reject(err);
@@ -9184,6 +9375,7 @@ async function epaddb(fastify, options, done) {
               raw: true,
             });
           } else {
+            // TODO check for very large aim count (affected by pagination)
             // sending empty epadAuth, would fail in thick mode, but this is not called on thick mode
             const aimsRes = await fastify.getAimsInternal('summary', {}, undefined, {});
             const aims = aimsRes.rows;
@@ -10058,6 +10250,7 @@ async function epaddb(fastify, options, done) {
             );
             fastify.log.warn('Lite project is created');
 
+            // TODO if there are more than 200 aims it is going to fail migrating!
             // fill in each project relation table
             // 1. project_aim
             // get aims from couch and add entities

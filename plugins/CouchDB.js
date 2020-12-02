@@ -2,9 +2,8 @@
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const archiver = require('archiver');
-const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const dateFormatter = require('date-format');
 const atob = require('atob');
+const path = require('path');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 const {
@@ -13,6 +12,7 @@ const {
   BadRequestError,
   UnauthenticatedError,
 } = require('../utils/EpadErrors');
+// const EpadNotification = require('../utils/EpadNotification');
 
 async function couchdb(fastify, options) {
   fastify.decorate('init', async () => {
@@ -292,11 +292,14 @@ async function couchdb(fastify, options) {
     return row;
   });
 
+  // returns stream if online (total_rows===aimsResult.rows.count)
+  // zip file path otherwise
   fastify.decorate(
     'downloadAims',
-    (params, aims) =>
-      new Promise((resolve, reject) => {
+    (downloadParams, aimsResult, epadAuth) =>
+      new Promise(async (resolve, reject) => {
         try {
+          const offline = aimsResult.total_rows !== aimsResult.rows.count;
           const timestamp = new Date().getTime();
           const dir = `tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
@@ -305,169 +308,60 @@ async function couchdb(fastify, options) {
           if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir);
             fs.mkdirSync(`${dir}/annotations`);
-            // create the header base
-            let header = [
-              // Date_Created	Patient_Name	Patient_ID	Reviewer	Name Comment	Points	Study_UID	Series_UID	Image_UID
-              { id: 'aimUid', title: 'Aim_UID' },
-              { id: 'date', title: 'Date_Created' },
-              { id: 'patientName', title: 'Patient_Name' },
-              { id: 'patientId', title: 'Patient_ID' },
-              { id: 'reviewer', title: 'Reviewer' },
-              { id: 'name', title: 'Name' },
-              { id: 'comment', title: 'Comment' },
-              { id: 'userComment', title: 'User_Comment' },
-              { id: 'points', title: 'Points' },
-              { id: 'dsoSeriesUid', title: 'DSO_Series_UID' },
-              { id: 'studyUid', title: 'Study_UID' },
-              { id: 'seriesUid', title: 'Series_UID' },
-              { id: 'imageUid', title: 'Image_UID' },
-            ];
 
-            const data = [];
-            const segRetrievePromises = [];
-            aims.forEach(aim => {
-              if (params.summary && params.summary.toLowerCase() === 'true') {
-                const imageAnnotations =
-                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
+            isThereDataToWrite =
+              isThereDataToWrite ||
+              (await fastify.prepAimDownload(
+                `${dir}/annotations`,
+                {},
+                epadAuth,
+                downloadParams,
+                aimsResult
+              ));
 
-                imageAnnotations.forEach(imageAnnotation => {
-                  const commentSplit = imageAnnotation.comment.value.split('~~');
-                  const points = [];
-                  if (
-                    imageAnnotation.markupEntityCollection &&
-                    imageAnnotation.markupEntityCollection.MarkupEntity[0]
-                  ) {
-                    imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
-                      coor => {
-                        points.push(`(${coor.x.value} ${coor.y.value})`);
-                      }
-                    );
-                  }
-
-                  header = fastify.getCalculationHeaders(imageAnnotation, header);
-                  header = fastify.getOtherHeaders(imageAnnotation, header);
-                  header = fastify.arrayUnique(header, 'id');
-                  // add values common to all annotations
-                  let row = {
-                    aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
-                    date: dateFormatter.asString(
-                      dateFormatter.ISO8601_FORMAT,
-                      dateFormatter.parse(
-                        'yyyyMMddhhmmssSSS',
-                        `${imageAnnotation.dateTime.value}000`
-                      )
-                    ),
-                    patientName: aim.ImageAnnotationCollection.person.name.value,
-                    patientId: aim.ImageAnnotationCollection.person.id.value,
-                    reviewer: aim.ImageAnnotationCollection.user.name.value,
-                    name: imageAnnotation.name.value.split('~')[0],
-                    comment: commentSplit[0],
-                    userComment: commentSplit.length > 1 ? commentSplit[1] : '',
-                    points: `[${points}]`,
-                    dsoSeriesUid:
-                      imageAnnotation.segmentationEntityCollection &&
-                      imageAnnotation.segmentationEntityCollection.SegmentationEntity
-                        ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
-                            .seriesInstanceUid.root
-                        : '',
-                    studyUid:
-                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                        .imageStudy.instanceUid.root,
-                    seriesUid:
-                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                        .imageStudy.imageSeries.instanceUid.root,
-                    imageUid:
-                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                        .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
-                  };
-
-                  row = fastify.getCalculationData(imageAnnotation, row);
-                  row = fastify.getOtherData(imageAnnotation, row);
-                  data.push(row);
-                });
-              }
-              if (params.aim && params.aim.toLowerCase() === 'true') {
-                fs.writeFileSync(
-                  `${dir}/annotations/${aim.ImageAnnotationCollection.uniqueIdentifier.root}.json`,
-                  JSON.stringify(aim)
-                );
-                isThereDataToWrite = true;
-              }
-              if (
-                params.seg &&
-                params.seg.toLowerCase() === 'true' &&
-                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .segmentationEntityCollection
-              ) {
-                const segEntity =
-                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                    .segmentationEntityCollection.SegmentationEntity[0];
-                segRetrievePromises.push(() => {
-                  return fastify.getSegDicom(segEntity);
-                });
-              }
-            });
-            if (params.summary && params.summary.toLowerCase() === 'true') {
-              // create the csv writer and write the summary
-              const csvWriter = createCsvWriter({
-                path: `${dir}/annotations/summary.csv`,
-                header,
+            if (isThereDataToWrite) {
+              const downloadFolder = path.join(__dirname, '../download');
+              const zipFilePath = offline
+                ? `${downloadFolder}/annotations_${timestamp}.zip`
+                : `${dir}/annotations.zip`;
+              // create a file to stream archive data to.
+              const output = fs.createWriteStream(zipFilePath);
+              const archive = archiver('zip', {
+                zlib: { level: 9 }, // Sets the compression level.
               });
-              csvWriter
-                .writeRecords(data)
-                .then(() => fastify.log.info('The summary CSV file was written successfully'));
-              isThereDataToWrite = true;
-            }
-            fastify.pq
-              .addAll(segRetrievePromises)
-              .then(segs => {
-                for (let i = 0; i < segs.length; i += 1) {
-                  fs.writeFileSync(`${dir}/annotations/${segs[i].uid}.dcm`, segs[i].buffer);
-                  isThereDataToWrite = true;
-                }
-                if (isThereDataToWrite) {
-                  // create a file to stream archive data to.
-                  const output = fs.createWriteStream(`${dir}/annotations.zip`);
-                  const archive = archiver('zip', {
-                    zlib: { level: 9 }, // Sets the compression level.
-                  });
-                  // create the archive
-                  archive
-                    .directory(`${dir}/annotations`, false)
-                    .on('error', err => reject(new InternalError('Archiving aims', err)))
-                    .pipe(output);
+              // create the archive
+              archive
+                .directory(`${dir}/annotations`, false)
+                .on('error', err => reject(new InternalError('Archiving aims', err)))
+                .pipe(output);
 
-                  output.on('close', () => {
-                    fastify.log.info(`Created zip in ${dir}`);
-                    const readStream = fs.createReadStream(`${dir}/annotations.zip`);
-                    // delete tmp folder after the file is sent
-                    readStream.once('end', () => {
-                      readStream.destroy(); // make sure stream closed, not close if download aborted.
-                      fs.remove(dir, error => {
-                        if (error)
-                          fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                        else fastify.log.info(`${dir} deleted`);
-                      });
-                    });
-                    resolve(readStream);
-                  });
-                  archive.finalize();
+              output.on('close', () => {
+                fastify.log.info(`Created zip in ${dir}`);
+                if (offline) {
+                  resolve(zipFilePath);
                 } else {
-                  fs.remove(dir, error => {
-                    if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                    else fastify.log.info(`${dir} deleted`);
+                  const readStream = fs.createReadStream(`${dir}/annotations.zip`);
+                  // delete tmp folder after the file is sent
+                  readStream.once('end', () => {
+                    readStream.destroy(); // make sure stream closed, not close if download aborted.
+                    fs.remove(dir, error => {
+                      if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                      else fastify.log.info(`${dir} deleted`);
+                    });
                   });
-                  reject(
-                    new InternalError(
-                      'Downloading aims',
-                      new Error('No aim or summary in download')
-                    )
-                  );
+                  resolve(readStream);
                 }
-              })
-              .catch(segErr => {
-                reject(new InternalError('Downloading aims with segmentations', segErr));
               });
+              archive.finalize();
+            } else {
+              fs.remove(dir, error => {
+                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                else fastify.log.info(`${dir} deleted`);
+              });
+              reject(
+                new InternalError('Downloading aims', new Error('No aim or summary in download'))
+              );
+            }
           }
         } catch (err) {
           reject(new InternalError('Downloading aims', err));
@@ -511,10 +405,70 @@ async function couchdb(fastify, options) {
     return qryParts.join(' AND ');
   });
 
+  fastify.decorate(
+    'getAimsCouchInternal',
+    (db, searchQry, format, bookmark) =>
+      new Promise((resolve, reject) => {
+        const dbFilter = { ...searchQry, bookmark };
+        db.search('search', 'aimSearch', dbFilter, async (error, body) => {
+          try {
+            if (!error) {
+              const resObj = { total_rows: body.total_rows, bookmark: body.bookmark };
+              const res = [];
+              if (format === 'summary') {
+                for (let i = 0; i < body.rows.length; i += 1) {
+                  // not putting project id. getprojectaims puts the project that was called from
+                  res.push({
+                    aimID: body.rows[i].id,
+                    subjectID: body.rows[i].fields.patient_id,
+                    studyUID: body.rows[i].fields.study_uid,
+                    seriesUID: body.rows[i].fields.series_uid,
+                    instanceUID: body.rows[i].fields.instance_uid,
+                    instanceOrFrameNumber: 'NA',
+                    name: body.rows[i].fields.name,
+                    template: body.rows[i].fields.template_code,
+                    date: `${body.rows[i].fields.creation_date}${
+                      body.rows[i].fields.creation_time
+                    }`,
+                    patientName: body.rows[i].fields.patient_name,
+                    studyDate: body.rows[i].fields.study_date,
+                    comment: body.rows[i].fields.programmed_comment,
+                    templateType: body.rows[i].fields.template_name,
+                    color: 'NA',
+                    dsoFrameNo: 'NA',
+                    isDicomSR: 'NA',
+                    originalSubjectID: body.rows[i].fields.patient_id,
+                    userName: body.rows[i].fields.user,
+                  });
+                }
+                resObj.rows = res;
+                resolve(resObj);
+              } else {
+                for (let i = 0; i < body.rows.length; i += 1) {
+                  // eslint-disable-next-line no-await-in-loop
+                  const aim = await fastify.addAttachmentParts(
+                    body.rows[i].doc.aim,
+                    body.rows[i].doc._attachments
+                  );
+                  res.push(aim);
+                }
+                resObj.rows = res;
+                resolve(resObj);
+              }
+            } else {
+              reject(error);
+            }
+          } catch (err2) {
+            reject(new InternalError('Get aims from couch', err2));
+          }
+        });
+      })
+  );
+
   // add accessor methods with decorate
   fastify.decorate(
     'getAimsInternal',
-    (format, params, filter, epadAuth) =>
+    (format, params, filter, epadAuth, bookmark) =>
       new Promise((resolve, reject) => {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
@@ -526,75 +480,42 @@ async function couchdb(fastify, options) {
             dbFilter.include_docs = true;
             dbFilter.attachments = true;
           }
-          db.search('search', 'aimSearch', dbFilter, async (error, body) => {
-            try {
-              if (!error) {
-                const resObj = { total_rows: body.total_rows, bookmark: body.bookmark };
-                const res = [];
-                if (format === 'summary') {
-                  for (let i = 0; i < body.rows.length; i += 1) {
-                    // not putting project id. getprojectaims puts the project that was called from
-                    res.push({
-                      aimID: body.rows[i].id,
-                      subjectID: body.rows[i].fields.patient_id,
-                      studyUID: body.rows[i].fields.study_uid,
-                      seriesUID: body.rows[i].fields.series_uid,
-                      instanceUID: body.rows[i].fields.instance_uid,
-                      instanceOrFrameNumber: 'NA',
-                      name: body.rows[i].fields.name,
-                      template: body.rows[i].fields.template_code,
-                      date: `${body.rows[i].fields.creation_date}${
-                        body.rows[i].fields.creation_time
-                      }`,
-                      patientName: body.rows[i].fields.patient_name,
-                      studyDate: body.rows[i].fields.study_date,
-                      comment: body.rows[i].fields.programmed_comment,
-                      templateType: body.rows[i].fields.template_name,
-                      color: 'NA',
-                      dsoFrameNo: 'NA',
-                      isDicomSR: 'NA',
-                      originalSubjectID: body.rows[i].fields.patient_id,
-                      userName: body.rows[i].fields.user,
-                    });
-                  }
-                  resObj.rows = res;
-                  resolve(resObj);
-                } else {
-                  for (let i = 0; i < body.rows.length; i += 1) {
-                    // eslint-disable-next-line no-await-in-loop
-                    const aim = await fastify.addAttachmentParts(
-                      body.rows[i].doc.aim,
-                      body.rows[i].doc._attachments
-                    );
-                    res.push(aim);
-                  }
-                  if (format === 'stream') {
-                    if (resObj.total_rows !== res.length) {
-                      // TODO get everything and send an email
-                      fastify
-                        .downloadAims({ aim: 'true' }, res)
-                        .then(result => resolve(result))
-                        .catch(err => reject(err));
-                    } else {
-                      // download aims only
-                      fastify
-                        .downloadAims({ aim: 'true' }, res)
-                        .then(result => resolve(result))
-                        .catch(err => reject(err));
-                    }
+          fastify
+            .getAimsCouchInternal(db, dbFilter, format, bookmark)
+            .then(resObj => {
+              try {
+                if (format === 'stream') {
+                  if (resObj.total_rows !== resObj.rows.length) {
+                    // get everything and send an email
+                    fastify
+                      .downloadAims({ aim: 'true' }, resObj, epadAuth)
+                      .then(result => {
+                        fastify.log.info(`Zip file ready in ${result}`);
+                        // // send notification and/or email with link
+                        // new EpadNotification(
+                        //   request,
+                        //   'Download ready',
+                        //   `${params.subject} ${params.study} ${params.series}`,
+                        //   true
+                        // ).notify(fastify);
+                      })
+                      .catch(err => reject(err));
+                    resolve({ total_rows: resObj.total_rows });
                   } else {
-                    // the default is json! The old APIs were XML, no XML in epadlite
-                    resObj.rows = res;
-                    resolve(resObj);
+                    // download aims only
+                    fastify
+                      .downloadAims({ aim: 'true' }, resObj, epadAuth)
+                      .then(result => resolve(result))
+                      .catch(err => reject(err));
                   }
+                } else {
+                  resolve(resObj);
                 }
-              } else {
-                reject(error);
+              } catch (err2) {
+                reject(new InternalError('Packing download or sending', err2));
               }
-            } catch (err2) {
-              reject(new InternalError('Get aims', err2));
-            }
-          });
+            })
+            .catch(error => reject(error));
         } catch (err) {
           reject(new InternalError('Get aims', err));
         }
@@ -745,7 +666,8 @@ async function couchdb(fastify, options) {
         request.query.format,
         request.params,
         undefined,
-        request.epadAuth
+        request.epadAuth,
+        request.query.bookmark
       );
       if (request.query.format === 'stream') {
         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
@@ -798,7 +720,14 @@ async function couchdb(fastify, options) {
       .getAimsFromUIDsInternal(request.query, request.body)
       .then(res => {
         fastify
-          .downloadAims(request.query, res)
+          .downloadAims(
+            request.query,
+            {
+              total_rows: res.count,
+              rows: res,
+            },
+            request.epadAuth
+          )
           .then(result => {
             reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
             reply.code(200).send(result);
@@ -1009,6 +938,7 @@ async function couchdb(fastify, options) {
   fastify.decorate('deleteAimsInternal', (params, epadAuth) => {
     return new Promise((resolve, reject) => {
       const aimUsers = {};
+      // TODO delete in parts according to pagination
       fastify
         .getAimsInternal('summary', params, undefined, epadAuth)
         .then(result => {

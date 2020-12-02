@@ -1147,6 +1147,7 @@ async function reporting(fastify) {
                 project: subjProjPairs[i].projectID,
               });
             } else {
+              // TODO assuming one patient won't have over 200 aims in one project. if so handle it
               // eslint-disable-next-line no-await-in-loop
               const aimsRes = await fastify.getAimsInternal('json', params, undefined, epadAuth);
               fastify.log.info(
