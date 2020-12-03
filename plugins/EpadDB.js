@@ -30,7 +30,6 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('initMariaDB', async () => {
     try {
-      const { Op } = Sequelize;
       const sequelizeConfig = {
         dialect: 'mariadb',
         database: config.thickDb.name,
@@ -48,7 +47,6 @@ async function epaddb(fastify, options, done) {
           timestamps: false,
         },
         logging: config.thickDb.logger === 'true' || config.thickDb.logger === true,
-        operatorsAliases: { $in: Op.in },
       };
 
       // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
@@ -78,9 +76,12 @@ async function epaddb(fastify, options, done) {
         try {
           const filenames = fs.readdirSync(`${__dirname}/../models`);
           for (let i = 0; i < filenames.length; i += 1) {
-            models[filenames[i].replace(/\.[^/.]+$/, '')] = fastify.orm.import(
-              path.join(__dirname, '/../models', filenames[i])
-            );
+            // eslint-disable-next-line import/no-dynamic-require, global-require
+            models[filenames[i].replace(/\.[^/.]+$/, '')] = require(path.join(
+              __dirname,
+              '/../models',
+              filenames[i]
+            ))(fastify.orm, Sequelize.DataTypes);
           }
 
           models.user.belongsToMany(models.project, {
@@ -231,15 +232,9 @@ async function epaddb(fastify, options, done) {
           await fastify.orm.sync();
           if (config.env === 'test') {
             try {
-              await models.user.create({
-                username: 'admin',
-                firstname: 'admin',
-                lastname: 'admin',
-                email: 'admin@gmail.com',
-                admin: true,
-                createdtime: Date.now(),
-                updatetime: Date.now(),
-              });
+              await fastify.orm.query(
+                `INSERT IGNORE INTO user(username, firstname, lastname, email, admin, createdtime, updatetime) VALUES('admin', 'admin', 'admin', 'admin@gmail.com', true, ${Date.now()}, ${Date.now()})`
+              );
             } catch (userCreateErr) {
               reject(new InternalError('Creating admin user in testdb', userCreateErr));
             }
@@ -7603,7 +7598,7 @@ async function epaddb(fastify, options, done) {
             if (studyInfos) dirName = 'Studies';
             else if (whereJSON) {
               if (!whereJSON.subject_id) dirName = params.project;
-              else if (whereJSON.subject_id.$in) dirName = 'Patients';
+              else if (Array.isArray(whereJSON.subject_id)) dirName = 'Patients';
               else dirName = params.subject;
             }
             const dataDir = `${dir}/${dirName}`;
@@ -7646,7 +7641,8 @@ async function epaddb(fastify, options, done) {
                   if (
                     params.subject ||
                     (whereJSON &&
-                      (!whereJSON.subject_id || (whereJSON.subject_id && whereJSON.subject_id.$in)))
+                      (!whereJSON.subject_id ||
+                        (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
                   ) {
                     // eslint-disable-next-line no-await-in-loop
                     const files = await fastify.getFilesFromUIDsInternal(
@@ -7686,7 +7682,8 @@ async function epaddb(fastify, options, done) {
                   if (
                     params.subject ||
                     (whereJSON &&
-                      (!whereJSON.subject_id || (whereJSON.subject_id && whereJSON.subject_id.$in)))
+                      (!whereJSON.subject_id ||
+                        (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
                   )
                     archive.directory(`${dataDir}/Patient-${subjectUid}`, `Patient-${subjectUid}`);
                   else archive.directory(`${studyDir}`, studySubDir);
@@ -7911,7 +7908,7 @@ async function epaddb(fastify, options, done) {
         }
         const subjectIds = await Promise.all(subjectPromises);
         let whereJSON = {
-          subject_id: { $in: subjectIds },
+          subject_id: subjectIds,
         };
         if (request.params.project !== config.XNATUploadProjectID)
           whereJSON = { ...whereJSON, project_id: project.id };
@@ -9853,13 +9850,9 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS numOfSeries int(10) unsigned DEFAULT NULL AFTER sortorder,
                 ADD COLUMN IF NOT EXISTS numOfImages int(10) unsigned DEFAULT NULL AFTER numOfSeries,
                 DROP FOREIGN KEY IF EXISTS FK_workliststudy_study,
-                DROP KEY IF EXISTS FK_workliststudy_study,
                 DROP FOREIGN KEY IF EXISTS FK_workliststudy_subject,
-                DROP KEY IF EXISTS FK_workliststudy_subject,
                 DROP FOREIGN KEY IF EXISTS FK_workliststudy_project,
-                DROP KEY IF EXISTS FK_workliststudy_project,
                 DROP FOREIGN KEY IF EXISTS FK_workliststudy_worklist,
-                DROP KEY IF EXISTS FK_workliststudy_worklist,
                 DROP CONSTRAINT IF EXISTS worklist_study_ind,
                 ADD CONSTRAINT worklist_study_ind UNIQUE (worklist_id,study_id,subject_id, project_id);`,
               { transaction: t }
@@ -9950,9 +9943,7 @@ async function epaddb(fastify, options, done) {
             await fastify.orm.query(
               `ALTER TABLE project_user 
                 DROP FOREIGN KEY IF EXISTS FK_project_user_project,
-                DROP KEY IF EXISTS FK_project_user_project,
-                DROP FOREIGN KEY IF EXISTS FK_project_user_user,
-                DROP KEY IF EXISTS FK_project_user_user`,
+                DROP FOREIGN KEY IF EXISTS FK_project_user_user`,
               { transaction: t }
             );
             // for some reason doesn't work in the same alter table statement
@@ -9972,8 +9963,7 @@ async function epaddb(fastify, options, done) {
             // add nondicom delete cascade
             await fastify.orm.query(
               `ALTER TABLE nondicom_series 
-                DROP FOREIGN KEY IF EXISTS FK_series_study,
-                DROP KEY IF EXISTS FK_series_study;`,
+                DROP FOREIGN KEY IF EXISTS FK_series_study;`,
               { transaction: t }
             );
             await fastify.orm.query(
