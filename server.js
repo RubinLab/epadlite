@@ -18,12 +18,12 @@ const fastify = require('fastify')({
       : '',
 });
 
-fastify.addContentTypeParser('*', (req, done) => {
+fastify.addContentTypeParser('*', (_, payload, done) => {
   let data = [];
-  req.on('data', chunk => {
+  payload.on('data', chunk => {
     data.push(chunk);
   });
-  req.on('end', () => {
+  payload.on('end', () => {
     data = Buffer.concat(data);
     done(null, data);
   });
