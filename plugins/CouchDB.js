@@ -498,6 +498,18 @@ async function couchdb(fastify, options) {
                         //   `${params.subject} ${params.study} ${params.series}`,
                         //   true
                         // ).notify(fastify);
+                        fastify.nodemailer.sendMail(
+                          {
+                            from: config.notificationEmail.address,
+                            to: epadAuth.email,
+                            subject: 'Download Ready',
+                            text: `Your download is ready and available <a href='${result}'>here</a>`,
+                          },
+                          (err, info) => {
+                            if (err) console.log(err);
+                            console.log('info', info);
+                          }
+                        );
                       })
                       .catch(err => reject(err));
                     resolve({ total_rows: resObj.total_rows });

@@ -126,6 +126,17 @@ fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix })
 if (config.mode === 'thick') {
   fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require
 }
+
+fastify.register(require('fastify-nodemailer'), {
+  pool: true,
+  host: config.notificationEmail.host,
+  port: config.notificationEmail.port,
+  secure: config.notificationEmail.isTls, // use TLS
+  auth: {
+    user: config.notificationEmail.username,
+    pass: config.notificationEmail.password,
+  },
+});
 // Run the server!
 fastify.listen(port, host);
 
