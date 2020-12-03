@@ -48,7 +48,7 @@ async function routes(fastify) {
     schema: {
       tags: ['user'],
       response: {
-        200: 'epad_users_schema#',
+        200: { $ref: 'epad_users_schema#' },
       },
     },
     handler: fastify.getUsers,

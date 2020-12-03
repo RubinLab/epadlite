@@ -14,7 +14,7 @@ async function routes(fastify) {
         },
       },
       response: {
-        200: 'epadlite_patients_schema#',
+        200: { $ref: 'epadlite_patients_schema#' },
       },
     },
     handler: fastify.getPatientsFromProject,
@@ -37,7 +37,7 @@ async function routes(fastify) {
         },
       },
       response: {
-        200: 'epadlite_studies_schema#',
+        200: { $ref: 'epadlite_studies_schema#' },
       },
     },
     handler: fastify.getPatientStudiesFromProject,
@@ -63,7 +63,7 @@ async function routes(fastify) {
         },
       },
       response: {
-        200: 'epadlite_series_schema#',
+        200: { $ref: 'epadlite_series_schema#' },
       },
     },
     handler: fastify.getStudySeriesFromProject,
@@ -92,7 +92,7 @@ async function routes(fastify) {
         },
       },
       response: {
-        200: 'epadlite_series_schema#',
+        200: { $ref: 'epadlite_series_schema#' },
       },
     },
     handler: fastify.getStudySeriesFromProject,
@@ -122,7 +122,7 @@ async function routes(fastify) {
         },
       },
       response: {
-        200: 'epadlite_images_schema#',
+        200: { $ref: 'epadlite_images_schema#' },
       },
     },
 
