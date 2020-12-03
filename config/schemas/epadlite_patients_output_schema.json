@@ -1,6 +1,5 @@
 {
   "$id": "epadlite_patients_schema",
-
   "type": "array",
   "items": {
     "type": "object",
