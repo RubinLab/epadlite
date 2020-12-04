@@ -1,3 +1,4 @@
+/* eslint-disable no-async-promise-executor */
 /* eslint-disable no-underscore-dangle */
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
@@ -67,7 +68,7 @@ async function couchdb(fastify, options) {
           }
           searchDoc.indexes.aimSearch = viewsjs.searchIndexes.aimSearch;
           // insert the updated/created design document
-          await dicomDB.insert(viewDoc, '_design/instances', insertErr => {
+          await dicomDB.insert(viewDoc, '_design/instances', (insertErr) => {
             if (insertErr) {
               fastify.log.error(`Error updating the design document ${insertErr.message}`);
               reject(new InternalError('Error updating couchdb design document', insertErr));
@@ -76,7 +77,7 @@ async function couchdb(fastify, options) {
               resolve();
             }
           });
-          await dicomDB.insert(searchDoc, '_design/search', insertErr => {
+          await dicomDB.insert(searchDoc, '_design/search', (insertErr) => {
             if (insertErr) {
               fastify.log.error(`Error updating the search design document ${insertErr.message}`);
               reject(new InternalError('Error updating search design document', insertErr));
@@ -102,12 +103,12 @@ async function couchdb(fastify, options) {
       } else {
         ipes.push(imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity);
       }
-      ipes.forEach(ipe => {
+      ipes.forEach((ipe) => {
         header.push({ id: ipe.label.value.toLowerCase(), title: ipe.label.value });
         if (ipe.imagingPhysicalEntityCharacteristicCollection) {
           const ipcs =
             ipe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
-          ipcs.forEach(ipc => {
+          ipcs.forEach((ipc) => {
             header.push({
               id: ipc.label.value.toLowerCase(),
               title: ipc.label.value,
@@ -119,13 +120,13 @@ async function couchdb(fastify, options) {
 
     if (imageAnnotation.imagingObservationEntityCollection) {
       const ioes = imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity;
-      ioes.forEach(ioe => {
+      ioes.forEach((ioe) => {
         // imagingObservationEntity can have both ImagingObservationCharacteristic and imagingPhysicalEntityCharacteristic
         header.push({ id: ioe.label.value.toLowerCase(), title: ioe.label.value });
         if (ioe.imagingObservationCharacteristicCollection) {
           const iocs =
             ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
-          iocs.forEach(ioc => {
+          iocs.forEach((ioc) => {
             header.push({
               id: ioc.label.value.toLowerCase(),
               title: ioc.label.value,
@@ -136,7 +137,7 @@ async function couchdb(fastify, options) {
         if (ioe.imagingPhysicalEntityCharacteristicCollection) {
           ipcs =
             ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic;
-          ipcs.forEach(ipc => {
+          ipcs.forEach((ipc) => {
             header.push({
               id: ipc.label.value.toLowerCase(),
               title: ipc.label.value,
@@ -159,7 +160,7 @@ async function couchdb(fastify, options) {
       } else {
         ipes.push(imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity);
       }
-      ipes.forEach(ipe => {
+      ipes.forEach((ipe) => {
         row[ipe.label.value.toLowerCase()] = ipe.typeCode[0]['iso:displayName'].value;
         if (ipe.imagingPhysicalEntityCharacteristicCollection) {
           let ipcs = [];
@@ -176,7 +177,7 @@ async function couchdb(fastify, options) {
             );
           }
 
-          ipcs.forEach(ipc => {
+          ipcs.forEach((ipc) => {
             row[ipc.label.value.toLowerCase()] = ipc.typeCode[0]['iso:displayName'].value;
           });
         }
@@ -193,7 +194,7 @@ async function couchdb(fastify, options) {
       } else {
         ioes.push(imageAnnotation.imagingObservationEntityCollection.ImagingObservationEntity);
       }
-      ioes.forEach(ioe => {
+      ioes.forEach((ioe) => {
         // imagingObservationEntity can have both ImagingObservationCharacteristic and imagingPhysicalEntityCharacteristic
         row[ioe.label.value.toLowerCase()] = ioe.typeCode[0]['iso:displayName'].value;
         if (ioe.imagingObservationCharacteristicCollection) {
@@ -209,7 +210,7 @@ async function couchdb(fastify, options) {
               ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic
             );
           }
-          iocs.forEach(ioc => {
+          iocs.forEach((ioc) => {
             if (
               ioc.characteristicQuantificationCollection &&
               ioc.characteristicQuantificationCollection.CharacteristicQuantification.length > 0
@@ -236,7 +237,7 @@ async function couchdb(fastify, options) {
               ioe.imagingPhysicalEntityCharacteristicCollection.ImagingPhysicalEntityCharacteristic
             );
           }
-          ipcs.forEach(ipc => {
+          ipcs.forEach((ipc) => {
             row[ipc.label.value.toLowerCase()] = ipc.typeCode[0]['iso:displayName'].value;
           });
         }
@@ -255,7 +256,7 @@ async function couchdb(fastify, options) {
       } else {
         calcs.push(imageAnnotation.calculationEntityCollection.CalculationEntity);
       }
-      calcs.forEach(calc => {
+      calcs.forEach((calc) => {
         header.push({ id: calc.description.value.toLowerCase(), title: calc.description.value });
       });
     }
@@ -273,16 +274,16 @@ async function couchdb(fastify, options) {
       } else {
         calcs.push(imageAnnotation.calculationEntityCollection.CalculationEntity);
       }
-      calcs.forEach(calc => {
+      calcs.forEach((calc) => {
         if (
           calc.calculationResultCollection &&
           calc.calculationResultCollection.CalculationResult[0]
         ) {
           const calcResult = calc.calculationResultCollection.CalculationResult[0];
           if (calcResult['xsi:type'] === 'CompactCalculationResult')
-            row[calc.description.value.toLowerCase()] = `${calcResult.value.value} ${
-              calcResult.unitOfMeasure.value
-            }`;
+            row[
+              calc.description.value.toLowerCase()
+            ] = `${calcResult.value.value} ${calcResult.unitOfMeasure.value}`;
           else {
             // TODO handle old aims
           }
@@ -325,12 +326,12 @@ async function couchdb(fastify, options) {
 
             const data = [];
             const segRetrievePromises = [];
-            aims.forEach(aim => {
+            aims.forEach((aim) => {
               if (params.summary && params.summary.toLowerCase() === 'true') {
                 const imageAnnotations =
                   aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
 
-                imageAnnotations.forEach(imageAnnotation => {
+                imageAnnotations.forEach((imageAnnotation) => {
                   const commentSplit = imageAnnotation.comment.value.split('~~');
                   const points = [];
                   if (
@@ -338,7 +339,7 @@ async function couchdb(fastify, options) {
                     imageAnnotation.markupEntityCollection.MarkupEntity[0]
                   ) {
                     imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
-                      coor => {
+                      (coor) => {
                         points.push(`(${coor.x.value} ${coor.y.value})`);
                       }
                     );
@@ -420,7 +421,7 @@ async function couchdb(fastify, options) {
             }
             fastify.pq
               .addAll(segRetrievePromises)
-              .then(segs => {
+              .then((segs) => {
                 for (let i = 0; i < segs.length; i += 1) {
                   fs.writeFileSync(`${dir}/annotations/${segs[i].uid}.dcm`, segs[i].buffer);
                   isThereDataToWrite = true;
@@ -434,7 +435,7 @@ async function couchdb(fastify, options) {
                   // create the archive
                   archive
                     .directory(`${dir}/annotations`, false)
-                    .on('error', err => reject(new InternalError('Archiving aims', err)))
+                    .on('error', (err) => reject(new InternalError('Archiving aims', err)))
                     .pipe(output);
 
                   output.on('close', () => {
@@ -443,7 +444,7 @@ async function couchdb(fastify, options) {
                     // delete tmp folder after the file is sent
                     readStream.once('end', () => {
                       readStream.destroy(); // make sure stream closed, not close if download aborted.
-                      fs.remove(dir, error => {
+                      fs.remove(dir, (error) => {
                         if (error)
                           fastify.log.warn(`Temp directory deletion error ${error.message}`);
                         else fastify.log.info(`${dir} deleted`);
@@ -453,7 +454,7 @@ async function couchdb(fastify, options) {
                   });
                   archive.finalize();
                 } else {
-                  fs.remove(dir, error => {
+                  fs.remove(dir, (error) => {
                     if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                     else fastify.log.info(`${dir} deleted`);
                   });
@@ -465,7 +466,7 @@ async function couchdb(fastify, options) {
                   );
                 }
               })
-              .catch(segErr => {
+              .catch((segErr) => {
                 reject(new InternalError('Downloading aims with segmentations', segErr));
               });
           }
@@ -541,9 +542,7 @@ async function couchdb(fastify, options) {
                     instanceOrFrameNumber: 'NA',
                     name: body.rows[i].fields.name,
                     template: body.rows[i].fields.template_code,
-                    date: `${body.rows[i].fields.creation_date}${
-                      body.rows[i].fields.creation_time
-                    }`,
+                    date: `${body.rows[i].fields.creation_date}${body.rows[i].fields.creation_time}`,
                     patientName: body.rows[i].fields.patient_name,
                     studyDate: body.rows[i].fields.study_date,
                     comment: body.rows[i].fields.programmed_comment,
@@ -569,8 +568,8 @@ async function couchdb(fastify, options) {
                   // download aims only
                   fastify
                     .downloadAims({ aim: 'true' }, res)
-                    .then(result => resolve(result))
-                    .catch(err => reject(err));
+                    .then((result) => resolve(result))
+                    .catch((err) => reject(err));
                 } else {
                   // the default is json! The old APIs were XML, no XML in epadlite
                   resolve(res);
@@ -584,7 +583,7 @@ async function couchdb(fastify, options) {
       })
   );
   // manipulates the input aim
-  fastify.decorate('extractAttachmentParts', aim => {
+  fastify.decorate('extractAttachmentParts', (aim) => {
     const attachments = [];
     // separate attachments
     if (
@@ -754,7 +753,7 @@ async function couchdb(fastify, options) {
           } else {
             const db = fastify.couch.db.use(config.db);
 
-            db.fetch({ keys: body }, { attachments: true }).then(async data => {
+            db.fetch({ keys: body }, { attachments: true }).then(async (data) => {
               const res = [];
               for (let i = 0; i < data.rows.length; i += 1) {
                 // if not found it returns the record with no doc, error: 'not_found'
@@ -779,16 +778,16 @@ async function couchdb(fastify, options) {
   fastify.decorate('getAimsFromUIDs', (request, reply) => {
     fastify
       .getAimsFromUIDsInternal(request.query, request.body)
-      .then(res => {
+      .then((res) => {
         fastify
           .downloadAims(request.query, res)
-          .then(result => {
+          .then((result) => {
             reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
             reply.code(200).send(result);
           })
-          .catch(err => reply.send(err));
+          .catch((err) => reply.send(err));
       })
-      .catch(err => reply.send(err));
+      .catch((err) => reply.send(err));
   });
 
   fastify.decorate('saveAim', (request, reply) => {
@@ -801,11 +800,7 @@ async function couchdb(fastify, options) {
         new BadRequestError(
           'Saving aim',
           new Error(
-            `Conflicting aimuids: the uid sent in the url ${
-              request.params.aimUid
-            } should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root ${
-              request.body.ImageAnnotationCollection.uniqueIdentifier.root
-            }`
+            `Conflicting aimuids: the uid sent in the url ${request.params.aimUid} should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root ${request.body.ImageAnnotationCollection.uniqueIdentifier.root}`
           )
         )
       );
@@ -815,7 +810,7 @@ async function couchdb(fastify, options) {
       .then(() => {
         reply.code(200).send('Saving successful');
       })
-      .catch(err => {
+      .catch((err) => {
         reply.send(err);
       });
   });
@@ -852,7 +847,7 @@ async function couchdb(fastify, options) {
           if (projectId) {
             if (removeProject) {
               if (couchDoc.projects) {
-                couchDoc.projects = couchDoc.projects.filter(project => project !== projectId);
+                couchDoc.projects = couchDoc.projects.filter((project) => project !== projectId);
               }
             } else if (couchDoc.projects) {
               if (!couchDoc.projects.includes(projectId)) couchDoc.projects.push(projectId);
@@ -864,7 +859,7 @@ async function couchdb(fastify, options) {
             .then(() => {
               resolve(`Aim ${couchDoc._id} is saved successfully`);
             })
-            .catch(err => {
+            .catch((err) => {
               reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
             });
         });
@@ -873,7 +868,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'addProjectIdsToAimsInternal',
-    aimsWithProjects =>
+    (aimsWithProjects) =>
       new Promise(async (resolve, reject) => {
         let editCount = 0;
         try {
@@ -899,17 +894,13 @@ async function couchdb(fastify, options) {
                 // eslint-disable-next-line no-await-in-loop
                 await db.multipart.insert(couchDoc, attachments, aimsWithProjects[i].aim);
                 fastify.log.info(
-                  `Added project ${aimsWithProjects[i].project} to aimuid ${
-                    aimsWithProjects[i].aim
-                  } with attachments`
+                  `Added project ${aimsWithProjects[i].project} to aimuid ${aimsWithProjects[i].aim} with attachments`
                 );
               } else if (!noChange) {
                 // eslint-disable-next-line no-await-in-loop
                 await db.insert(couchDoc, aimsWithProjects[i].aim);
                 fastify.log.info(
-                  `Added project ${aimsWithProjects[i].project} to aimuid ${
-                    aimsWithProjects[i].aim
-                  }`
+                  `Added project ${aimsWithProjects[i].project} to aimuid ${aimsWithProjects[i].aim}`
                 );
               } else {
                 fastify.log.info(`No update for aimuid ${aimsWithProjects[i].aim}`);
@@ -930,9 +921,7 @@ async function couchdb(fastify, options) {
         } catch (err) {
           reject(
             new InternalError(
-              `Failed adding project ids to aims. Edited ${editCount} of ${
-                aimsWithProjects.length
-              } in process`,
+              `Failed adding project ids to aims. Edited ${editCount} of ${aimsWithProjects.length} in process`,
               err
             )
           );
@@ -942,7 +931,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'deleteAimInternal',
-    aimuid =>
+    (aimuid) =>
       new Promise((resolve, reject) => {
         const db = fastify.couch.db.use(config.db);
         db.get(aimuid, (error, existing) => {
@@ -970,7 +959,7 @@ async function couchdb(fastify, options) {
             .then(() => {
               resolve();
             })
-            .catch(err => {
+            .catch((err) => {
               reject(new InternalError(`Deleting aim ${aimuid}`, err));
             });
         });
@@ -981,7 +970,7 @@ async function couchdb(fastify, options) {
     fastify
       .deleteAimInternal(request.params.aimuid)
       .then(() => reply.code(200).send('Deletion successful'))
-      .catch(err => {
+      .catch((err) => {
         if (err instanceof ResourceNotFoundError)
           reply.send(new BadRequestError('Deleting aim', err));
         else reply.send(err);
@@ -994,9 +983,9 @@ async function couchdb(fastify, options) {
       const aimUsers = {};
       fastify
         .getAimsInternal('summary', params, undefined, epadAuth)
-        .then(result => {
+        .then((result) => {
           const aimPromisses = [];
-          result.forEach(aim => {
+          result.forEach((aim) => {
             aimUsers[aim.userName] = 'aim';
             aimPromisses.push(fastify.deleteAimInternal(aim.aimID));
           });
@@ -1010,8 +999,8 @@ async function couchdb(fastify, options) {
               if (project && study) {
                 fastify
                   .findProjectIdInternal(project)
-                  .then(res => {
-                    aimUsersArr.forEach(userName => {
+                  .then((res) => {
+                    aimUsersArr.forEach((userName) => {
                       updateWorklistPromises.push(
                         fastify.aimUpdateGateway(
                           res,
@@ -1026,16 +1015,16 @@ async function couchdb(fastify, options) {
                     });
                     Promise.all(updateWorklistPromises)
                       .then(() => resolve())
-                      .catch(deleteErr => reject(deleteErr));
+                      .catch((deleteErr) => reject(deleteErr));
                   })
-                  .catch(projectFindErr => reject(projectFindErr));
+                  .catch((projectFindErr) => reject(projectFindErr));
               } else {
                 resolve();
               }
             })
-            .catch(deleteErr => reject(deleteErr));
+            .catch((deleteErr) => reject(deleteErr));
         })
-        .catch(err => reject(err));
+        .catch((err) => reject(err));
     });
   });
 
@@ -1080,21 +1069,21 @@ async function couchdb(fastify, options) {
                     `Expecting one value but got ${body.rows.length}. Returning first`
                   );
                 if (format === 'summary') {
-                  body.rows.forEach(template => {
+                  body.rows.forEach((template) => {
                     res.push(template.key[2]);
                   });
                   resolve(res[0]);
                 } else if (format === 'stream') {
-                  body.rows.forEach(template => {
+                  body.rows.forEach((template) => {
                     res.push(template.key[2]);
                   });
                   fastify
                     .downloadTemplates(res)
-                    .then(result => resolve(result[0]))
-                    .catch(err => reject(err));
+                    .then((result) => resolve(result[0]))
+                    .catch((err) => reject(err));
                 } else {
                   // the default is json! The old APIs were XML, no XML in epadlite
-                  body.rows.forEach(template => {
+                  body.rows.forEach((template) => {
                     res.push(template.key[2]);
                   });
                   resolve(res[0]);
@@ -1112,7 +1101,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'getTemplatesInternal',
-    query =>
+    (query) =>
       new Promise((resolve, reject) => {
         try {
           let type;
@@ -1138,21 +1127,21 @@ async function couchdb(fastify, options) {
               // lets filter only the emit values starting with template type (as view emits 2 for each doc)
               const validTempateTypes = ['image', 'series', 'study'];
               if (format === 'summary') {
-                body.rows.forEach(template => {
+                body.rows.forEach((template) => {
                   if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
                 });
                 resolve(res);
               } else if (format === 'stream') {
-                body.rows.forEach(template => {
+                body.rows.forEach((template) => {
                   if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
                 });
                 fastify
                   .downloadTemplates(res)
-                  .then(result => resolve(result))
-                  .catch(err => reject(err));
+                  .then((result) => resolve(result))
+                  .catch((err) => reject(err));
               } else {
                 // the default is json! The old APIs were XML, no XML in epadlite
-                body.rows.forEach(template => {
+                body.rows.forEach((template) => {
                   if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
                 });
                 resolve(res);
@@ -1174,11 +1163,7 @@ async function couchdb(fastify, options) {
         new BadRequestError(
           `Saving template`,
           new Error(
-            `Conflicting uids: the uid sent in the url ${
-              request.params.uid
-            } should be the same with request.body.TemplateContainer.uid ${
-              request.body.TemplateContainer.uid
-            }`
+            `Conflicting uids: the uid sent in the url ${request.params.uid} should be the same with request.body.TemplateContainer.uid ${request.body.TemplateContainer.uid}`
           )
         )
       );
@@ -1188,7 +1173,7 @@ async function couchdb(fastify, options) {
         .then(() => {
           reply.code(200).send('Saving successful');
         })
-        .catch(err => {
+        .catch((err) => {
           reply.send(err);
         });
     }
@@ -1196,7 +1181,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'saveTemplateInternal',
-    template =>
+    (template) =>
       new Promise((resolve, reject) => {
         const couchDoc = {
           _id: template.TemplateContainer.uid,
@@ -1213,7 +1198,7 @@ async function couchdb(fastify, options) {
             .then(() => {
               resolve(`Template ${couchDoc._id} is saved successfully`);
             })
-            .catch(err => {
+            .catch((err) => {
               reject(new InternalError(`Saving template ${couchDoc._id} to couchdb`, err));
             });
         });
@@ -1222,7 +1207,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'deleteTemplateInternal',
-    params =>
+    (params) =>
       new Promise((resolve, reject) => {
         const db = fastify.couch.db.use(config.db);
         db.get(params.uid, (error, existing) => {
@@ -1234,7 +1219,7 @@ async function couchdb(fastify, options) {
             .then(() => {
               resolve();
             })
-            .catch(err => {
+            .catch((err) => {
               reject(new InternalError(`Deleting template ${params.uid}`, err));
             });
         });
@@ -1243,7 +1228,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'downloadTemplates',
-    templates =>
+    (templates) =>
       new Promise((resolve, reject) => {
         try {
           const timestamp = new Date().getTime();
@@ -1255,11 +1240,9 @@ async function couchdb(fastify, options) {
             fs.mkdirSync(dir);
             fs.mkdirSync(`${dir}/templates`);
 
-            templates.forEach(template => {
+            templates.forEach((template) => {
               fs.writeFileSync(
-                `${dir}/templates/${template.TemplateContainer.Template[0].codeValue}_${
-                  template.TemplateContainer.uid
-                }.json`,
+                `${dir}/templates/${template.TemplateContainer.Template[0].codeValue}_${template.TemplateContainer.uid}.json`,
                 JSON.stringify(template)
               );
               isThereDataToWrite = true;
@@ -1274,7 +1257,7 @@ async function couchdb(fastify, options) {
             // create the archive
             archive
               .directory(`${dir}/templates`, false)
-              .on('error', err => reject(new InternalError('Archiving templates', err)))
+              .on('error', (err) => reject(new InternalError('Archiving templates', err)))
               .pipe(output);
 
             output.on('close', () => {
@@ -1283,7 +1266,7 @@ async function couchdb(fastify, options) {
               // delete tmp folder after the file is sent
               readStream.once('end', () => {
                 readStream.destroy(); // make sure stream closed, not close if download aborted.
-                fs.remove(dir, error => {
+                fs.remove(dir, (error) => {
                   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                   else fastify.log.info(`${dir} deleted`);
                 });
@@ -1292,7 +1275,7 @@ async function couchdb(fastify, options) {
             });
             archive.finalize();
           } else {
-            fs.remove(dir, error => {
+            fs.remove(dir, (error) => {
               if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
               else fastify.log.info(`${dir} deleted`);
             });
@@ -1310,23 +1293,23 @@ async function couchdb(fastify, options) {
     try {
       const db = fastify.couch.db.use(config.db);
       const res = [];
-      db.fetch({ keys: request.body }).then(data => {
-        data.rows.forEach(item => {
+      db.fetch({ keys: request.body }).then((data) => {
+        data.rows.forEach((item) => {
           // if not found it returns the record with no doc, error: 'not_found'
           if (item.doc) res.push(item.doc.template);
         });
         reply.header('Content-Disposition', `attachment; filename=templates.zip`);
         fastify
           .downloadTemplates(res)
-          .then(result => reply.code(200).send(result))
-          .catch(err => reply.send(err));
+          .then((result) => reply.code(200).send(result))
+          .catch((err) => reply.send(err));
       });
     } catch (err) {
       reply.send(new InternalError('Getting templates with uids', err));
     }
   });
 
-  fastify.decorate('getSummaryFromTemplate', docTemplate => {
+  fastify.decorate('getSummaryFromTemplate', (docTemplate) => {
     // this is basically what we have in the templates_summary view
     const summary = {};
     summary.containerUID = docTemplate.TemplateContainer.uid;
@@ -1363,9 +1346,9 @@ async function couchdb(fastify, options) {
 
           const db = fastify.couch.db.use(config.db);
           const res = [];
-          db.fetch({ keys: ids }).then(data => {
+          db.fetch({ keys: ids }).then((data) => {
             if (format === 'summary') {
-              data.rows.forEach(item => {
+              data.rows.forEach((item) => {
                 if (item.doc) {
                   const summary = fastify.getSummaryFromTemplate(item.doc.template);
                   res.push(summary);
@@ -1373,16 +1356,16 @@ async function couchdb(fastify, options) {
               });
               resolve(res);
             } else if (format === 'stream') {
-              data.rows.forEach(item => {
+              data.rows.forEach((item) => {
                 if (item.doc) res.push(item.doc.template);
               });
               fastify
                 .downloadTemplates(res)
-                .then(result => resolve(result))
-                .catch(err => reject(err));
+                .then((result) => resolve(result))
+                .catch((err) => reject(err));
             } else {
               // the default is json! The old APIs were XML, no XML in epadlite
-              data.rows.forEach(item => {
+              data.rows.forEach((item) => {
                 if (item.doc) res.push(item.doc.template);
               });
               resolve(res);
@@ -1402,7 +1385,7 @@ async function couchdb(fastify, options) {
         { aims: [request.params.aimuid] },
         request.epadAuth
       )
-      .then(result => {
+      .then((result) => {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
         }
@@ -1411,7 +1394,7 @@ async function couchdb(fastify, options) {
           reply.send(new ResourceNotFoundError('Aim', request.params.aimuid));
         }
       })
-      .catch(err => reply.send(err));
+      .catch((err) => reply.send(err));
   });
 
   fastify.decorate(
@@ -1439,7 +1422,7 @@ async function couchdb(fastify, options) {
             .then(() => {
               resolve(`File ${filename} is saved successfully`);
             })
-            .catch(err => {
+            .catch((err) => {
               reject(new InternalError('Saving file to couchdb', err));
             });
         });
@@ -1453,8 +1436,8 @@ async function couchdb(fastify, options) {
         try {
           const db = fastify.couch.db.use(config.db);
           const filteredIds = [];
-          db.fetch({ keys: ids }).then(data => {
-            data.rows.forEach(item => {
+          db.fetch({ keys: ids }).then((data) => {
+            data.rows.forEach((item) => {
               if (
                 item &&
                 item.doc &&
@@ -1486,8 +1469,8 @@ async function couchdb(fastify, options) {
           const db = fastify.couch.db.use(config.db);
           const res = [];
           if (format === 'json') {
-            db.fetch({ keys: filteredIds }).then(data => {
-              data.rows.forEach(item => {
+            db.fetch({ keys: filteredIds }).then((data) => {
+              data.rows.forEach((item) => {
                 if ('doc' in item) res.push(item.doc.fileInfo);
               });
               resolve(res);
@@ -1495,8 +1478,8 @@ async function couchdb(fastify, options) {
           } else if (format === 'stream') {
             fastify
               .downloadFiles(filteredIds, subDir)
-              .then(result => resolve(result))
-              .catch(err => reject(err));
+              .then((result) => resolve(result))
+              .catch((err) => reject(err));
           }
         } catch (err) {
           reject(new InternalError('Getting files with uids', err));
@@ -1555,16 +1538,16 @@ async function couchdb(fastify, options) {
               if (!error) {
                 const res = [];
                 if (format === 'stream') {
-                  body.rows.forEach(file => {
+                  body.rows.forEach((file) => {
                     res.push(file.key[3]);
                   });
                   fastify
                     .downloadFiles(res, subDir)
-                    .then(result => resolve(result))
-                    .catch(err => reject(err));
+                    .then((result) => resolve(result))
+                    .catch((err) => reject(err));
                 } else {
                   // the default is json! The old APIs were XML, no XML in epadlite
-                  body.rows.forEach(file => {
+                  body.rows.forEach((file) => {
                     res.push(file.key[4]);
                   });
                   resolve(res);
@@ -1640,7 +1623,7 @@ async function couchdb(fastify, options) {
             // create the archive
             archive
               .directory(`${dir}/files`, false)
-              .on('error', err => reject(new InternalError('Archiving files', err)))
+              .on('error', (err) => reject(new InternalError('Archiving files', err)))
               .pipe(output);
 
             output.on('close', () => {
@@ -1649,7 +1632,7 @@ async function couchdb(fastify, options) {
               // delete tmp folder after the file is sent
               readStream.once('end', () => {
                 readStream.destroy(); // make sure stream closed, not close if download aborted.
-                fs.remove(dir, error => {
+                fs.remove(dir, (error) => {
                   if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                   else fastify.log.info(`${dir} deleted`);
                 });
@@ -1658,7 +1641,7 @@ async function couchdb(fastify, options) {
             });
             archive.finalize();
           } else {
-            fs.remove(dir, error => {
+            fs.remove(dir, (error) => {
               if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
               else fastify.log.info(`${dir} deleted`);
             });
@@ -1671,7 +1654,7 @@ async function couchdb(fastify, options) {
   );
   fastify.decorate(
     'deleteFileInternal',
-    params =>
+    (params) =>
       new Promise((resolve, reject) => {
         const db = fastify.couch.db.use(config.db);
         db.get(params.filename, (error, existing) => {
@@ -1683,7 +1666,7 @@ async function couchdb(fastify, options) {
             .then(() => {
               resolve();
             })
-            .catch(err => {
+            .catch((err) => {
               reject(new InternalError('Deleting file from couchdb', err));
             });
         });
@@ -1718,31 +1701,33 @@ async function couchdb(fastify, options) {
 
   fastify.decorate(
     'deleteCouchDocsInternal',
-    ids =>
+    (ids) =>
       new Promise((resolve, reject) => {
         const db = fastify.couch.db.use(config.db);
         const docsToDelete = [];
         if (ids.length > 0)
           db.fetch({ keys: ids })
-            .then(data => {
-              data.rows.forEach(item => {
+            .then((data) => {
+              data.rows.forEach((item) => {
                 if ('doc' in item)
                   docsToDelete.push({ _id: item.id, _rev: item.doc._rev, _deleted: true });
               });
               if (docsToDelete.length > 0)
                 db.bulk({ docs: docsToDelete })
                   .then(() => resolve())
-                  .catch(errBulk =>
+                  .catch((errBulk) =>
                     reject(new InternalError('Deleting couchdocs in bulk', errBulk))
                   );
               else resolve();
             })
-            .catch(errFetch => reject(new InternalError('Getting couchdocs to delete', errFetch)));
+            .catch((errFetch) =>
+              reject(new InternalError('Getting couchdocs to delete', errFetch))
+            );
         else resolve();
       })
   );
 
-  fastify.decorate('getAimAuthorFromUID', async aimUid => {
+  fastify.decorate('getAimAuthorFromUID', async (aimUid) => {
     try {
       const db = fastify.couch.db.use(config.db);
       const doc = await db.get(aimUid);
@@ -1768,13 +1753,13 @@ async function couchdb(fastify, options) {
     try {
       fastify
         .getFilesInternal(request.query, request.params)
-        .then(result => {
+        .then((result) => {
           if (request.query.format === 'stream') {
             reply.header('Content-Disposition', `attachment; filename=files.zip`);
           }
           reply.code(200).send(result);
         })
-        .catch(err => reply.send(err));
+        .catch((err) => reply.send(err));
     } catch (err) {
       reply.send(new InternalError('Getting system files', err));
     }
@@ -1783,7 +1768,7 @@ async function couchdb(fastify, options) {
   fastify.decorate('getFile', (request, reply) => {
     fastify
       .getFilesFromUIDsInternal(request.query, [request.params.filename])
-      .then(result => {
+      .then((result) => {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=files.zip`);
           reply.code(200).send(result);
@@ -1793,7 +1778,7 @@ async function couchdb(fastify, options) {
           reply.send(new ResourceNotFoundError('File', request.params.filename));
         }
       })
-      .catch(err => reply.send(err));
+      .catch((err) => reply.send(err));
   });
 
   fastify.log.info(`Using db: ${config.db}`);

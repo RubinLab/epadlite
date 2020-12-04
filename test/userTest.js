@@ -50,22 +50,22 @@ describe('User Tests', () => {
       console.log(`User Tests after error: ${err.message}`);
     }
   });
-  it('should have 1 user', done => {
+  it('should have 1 user', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should create a new user', done => {
+  it('should create a new user', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/users')
@@ -76,21 +76,21 @@ describe('User Tests', () => {
         lastname: 'test',
         email: 'test1@gmail.com',
       })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should have 2 users as test1@gmail.com, without any projects linked', done => {
+  it('should have 2 users as test1@gmail.com, without any projects linked', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(2);
         expect(res.body[1].username).to.be.eql('test1@gmail.com');
@@ -98,12 +98,12 @@ describe('User Tests', () => {
         expect(res.body[1].projectToRole.length).to.be.eql(0);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should create a new user with 2 projects linked', done => {
+  it('should create a new user with 2 projects linked', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/users')
@@ -113,23 +113,26 @@ describe('User Tests', () => {
         firstname: 'test',
         lastname: 'test',
         email: 'test2@gmail.com',
-        projects: [{ project: 'test1', role: 'Member' }, { project: 'test2', role: 'StudyOnly' }],
+        projects: [
+          { project: 'test1', role: 'Member' },
+          { project: 'test2', role: 'StudyOnly' },
+        ],
       })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should have 3 users as test1@gmail.com with 0 project and test2@gmail.com with 2 projects', done => {
+  it('should have 3 users as test1@gmail.com with 0 project and test2@gmail.com with 2 projects', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(3);
         expect(res.body[1].username).to.be.eql('test1@gmail.com');
@@ -140,17 +143,17 @@ describe('User Tests', () => {
         expect(res.body[2].projectToRole.length).to.be.eql(2);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should return test1 user with 0 project and no permission', done => {
+  it('should return test1 user with 0 project and no permission', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test1@gmail.com')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.username).to.be.eql('test1@gmail.com');
         expect(res.body.projects.length).to.be.eql(0);
@@ -158,17 +161,17 @@ describe('User Tests', () => {
         expect(res.body.permissions).to.be.eql(['']);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should return test2 user with 2 project test1-owner and test2-member', done => {
+  it('should return test2 user with 2 project test1-owner and test2-member', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test2@gmail.com')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.username).to.be.eql('test2@gmail.com');
         expect(res.body.projects.length).to.be.eql(2);
@@ -179,33 +182,33 @@ describe('User Tests', () => {
         expect(res.body.projectToRole).to.include('test2:StudyOnly');
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should update user to have permissions', done => {
+  it('should update user to have permissions', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/users/test2@gmail.com')
       .query({ username: 'admin' })
       .send({ permissions: 'CreateProject,CreateUser' })
 
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should return test2 user with 2 permissions', done => {
+  it('should return test2 user with 2 permissions', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test2@gmail.com')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.username).to.be.eql('test2@gmail.com');
         expect(res.body.permissions.length).to.be.eql(2);
@@ -213,46 +216,46 @@ describe('User Tests', () => {
         expect(res.body.permissions).to.include('CreateUser');
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should return 404 for non existing user', done => {
+  it('should return 404 for non existing user', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(404);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should add test1 user to project2 as Collaborator', done => {
+  it('should add test1 user to project2 as Collaborator', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test2/users/test1@gmail.com')
       .query({ username: 'admin' })
       .send({ role: 'Collaborator' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should return test1 user with 1 project as test2-Collaborator', done => {
+  it('should return test1 user with 1 project as test2-Collaborator', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(3);
         expect(res.body[1].username).to.be.eql('test1@gmail.com');
@@ -262,32 +265,32 @@ describe('User Tests', () => {
         expect(res.body[1].projectToRole).to.include('test2:Collaborator');
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should update user as the owner of the project2', done => {
+  it('should update user as the owner of the project2', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/projects/test2/users/test1@gmail.com')
       .query({ username: 'admin' })
       .send({ role: 'Owner' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should return test1 user with 1 projects as test2-Owner', done => {
+  it('should return test1 user with 1 projects as test2-Owner', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(3);
         expect(res.body[1].username).to.be.eql('test1@gmail.com');
@@ -297,31 +300,31 @@ describe('User Tests', () => {
         expect(res.body[1].projectToRole).to.include('test2:Owner');
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should delete the relation of project1 if the role is none', done => {
+  it('should delete the relation of project1 if the role is none', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/projects/test2/users/test1@gmail.com')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should return test1 user with 0 project', done => {
+  it('should return test1 user with 0 project', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(3);
         expect(res.body[1].username).to.be.eql('test1@gmail.com');
@@ -329,123 +332,123 @@ describe('User Tests', () => {
         expect(res.body[1].projectToRole.length).to.be.eql(0);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
 
-  it('should delete the user', done => {
+  it('should delete the user', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/users/test1@gmail.com')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
-  it('should have 1 user', done => {
+  it('should have 1 user', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(2);
         expect(res.body[1].username).to.be.eql('test2@gmail.com');
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
-  it('should get user correctly', done => {
+  it('should get user correctly', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test2@gmail.com')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
-  it('should update user preference with JSON object ', done => {
+  it('should update user preference with JSON object ', (done) => {
     const preferences = { color: '#ff00e2', menu: ['m1', 'm2'] };
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .put('/users/test2@gmail.com/preferences')
       .query({ username: 'admin' })
       .send(preferences)
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
   // user object has preferences as string
-  it('should get user correctly', done => {
+  it('should get user correctly', (done) => {
     const preferences = { color: '#ff00e2', menu: ['m1', 'm2'] };
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test2@gmail.com')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.preferences).to.equal(JSON.stringify(preferences));
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
   // preferences endpoint returns json object
-  it('should get user preference correctly', done => {
+  it('should get user preference correctly', (done) => {
     const preferences = { color: '#ff00e2', menu: ['m1', 'm2'] };
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users/test2@gmail.com/preferences')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body).to.deep.equal(preferences);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
-  it('should delete the user', done => {
+  it('should delete the user', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/users/test2@gmail.com')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });
-  it('should have 0 user', done => {
+  it('should have 0 user', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/users')
       .query({ username: 'admin' })
-      .then(res => {
+      .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
         done();
       })
-      .catch(e => {
+      .catch((e) => {
         done(e);
       });
   });

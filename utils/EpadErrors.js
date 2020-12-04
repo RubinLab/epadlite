@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file */
 // based on https://rclayton.silvrback.com/custom-errors-in-node-js
 class EpadError extends Error {
   constructor(message) {

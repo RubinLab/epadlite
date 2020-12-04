@@ -1,3 +1,4 @@
+/* eslint-disable no-async-promise-executor */
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
@@ -255,7 +256,7 @@ async function epaddb(fastify, options, done) {
     return null;
   });
 
-  fastify.decorate('findUserIdInternal', username => {
+  fastify.decorate('findUserIdInternal', (username) => {
     const query = new Promise(async (resolve, reject) => {
       try {
         // find user id
@@ -298,7 +299,7 @@ async function epaddb(fastify, options, done) {
           createdtime: Date.now(),
           creator: request.epadAuth.username,
         })
-        .then(async project => {
+        .then(async (project) => {
           // create relation as owner
           try {
             const userId = await fastify.findUserIdInternal(request.epadAuth.username);
@@ -329,7 +330,7 @@ async function epaddb(fastify, options, done) {
             );
           }
         })
-        .catch(err => {
+        .catch((err) => {
           reply.send(new InternalError('Creating project', err));
         });
     }
@@ -338,7 +339,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate(
     'tryAddDefaultTemplateToProject',
     (defaultTemplate, project, epadAuth) =>
-      new Promise(async resolve => {
+      new Promise(async (resolve) => {
         if (defaultTemplate && defaultTemplate !== '') {
           try {
             // check if template exists in system
@@ -401,7 +402,7 @@ async function epaddb(fastify, options, done) {
           fastify.log.info(`Project ${request.params.project} is updated`);
           reply.code(200).send(`Project ${request.params.project} is updated successfully`);
         })
-        .catch(err => {
+        .catch((err) => {
           reply.send(new InternalError('Updating project', err));
         });
     }
@@ -468,9 +469,7 @@ async function epaddb(fastify, options, done) {
                 if (updateIfAim.length > 0 && relationTable === 'project_aim')
                   await fastify.removeProjectFromCouchDocsInternal(safeToDelete, projectId);
                 fastify.log.info(
-                  `Deleted ${numDeleted} records from ${relationTable} and ${
-                    safeToDelete.length
-                  } docs from couchdb`
+                  `Deleted ${numDeleted} records from ${relationTable} and ${safeToDelete.length} docs from couchdb`
                 );
               }
             }
@@ -614,7 +613,7 @@ async function epaddb(fastify, options, done) {
           defaultTemplate: project.dataValues.defaulttemplate,
         };
 
-        project.dataValues.users.forEach(user => {
+        project.dataValues.users.forEach((user) => {
           obj.loginNames.push(user.username);
         });
         if (
@@ -628,9 +627,7 @@ async function epaddb(fastify, options, done) {
     } catch (err) {
       reply.send(
         new InternalError(
-          `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
-            request.epadAuth.admin
-          }`,
+          `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${request.epadAuth.admin}`,
           err
         )
       );
@@ -638,7 +635,7 @@ async function epaddb(fastify, options, done) {
   });
 
   //  Plugin section
-  fastify.decorate('deleteRelationAndOrphanedPluginInternal', projectId => {
+  fastify.decorate('deleteRelationAndOrphanedPluginInternal', (projectId) => {
     /*  this section removes necessary data from plugin related tables
         1. remove the row which matches project_id from project_plugin table
         2. remove the rows matching project_id from plugin_queue
@@ -664,7 +661,7 @@ async function epaddb(fastify, options, done) {
                   project_id: projectId,
                 },
               })
-              .catch(err => {
+              .catch((err) => {
                 return new InternalError(
                   `Deleting project relation from projectplugin_project ${projectId}`,
                   err
@@ -672,14 +669,14 @@ async function epaddb(fastify, options, done) {
               });
             return 0;
           })
-          .catch(err => {
+          .catch((err) => {
             return new InternalError(
               `Deleting project relation from project_plugin ${projectId}`,
               err
             );
           });
       })
-      .catch(err => {
+      .catch((err) => {
         return new InternalError(`Deleting project relation from plugin_queue  ${projectId}`, err);
       });
   });
@@ -689,9 +686,9 @@ async function epaddb(fastify, options, done) {
       .findAll({
         include: ['users'],
       })
-      .then(projects => {
+      .then((projects) => {
         const result = [];
-        projects.forEach(project => {
+        projects.forEach((project) => {
           const obj = {
             id: project.id,
             name: project.name,
@@ -701,7 +698,7 @@ async function epaddb(fastify, options, done) {
             type: project.type,
           };
 
-          project.users.forEach(user => {
+          project.users.forEach((user) => {
             obj.loginNames.push(user.username);
           });
           if (request.epadAuth.admin || obj.loginNames.includes(request.epadAuth.username))
@@ -709,14 +706,12 @@ async function epaddb(fastify, options, done) {
         });
         reply.code(200).send(result);
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
             new InternalError(
-              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${
-                request.epadAuth.admin
-              }`,
+              `Getting and filtering project list for user ${request.epadAuth.username}, isAdmin ${request.epadAuth.admin}`,
               err
             )
           );
@@ -741,20 +736,20 @@ async function epaddb(fastify, options, done) {
         include: ['projectplugin'],
         where: { projectid: paramProjectId },
       })
-      .then(plugins => {
+      .then((plugins) => {
         reply.code(200).send(plugins);
       })
-      .catch(err => {
+      .catch((err) => {
         reply.code(500).send(new InternalError('Getting plugin list for the project', err));
       });
   });
   fastify.decorate('getTemplatesDataFromDb', (request, reply) => {
     models.template
       .findAll()
-      .then(templates => {
+      .then((templates) => {
         reply.code(200).send(templates);
       })
-      .catch(err => {
+      .catch((err) => {
         reply.code(500).send(new InternalError('Getting templates from db', err));
       });
   });
@@ -763,7 +758,7 @@ async function epaddb(fastify, options, done) {
     const { containerid } = request.params;
     fastify
       .getUserPluginDataPathInternal()
-      .then(async pluginDataRootPath => {
+      .then(async (pluginDataRootPath) => {
         // eslint-disable-next-line no-param-reassign
         pluginDataRootPath = path.join(__dirname, `../pluginsDataFolder`);
         // const { creator } = request.body;
@@ -773,7 +768,7 @@ async function epaddb(fastify, options, done) {
 
         dock
           .inspectContainer(`epadplugin_${containerid}`)
-          .then(inspectResultObject => {
+          .then((inspectResultObject) => {
             fastify.log.info('inspect result object', inspectResultObject);
             // fastify.log.info('status : ', inspectResultObject.State.Status);
             fastify.log.info(
@@ -795,12 +790,12 @@ async function epaddb(fastify, options, done) {
               reply.code(404).send('log file not found');
             }
           })
-          .catch(err => {
+          .catch((err) => {
             reply.code(500).send(err);
             fastify.log.info('err', err);
           });
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -819,9 +814,9 @@ async function epaddb(fastify, options, done) {
         include: ['pluginproject', 'plugintemplate', 'defaultparameters'],
         required: false,
       })
-      .then(plugins => {
+      .then((plugins) => {
         const result = [];
-        plugins.forEach(data => {
+        plugins.forEach((data) => {
           const pluginObj = {
             description: data.dataValues.description,
             developer: data.dataValues.developer,
@@ -842,7 +837,7 @@ async function epaddb(fastify, options, done) {
             parameters: [],
           };
 
-          data.dataValues.pluginproject.forEach(project => {
+          data.dataValues.pluginproject.forEach((project) => {
             const projectObj = {
               id: project.id,
               projectid: project.projectid,
@@ -852,7 +847,7 @@ async function epaddb(fastify, options, done) {
             pluginObj.projects.push(projectObj);
           });
 
-          data.dataValues.plugintemplate.forEach(template => {
+          data.dataValues.plugintemplate.forEach((template) => {
             const templateObj = {
               id: template.id,
               templateName: template.templateName,
@@ -861,7 +856,7 @@ async function epaddb(fastify, options, done) {
             pluginObj.templates.push(templateObj);
           });
 
-          data.dataValues.defaultparameters.forEach(parameter => {
+          data.dataValues.defaultparameters.forEach((parameter) => {
             const parameterObj = {
               id: parameter.id,
               plugin_id: parameter.plugin_id,
@@ -885,7 +880,7 @@ async function epaddb(fastify, options, done) {
 
         reply.code(200).send(result);
       })
-      .catch(err => {
+      .catch((err) => {
         reply.code(500).send(new InternalError(`getPluginsWithProject error `, err));
       });
   });
@@ -898,7 +893,7 @@ async function epaddb(fastify, options, done) {
         where: { id: plugindbid },
         required: false,
       })
-      .then(pluginone => {
+      .then((pluginone) => {
         const pluginObj = {
           description: pluginone.dataValues.description,
           developer: pluginone.dataValues.developer,
@@ -919,7 +914,7 @@ async function epaddb(fastify, options, done) {
           parameters: [],
         };
 
-        pluginone.dataValues.pluginproject.forEach(project => {
+        pluginone.dataValues.pluginproject.forEach((project) => {
           const projectObj = {
             id: project.id,
             projectid: project.projectid,
@@ -929,7 +924,7 @@ async function epaddb(fastify, options, done) {
           pluginObj.projects.push(projectObj);
         });
 
-        pluginone.dataValues.plugintemplate.forEach(template => {
+        pluginone.dataValues.plugintemplate.forEach((template) => {
           const templateObj = {
             id: template.id,
             templateName: template.templateName,
@@ -938,7 +933,7 @@ async function epaddb(fastify, options, done) {
           pluginObj.templates.push(templateObj);
         });
 
-        pluginone.dataValues.defaultparameters.forEach(parameter => {
+        pluginone.dataValues.defaultparameters.forEach((parameter) => {
           const parameterObj = {
             id: parameter.id,
             plugin_id: parameter.plugin_id,
@@ -956,7 +951,7 @@ async function epaddb(fastify, options, done) {
 
         reply.code(200).send(pluginone);
       })
-      .catch(err => {
+      .catch((err) => {
         reply.code(500).send(new InternalError(`getOnePlugin error `, err));
       });
   });
@@ -976,7 +971,7 @@ async function epaddb(fastify, options, done) {
           },
         })
         .then(() => {
-          projectsToAdd.forEach(projectid => {
+          projectsToAdd.forEach((projectid) => {
             dbPromisesForCreate.push(
               models.project_plugin.create({
                 project_id: projectid,
@@ -999,8 +994,8 @@ async function epaddb(fastify, options, done) {
                   id: pluginid,
                 },
               })
-              .then(allTProjectsForPlugin => {
-                allTProjectsForPlugin.dataValues.pluginproject.forEach(project => {
+              .then((allTProjectsForPlugin) => {
+                allTProjectsForPlugin.dataValues.pluginproject.forEach((project) => {
                   const projectObj = {
                     id: project.id,
                     projectid: project.projectid,
@@ -1010,7 +1005,7 @@ async function epaddb(fastify, options, done) {
                 });
                 reply.code(200).send(formattedProjects);
               })
-              .catch(err => {
+              .catch((err) => {
                 reply
                   .code(500)
                   .send(
@@ -1022,7 +1017,7 @@ async function epaddb(fastify, options, done) {
               });
           });
         })
-        .catch(err => {
+        .catch((err) => {
           reply
             .code(500)
             .send(
@@ -1055,7 +1050,7 @@ async function epaddb(fastify, options, done) {
           },
         })
         .then(() => {
-          templatesToAdd.forEach(templateid => {
+          templatesToAdd.forEach((templateid) => {
             dbPromisesForCreate.push(
               models.plugin_template.create({
                 template_id: templateid,
@@ -1078,8 +1073,8 @@ async function epaddb(fastify, options, done) {
                   id: pluginid,
                 },
               })
-              .then(allTemplatesForPlugin => {
-                allTemplatesForPlugin.dataValues.plugintemplate.forEach(template => {
+              .then((allTemplatesForPlugin) => {
+                allTemplatesForPlugin.dataValues.plugintemplate.forEach((template) => {
                   const templateObj = {
                     id: template.id,
                     templateName: template.templateName,
@@ -1088,7 +1083,7 @@ async function epaddb(fastify, options, done) {
                 });
                 reply.send(formattedTemplates);
               })
-              .catch(err => {
+              .catch((err) => {
                 reply
                   .code(500)
                   .send(
@@ -1100,7 +1095,7 @@ async function epaddb(fastify, options, done) {
               });
           });
         })
-        .catch(err => {
+        .catch((err) => {
           reply
             .code(500)
             .send(
@@ -1213,7 +1208,7 @@ async function epaddb(fastify, options, done) {
         .findAll({
           where: { plugin_id: pluginform.plugin_id },
         })
-        .then(result => {
+        .then((result) => {
           if (result.length === 0) {
             // save plugin
             models.plugin
@@ -1238,7 +1233,7 @@ async function epaddb(fastify, options, done) {
                 //  new UnauthorizedError('User has no access to project')
                 reply.code(200).send('Plugin saved seccessfully');
               })
-              .catch(err => {
+              .catch((err) => {
                 reply
                   .code(500)
                   .send(
@@ -1255,7 +1250,7 @@ async function epaddb(fastify, options, done) {
               .send(new InternalError('Select different id ', new Error('id exist already')));
           }
         })
-        .catch(err => {
+        .catch((err) => {
           reply
             .code(500)
             .send(
@@ -1289,7 +1284,7 @@ async function epaddb(fastify, options, done) {
       .then(() => {
         reply.code(200).send(pluginform);
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1430,7 +1425,7 @@ async function epaddb(fastify, options, done) {
         .then(() => {
           reply.code(200).send('default parameters saved seccessfully');
         })
-        .catch(err => {
+        .catch((err) => {
           reply
             .code(500)
             .send(
@@ -1451,8 +1446,8 @@ async function epaddb(fastify, options, done) {
       .findAll({
         where: { plugin_id: plugindbid, creator: request.epadAuth.username },
       })
-      .then(result => {
-        result.forEach(parameter => {
+      .then((result) => {
+        result.forEach((parameter) => {
           const parameterObj = {
             id: parameter.dataValues.id,
             plugin_id: parameter.dataValues.plugin_id,
@@ -1474,7 +1469,7 @@ async function epaddb(fastify, options, done) {
         });
         reply.code(200).send(parameters);
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1500,7 +1495,7 @@ async function epaddb(fastify, options, done) {
         .then(() => {
           reply.code(200).send('parameter deleted seccessfully');
         })
-        .catch(err => {
+        .catch((err) => {
           reply
             .code(500)
             .send(
@@ -1542,7 +1537,7 @@ async function epaddb(fastify, options, done) {
         .then(() => {
           reply.code(200).send(paramsForm);
         })
-        .catch(err => {
+        .catch((err) => {
           reply
             .code(500)
             .send(
@@ -1566,8 +1561,8 @@ async function epaddb(fastify, options, done) {
           creator: request.epadAuth.username,
         },
       })
-      .then(result => {
-        result.forEach(parameter => {
+      .then((result) => {
+        result.forEach((parameter) => {
           const parameterObj = {
             id: parameter.dataValues.id,
             plugin_id: parameter.dataValues.plugin_id,
@@ -1590,7 +1585,7 @@ async function epaddb(fastify, options, done) {
         });
         reply.code(200).send(parameters);
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1621,10 +1616,10 @@ async function epaddb(fastify, options, done) {
         //  developer: parameterform.developer,
         //  documentation: parameterform.documentation,
       })
-      .then(inserteddata => {
+      .then((inserteddata) => {
         reply.code(200).send(inserteddata);
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1646,7 +1641,7 @@ async function epaddb(fastify, options, done) {
       .then(() => {
         reply.code(200).send('parameter deleted seccessfully from plugin_projectparamaters');
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1682,7 +1677,7 @@ async function epaddb(fastify, options, done) {
       .then(() => {
         reply.code(200).send(paramsForm);
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1705,8 +1700,8 @@ async function epaddb(fastify, options, done) {
           creator: request.epadAuth.username,
         },
       })
-      .then(result => {
-        result.forEach(parameter => {
+      .then((result) => {
+        result.forEach((parameter) => {
           const parameterObj = {
             id: parameter.dataValues.id,
             plugin_id: parameter.dataValues.plugin_id,
@@ -1730,7 +1725,7 @@ async function epaddb(fastify, options, done) {
 
         reply.code(200).send(parameters);
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1762,10 +1757,10 @@ async function epaddb(fastify, options, done) {
         //  developer: parameterform.developer,
         //  documentation: parameterform.documentation,
       })
-      .then(inserteddata => {
+      .then((inserteddata) => {
         reply.code(200).send(inserteddata);
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1790,7 +1785,7 @@ async function epaddb(fastify, options, done) {
           .code(200)
           .send('template parameter deleted seccessfully from plugin_templateparamaters');
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1826,7 +1821,7 @@ async function epaddb(fastify, options, done) {
       .then(() => {
         reply.code(200).send(paramsForm);
       })
-      .catch(err => {
+      .catch((err) => {
         reply
           .code(500)
           .send(
@@ -1848,7 +1843,7 @@ async function epaddb(fastify, options, done) {
       promisesArray.push(
         dock
           .checkContainerExistance(containerName)
-          .then(resInspect => {
+          .then((resInspect) => {
             fastify.log.info(
               'deleteFromPluginQueue inspect element result',
               // resInspect.State.Status
@@ -1861,12 +1856,12 @@ async function epaddb(fastify, options, done) {
             if (resInspect.State.Status !== 'running') {
               idsToDelete.push(pluginIdToDelete[cnt]);
               fastify.log.info('deleteFromPluginQueue not running but container found');
-              dock.deleteContainer(containerName).then(deleteReturn => {
+              dock.deleteContainer(containerName).then((deleteReturn) => {
                 fastify.log.info('deleteFromPluginQueue delete container result :', deleteReturn);
               });
             }
           })
-          .catch(err => {
+          .catch((err) => {
             fastify.log.info('inspect element err', err);
             fastify.log.info('deleting from plugin queue ');
             if (err.message === '404') {
@@ -1882,8 +1877,8 @@ async function epaddb(fastify, options, done) {
             id: idsToDelete,
           },
         })
-        .then(tableData => {
-          tableData.forEach(eachRow => {
+        .then((tableData) => {
+          tableData.forEach((eachRow) => {
             const folderToDelete = path.join(
               __dirname,
               `../pluginsDataFolder/${eachRow.creator}/${eachRow.id}`
@@ -1904,7 +1899,7 @@ async function epaddb(fastify, options, done) {
             .then(() => {
               reply.code(200).send(idsToDelete);
             })
-            .catch(err => {
+            .catch((err) => {
               reply
                 .code(500)
                 .send(
@@ -1915,7 +1910,7 @@ async function epaddb(fastify, options, done) {
                 );
             });
         })
-        .catch(err => {
+        .catch((err) => {
           return new InternalError(
             'Something went wrong while getting all process to delete from queue',
             err
@@ -1961,7 +1956,7 @@ async function epaddb(fastify, options, done) {
             .code(200)
             .send('plugin process added to the plugin queue for each selected annotation');
         })
-        .catch(err => {
+        .catch((err) => {
           reply
             .code(500)
             .send(
@@ -1989,7 +1984,7 @@ async function epaddb(fastify, options, done) {
         .then(() => {
           reply.code(200).send('plugin process added to the plugin queue');
         })
-        .catch(err => {
+        .catch((err) => {
           reply
             .code(500)
             .send(
@@ -2009,8 +2004,8 @@ async function epaddb(fastify, options, done) {
         include: ['queueplugin', 'queueproject'],
         required: false,
       })
-      .then(eachRowObj => {
-        eachRowObj.forEach(data => {
+      .then((eachRowObj) => {
+        eachRowObj.forEach((data) => {
           const pluginObj = {
             id: data.dataValues.id,
             plugin_id: data.dataValues.plugin_id,
@@ -2037,7 +2032,7 @@ async function epaddb(fastify, options, done) {
 
         reply.code(200).send(result);
       })
-      .catch(err => {
+      .catch((err) => {
         reply.code(500).send(new InternalError(`getPluginsQueue error `, err));
       });
   });
@@ -2103,8 +2098,8 @@ async function epaddb(fastify, options, done) {
           include: ['queueplugin', 'queueproject'],
           where: { id: queueIdsArrayToStart, status: allStatus },
         })
-        .then(tableData => {
-          tableData.forEach(data => {
+        .then((tableData) => {
+          tableData.forEach((data) => {
             const result = [];
             const pluginObj = {
               id: data.dataValues.id,
@@ -2130,7 +2125,7 @@ async function epaddb(fastify, options, done) {
             const containerName = `epadplugin_${pluginObj.id}`;
             dock
               .checkContainerExistance(containerName)
-              .then(resInspect => {
+              .then((resInspect) => {
                 // fastify.log.info('inspect element result', resInspect);
                 if (resInspect.message === '404') {
                   fastify.log.info('need to throw an error here ');
@@ -2138,14 +2133,14 @@ async function epaddb(fastify, options, done) {
                 }
                 if (resInspect.State.Status !== 'running') {
                   fastify.log.info('container is not running : ', containerName);
-                  dock.deleteContainer(containerName).then(deleteReturn => {
+                  dock.deleteContainer(containerName).then((deleteReturn) => {
                     fastify.log.info('delete container result :', deleteReturn);
                     result.push(pluginObj);
                     fastify.runPluginsQueueInternal(result, request);
                   });
                 }
               })
-              .catch(err => {
+              .catch((err) => {
                 fastify.log.info('inspect element err', err);
                 if (err.message === '404') {
                   result.push(pluginObj);
@@ -2166,8 +2161,8 @@ async function epaddb(fastify, options, done) {
       .findAll({
         where: { plugin_id: pluginid, project_id: projectid },
       })
-      .then(result => {
-        result.forEach(parameter => {
+      .then((result) => {
+        result.forEach((parameter) => {
           const parameterObj = {
             id: parameter.dataValues.id,
             plugin_id: parameter.dataValues.plugin_id,
@@ -2190,18 +2185,18 @@ async function epaddb(fastify, options, done) {
         });
         return parameters;
       })
-      .catch(err => {
+      .catch((err) => {
         return new InternalError('error while getPluginProjectParametersInternal', err);
       });
   });
-  fastify.decorate('getPluginDeafultParametersInternal', pluginid => {
+  fastify.decorate('getPluginDeafultParametersInternal', (pluginid) => {
     const parameters = [];
     return models.plugin_parameters
       .findAll({
         where: { plugin_id: pluginid },
       })
-      .then(result => {
-        result.forEach(parameter => {
+      .then((result) => {
+        result.forEach((parameter) => {
           const parameterObj = {
             id: parameter.dataValues.id,
             plugin_id: parameter.dataValues.plugin_id,
@@ -2223,7 +2218,7 @@ async function epaddb(fastify, options, done) {
         });
         return parameters;
       })
-      .catch(err => {
+      .catch((err) => {
         return new InternalError('error while getPluginDeafultParametersInternal', err);
       });
   });
@@ -2294,7 +2289,7 @@ async function epaddb(fastify, options, done) {
                       .pipe(unzip.Extract({ path: `${inputfolder}` }))
                       .on('close', () => {
                         fastify.log.info(`${inputfolder}annotations.zip extracted`);
-                        fs.remove(`${inputfolder}annotations.zip`, error => {
+                        fs.remove(`${inputfolder}annotations.zip`, (error) => {
                           if (error) {
                             fastify.log.info(
                               `Zip annotations.zip file deletion error ${error.message}`
@@ -2305,14 +2300,14 @@ async function epaddb(fastify, options, done) {
                           }
                         });
                       })
-                      .on('error', error => {
+                      .on('error', (error) => {
                         reject(
                           new InternalError(`Extracting zip ${inputfolder}annotations.zip`, error)
                         );
                       });
                   })
                   // eslint-disable-next-line no-loop-func
-                  .on('error', error => {
+                  .on('error', (error) => {
                     reject(new InternalError(`Copying zip ${inputfolder}annotations.zip`, error));
                   });
               } catch (err) {
@@ -2338,7 +2333,7 @@ async function epaddb(fastify, options, done) {
                     const writeStream = fs
                       .createWriteStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
                       // eslint-disable-next-line func-names
-                      .on('finish', function() {
+                      .on('finish', function () {
                         fastify.log.info('dicom copy finished');
                         // unzip part
                         // added aims[aimsKeys[aimsCnt]] for the folder name we will use aim uid
@@ -2350,12 +2345,10 @@ async function epaddb(fastify, options, done) {
                           )
                           .on('close', () => {
                             fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip extracted`);
-                            fs.remove(`${inputfolder}/dicoms${aimsCnt}.zip`, error => {
+                            fs.remove(`${inputfolder}/dicoms${aimsCnt}.zip`, (error) => {
                               if (error) {
                                 fastify.log.info(
-                                  `${inputfolder}/dicoms${aimsCnt}.zip file deletion error ${
-                                    error.message
-                                  }`
+                                  `${inputfolder}/dicoms${aimsCnt}.zip file deletion error ${error.message}`
                                 );
                                 reject(error);
                               } else {
@@ -2363,7 +2356,7 @@ async function epaddb(fastify, options, done) {
                               }
                             });
                           })
-                          .on('error', error => {
+                          .on('error', (error) => {
                             reject(
                               new InternalError(
                                 `Extracting zip ${inputfolder}/dicoms${aimsCnt}.zip`,
@@ -2395,14 +2388,14 @@ async function epaddb(fastify, options, done) {
                   const writeStream = fs
                     .createWriteStream(`${inputfolder}/dicoms.zip`)
                     // eslint-disable-next-line func-names
-                    .on('finish', function() {
+                    .on('finish', function () {
                       fastify.log.info('dicom copy finished');
                       // unzip part
                       fs.createReadStream(`${inputfolder}/dicoms.zip`)
                         .pipe(unzip.Extract({ path: `${inputfolder}` }))
                         .on('close', () => {
                           fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
-                          fs.remove(`${inputfolder}/dicoms.zip`, error => {
+                          fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
                             if (error) {
                               fastify.log.info(
                                 `${inputfolder}/dicoms.zip file deletion error ${error.message}`
@@ -2413,7 +2406,7 @@ async function epaddb(fastify, options, done) {
                             }
                           });
                         })
-                        .on('error', error => {
+                        .on('error', (error) => {
                           reject(
                             new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
                           );
@@ -2498,9 +2491,7 @@ async function epaddb(fastify, options, done) {
         }
       }
       const tmpLocalServerBindPoint = epadLitePwd.split(':')[0];
-      const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${
-        queueObject.id
-      }/`;
+      const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${queueObject.id}/`;
 
       const pluginsDataFolderlog = path.join(
         __dirname,
@@ -2589,7 +2580,7 @@ async function epaddb(fastify, options, done) {
           reject(new InternalError('error while getting plugin runtime paraeters', err));
         }
       }
-    }).catch(err => {
+    }).catch((err) => {
       return new Error(err);
     });
   });
@@ -2619,10 +2610,10 @@ async function epaddb(fastify, options, done) {
             },
           }
         )
-        .then(data => {
+        .then((data) => {
           return data;
         })
-        .catch(err => {
+        .catch((err) => {
           return new InternalError('error while updating queue process status for waiting', err);
         });
     }
@@ -2638,10 +2629,10 @@ async function epaddb(fastify, options, done) {
             },
           }
         )
-        .then(data => {
+        .then((data) => {
           return data;
         })
-        .catch(err => {
+        .catch((err) => {
           return new InternalError('error while updating queue process status for running', err);
         });
     }
@@ -2658,10 +2649,10 @@ async function epaddb(fastify, options, done) {
             },
           }
         )
-        .then(data => {
+        .then((data) => {
           return data;
         })
-        .catch(err => {
+        .catch((err) => {
           return new InternalError(
             'error while updating queue process status for ended or error',
             err
@@ -2681,16 +2672,16 @@ async function epaddb(fastify, options, done) {
             },
           }
         )
-        .then(data => {
+        .then((data) => {
           return data;
         })
-        .catch(err => {
+        .catch((err) => {
           return new InternalError('error while updating queue process status for stopping', err);
         });
     }
   });
 
-  fastify.decorate('sortPluginParamsAndExtractWhatToMapInternal', async pluginParamsObj => {
+  fastify.decorate('sortPluginParamsAndExtractWhatToMapInternal', async (pluginParamsObj) => {
     return new Promise(async (resolve, reject) => {
       try {
         let tempPluginParams = null;
@@ -2738,9 +2729,7 @@ async function epaddb(fastify, options, done) {
           ) {
             if (tempPluginParams[i].default_value !== '') {
               foldersToBind.push(
-                `${tempLocalFolder}${tempPluginParams[i].paramid}:${
-                  tempPluginParams[i].default_value
-                }`
+                `${tempLocalFolder}${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
               );
             }
           }
@@ -2773,29 +2762,27 @@ async function epaddb(fastify, options, done) {
     const queueObject = request.body;
     const outputPath = `${queueObject.creator}/${queueObject.id}/output/`;
     const dest = path.join(__dirname, `../pluginsDataFolder/${outputPath}`);
-    fastify.writeHead(`${queueObject.name}.output.zip`, reply.res, request.headers.origin);
+    fastify.writeHead(`${queueObject.name}.output.zip`, reply.raw, request.headers.origin);
 
     const archive = archiver('zip', {
       zlib: { level: 9 }, // Sets the compression level.
     });
 
     // eslint-disable-next-line func-names
-    archive.on('error', function(err) {
+    archive.on('error', function (err) {
       throw err;
     });
 
     archive.directory(dest, false);
     archive.finalize();
-    archive.pipe(reply.res);
+    archive.pipe(reply.raw);
   });
 
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
     try {
       for (let i = 0; i < pluginQueueList.length; i += 1) {
-        const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${
-          pluginQueueList[i].plugin.image_tag
-        }`;
+        const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${pluginQueueList[i].plugin.image_tag}`;
         const queueId = pluginQueueList[i].id;
         // eslint-disable-next-line no-await-in-loop
         await fastify.updateStatusQueueProcessInternal(queueId, 'waiting');
@@ -2903,7 +2890,7 @@ async function epaddb(fastify, options, done) {
             new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
             fastify.log.info('plugin finished working', imageRepo);
 
-            const checkFileExtension = fileName => {
+            const checkFileExtension = (fileName) => {
               const nameArry = fileName.split('.');
               const ext = nameArry[nameArry.length - 1];
               if (ext === 'dcm') {
@@ -2917,7 +2904,7 @@ async function epaddb(fastify, options, done) {
               const fileArray = fs
                 .readdirSync(`${pluginParameters.serverfolder}output`)
                 // eslint-disable-next-line no-loop-func
-                .map(fileName => {
+                .map((fileName) => {
                   fastify.log.info('filename : ', fileName);
                   return fileName;
                 })
@@ -2989,14 +2976,14 @@ async function epaddb(fastify, options, done) {
         reply.send(new BadRequestError('Creating worklist', new Error(validationErr)));
       } else {
         if (request.body.assignees) {
-          request.body.assignees.forEach(el => {
+          request.body.assignees.forEach((el) => {
             assigneeInfoArr.push(fastify.findUserIdInternal(el));
           });
         }
 
         Promise.all(assigneeInfoArr)
-          .then(results => {
-            results.forEach(el => {
+          .then((results) => {
+            results.forEach((el) => {
               assigneeIDArr.push(el);
             });
             models.worklist
@@ -3010,9 +2997,9 @@ async function epaddb(fastify, options, done) {
                 duedate: request.body.duedate ? new Date(`${request.body.duedate}T00:00:00`) : null,
                 creator,
               })
-              .then(worklist => {
+              .then((worklist) => {
                 const relationArr = [];
-                assigneeIDArr.forEach(el => {
+                assigneeIDArr.forEach((el) => {
                   relationArr.push(
                     models.worklist_user.create({
                       worklist_id: worklist.id,
@@ -3025,7 +3012,7 @@ async function epaddb(fastify, options, done) {
                 });
 
                 if (request.body.requirements) {
-                  request.body.requirements.forEach(req => {
+                  request.body.requirements.forEach((req) => {
                     relationArr.push(
                       models.worklist_requirement.create({
                         worklist_id: worklist.id,
@@ -3045,17 +3032,17 @@ async function epaddb(fastify, options, done) {
                   .then(() => {
                     reply.code(200).send(`Worklist ${worklist.id} is created successfully`);
                   })
-                  .catch(relationErr => {
+                  .catch((relationErr) => {
                     reply.send(
                       new InternalError('Creating worklist user association', relationErr)
                     );
                   });
               })
-              .catch(worklistCreationErr => {
+              .catch((worklistCreationErr) => {
                 reply.send(new InternalError('Creating worklist', worklistCreationErr));
               });
           })
-          .catch(userIDErr => {
+          .catch((userIDErr) => {
             if (userIDErr instanceof ResourceNotFoundError)
               reply.send(new BadRequestError('Creating worklist', userIDErr));
             else reply.send(userIDErr);
@@ -3118,15 +3105,15 @@ async function epaddb(fastify, options, done) {
         );
     }
     // get ids of assignees for request body
-    request.body.assigneeList.forEach(assignee => {
+    request.body.assigneeList.forEach((assignee) => {
       idPromiseArray.push(
         models.user.findOne({ where: { username: assignee }, attributes: ['id'] })
       );
     });
 
     Promise.all(idPromiseArray)
-      .then(result => {
-        result.forEach(el => {
+      .then((result) => {
+        result.forEach((el) => {
           newAssigneeIdArr.push(el.dataValues.id);
         });
 
@@ -3141,7 +3128,7 @@ async function epaddb(fastify, options, done) {
         }
 
         // if assignee doesn't exist create new
-        newAssigneeIdArr.forEach(el => {
+        newAssigneeIdArr.forEach((el) => {
           tablePromiseArray.push(
             models.worklist_user.create({
               worklist_id: worklistID,
@@ -3154,7 +3141,7 @@ async function epaddb(fastify, options, done) {
         });
 
         // if already existing is not in new list remove it
-        existingAssigneeArr.forEach(el => {
+        existingAssigneeArr.forEach((el) => {
           tablePromiseArray.push(
             models.worklist_user.destroy({ where: { user_id: el, worklist_id: worklistID } })
           );
@@ -3186,7 +3173,7 @@ async function epaddb(fastify, options, done) {
                 );
               }
               Promise.all(uidPromises)
-                .then(res => {
+                .then((res) => {
                   for (let i = 0; i < res.length; i += 2) {
                     const index = Math.round(i / 2);
                     ids[index].studyuid = res[i].studyuid;
@@ -3221,18 +3208,16 @@ async function epaddb(fastify, options, done) {
                         .code(200)
                         .send(`Worklist ${request.params.worklist} updated successfully`);
                     })
-                    .catch(err => {
+                    .catch((err) => {
                       reply.send(
                         new InternalError(
-                          `Worklist assignee update calculate completeness ${
-                            request.params.worklist
-                          }`,
+                          `Worklist assignee update calculate completeness ${request.params.worklist}`,
                           err
                         )
                       );
                     });
                 })
-                .catch(err => {
+                .catch((err) => {
                   reply.send(
                     new InternalError(
                       `Worklist assignee update calculate completeness ${request.params.worklist}`,
@@ -3246,7 +3231,7 @@ async function epaddb(fastify, options, done) {
               );
             }
           })
-          .catch(error => {
+          .catch((error) => {
             if (error instanceof ResourceNotFoundError)
               reply.send(
                 new BadRequestError(
@@ -3263,7 +3248,7 @@ async function epaddb(fastify, options, done) {
               );
           });
       })
-      .catch(err => {
+      .catch((err) => {
         if (err instanceof ResourceNotFoundError)
           reply.send(
             new BadRequestError(
@@ -3291,7 +3276,7 @@ async function epaddb(fastify, options, done) {
           attributes: ['id'],
           raw: true,
         });
-        worklistStudy.forEach(el => {
+        worklistStudy.forEach((el) => {
           completenessDeleteArr.push(
             models.worklist_study_completeness.destroy({
               where: { worklist_study_id: el.id, assignee: username },
@@ -3300,7 +3285,7 @@ async function epaddb(fastify, options, done) {
         });
         Promise.all(completenessDeleteArr)
           .then(() => resolve())
-          .catch(err => reject(err));
+          .catch((err) => reject(err));
       } catch (err) {
         reject();
       }
@@ -3327,7 +3312,7 @@ async function epaddb(fastify, options, done) {
         .then(() => {
           reply.code(200).send('Update successful');
         })
-        .catch(err => reply.send(new InternalError('Updating worklist', err)));
+        .catch((err) => reply.send(new InternalError('Updating worklist', err)));
     }
   });
 
@@ -3392,12 +3377,12 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getWorklistsOfAssignee', (request, reply) => {
     fastify
       .findUserIdInternal(request.params.user)
-      .then(userId => {
+      .then((userId) => {
         models.worklist_user
           .findAll({ where: { user_id: userId }, attributes: ['worklist_id'] })
-          .then(worklistIDs => {
+          .then((worklistIDs) => {
             const worklistPromises = [];
-            worklistIDs.forEach(listID => {
+            worklistIDs.forEach((listID) => {
               worklistPromises.push(
                 models.worklist.findOne({
                   where: { id: listID.dataValues.worklist_id },
@@ -3406,9 +3391,9 @@ async function epaddb(fastify, options, done) {
             });
 
             Promise.all(worklistPromises)
-              .then(worklist => {
+              .then((worklist) => {
                 const result = [];
-                worklist.forEach(el => {
+                worklist.forEach((el) => {
                   const obj = {
                     workListID: el.worklistid,
                     name: el.name,
@@ -3419,15 +3404,15 @@ async function epaddb(fastify, options, done) {
                 });
                 reply.code(200).send(result);
               })
-              .catch(err => {
+              .catch((err) => {
                 reply.send(new InternalError('Get worklists of assignee', err));
               });
           })
-          .catch(err => {
+          .catch((err) => {
             reply.send(new InternalError('Get worklists of assignee', err));
           });
       })
-      .catch(err => {
+      .catch((err) => {
         reply.send(new InternalError('Get worklists of assignee', err));
       });
   });
@@ -3485,7 +3470,7 @@ async function epaddb(fastify, options, done) {
         })
       );
 
-      Promise.all(promises).then(async result => {
+      Promise.all(promises).then(async (result) => {
         for (let i = 0; i < result.length; i += 1) ids.push(result[i].dataValues.id);
 
         // go to project_subject get the id of where project and subject matches
@@ -3517,7 +3502,7 @@ async function epaddb(fastify, options, done) {
             request.epadAuth,
             request.query
           );
-          studyDetails.forEach(el => {
+          studyDetails.forEach((el) => {
             const { numberOfImages, numberOfSeries } = el;
             studyDescMap[el.studyUID] = { numberOfImages, numberOfSeries };
           });
@@ -3559,11 +3544,11 @@ async function epaddb(fastify, options, done) {
                 attributes: ['user_id'],
               });
               // findUsernames by userid's
-              userIds.forEach(el => {
+              userIds.forEach((el) => {
                 userNamePromises.push(fastify.findUserNameInternal(el.dataValues.user_id));
               });
               Promise.all(userNamePromises)
-                .then(usernameResult => {
+                .then((usernameResult) => {
                   const updateCompPromises = [];
                   // iterate over usernames array and updateCompleteness
                   for (let i = 0; i < studyUIDs.length; i += 1) {
@@ -3583,7 +3568,7 @@ async function epaddb(fastify, options, done) {
                     .then(() => {
                       reply.code(200).send(`Saving successful`);
                     })
-                    .catch(err =>
+                    .catch((err) =>
                       reply.send(
                         new InternalError(
                           'Updating completeness in worklist study association',
@@ -3592,7 +3577,7 @@ async function epaddb(fastify, options, done) {
                       )
                     );
                 })
-                .catch(err =>
+                .catch((err) =>
                   reply.send(
                     new InternalError('Updating completeness in worklist study association', err)
                   )
@@ -3603,7 +3588,7 @@ async function epaddb(fastify, options, done) {
               );
             }
           })
-          .catch(err => {
+          .catch((err) => {
             reply.send(new InternalError('Creating worklist subject association in db', err));
           });
       });
@@ -3640,7 +3625,7 @@ async function epaddb(fastify, options, done) {
     );
 
     Promise.all(promises)
-      .then(async result => {
+      .then(async (result) => {
         for (let i = 0; i < result.length; i += 1) ids.push(result[i].dataValues.id);
         const seriesArr = await fastify.getStudySeriesInternal(
           request.params,
@@ -3675,7 +3660,7 @@ async function epaddb(fastify, options, done) {
             },
             request.epadAuth.username
           )
-          .then(async id => {
+          .then(async (id) => {
             try {
               const userNamePromises = [];
               // get user id's from worklist_user for the worklist
@@ -3684,14 +3669,14 @@ async function epaddb(fastify, options, done) {
                 attributes: ['user_id'],
               });
               // findUsernames by userid's
-              userIds.forEach(el => {
+              userIds.forEach((el) => {
                 userNamePromises.push(fastify.findUserNameInternal(el.dataValues.user_id));
               });
               Promise.all(userNamePromises)
-                .then(res => {
+                .then((res) => {
                   const updateCompPromises = [];
                   // iterate over usernames array and updateCompleteness
-                  res.forEach(username =>
+                  res.forEach((username) =>
                     updateCompPromises.push(
                       fastify.updateWorklistCompleteness(
                         ids[1],
@@ -3706,7 +3691,7 @@ async function epaddb(fastify, options, done) {
                     .then(() => {
                       reply.code(200).send(`Saving successful - ${id}`);
                     })
-                    .catch(err =>
+                    .catch((err) =>
                       reply.send(
                         new InternalError(
                           'Updating completeness in worklist study association',
@@ -3715,7 +3700,7 @@ async function epaddb(fastify, options, done) {
                       )
                     );
                 })
-                .catch(err =>
+                .catch((err) =>
                   reply.send(
                     new InternalError('Updating completeness in worklist study association', err)
                   )
@@ -3726,14 +3711,14 @@ async function epaddb(fastify, options, done) {
               );
             }
           })
-          .catch(err => {
+          .catch((err) => {
             reply.send(new InternalError('Creating worklist study association in db', err));
           });
       })
-      .catch(err => reply.send(new InternalError('Creating worklist study association', err)));
+      .catch((err) => reply.send(new InternalError('Creating worklist study association', err)));
   });
 
-  fastify.decorate('findUserNameInternal', userid => {
+  fastify.decorate('findUserNameInternal', (userid) => {
     const query = new Promise(async (resolve, reject) => {
       try {
         const user = await models.user.findOne({ where: { id: userid }, attributes: ['username'] });
@@ -3764,7 +3749,7 @@ async function epaddb(fastify, options, done) {
         raw: true,
       });
 
-      request.body.forEach(async el => {
+      request.body.forEach(async (el) => {
         try {
           const project = await models.project.findOne({
             where: { projectid: el.projectID },
@@ -3802,7 +3787,7 @@ async function epaddb(fastify, options, done) {
       });
       Promise.all(promises)
         .then(() => reply.code(200).send(`Deleted successfully`))
-        .catch(err => {
+        .catch((err) => {
           if (err instanceof ResourceNotFoundError)
             reply.send(
               new BadRequestError(
@@ -3897,9 +3882,7 @@ async function epaddb(fastify, options, done) {
           await fastify.saveTemplateInternal(request.body);
           if (templateUid !== request.body.TemplateContainer.uid) {
             fastify.log.info(
-              `The template uid sent in the url ${templateUid} is different than the template that is sent ${
-                request.body.TemplateContainer.uid
-              }. Using ${request.body.TemplateContainer.uid} `
+              `The template uid sent in the url ${templateUid} is different than the template that is sent ${request.body.TemplateContainer.uid}. Using ${request.body.TemplateContainer.uid} `
             );
             templateUid = request.body.TemplateContainer.uid;
           }
@@ -3949,9 +3932,7 @@ async function epaddb(fastify, options, done) {
         } catch (err) {
           reject(
             new InternalError(
-              `Adding project template relation for template ${templateUid} with project ${
-                project.projectid
-              }`,
+              `Adding project template relation for template ${templateUid} with project ${project.projectid}`,
               err
             )
           );
@@ -4091,7 +4072,7 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('deleteTemplateFromDB', params =>
+  fastify.decorate('deleteTemplateFromDB', (params) =>
     models.project_template.destroy({
       where: { template_uid: params.uid },
     })
@@ -4309,7 +4290,7 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('getSubjectUIDsFromProject', async projectID => {
+  fastify.decorate('getSubjectUIDsFromProject', async (projectID) => {
     try {
       const subjects = await models.subject.findAll({
         include: [
@@ -4319,7 +4300,7 @@ async function epaddb(fastify, options, done) {
           },
         ],
       });
-      return subjects.map(subject => {
+      return subjects.map((subject) => {
         return subject.dataValues.subjectuid;
       });
     } catch (err) {
@@ -4330,7 +4311,7 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('getSubjectUIDsFromAimsInProject', async projectID => {
+  fastify.decorate('getSubjectUIDsFromAimsInProject', async (projectID) => {
     try {
       const projectAims = await models.project_aim.findAll({
         include: [
@@ -4342,7 +4323,7 @@ async function epaddb(fastify, options, done) {
         attributes: ['subject_uid'],
         group: ['subject_uid'],
       });
-      return projectAims.map(subject => {
+      return projectAims.map((subject) => {
         return subject.dataValues.subject_uid;
       });
     } catch (err) {
@@ -4484,18 +4465,18 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('deleteSubjectFromProject', (request, reply) => {
     fastify
       .deleteSubjectFromProjectInternal(request.params, request.query, request.epadAuth)
-      .then(result => {
+      .then((result) => {
         reply.code(200).send(result);
         if (config.env !== 'test')
           new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
             fastify
           );
       })
-      .catch(err => reply.send(err));
+      .catch((err) => reply.send(err));
   });
   fastify.decorate(
     'deleteSeriesAimProjectRels',
-    params =>
+    (params) =>
       new Promise(async (resolve, reject) => {
         try {
           await models.project_aim.destroy({
@@ -4653,9 +4634,7 @@ async function epaddb(fastify, options, done) {
               } catch (deleteErr) {
                 reject(
                   new InternalError(
-                    `Study assosiation deletion during subject ${
-                      params.subject
-                    } deletion from project`,
+                    `Study assosiation deletion during subject ${params.subject} deletion from project`,
                     deleteErr
                   )
                 );
@@ -4762,7 +4741,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getFileUidsForProject',
-    params =>
+    (params) =>
       new Promise(async (resolve, reject) => {
         try {
           const project = await models.project.findOne(
@@ -4897,14 +4876,14 @@ async function epaddb(fastify, options, done) {
             reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
             break;
           case 'summary':
-            result = result.map(obj => ({ ...obj, projectID: request.params.project }));
+            result = result.map((obj) => ({ ...obj, projectID: request.params.project }));
             break;
           default:
             if (request.query.longitudinal_ref) {
               const aimsByName = {};
               const aimsByTUID = {};
               let tUIDCount = 0;
-              result.forEach(aim => {
+              result.forEach((aim) => {
                 const name = aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
                   '~'
                 )[0];
@@ -5038,9 +5017,7 @@ async function epaddb(fastify, options, done) {
               new BadRequestError(
                 `Saving aim to project ${request.params.project}`,
                 new Error(
-                  `Conflicting aimuids: the uid sent in the url ${aimUid} should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root ${
-                    aim.ImageAnnotationCollection.uniqueIdentifier.root
-                  }`
+                  `Conflicting aimuids: the uid sent in the url ${aimUid} should be the same with imageAnnotations.ImageAnnotationCollection.uniqueIdentifier.root ${aim.ImageAnnotationCollection.uniqueIdentifier.root}`
                 )
               )
             );
@@ -5272,7 +5249,7 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        request.body.forEach(req => {
+        request.body.forEach((req) => {
           const promise = models.worklist_requirement.create({
             ...req,
             worklist_id: worklist.id,
@@ -5322,7 +5299,7 @@ async function epaddb(fastify, options, done) {
             ids[index].studyuid = res[i].studyuid;
             ids[index].subjectuid = res[i + 1].subjectuid;
           }
-          userIds.forEach(el => {
+          userIds.forEach((el) => {
             userNamePromises.push(fastify.findUserNameInternal(el.user_id));
           });
 
@@ -5422,9 +5399,7 @@ async function epaddb(fastify, options, done) {
             resolve('Recist got and saved');
           } else {
             fastify.log.info(
-              `Recist report generation failed, deleting old report for ${
-                subject.subjectuid
-              } if exists`
+              `Recist report generation failed, deleting old report for ${subject.subjectuid} if exists`
             );
             await models.project_subject_report.destroy({
               where: {
@@ -5568,7 +5543,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'findProjectIdInternal',
-    project =>
+    (project) =>
       new Promise(async (resolve, reject) => {
         try {
           const projectId = await models.project.findOne({
@@ -5748,11 +5723,13 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getWorklistProgress', async (request, reply) => {
     try {
-      const worklist = (await models.worklist.findOne({
-        where: { worklistid: request.params.worklist },
-        attributes: ['id'],
-        include: ['requirements', 'users'],
-      })).toJSON();
+      const worklist = (
+        await models.worklist.findOne({
+          where: { worklistid: request.params.worklist },
+          attributes: ['id'],
+          include: ['requirements', 'users'],
+        })
+      ).toJSON();
       const requirements = {};
       const users = {};
       for (let i = 0; i < worklist.requirements.length; i += 1) {
@@ -5968,7 +5945,7 @@ async function epaddb(fastify, options, done) {
                   await fastify.saveAimInternal(leftovers[i].aim_uid, request.params.project, true);
                   fastify.log.info(`Aim not deleted from system as it exists in other project`);
                 }
-                const deletedAims = request.body.filter(e => {
+                const deletedAims = request.body.filter((e) => {
                   return !leftovers.includes(e);
                 });
                 await fastify.deleteCouchDocsInternal(deletedAims);
@@ -5980,9 +5957,7 @@ async function epaddb(fastify, options, done) {
                 reply
                   .code(200)
                   .send(
-                    `${
-                      leftovers.length
-                    } aims not deleted from system as they exist in other project`
+                    `${leftovers.length} aims not deleted from system as they exist in other project`
                   );
               }
             }
@@ -6056,8 +6031,8 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('addPatientStudyToProject', (request, reply) => {
     fastify
       .addPatientStudyToProjectInternal(request.params, request.epadAuth, request.body)
-      .then(result => reply.code(200).send(result))
-      .catch(err => reply.send(err));
+      .then((result) => reply.code(200).send(result))
+      .catch((err) => reply.send(err));
   });
   fastify.decorate(
     'updateStudyExamType',
@@ -6299,11 +6274,11 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('add0s', val => {
+  fastify.decorate('add0s', (val) => {
     return val > 9 ? val : `0${val}`;
   });
 
-  fastify.decorate('getFormattedDate', dateFromDB => {
+  fastify.decorate('getFormattedDate', (dateFromDB) => {
     const dbDate = new Date(dateFromDB);
     const month = dbDate.getMonth() + 1;
     const date = dbDate.getDate();
@@ -6479,11 +6454,7 @@ async function epaddb(fastify, options, done) {
                     }
                   } else
                     fastify.log.warn(
-                      `There are ${
-                        studyUids.length
-                      } studies associated with this project. But only ${
-                        result.length
-                      } of them have dicom files`
+                      `There are ${studyUids.length} studies associated with this project. But only ${result.length} of them have dicom files`
                     );
                 for (let i = 0; i < result.length; i += 1) {
                   result[i].numberOfAnnotations = aimsCountMap[result[i].studyUID]
@@ -6634,9 +6605,7 @@ async function epaddb(fastify, options, done) {
             // ignore the error if the study has nondicom series
             if (deletedNonDicomSeries === 0) {
               fastify.log.warn(
-                `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${
-                  err.message
-                }`
+                `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${err.message}`
               );
             }
           }
@@ -6798,9 +6767,7 @@ async function epaddb(fastify, options, done) {
                     // ignore the error if the study has nondicom series
                     if (deletedNonDicomSeries === 0) {
                       fastify.log.warn(
-                        `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${
-                          err.message
-                        }`
+                        `The study is deleted from system but not dicomweb. It maybe just a nondicom study. Error: ${err.message}`
                       );
                     }
                   }
@@ -6856,9 +6823,9 @@ async function epaddb(fastify, options, done) {
           reply
         )
         .then(() => fastify.log.info(`Series ${request.params.series} download completed`))
-        .catch(downloadErr => reply.send(new InternalError('Downloading series', downloadErr)));
+        .catch((downloadErr) => reply.send(new InternalError('Downloading series', downloadErr)));
     } else {
-      const dicomPromise = new Promise(async resolve => {
+      const dicomPromise = new Promise(async (resolve) => {
         try {
           const result = await fastify.getStudySeriesInternal(
             request.params,
@@ -6871,7 +6838,7 @@ async function epaddb(fastify, options, done) {
           resolve({ result: [], error: `${err.message}` });
         }
       });
-      const nondicomPromise = new Promise(async resolve => {
+      const nondicomPromise = new Promise(async (resolve) => {
         try {
           const result = await fastify.getNondicomStudySeriesFromProjectInternal(request.params);
           resolve({ result, error: undefined });
@@ -6880,16 +6847,14 @@ async function epaddb(fastify, options, done) {
           resolve({ result: [], error: `${err.message}` });
         }
       });
-      Promise.all([dicomPromise, nondicomPromise]).then(results => {
+      Promise.all([dicomPromise, nondicomPromise]).then((results) => {
         const combinedResult = results[0].result.concat(results[1].result);
         if (results[0].error && results[1].error)
           reply.send(
             new InternalError(
               'Retrieving series',
               new Error(
-                `Failed from dicomweb with ${results[0].error} and from nondicom with ${
-                  results[1].error
-                }`
+                `Failed from dicomweb with ${results[0].error} and from nondicom with ${results[1].error}`
               )
             )
           );
@@ -6899,7 +6864,7 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate(
     'deleteNonDicomSeriesInternal',
-    seriesUid =>
+    (seriesUid) =>
       new Promise(async (resolve, reject) => {
         try {
           const count = await models.nondicom_series.destroy({
@@ -6914,7 +6879,7 @@ async function epaddb(fastify, options, done) {
   );
   fastify.decorate(
     'getNondicomStudySeriesFromProjectInternal',
-    params =>
+    (params) =>
       new Promise(async (resolve, reject) => {
         try {
           const result = [];
@@ -6972,8 +6937,8 @@ async function epaddb(fastify, options, done) {
     // TODO project filtering
     fastify
       .getSeriesImagesInternal(request.params, request.query)
-      .then(result => reply.code(200).send(result))
-      .catch(err => reply.send(err));
+      .then((result) => reply.code(200).send(result))
+      .catch((err) => reply.send(err));
   });
 
   fastify.decorate('createUser', async (request, reply) => {
@@ -7005,7 +6970,7 @@ async function epaddb(fastify, options, done) {
         try {
           const permissions = request.body.permissions ? request.body.permissions.split(',') : [''];
           const trimmedPermission = [];
-          permissions.forEach(el => trimmedPermission.push(el.trim()));
+          permissions.forEach((el) => trimmedPermission.push(el.trim()));
           if (request.body.permissions) {
             delete request.body.permissions;
           }
@@ -7070,7 +7035,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getProjectInternal',
-    projectId =>
+    (projectId) =>
       new Promise(async (resolve, reject) => {
         try {
           const project = await models.project.findOne({
@@ -7179,22 +7144,22 @@ async function epaddb(fastify, options, done) {
       .findAll({
         include: ['projects'],
       })
-      .then(users => {
+      .then((users) => {
         const result = [];
         //  cavit
         //  fastify.log.info('users --------->', users);
         //  cavit
-        users.forEach(user => {
+        users.forEach((user) => {
           const projects = [];
           const projectToRole = [];
-          user.projects.forEach(project => {
+          user.projects.forEach((project) => {
             projects.push(project.projectid);
             projectToRole.push(`${project.projectid}:${project.project_user.role}`);
           });
 
           const permissions = user.permissions ? user.permissions.split(',') : [''];
           const trimmedPermission = [];
-          permissions.forEach(el => trimmedPermission.push(el.trim()));
+          permissions.forEach((el) => trimmedPermission.push(el.trim()));
           const obj = {
             colorpreference: user.colorpreference,
             creator: user.creator,
@@ -7218,7 +7183,7 @@ async function epaddb(fastify, options, done) {
         });
         reply.code(200).send(result);
       })
-      .catch(err => {
+      .catch((err) => {
         reply.send(new InternalError('Getting users', err));
       });
   });
@@ -7226,8 +7191,8 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getUser', (request, reply) => {
     fastify
       .getUserInternal(request.params)
-      .then(res => reply.code(200).send(res))
-      .catch(err => {
+      .then((res) => reply.code(200).send(res))
+      .catch((err) => {
         reply.send(err);
       });
   });
@@ -7235,10 +7200,10 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getUserPreferences', (request, reply) => {
     fastify
       .getUserInternal(request.params)
-      .then(res => {
+      .then((res) => {
         reply.code(200).send(res.preferences ? JSON.parse(res.preferences) : {});
       })
-      .catch(err => {
+      .catch((err) => {
         reply.send(err);
       });
   });
@@ -7254,7 +7219,7 @@ async function epaddb(fastify, options, done) {
       .then(() => {
         reply.code(200).send(`User ${request.params.user} updated sucessfully`);
       })
-      .catch(err => {
+      .catch((err) => {
         reply.send(new InternalError(`Updating user ${request.params.user}`, err));
       });
   });
@@ -7270,7 +7235,7 @@ async function epaddb(fastify, options, done) {
       .then(() => {
         reply.code(200).send(`User ${request.params.user} updated sucessfully`);
       })
-      .catch(err => {
+      .catch((err) => {
         reply.send(new InternalError(`Updating user ${request.params.user}`, err));
       });
   });
@@ -7287,7 +7252,7 @@ async function epaddb(fastify, options, done) {
           .then(() => {
             resolve();
           })
-          .catch(err => {
+          .catch((err) => {
             reject(new InternalError(`Updating user ${params.user}`, err));
           });
       })
@@ -7302,7 +7267,7 @@ async function epaddb(fastify, options, done) {
           .then(() => {
             resolve();
           })
-          .catch(err => {
+          .catch((err) => {
             reject(new InternalError(` Updating worklist_study_completeness ${username}`, err));
           });
       })
@@ -7310,7 +7275,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getUserInternal',
-    params =>
+    (params) =>
       new Promise(async (resolve, reject) => {
         try {
           const user = await models.user.findAll({
@@ -7323,7 +7288,7 @@ async function epaddb(fastify, options, done) {
             const permissions = user[0].permissions ? user[0].permissions.split(',') : [''];
             const projects = [];
             const projectToRole = [];
-            user[0].projects.forEach(project => {
+            user[0].projects.forEach((project) => {
               projects.push(project.projectid);
               projectToRole.push(`${project.projectid}:${project.project_user.role}`);
             });
@@ -7368,18 +7333,18 @@ async function epaddb(fastify, options, done) {
       .then(() => {
         reply.code(200).send(`User ${request.params.user} is deleted successfully`);
       })
-      .catch(err => {
+      .catch((err) => {
         reply.send(new InternalError(`Deleting ${request.params.user}`, err));
       });
   });
 
   fastify.decorate(
     'getMultipartBuffer',
-    stream =>
+    (stream) =>
       new Promise(async (resolve, reject) => {
         try {
           const bufs = [];
-          stream.on('data', d => {
+          stream.on('data', (d) => {
             bufs.push(d);
           });
           stream.on('end', () => {
@@ -7395,18 +7360,16 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getSegDicom',
-    segEntity =>
+    (segEntity) =>
       new Promise(async (resolve, reject) => {
         try {
           const result = await this.request.get(
-            `/?requestType=WADO&studyUID=${segEntity.studyInstanceUid.root}&seriesUID=${
-              segEntity.seriesInstanceUid.root
-            }&objectUID=${segEntity.sopInstanceUid.root}`,
+            `/?requestType=WADO&studyUID=${segEntity.studyInstanceUid.root}&seriesUID=${segEntity.seriesInstanceUid.root}&objectUID=${segEntity.sopInstanceUid.root}`,
             { responseType: 'stream' }
           );
 
           const bufs = [];
-          result.data.on('data', d => {
+          result.data.on('data', (d) => {
             bufs.push(d);
           });
           result.data.on('end', () => {
@@ -7421,7 +7384,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getSeriesWadoMultipart',
-    params =>
+    (params) =>
       new Promise(async (resolve, reject) => {
         try {
           let query = params.study ? `/${params.study}` : '';
@@ -7675,7 +7638,7 @@ async function epaddb(fastify, options, done) {
                     }
                     // create the archive
                     archive
-                      .on('error', err => reject(new InternalError('Archiving ', err)))
+                      .on('error', (err) => reject(new InternalError('Archiving ', err)))
                       .pipe(res);
                     headWritten = true;
                   }
@@ -7729,10 +7692,12 @@ async function epaddb(fastify, options, done) {
               if (!headWritten) {
                 if (!isResponseJustStream) fastify.writeHead(dirName, res, reqOrigin);
                 // create the archive
-                archive.on('error', err => reject(new InternalError('Archiving ', err))).pipe(res);
+                archive
+                  .on('error', (err) => reject(new InternalError('Archiving ', err)))
+                  .pipe(res);
               }
               res.on('finish', () => {
-                fs.remove(dir, error => {
+                fs.remove(dir, (error) => {
                   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                   else fastify.log.info(`${dir} deleted`);
                 });
@@ -7754,7 +7719,7 @@ async function epaddb(fastify, options, done) {
             } else {
               // finalize even if no files?
               archive.finalize();
-              fs.remove(dir, error => {
+              fs.remove(dir, (error) => {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 else fastify.log.info(`${dir} deleted`);
               });
@@ -7797,7 +7762,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getProjectSubjectIds',
-    params =>
+    (params) =>
       new Promise(async (resolve, reject) => {
         try {
           const project = await models.project.findOne({
@@ -7995,12 +7960,10 @@ async function epaddb(fastify, options, done) {
         reply
           .code(200)
           .send(
-            `File ${request.params.filename} successfully saved in project  ${
-              request.params.project
-            }`
+            `File ${request.params.filename} successfully saved in project  ${request.params.project}`
           )
       )
-      .catch(err => reply.send(err));
+      .catch((err) => reply.send(err));
   });
 
   fastify.decorate(
@@ -8115,7 +8078,7 @@ async function epaddb(fastify, options, done) {
                 await fastify.saveFileInDB(filename, project.id, epadAuth, transaction);
                 resolve();
               })
-              .catch(errAssoc => {
+              .catch((errAssoc) => {
                 if (errAssoc instanceof ResourceNotFoundError)
                   reject(
                     new BadRequestError(
@@ -8150,7 +8113,7 @@ async function epaddb(fastify, options, done) {
           where: { project_id: project.id },
         });
         // projects will be an array of Project instances with the specified name
-        projectFiles.forEach(projectFile => fileUids.push(projectFile.file_uid));
+        projectFiles.forEach((projectFile) => fileUids.push(projectFile.file_uid));
         const result = await fastify.getFilesFromUIDsInternal(
           request.query,
           fileUids,
@@ -8189,7 +8152,7 @@ async function epaddb(fastify, options, done) {
         });
         const userPromise = [];
         // get users
-        projectUsers.forEach(el => {
+        projectUsers.forEach((el) => {
           userPromise.push(
             models.user.findOne({
               where: { id: el.user_id },
@@ -8420,9 +8383,7 @@ async function epaddb(fastify, options, done) {
     } catch (err) {
       reply.send(
         new InternalError(
-          `File ${request.params.filename} check and deletion from project ${
-            request.params.project
-          }`,
+          `File ${request.params.filename} check and deletion from project ${request.params.project}`,
           err
         )
       );
@@ -9134,7 +9095,7 @@ async function epaddb(fastify, options, done) {
       })
   );
   fastify.decorate('upsert', (model, values, condition, user, transaction) =>
-    model.findOne({ where: condition }).then(obj => {
+    model.findOne({ where: condition }).then((obj) => {
       // update
       if (obj)
         return obj.update({ ...values, updated_by: user }, transaction ? { transaction } : {});
@@ -9149,10 +9110,10 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('triggerStats', (request, reply) => {
     fastify
       .calcStats()
-      .then(result => {
+      .then((result) => {
         reply.send(result);
       })
-      .catch(err => reply.send(err));
+      .catch((err) => reply.send(err));
   });
 
   fastify.decorate(
@@ -9446,10 +9407,10 @@ async function epaddb(fastify, options, done) {
       new Promise((resolve, reject) => {
         let buffer = [];
         const readableStream = fs.createReadStream(fileEntry.filepath);
-        readableStream.on('data', chunk => {
+        readableStream.on('data', (chunk) => {
           buffer.push(chunk);
         });
-        readableStream.on('error', readErr => {
+        readableStream.on('error', (readErr) => {
           fastify.log.error(`Error in reading file ${fileEntry.filepath}: ${readErr}`);
           reject(new InternalError(`Reading file ${fileEntry.filepath}`, readErr));
         });
@@ -9525,7 +9486,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getUnnotifiedEventLogs',
-    request =>
+    (request) =>
       new Promise(async (resolve, reject) => {
         try {
           const logs = await models.eventlog.findAll({
@@ -9623,7 +9584,7 @@ async function epaddb(fastify, options, done) {
             ],
             attributes: ['aim_uid'],
           });
-          const aimProjects = projectAims.map(projectAim => {
+          const aimProjects = projectAims.map((projectAim) => {
             return {
               aim: projectAim.dataValues.aim_uid,
               project: projectAim.dataValues.project.dataValues.projectid,
@@ -9643,7 +9604,7 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           // do it all or none
-          await fastify.orm.transaction(async t => {
+          await fastify.orm.transaction(async (t) => {
             // first version is just lite
             // we might need to do checks for later versions
             // TODO we do version check in checkAndMigrateVersion now, double check removing this is ok
@@ -10058,7 +10019,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'migrateDataLite2Thick',
-    epadAuth =>
+    (epadAuth) =>
       new Promise(async (resolve, reject) => {
         let project = await models.project.findOne({ where: { projectid: 'lite' } });
         // if there is no lite project and we are in lite mode, we need to migrate
@@ -10346,7 +10307,7 @@ async function epaddb(fastify, options, done) {
               }
             }
             for (let i = 0; i < tmpFolders.length; i += 1)
-              fs.remove(path.join('/tmp', tmpFolders[i]), error => {
+              fs.remove(path.join('/tmp', tmpFolders[i]), (error) => {
                 if (error) fastify.log.warn(`Remove processing deletion error ${error.message}`);
                 fastify.log.info(`${tmpFolders[i]} deleted`);
               });
