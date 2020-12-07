@@ -7420,12 +7420,12 @@ async function epaddb(fastify, options, done) {
           // get aims
           const aimPromises = [];
           const segRetrievePromises = [];
-          aims.forEach(aim => {
+          aims.forEach((aim) => {
             if (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') {
               const imageAnnotations =
                 aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
 
-              imageAnnotations.forEach(imageAnnotation => {
+              imageAnnotations.forEach((imageAnnotation) => {
                 const commentSplit = imageAnnotation.comment.value.split('~~');
                 const points = [];
                 if (
@@ -7433,7 +7433,7 @@ async function epaddb(fastify, options, done) {
                   imageAnnotation.markupEntityCollection.MarkupEntity[0]
                 ) {
                   imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
-                    coor => {
+                    (coor) => {
                       points.push(`(${coor.x.value} ${coor.y.value})`);
                     }
                   );

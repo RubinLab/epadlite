@@ -333,7 +333,7 @@ async function couchdb(fastify, options) {
               // create the archive
               archive
                 .directory(`${dir}/annotations`, false)
-                .on('error', err => reject(new InternalError('Archiving aims', err)))
+                .on('error', (err) => reject(new InternalError('Archiving aims', err)))
                 .pipe(output);
 
               output.on('close', () => {
@@ -345,7 +345,7 @@ async function couchdb(fastify, options) {
                   // delete tmp folder after the file is sent
                   readStream.once('end', () => {
                     readStream.destroy(); // make sure stream closed, not close if download aborted.
-                    fs.remove(dir, error => {
+                    fs.remove(dir, (error) => {
                       if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                       else fastify.log.info(`${dir} deleted`);
                     });
@@ -355,7 +355,7 @@ async function couchdb(fastify, options) {
               });
               archive.finalize();
             } else {
-              fs.remove(dir, error => {
+              fs.remove(dir, (error) => {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 else fastify.log.info(`${dir} deleted`);
               });
@@ -481,7 +481,7 @@ async function couchdb(fastify, options) {
           }
           fastify
             .getAimsCouchInternal(db, dbFilter, format, bookmark)
-            .then(resObj => {
+            .then((resObj) => {
               try {
                 if (format === 'stream') {
                   if (resObj.total_rows !== resObj.rows.length) {
@@ -526,7 +526,7 @@ async function couchdb(fastify, options) {
                 reject(new InternalError('Packing download or sending', err2));
               }
             })
-            .catch(error => reject(error));
+            .catch((error) => reject(error));
         } catch (err) {
           reject(new InternalError('Get aims', err));
         }
