@@ -776,9 +776,9 @@ async function epaddb(fastify, options, done) {
             );
             if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
               fastify.log.info('slog file found sending to frontend');
-              reply.res.setHeader('Content-type', 'application/octet-stream');
-              reply.res.setHeader('Access-Control-Allow-Origin', '*');
-              reply.res.setHeader('connection', 'keep-alive');
+              reply.raw.setHeader('Content-type', 'application/octet-stream');
+              reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+              reply.raw.setHeader('connection', 'keep-alive');
               const rdsrtm = fs.createReadStream(
                 `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
               );
@@ -7542,8 +7542,8 @@ async function epaddb(fastify, options, done) {
           // not handling all project intentionally. only download files for that project
           const fileUids = await fastify.getFileUidsForProject({ project: params.project });
           // if it has res, it is fastify reply
-          const isResponseJustStream = !output.res;
-          const res = isResponseJustStream ? output : output.res;
+          const isResponseJustStream = !output.raw;
+          const res = isResponseJustStream ? output : output.raw;
           const studiesInfo = whereJSON
             ? await fastify.getStudiesInternal(whereJSON, params, epadAuth, true, query)
             : studyInfos;
