@@ -133,6 +133,8 @@ fastify.ready((err) => {
   if (err) throw err;
 
   fastify.swagger();
+
+  fastify.addHook('onClose', (instance) => fastify.closeDB(instance));
 });
 
 module.exports = fastify;
