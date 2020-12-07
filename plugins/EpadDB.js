@@ -7420,110 +7420,117 @@ async function epaddb(fastify, options, done) {
           // get aims
           const aimPromises = [];
           const segRetrievePromises = [];
-          aims.forEach((aim) => {
-            if (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') {
-              const imageAnnotations =
-                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
+          if (
+            (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') ||
+            (downloadParams.aim && downloadParams.aim.toLowerCase() === 'true') ||
+            (downloadParams.seg && downloadParams.seg.toLowerCase() === 'true')
+          ) {
+            aims.forEach((aim) => {
+              if (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') {
+                const imageAnnotations =
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
 
-              imageAnnotations.forEach((imageAnnotation) => {
-                const commentSplit = imageAnnotation.comment.value.split('~~');
-                const points = [];
-                if (
-                  imageAnnotation.markupEntityCollection &&
-                  imageAnnotation.markupEntityCollection.MarkupEntity[0]
-                ) {
-                  imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
-                    (coor) => {
-                      points.push(`(${coor.x.value} ${coor.y.value})`);
-                    }
+                imageAnnotations.forEach((imageAnnotation) => {
+                  const commentSplit = imageAnnotation.comment.value.split('~~');
+                  const points = [];
+                  if (
+                    imageAnnotation.markupEntityCollection &&
+                    imageAnnotation.markupEntityCollection.MarkupEntity[0]
+                  ) {
+                    imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
+                      (coor) => {
+                        points.push(`(${coor.x.value} ${coor.y.value})`);
+                      }
+                    );
+                  }
+
+                  // eslint-disable-next-line no-param-reassign
+                  header = fastify.getCalculationHeaders(imageAnnotation, header);
+                  // eslint-disable-next-line no-param-reassign
+                  header = fastify.getOtherHeaders(imageAnnotation, header);
+                  // eslint-disable-next-line no-param-reassign
+                  header = fastify.arrayUnique(header, 'id');
+                  // add values common to all annotations
+                  let row = {
+                    aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                    date: dateFormatter.asString(
+                      dateFormatter.ISO8601_FORMAT,
+                      dateFormatter.parse(
+                        'yyyyMMddhhmmssSSS',
+                        `${imageAnnotation.dateTime.value}000`
+                      )
+                    ),
+                    patientName: aim.ImageAnnotationCollection.person.name.value,
+                    patientId: aim.ImageAnnotationCollection.person.id.value,
+                    reviewer: aim.ImageAnnotationCollection.user.name.value,
+                    name: imageAnnotation.name.value.split('~')[0],
+                    comment: commentSplit[0],
+                    userComment: commentSplit.length > 1 ? commentSplit[1] : '',
+                    points: `[${points}]`,
+                    dsoSeriesUid:
+                      imageAnnotation.segmentationEntityCollection &&
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity
+                        ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                            .seriesInstanceUid.root
+                        : '',
+                    studyUid:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.instanceUid.root,
+                    seriesUid:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.imageSeries.instanceUid.root,
+                    imageUid:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
+                  };
+
+                  row = fastify.getCalculationData(imageAnnotation, row);
+                  row = fastify.getOtherData(imageAnnotation, row);
+                  data.push(row);
+                });
+              }
+              if (downloadParams.aim && downloadParams.aim.toLowerCase() === 'true') {
+                aimPromises.push(() => {
+                  return fs.writeFile(
+                    `${dataDir}/${aim.ImageAnnotationCollection.uniqueIdentifier.root}.json`,
+                    JSON.stringify(aim)
                   );
-                }
-
-                // eslint-disable-next-line no-param-reassign
-                header = fastify.getCalculationHeaders(imageAnnotation, header);
-                // eslint-disable-next-line no-param-reassign
-                header = fastify.getOtherHeaders(imageAnnotation, header);
-                // eslint-disable-next-line no-param-reassign
-                header = fastify.arrayUnique(header, 'id');
-                // add values common to all annotations
-                let row = {
-                  aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
-                  date: dateFormatter.asString(
-                    dateFormatter.ISO8601_FORMAT,
-                    dateFormatter.parse('yyyyMMddhhmmssSSS', `${imageAnnotation.dateTime.value}000`)
-                  ),
-                  patientName: aim.ImageAnnotationCollection.person.name.value,
-                  patientId: aim.ImageAnnotationCollection.person.id.value,
-                  reviewer: aim.ImageAnnotationCollection.user.name.value,
-                  name: imageAnnotation.name.value.split('~')[0],
-                  comment: commentSplit[0],
-                  userComment: commentSplit.length > 1 ? commentSplit[1] : '',
-                  points: `[${points}]`,
-                  dsoSeriesUid:
-                    imageAnnotation.segmentationEntityCollection &&
-                    imageAnnotation.segmentationEntityCollection.SegmentationEntity
-                      ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
-                          .seriesInstanceUid.root
-                      : '',
-                  studyUid:
-                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                      .imageStudy.instanceUid.root,
-                  seriesUid:
-                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                      .imageStudy.imageSeries.instanceUid.root,
-                  imageUid:
-                    imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                      .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
-                };
-
-                row = fastify.getCalculationData(imageAnnotation, row);
-                row = fastify.getOtherData(imageAnnotation, row);
-                data.push(row);
-              });
-            }
-            if (downloadParams.aim && downloadParams.aim.toLowerCase() === 'true') {
-              aimPromises.push(() => {
-                return fs.writeFile(
-                  `${dataDir}/${aim.ImageAnnotationCollection.uniqueIdentifier.root}.json`,
-                  JSON.stringify(aim)
-                );
-              });
-            }
-            // only get the segs if we are retrieving series. study already gets it
+                });
+              }
+              // only get the segs if we are retrieving series. study already gets it
+              if (
+                downloadParams.seg &&
+                downloadParams.seg.toLowerCase() === 'true' &&
+                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .segmentationEntityCollection
+              ) {
+                const segEntity =
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .segmentationEntityCollection.SegmentationEntity[0];
+                segRetrievePromises.push(() => {
+                  return fastify.getSegDicom(segEntity);
+                });
+              }
+              isThereDataToWrite = true;
+            });
+            await fastify.pq.addAll(aimPromises);
             if (
               downloadParams.seg &&
               downloadParams.seg.toLowerCase() === 'true' &&
-              params.series &&
-              aims.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                .segmentationEntityCollection
+              segRetrievePromises.length > 0
             ) {
-              const segEntity =
-                aims.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .segmentationEntityCollection.SegmentationEntity[0];
-              segRetrievePromises.push(() => {
-                return fastify.getSegDicom(segEntity);
-              });
+              // we need to create the segs dir. this should only happen with retrieveSegs
+              fs.mkdirSync(`${dataDir}/segs`);
+              const segWritePromises = [];
+              const segs = await fastify.pq.addAll(segRetrievePromises);
+              for (let i = 0; i < segs.length; i += 1) {
+                segWritePromises.push(() => {
+                  return fs.writeFile(`${dataDir}/segs/${segs[i].uid}.dcm`, segs[i].buffer);
+                });
+                isThereDataToWrite = true;
+              }
+              await fastify.pq.addAll(segWritePromises);
             }
-            isThereDataToWrite = true;
-          });
-          await fastify.pq.addAll(aimPromises);
-
-          if (
-            downloadParams.seg &&
-            downloadParams.seg.toLowerCase() === 'true' &&
-            segRetrievePromises.length > 0
-          ) {
-            // we need to create the segs dir. this should only happen with retrieveSegs
-            fs.mkdirSync(`${dataDir}/segs`);
-            const segWritePromises = [];
-            const segs = await fastify.pq.addAll(segRetrievePromises);
-            for (let i = 0; i < segs.length; i += 1) {
-              segWritePromises.push(() => {
-                return fs.writeFile(`${dataDir}/segs/${segs[i].uid}.dcm`, segs[i].buffer);
-              });
-              isThereDataToWrite = true;
-            }
-            await fastify.pq.addAll(segWritePromises);
           }
           resolve(isThereDataToWrite);
         } catch (err) {
@@ -7626,7 +7633,9 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  // TODO check reasoning behind retrieveSegs
+  // if the download is for one series only or a list of series, retrieveSegs is sent as true
+  // if it is study or a list of studies it is false
+  // TODO should we check if it is already downloaded?
   fastify.decorate(
     'prepSeriesDownloadDir',
     (dataDir, params, query, epadAuth, retrieveSegs, fileUids) =>
@@ -7861,7 +7870,7 @@ async function epaddb(fastify, options, done) {
                   },
                   query,
                   epadAuth,
-                  false,
+                  true,
                   fileUids
                 );
                 isThereDataToWrite = isThereDataToWrite || isThereData;
