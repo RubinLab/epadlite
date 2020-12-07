@@ -300,7 +300,7 @@ async function couchdb(fastify, options) {
     (downloadParams, aimsResult, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const offline = aimsResult.total_rows !== aimsResult.rows.count;
+          const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
           const dir = `tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
@@ -734,7 +734,7 @@ async function couchdb(fastify, options) {
           .downloadAims(
             request.query,
             {
-              total_rows: res.count,
+              total_rows: res.length,
               rows: res,
             },
             request.epadAuth
