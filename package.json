@@ -54,7 +54,7 @@
   "scripts": {
     "start": "node server.js",
     "pretest": "eslint --ignore-path .gitignore .",
-    "test": "NODE_ENV=test NODE_OPTIONS='--trace-warnings' mocha --no-parallel --timeout 10000"
+    "test": "NODE_ENV=test NODE_OPTIONS='--trace-warnings' mocha --timeout 20000"
   },
   "keywords": [
     "ePad",
