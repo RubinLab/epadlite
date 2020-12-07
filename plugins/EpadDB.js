@@ -10599,6 +10599,33 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  // need to add hook for close to remove the db if test;
+  fastify.decorate(
+    'closeDB',
+    (instance) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          if (config.env === 'test') {
+            try {
+              // if it is test remove the database
+              await instance.orm.query(`DROP DATABASE ${config.thickDb.name};`);
+              fastify.log.info('Destroying mariadb test database');
+            } catch (err) {
+              fastify.log.error(`Cannot destroy mariadb test database (err:${err.message})`);
+            }
+          }
+          try {
+            await instance.orm.close();
+          } catch (err) {
+            fastify.log.error(`Cannot close connection to (err:${err.message})`);
+          }
+          resolve();
+        } catch (err) {
+          reject(new InternalError('close', err));
+        }
+      })
+  );
+
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
@@ -10607,24 +10634,6 @@ async function epaddb(fastify, options, done) {
       fastify.log.error(`Cannot connect to mariadb (err:${err.message}), shutting down the server`);
       fastify.close();
     }
-    // need to add hook for close to remove the db if test;
-    fastify.addHook('onClose', async (instance, doneClose) => {
-      if (config.env === 'test') {
-        try {
-          // if it is test remove the database
-          await instance.orm.query(`DROP DATABASE ${config.thickDb.name};`);
-          fastify.log.info('Destroying mariadb test database');
-        } catch (err) {
-          fastify.log.error(`Cannot destroy mariadb test database (err:${err.message})`);
-        }
-      }
-      try {
-        await instance.orm.close();
-      } catch (err) {
-        fastify.log.error(`Cannot close connection to (err:${err.message})`);
-      }
-      doneClose();
-    });
   });
 }
 // expose as plugin so the module using it can access the decorated methods
