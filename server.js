@@ -20,7 +20,7 @@ const fastify = require('fastify')({
 
 fastify.addContentTypeParser('*', (_, payload, done) => {
   let data = [];
-  payload.on('data', chunk => {
+  payload.on('data', (chunk) => {
     data.push(chunk);
   });
   payload.on('end', () => {
@@ -140,7 +140,7 @@ fastify.register(require('fastify-nodemailer'), {
 // Run the server!
 fastify.listen(port, host);
 
-fastify.ready(err => {
+fastify.ready((err) => {
   if (err) throw err;
 
   fastify.swagger();
