@@ -7566,12 +7566,16 @@ async function epaddb(fastify, options, done) {
           ];
           const data = [];
           const aims = aimsResult.rows;
-          if (aims.count < aimsResult.total_rows) {
-            let totalAimCount = aims.count;
+          if (aims.length < aimsResult.total_rows) {
+            fastify.log.info(
+              `Download requires time to get ${Math.ceil(
+                aimsResult.total_rows / aims.length
+              )} batches`
+            );
+            let totalAimCount = aims.length;
             let { bookmark } = aimsResult;
             // put the first batch
             isThereDataToWrite =
-              isThereDataToWrite ||
               (await fastify.prepAimDownloadOneBatch(
                 dataDir,
                 params,
@@ -7579,7 +7583,9 @@ async function epaddb(fastify, options, done) {
                 aims,
                 header,
                 data
-              ));
+              )) || isThereDataToWrite;
+            fastify.log.info('Downloaded first batch');
+            let i = 2;
             // get batches and put them in download dir till we get all aims
             while (totalAimCount < aimsResult.total_rows) {
               // eslint-disable-next-line no-await-in-loop
@@ -7591,7 +7597,6 @@ async function epaddb(fastify, options, done) {
                 bookmark
               );
               isThereDataToWrite =
-                isThereDataToWrite ||
                 // eslint-disable-next-line no-await-in-loop
                 (await fastify.prepAimDownloadOneBatch(
                   dataDir,
@@ -7600,10 +7605,13 @@ async function epaddb(fastify, options, done) {
                   newResult.rows,
                   header,
                   data
-                ));
+                )) || isThereDataToWrite;
               // eslint-disable-next-line prefer-destructuring
               bookmark = newResult.bookmark;
-              totalAimCount += newResult.rows.count;
+              totalAimCount += newResult.rows.length;
+
+              fastify.log.info(`Downloaded batch ${i}`);
+              i += 1;
             }
           } else {
             isThereDataToWrite = await fastify.prepAimDownloadOneBatch(

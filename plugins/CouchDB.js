@@ -293,7 +293,7 @@ async function couchdb(fastify, options) {
     return row;
   });
 
-  // returns stream if online (total_rows===aimsResult.rows.count)
+  // returns stream if online (total_rows===aimsResult.rows.length)
   // zip file path otherwise
   fastify.decorate(
     'downloadAims',
@@ -311,17 +311,16 @@ async function couchdb(fastify, options) {
             fs.mkdirSync(`${dir}/annotations`);
 
             isThereDataToWrite =
-              isThereDataToWrite ||
               (await fastify.prepAimDownload(
                 `${dir}/annotations`,
                 {},
                 epadAuth,
                 downloadParams,
                 aimsResult
-              ));
-
+              )) || isThereDataToWrite;
             if (isThereDataToWrite) {
               const downloadFolder = path.join(__dirname, '../download');
+              if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
               const zipFilePath = offline
                 ? `${downloadFolder}/annotations_${timestamp}.zip`
                 : `${dir}/annotations.zip`;
@@ -337,8 +336,12 @@ async function couchdb(fastify, options) {
                 .pipe(output);
 
               output.on('close', () => {
-                fastify.log.info(`Created zip in ${dir}`);
+                fastify.log.info(`Created zip in ${zipFilePath}`);
                 if (offline) {
+                  fs.remove(dir, (error) => {
+                    if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                    else fastify.log.info(`${dir} deleted`);
+                  });
                   resolve(zipFilePath);
                 } else {
                   const readStream = fs.createReadStream(`${dir}/annotations.zip`);
@@ -502,7 +505,7 @@ async function couchdb(fastify, options) {
                             from: config.notificationEmail.address,
                             to: epadAuth.email,
                             subject: 'Download Ready',
-                            text: `Your download is ready and available <a href='${result}'>here</a>`,
+                            html: `Your download is ready and available <a href='${result}'>here</a>`,
                           },
                           (err, info) => {
                             if (err) console.log(err);
