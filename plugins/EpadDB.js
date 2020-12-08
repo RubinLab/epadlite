@@ -4652,51 +4652,6 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  // from CouchDB
-  // fastify.decorate('getSeriesAimsFromProject', async (request, reply) => {
-  //   const project = await models.project.findOne({ where: { projectid: request.params.project } });
-  //     const aimUids = [];
-  //     const projectSubjects = await models.project_subject.findAll({ where: { project_id: project.id } });
-  //     if (projectSubjects)
-  //       // projects will be an array of Project instances with the specified name
-  //       projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
-  //     const result = await fastify.getPatientsInternal(subjectUids);
-  //     reply.code(200).send(result);
-  //   fastify
-  //     .getAimsInternal(request.query.format, request.params)
-  //     .then(result => {
-  //       if (request.query.format === 'stream') {
-  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-  //       }
-  //       reply.code(200).send(result);
-  //     })
-  //     .catch(err => reply.code(503).send(err));
-  // });
-
-  // fastify.decorate('getStudyAims', (request, reply) => {
-  //   fastify
-  //     .getAimsInternal(request.query.format, request.params)
-  //     .then(result => {
-  //       if (request.query.format === 'stream') {
-  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-  //       }
-  //       reply.code(200).send(result);
-  //     })
-  //     .catch(err => reply.code(503).send(err));
-  // });
-
-  // fastify.decorate('getSubjectAims', (request, reply) => {
-  //   fastify
-  //     .getAimsInternal(request.query.format, request.params)
-  //     .then(result => {
-  //       if (request.query.format === 'stream') {
-  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-  //       }
-  //       reply.code(200).send(result);
-  //     })
-  //     .catch(err => reply.code(503).send(err));
-  // });
-
   fastify.decorate(
     'getAimUidsForProjectFilter',
     (params, filter) =>
