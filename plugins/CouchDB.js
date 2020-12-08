@@ -499,24 +499,26 @@ async function couchdb(fastify, options) {
                           new EpadNotification(request, 'Download ready', link, false).notify(
                             fastify
                           );
-                        fastify.nodemailer.sendMail(
-                          {
-                            from: config.notificationEmail.address,
-                            to: epadAuth.email,
-                            subject: 'ePAD - Download Ready',
-                            html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
-                          },
-                          (err, info) => {
-                            if (err)
-                              fastify.log.error(
-                                `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
-                              );
-                            else
-                              fastify.log.info(
-                                `Email accepted for ${JSON.stringify(info.accepted)}`
-                              );
-                          }
-                        );
+                        if (config.notificationEmail) {
+                          fastify.nodemailer.sendMail(
+                            {
+                              from: config.notificationEmail.address,
+                              to: epadAuth.email,
+                              subject: 'ePAD - Download Ready',
+                              html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
+                            },
+                            (err, info) => {
+                              if (err)
+                                fastify.log.error(
+                                  `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
+                                );
+                              else
+                                fastify.log.info(
+                                  `Email accepted for ${JSON.stringify(info.accepted)}`
+                                );
+                            }
+                          );
+                        }
                       })
                       .catch((err) => reject(err));
                     resolve({ total_rows: resObj.total_rows });
