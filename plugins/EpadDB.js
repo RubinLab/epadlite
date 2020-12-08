@@ -9717,7 +9717,9 @@ async function epaddb(fastify, options, done) {
 
           resolve();
         } catch (err) {
-          reject(new InternalError(`Saving notification ${config.statsEpad}`, err));
+          reject(
+            new InternalError(`Getting notifications for user ${request.epadAuth.username}`, err)
+          );
         }
       })
   );
