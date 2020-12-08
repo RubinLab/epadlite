@@ -2266,8 +2266,6 @@ async function epaddb(fastify, options, done) {
               typeof processmultipleaims !== 'object'
             ) {
               try {
-                // @cavit TODO if the plugin is trying to get more than 200 aims this will get only the first 200
-                // use prepaimdownload instead
                 // eslint-disable-next-line no-await-in-loop
                 const source = await fastify.getAimsInternal(
                   'stream',
