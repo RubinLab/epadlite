@@ -1580,6 +1580,9 @@ async function other(fastify) {
             epadAuth.permissions = user.permissions;
             epadAuth.projectToRole = user.projectToRole;
             epadAuth.admin = user.admin;
+            // putting the email from db in epadAuth
+            // TODO what if they change it just in keycloak
+            epadAuth.email = user.email;
           }
         } catch (errUser) {
           reject(errUser);
@@ -1639,6 +1642,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
