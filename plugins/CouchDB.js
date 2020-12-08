@@ -297,7 +297,7 @@ async function couchdb(fastify, options) {
   // zip file path otherwise
   fastify.decorate(
     'downloadAims',
-    (downloadParams, aimsResult, epadAuth) =>
+    (downloadParams, aimsResult, epadAuth, params) =>
       new Promise(async (resolve, reject) => {
         try {
           const offline = aimsResult.total_rows !== aimsResult.rows.length;
@@ -313,7 +313,7 @@ async function couchdb(fastify, options) {
             isThereDataToWrite =
               (await fastify.prepAimDownload(
                 `${dir}/annotations`,
-                {},
+                params || {},
                 epadAuth,
                 downloadParams,
                 aimsResult
@@ -490,7 +490,7 @@ async function couchdb(fastify, options) {
                   if (resObj.total_rows !== resObj.rows.length) {
                     // get everything and send an email
                     fastify
-                      .downloadAims({ aim: 'true' }, resObj, epadAuth)
+                      .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
                       .then((result) => {
                         fastify.log.info(`Zip file ready in ${result}`);
                         // get the protocol and hostname from the request
@@ -526,7 +526,7 @@ async function couchdb(fastify, options) {
                   } else {
                     // download aims only
                     fastify
-                      .downloadAims({ aim: 'true' }, resObj, epadAuth)
+                      .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
                       .then((result) => resolve(result))
                       .catch((err) => reject(err));
                   }
