@@ -342,7 +342,7 @@ async function couchdb(fastify, options) {
                     if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                     else fastify.log.info(`${dir} deleted`);
                   });
-                  resolve(zipFilePath);
+                  resolve(`/download/annotations_${timestamp}.zip`);
                 } else {
                   const readStream = fs.createReadStream(`${dir}/annotations.zip`);
                   // delete tmp folder after the file is sent
@@ -504,12 +504,18 @@ async function couchdb(fastify, options) {
                           {
                             from: config.notificationEmail.address,
                             to: epadAuth.email,
-                            subject: 'Download Ready',
-                            html: `Your download is ready and available <a href='${result}'>here</a>`,
+                            subject: 'ePAD - Download Ready',
+                            html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
                           },
                           (err, info) => {
-                            if (err) console.log(err);
-                            console.log('info', info);
+                            if (err)
+                              fastify.log.error(
+                                `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
+                              );
+                            else
+                              fastify.log.info(
+                                `Email accepted for ${JSON.stringify(info.accepted)}`
+                              );
                           }
                         );
                       })
