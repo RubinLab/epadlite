@@ -4256,6 +4256,27 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate(
+    'getProjectAimCountMap',
+    (params, epadAuth, field) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let whereJSON = {};
+          if (params.project) whereJSON = { ...whereJSON, '$project.projectid$': params.project };
+          if (params.subject) whereJSON = { ...whereJSON, subject_uid: params.subject };
+          if (params.study) whereJSON = { ...whereJSON, study_uid: params.study };
+          const projectAims = await models.project_aim.findAll({
+            where: whereJSON,
+            attributes: ['aim_uid', 'user', field],
+            include: [{ model: models.project }],
+          });
+          resolve(fastify.getAimCountMap(projectAims, params.project, epadAuth, field));
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate('getAimCountMap', (projectAims, project, epadAuth, field) => {
     const aimsCountMap = {};
     // if all or undefined no aim counts
