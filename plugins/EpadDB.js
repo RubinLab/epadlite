@@ -4822,7 +4822,8 @@ async function epaddb(fastify, options, done) {
         request.params,
         filter,
         request.epadAuth,
-        request.query.bookmark
+        request.query.bookmark,
+        request
       );
       if (request.query.report) {
         switch (request.query.report) {

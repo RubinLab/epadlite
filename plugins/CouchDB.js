@@ -13,7 +13,7 @@ const {
   BadRequestError,
   UnauthenticatedError,
 } = require('../utils/EpadErrors');
-// const EpadNotification = require('../utils/EpadNotification');
+const EpadNotification = require('../utils/EpadNotification');
 
 async function couchdb(fastify, options) {
   fastify.decorate('init', async () => {
@@ -470,7 +470,7 @@ async function couchdb(fastify, options) {
   // add accessor methods with decorate
   fastify.decorate(
     'getAimsInternal',
-    (format, params, filter, epadAuth, bookmark) =>
+    (format, params, filter, epadAuth, bookmark, request) =>
       new Promise((resolve, reject) => {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
@@ -493,13 +493,12 @@ async function couchdb(fastify, options) {
                       .downloadAims({ aim: 'true' }, resObj, epadAuth)
                       .then((result) => {
                         fastify.log.info(`Zip file ready in ${result}`);
-                        // // send notification and/or email with link
-                        // new EpadNotification(
-                        //   request,
-                        //   'Download ready',
-                        //   `${params.subject} ${params.study} ${params.series}`,
-                        //   true
-                        // ).notify(fastify);
+                        const link = `http://${fastify.hostname}${result}`;
+                        // send notification and/or email with link
+                        if (request)
+                          new EpadNotification(request, 'Download ready', link, false).notify(
+                            fastify
+                          );
                         fastify.nodemailer.sendMail(
                           {
                             from: config.notificationEmail.address,
@@ -687,7 +686,8 @@ async function couchdb(fastify, options) {
         request.params,
         undefined,
         request.epadAuth,
-        request.query.bookmark
+        request.query.bookmark,
+        request
       );
       if (request.query.format === 'stream') {
         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
