@@ -137,6 +137,14 @@ fastify.register(require('fastify-nodemailer'), {
     pass: config.notificationEmail.password,
   },
 });
+
+// download folder required for static
+const downloadFolder = path.join(__dirname, '/download');
+if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
+fastify.register(require('fastify-static'), {
+  root: path.join(__dirname, 'download'),
+  prefix: '/download/',
+});
 // Run the server!
 fastify.listen(port, host);
 
