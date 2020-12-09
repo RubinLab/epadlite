@@ -9414,7 +9414,7 @@ async function epaddb(fastify, options, done) {
 
           let numOfAims = 0;
           let numOfTemplateAimsMap = {};
-          if (config.env !== 'test' && config.mode === 'thick') {
+          if (config.env !== 'test') {
             numOfAims = await models.project_aim.count({
               col: 'aim_uid',
               distinct: true,
@@ -9424,17 +9424,6 @@ async function epaddb(fastify, options, done) {
               attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
               raw: true,
             });
-          } else {
-            // TODO check for very large aim count (affected by pagination)
-            // sending empty epadAuth, would fail in thick mode, but this is not called on thick mode
-            const aimsRes = await fastify.getAimsInternal('summary', {}, undefined, {});
-            const aims = aimsRes.rows;
-            numOfAims = aims.length;
-            for (let i = 0; i < aims.length; i += 1) {
-              if (numOfTemplateAimsMap[aims[i].template])
-                numOfTemplateAimsMap[aims[i].template] += 1;
-              numOfTemplateAimsMap[aims[i].template] = 1;
-            }
           }
 
           // TODO are these correct? check with thick
