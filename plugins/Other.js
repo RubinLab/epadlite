@@ -1214,7 +1214,7 @@ async function other(fastify) {
               });
             });
             promisses.push(() => {
-              return fastify.deleteAimsInternal(params, epadAuth);
+              return fastify.deleteAimsInternal(params, epadAuth, { all: 'true' });
             });
             pq.addAll(promisses)
               .then(() => {
@@ -1268,7 +1268,7 @@ async function other(fastify) {
         return fastify.deleteStudyDicomsInternal(params);
       });
       promisses.push(() => {
-        return fastify.deleteAimsInternal(params, epadAuth);
+        return fastify.deleteAimsInternal(params, epadAuth, { all: 'true' });
       });
       pq.addAll(promisses)
         .then(() => {
@@ -1298,7 +1298,7 @@ async function other(fastify) {
         return fastify.deleteSeriesAimProjectRels(request.params);
       });
       promisses.push(() => {
-        return fastify.deleteAimsInternal(request.params, request.epadAuth);
+        return fastify.deleteAimsInternal(request.params, request.epadAuth, { all: 'true' });
       });
       if (config.env !== 'test') {
         fastify.log.info(

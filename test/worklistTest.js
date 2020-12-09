@@ -801,5 +801,18 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
+    it('aims should delete all aims in testProgressP ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testProgressP/aims')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
   });
 });
