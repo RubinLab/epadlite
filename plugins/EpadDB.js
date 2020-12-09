@@ -5425,13 +5425,15 @@ async function epaddb(fastify, options, done) {
           if (!subject) {
             resolve('No DICOMS, skipping report generation');
           } else {
-            // TODO assuming one patient won't have over 200 aims in one project. if so handle it
             // just RECIST for now
             const result = await fastify.getAimsInternal(
               'json',
               { project: projectUid, subject: subjectUid },
               undefined,
-              epadAuth
+              epadAuth,
+              undefined,
+              undefined,
+              true
             );
             await fastify.getAndSaveRecist(projectId, subject, result.rows, epadAuth, transaction);
             resolve('Reports updated!');
@@ -10234,11 +10236,18 @@ async function epaddb(fastify, options, done) {
             );
             fastify.log.warn('Lite project is created');
 
-            // TODO if there are more than 200 aims it is going to fail migrating!
             // fill in each project relation table
             // 1. project_aim
             // get aims from couch and add entities
-            const aimsRes = await fastify.getAimsInternal('json', {}, undefined, epadAuth);
+            const aimsRes = await fastify.getAimsInternal(
+              'json',
+              {},
+              undefined,
+              epadAuth,
+              undefined,
+              undefined,
+              true
+            );
             const aims = aimsRes.rows;
             for (let i = 0; i < aims.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop

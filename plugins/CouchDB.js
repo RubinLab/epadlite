@@ -470,7 +470,7 @@ async function couchdb(fastify, options) {
   // add accessor methods with decorate
   fastify.decorate(
     'getAimsInternal',
-    (format, params, filter, epadAuth, bookmark, request) =>
+    (format, params, filter, epadAuth, bookmark, request, all = false) =>
       new Promise((resolve, reject) => {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
@@ -531,13 +531,60 @@ async function couchdb(fastify, options) {
                       .catch((err) => reject(err));
                   }
                 } else {
-                  resolve(resObj);
+                  fastify
+                    .getAllAimPages(resObj, db, dbFilter, format, all)
+                    .then((returnResObj) => resolve(returnResObj))
+                    .catch((err) =>
+                      fastify.log.error(`Could not get all pages for aims. Error: ${err.message}`)
+                    );
                 }
               } catch (err2) {
                 reject(new InternalError('Packing download or sending', err2));
               }
             })
             .catch((error) => reject(error));
+        } catch (err) {
+          reject(new InternalError('Get aims', err));
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getAllAimPages',
+    (resObj, db, dbFilter, format, all) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const returnResObj = resObj;
+          // get all batches
+          let totalAimCount = resObj.rows.length;
+          let newBookmark = resObj.bookmark;
+          if (all && resObj.total_rows !== resObj.rows.length) {
+            fastify.log.info(
+              `Get requires time to get ${Math.ceil(
+                resObj.total_rows / resObj.rows.length
+              )} batches`
+            );
+            fastify.log.info('Got first batch');
+            let i = 2;
+            // get batches till we get all aims
+            while (totalAimCount < resObj.total_rows && i < 5) {
+              // eslint-disable-next-line no-await-in-loop
+              const newResult = await fastify.getAimsCouchInternal(
+                db,
+                dbFilter,
+                format,
+                newBookmark
+              );
+              newBookmark = newResult.bookmark;
+              totalAimCount += newResult.rows.length;
+              returnResObj.rows.push(...newResult.rows);
+
+              fastify.log.info(`Got batch ${i}`);
+              i += 1;
+            }
+          }
+          fastify.log.info(`Resolving ${totalAimCount} aims`);
+          resolve(returnResObj);
         } catch (err) {
           reject(new InternalError('Get aims', err));
         }
