@@ -62,6 +62,8 @@ fastify.register(require('./plugins/Other'));
 
 fastify.register(require('./plugins/Reporting'));
 
+fastify.register(require('./plugins/Ontology'));
+
 const port = process.env.port || '8080';
 const host = process.env.host || '0.0.0.0';
 
@@ -90,6 +92,7 @@ fastify.register(
         { name: 'worklist', description: 'Worklist related end-points' },
         { name: 'user', description: 'User related end-points' },
         { name: 'images', description: 'Image related end-points' },
+        { name: 'ontology', description: 'lexicon related end-points' },
       ],
       externalDocs: {
         url: 'https://swagger.io',
@@ -122,6 +125,7 @@ fastify.register(require('./routes/project'), { prefix: config.prefix }); // esl
 fastify.register(require('./routes/projectTemplate'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
+fastify.register(require('./routes/ontology'), { prefix: config.prefix }); // eslint-disable-line global-require
 
 if (config.mode === 'thick') {
   fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require
