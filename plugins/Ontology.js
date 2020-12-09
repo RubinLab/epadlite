@@ -22,17 +22,18 @@ async function Ontology(fastify) {
       fastify.log.info('get all');
 
       const lexicon = await models.lexicon.findAll();
+      console.log('get all : ', lexicon);
       for (let i = 0; i < lexicon.length; i += 1) {
         const lexiconObj = {
-          ID: lexicon.dataValues.ID,
-          CODE_MEANING: lexicon.dataValues.CODE_MEANING,
-          CODE_VALUE: lexicon.dataValues.CODE_VALUE,
-          description: lexicon.dataValues.description,
-          createdtime: lexicon.dataValues.createdtime,
-          updatetime: lexicon.dataValues.updatetime,
-          SCHEMA_DESIGNATOR: lexicon.dataValues.SCHEMA_DESIGNATOR,
-          SCHEMA_VERSION: lexicon.dataValues.SCHEMA_VERSION,
-          creator: lexicon.dataValues.creator,
+          ID: lexicon[i].dataValues.ID,
+          CODE_MEANING: lexicon[i].dataValues.CODE_MEANING,
+          CODE_VALUE: lexicon[i].dataValues.CODE_VALUE,
+          description: lexicon[i].dataValues.description,
+          createdtime: lexicon[i].dataValues.createdtime,
+          updatetime: lexicon[i].dataValues.updatetime,
+          SCHEMA_DESIGNATOR: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
+          SCHEMA_VERSION: lexicon[i].dataValues.SCHEMA_VERSION,
+          creator: lexicon[i].dataValues.creator,
         };
         result.push(lexiconObj);
       }
@@ -62,28 +63,31 @@ async function Ontology(fastify) {
       CODE_VALUE,
       CODE_MEANING, // include
       description, // include
-      // SCHEMA_DESIGNATOR, ihtiyac yok
       SCHEMA_VERSION,
-      // creator,
     } = request.body;
     const result = [];
     try {
       const lexiconResult = await models.lexicon.findAll({
         where: {
-          $or: [CODE_VALUE, CODE_MEANING, description, SCHEMA_DESIGNATOR, SCHEMA_VERSION, creator],
+          $or: [
+            { $like: CODE_VALUE },
+            { $like: CODE_MEANING },
+            { $like: description },
+            { $like: SCHEMA_VERSION },
+          ],
         },
       });
       for (let i = 0; i < lexiconResult.length; i += 1) {
         const lexiconObj = {
-          ID: lexiconResult.dataValues.ID,
-          CODE_MEANING: lexiconResult.dataValues.CODE_MEANING,
-          CODE_VALUE: lexiconResult.dataValues.CODE_VALUE,
-          description: lexiconResult.dataValues.description,
-          createdtime: lexiconResult.dataValues.createdtime,
-          updatetime: lexiconResult.dataValues.updatetime,
-          SCHEMA_DESIGNATOR: lexiconResult.dataValues.SCHEMA_DESIGNATOR,
-          SCHEMA_VERSION: lexiconResult.dataValues.SCHEMA_VERSION,
-          creator: lexiconResult.dataValues.creator,
+          ID: lexiconResult[i].dataValues.ID,
+          CODE_MEANING: lexiconResult[i].dataValues.CODE_MEANING,
+          CODE_VALUE: lexiconResult[i].dataValues.CODE_VALUE,
+          description: lexiconResult[i].dataValues.description,
+          createdtime: lexiconResult[i].dataValues.createdtime,
+          updatetime: lexiconResult[i].dataValues.updatetime,
+          SCHEMA_DESIGNATOR: lexiconResult[i].dataValues.SCHEMA_DESIGNATOR,
+          SCHEMA_VERSION: lexiconResult[i].dataValues.SCHEMA_VERSION,
+          creator: lexiconResult[i].dataValues.creator,
         };
         result.push(lexiconObj);
       }
@@ -105,6 +109,7 @@ async function Ontology(fastify) {
         description,
         SCHEMA_DESIGNATOR,
         SCHEMA_VERSION,
+        creator,
       } = request.body;
 
       await models.lexicon.create({
@@ -113,8 +118,10 @@ async function Ontology(fastify) {
         description,
         SCHEMA_DESIGNATOR,
         SCHEMA_VERSION,
-        creator: request.epadAuth.username,
+        //  creator: request.epadAuth.username,
+        creator,
         createdtime: Date.now(),
+        updatetime: Date.now(),
       });
       reply.code(200).send('lexcion object inserted succesfully');
     } catch (err) {
