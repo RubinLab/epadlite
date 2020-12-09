@@ -134,7 +134,10 @@ fastify.ready((err) => {
 
   fastify.swagger();
 
-  fastify.addHook('onClose', (instance) => fastify.closeDB(instance));
+  fastify.addHook('onClose', async (instance) => {
+    await fastify.closeDB(instance);
+    await fastify.closeCouchDB(instance);
+  });
 });
 
 module.exports = fastify;

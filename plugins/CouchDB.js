@@ -1781,6 +1781,27 @@ async function couchdb(fastify, options) {
       .catch((err) => reply.send(err));
   });
 
+  fastify.decorate(
+    'closeCouchDB',
+    (instance) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          if (config.env === 'test') {
+            try {
+              // if it is test remove the database
+              await instance.couch.db.destroy(config.db);
+              fastify.log.info('Destroying test database');
+            } catch (err) {
+              fastify.log.error(`Cannot destroy test database (err:${err.message})`);
+            }
+          }
+          resolve();
+        } catch (err) {
+          reject(new InternalError('close', err));
+        }
+      })
+  );
+
   fastify.log.info(`Using db: ${config.db}`);
   // register couchdb
   // disables eslint check as I want this module to be standalone to be (un)pluggable
@@ -1796,19 +1817,6 @@ async function couchdb(fastify, options) {
       fastify.log.error(`Cannot connect to couchdb (err:${err}), shutting down the server`);
       fastify.close();
     }
-    // need to add hook for close to remove the db if test;
-    fastify.addHook('onClose', async (instance, done) => {
-      if (config.env === 'test') {
-        try {
-          // if it is test remove the database
-          await instance.couch.db.destroy(config.db);
-          fastify.log.info('Destroying test database');
-        } catch (err) {
-          fastify.log.error(`Cannot destroy test database (err:${err.message})`);
-        }
-        done();
-      }
-    });
   });
 }
 // expose as plugin so the module using it can access the decorated methods
