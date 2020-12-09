@@ -132,10 +132,7 @@ fastify.register(require('fastify-nodemailer'), {
   host: config.notificationEmail.host,
   port: config.notificationEmail.port,
   secure: config.notificationEmail.isTls, // use TLS
-  auth: {
-    user: config.notificationEmail.username,
-    pass: config.notificationEmail.password,
-  },
+  auth: config.notificationEmail.auth,
 });
 
 // download folder required for static
