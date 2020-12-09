@@ -7575,7 +7575,6 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  // TODO does not handle study aims!!!
   fastify.decorate(
     'prepAimDownload',
     (dataDir, params, epadAuth, downloadParams, aimsResult) =>
@@ -7753,6 +7752,23 @@ async function epaddb(fastify, options, done) {
               fileUids
             );
             isThereDataToWrite = isThereDataToWrite || isThereData;
+          }
+          if (query.includeAims && query.includeAims === 'true') {
+            const studyAimsParams = { ...params, series: '' }; // for study aims, series uid is empty
+            const aimsResult = await fastify.getAimsInternal(
+              'json',
+              studyAimsParams,
+              undefined,
+              epadAuth
+            );
+            const isThereAimToWrite = await fastify.prepAimDownload(
+              dataDir,
+              studyAimsParams,
+              epadAuth,
+              { aim: 'true' },
+              aimsResult
+            );
+            isThereDataToWrite = isThereDataToWrite || isThereAimToWrite;
           }
           const files = await fastify.getFilesFromUIDsInternal(
             { format: 'stream' },

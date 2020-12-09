@@ -395,6 +395,7 @@ async function couchdb(fastify, options) {
     if (params.subject) qryParts.push(`patient_id:'${params.subject}'`);
     if (params.study) qryParts.push(`study_uid:'${params.study}'`);
     if (params.series) qryParts.push(`series_uid:'${params.series}'`);
+    else if (params.series === '') qryParts.push(`series_uid:'noseries'`);
     if (fastify.isCollaborator(params.project, epadAuth))
       qryParts.push(`user:${epadAuth.username}`);
     if (filter) {
