@@ -5,6 +5,12 @@ async function routes(fastify) {
     url: '/ontology',
     schema: {
       tags: ['ontology'],
+      querystring: {
+        CODE_VALUE: { type: 'string' },
+        CODE_MEANING: { type: 'string' },
+        description: { type: 'string' },
+        SCHEMA_VERSION: { type: 'string' },
+      },
     },
     handler: fastify.getAll,
   });
@@ -57,35 +63,35 @@ async function routes(fastify) {
     },
     handler: fastify.insertItem,
   });
-  fastify.route({
-    method: 'PUT',
-    url: '/ontology/search',
-    schema: {
-      tags: ['ontology'],
-      body: {
-        type: 'object',
-        properties: {
-          CODE_VALUE: { type: 'string' },
-          CODE_MEANING: { type: 'string' },
-          description: { type: 'string' },
-          SCHEMA_DESIGNATOR: { type: 'string' },
-          SCHEMA_VERSION: { type: 'string' },
-          creator: { type: 'string' },
-        },
-      },
-    },
-    handler: fastify.searchTerm,
-  });
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/ontology/search',
+  //   schema: {
+  //     tags: ['ontology'],
+  //     body: {
+  //       type: 'object',
+  //       properties: {
+  //         CODE_VALUE: { type: 'string' },
+  //         CODE_MEANING: { type: 'string' },
+  //         description: { type: 'string' },
+  //         SCHEMA_DESIGNATOR: { type: 'string' },
+  //         SCHEMA_VERSION: { type: 'string' },
+  //         creator: { type: 'string' },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.searchTerm,
+  // });
 
   fastify.route({
     method: 'PUT',
-    url: '/ontology',
+    url: '/ontology/:CODE_VALUE',
     schema: {
       tags: ['ontology'],
       body: {
         type: 'object',
         properties: {
-          ID: { type: 'integer' },
+          // ID: { type: 'integer' },
           CODE_VALUE: { type: 'string' },
           CODE_MEANING: { type: 'string' },
           description: { type: 'string' },

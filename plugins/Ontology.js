@@ -1,6 +1,8 @@
+const { Op } = require('sequelize');
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
+
 const { InternalError } = require('../utils/EpadErrors');
 
 async function Ontology(fastify) {
@@ -13,16 +15,65 @@ async function Ontology(fastify) {
         path.join(__dirname, '/../models', filenames[i])
       );
     }
-    console.log('models ', models);
+    // console.log('models ', models);
+  });
+
+  fastify.decorate('addToArryOntologyInternal', (typeparam, itemobjparam, arrayobj) => {
+    console.log('inner', typeparam);
+    const itemobj = itemobjparam;
+    let type = {};
+    let obj = {};
+    if (typeof itemobj !== 'undefined') {
+      type = {
+        [Op.like]: `%${itemobj}%`,
+      };
+      obj.typeparam = type;
+      console.log('obj', obj);
+      arrayobj.push({ obj });
+    }
   });
 
   fastify.decorate('getAll', async (request, reply) => {
     const result = [];
+    let whereString = {};
+    const itemArray = [];
     try {
-      fastify.log.info('get all');
+      fastify.log.info('get all', request.query);
+      let { CODE_VALUE, CODE_MEANING, description, SCHEMA_VERSION } = request.query;
+      if (typeof CODE_VALUE !== 'undefined') {
+        CODE_VALUE = {
+          [Op.like]: `%${CODE_VALUE}%`,
+        };
+        itemArray.push({ CODE_VALUE });
+      }
+      //  fastify.addToArryOntologyInternal('CODE_VALUE', CODE_VALUE, itemArray);
+      if (typeof CODE_MEANING !== 'undefined') {
+        CODE_MEANING = {
+          [Op.like]: `%${CODE_MEANING}%`,
+        };
+        itemArray.push({ CODE_MEANING });
+      }
+      if (typeof description !== 'undefined') {
+        description = {
+          [Op.like]: `%${description}%`,
+        };
+        itemArray.push({ description });
+      }
+      if (typeof SCHEMA_VERSION !== 'undefined') {
+        SCHEMA_VERSION = {
+          [Op.like]: `%${SCHEMA_VERSION}%`,
+        };
+        itemArray.push({ SCHEMA_VERSION });
+      }
 
-      const lexicon = await models.lexicon.findAll();
-      console.log('get all : ', lexicon);
+      if (itemArray.length === 1) {
+        whereString = { where: { ...itemArray[0] } };
+      } else {
+        whereString = { where: { [Op.and]: [...itemArray] } };
+      }
+
+      const lexicon = await models.lexicon.findAll(whereString);
+
       for (let i = 0; i < lexicon.length; i += 1) {
         const lexiconObj = {
           ID: lexicon[i].dataValues.ID,
@@ -51,51 +102,10 @@ async function Ontology(fastify) {
       const lexiconObj = await models.lexicon.findOne({
         where: { CODE_VALUE },
       });
+      console.log('cavcav : ', lexiconObj);
       reply.code(200).send(lexiconObj);
     } catch (err) {
       reply.code(500).send(new InternalError(`error happened while getting lexicon term `, err));
-    }
-  });
-
-  fastify.decorate('searchTerm', async (request, reply) => {
-    fastify.log.info('search term');
-    const {
-      CODE_VALUE,
-      CODE_MEANING, // include
-      description, // include
-      SCHEMA_VERSION,
-    } = request.body;
-    const result = [];
-    try {
-      const lexiconResult = await models.lexicon.findAll({
-        where: {
-          $or: [
-            { $like: CODE_VALUE },
-            { $like: CODE_MEANING },
-            { $like: description },
-            { $like: SCHEMA_VERSION },
-          ],
-        },
-      });
-      for (let i = 0; i < lexiconResult.length; i += 1) {
-        const lexiconObj = {
-          ID: lexiconResult[i].dataValues.ID,
-          CODE_MEANING: lexiconResult[i].dataValues.CODE_MEANING,
-          CODE_VALUE: lexiconResult[i].dataValues.CODE_VALUE,
-          description: lexiconResult[i].dataValues.description,
-          createdtime: lexiconResult[i].dataValues.createdtime,
-          updatetime: lexiconResult[i].dataValues.updatetime,
-          SCHEMA_DESIGNATOR: lexiconResult[i].dataValues.SCHEMA_DESIGNATOR,
-          SCHEMA_VERSION: lexiconResult[i].dataValues.SCHEMA_VERSION,
-          creator: lexiconResult[i].dataValues.creator,
-        };
-        result.push(lexiconObj);
-      }
-      reply.code(200).send(result);
-    } catch (err) {
-      reply
-        .code(500)
-        .send(new InternalError(`error happened while searching lexicon object `, err));
     }
   });
 
@@ -134,7 +144,6 @@ async function Ontology(fastify) {
   fastify.decorate('updateItem', (request, reply) => {
     fastify.log.info('update item');
     try {
-      const lexiconid = request.body.ID;
       const {
         CODE_MEANING,
         CODE_VALUE,
@@ -153,7 +162,7 @@ async function Ontology(fastify) {
         },
         {
           where: {
-            id: lexiconid,
+            CODE_MEANING,
           },
         }
       );

@@ -1397,6 +1397,7 @@ async function other(fastify) {
         templates: 'template',
         users: 'user',
         worklists: 'worklist',
+        ontology: 'ontology',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -1852,7 +1853,10 @@ async function other(fastify) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
-              if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
+              if (
+                reqInfo.level !== 'ontology' &&
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false
+              )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
