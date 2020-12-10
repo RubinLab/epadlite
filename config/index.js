@@ -69,12 +69,4 @@ if (process.env.CORS_ORIGIN) {
 config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
 config.secret = process.env.SECRET || config.secret || undefined;
 
-config.notificationEmail = config.notificationEmail || {};
-config.notificationEmail.address = process.env.EMAIL_ADDRESS || config.notificationEmail.address;
-config.notificationEmail.host = process.env.EMAIL_HOST || config.notificationEmail.host;
-config.notificationEmail.port = process.env.EMAIL_PORT || config.notificationEmail.port || 465;
-config.notificationEmail.isTls = process.env.EMAIL_IS_TLS || config.notificationEmail.isTls || true;
-config.notificationEmail.username = process.env.EMAIL_USERNAME || config.notificationEmail.username;
-config.notificationEmail.password = process.env.EMAIL_PASSWORD || config.notificationEmail.password;
-
 module.exports = config;
