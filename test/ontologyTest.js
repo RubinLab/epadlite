@@ -8,9 +8,9 @@ const { expect } = chai;
 describe('Ontology Tests', () => {
   before(async () => {
     try {
-      console.log(`host info :http://${process.env.host}:${process.env.port}`);
+      console.log(`host info :http://${process.env.host}:8080`);
       await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
+        .request(`http://${process.env.host}:8080}`)
         .post('/ontology')
         .auth('admin', 'admin')
         // .query({ username: 'admin' })
@@ -20,7 +20,7 @@ describe('Ontology Tests', () => {
           creator: 'admin',
         });
       await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
+        .request(`http://${process.env.host}:8080`)
         .post('/ontology')
         .auth('admin', 'admin')
         // .query({ username: 'admin' })
@@ -38,11 +38,11 @@ describe('Ontology Tests', () => {
   after(async () => {
     try {
       await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
+        .request(`http://${process.env.host}:8080`)
         .delete('/ontology/testcodevalue1')
         .query({ username: 'admin' });
       await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
+        .request(`http://${process.env.host}:8080`)
         .delete('/ontology/testcodevalue2')
         .query({ username: 'admin' });
     } catch (err) {
@@ -51,7 +51,7 @@ describe('Ontology Tests', () => {
   });
   it('should have 2 lexicon data', done => {
     chai
-      .request(`http://${process.env.host}:${process.env.port}`)
+      .request(`http://${process.env.host}:8080`)
       .get('/ontology')
       .auth('admin', 'admin')
       .query({ username: 'admin' })
