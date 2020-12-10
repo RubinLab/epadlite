@@ -11,7 +11,7 @@ describe('Ontology Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/ontology')
-        .query({ username: 'admin' })
+        // .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning1',
           codevalue: 'testcodevalue1',
@@ -20,7 +20,7 @@ describe('Ontology Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/ontology')
-        .query({ username: 'admin' })
+        // .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning2',
           codevalue: 'testcodevalue2',
