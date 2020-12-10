@@ -126,14 +126,15 @@ fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix })
 if (config.mode === 'thick') {
   fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require
 }
-
-fastify.register(require('fastify-nodemailer'), {
-  pool: true,
-  host: config.notificationEmail.host,
-  port: config.notificationEmail.port,
-  secure: config.notificationEmail.isTls, // use TLS
-  auth: config.notificationEmail.auth,
-});
+if (config.notificationEmail) {
+  fastify.register(require('fastify-nodemailer'), {
+    pool: true,
+    host: config.notificationEmail.host,
+    port: config.notificationEmail.port,
+    secure: config.notificationEmail.isTls, // use TLS
+    auth: config.notificationEmail.auth,
+  });
+}
 
 // download folder required for static
 const downloadFolder = path.join(__dirname, '/download');
