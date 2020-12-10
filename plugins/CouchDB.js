@@ -722,13 +722,13 @@ async function couchdb(fastify, options) {
     return aim;
   });
 
-  fastify.decorate('isCollaborator', (project, epadAuth) => {
-    return (
+  fastify.decorate(
+    'isCollaborator',
+    (project, epadAuth) =>
       epadAuth &&
       epadAuth.projectToRole &&
       epadAuth.projectToRole.includes(`${project}:Collaborator`)
-    );
-  });
+  );
 
   fastify.decorate('getAims', async (request, reply) => {
     try {

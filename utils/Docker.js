@@ -23,7 +23,7 @@ class DockerService {
           resolve(
             // eslint-disable-next-line no-shadow
             new Promise((resolve, reject) => {
-              // eslint-disable-next-line func-names
+              // eslint-disable-next-line prefer-arrow-callback
               setTimeout(function () {
                 container.inspect((cnterr, cntdata) => {
                   if (cntdata) {
@@ -34,9 +34,7 @@ class DockerService {
                   }
                 });
               }, 3000);
-            }).catch((erra) => {
-              return erra;
-            })
+            }).catch((erra) => erra)
           );
         }
       });
@@ -48,7 +46,7 @@ class DockerService {
     return new Promise((resolve, reject) => {
       try {
         tempFastify.log.info('docker is working on stopping container', containerId);
-        // eslint-disable-next-line func-names
+        // eslint-disable-next-line prefer-arrow-callback
         this.docker.getContainer(containerId).stop(() => {
           tempFastify.log.info('container stopped  : ', containerId);
           resolve('stopped');
@@ -57,9 +55,7 @@ class DockerService {
         tempFastify.log.error('error happened while stopping container  : ', containerId);
         reject(err);
       }
-    }).catch((err) => {
-      return err;
-    });
+    }).catch((err) => err);
   }
 
   getContainerLog(containerId) {
@@ -68,10 +64,10 @@ class DockerService {
     return new Promise((resolve, reject) => {
       try {
         this.fastify.log.info('docker is working on getting log for container', containerId);
-        // eslint-disable-next-line func-names
+        // eslint-disable-next-line prefer-arrow-callback
         tmpContainer = this.docker.getContainer(`epadplugin_${containerId}`);
         tempFastify.log.info('docker service getting log for ', `epadplugin_${containerId}`);
-        // eslint-disable-next-line func-names
+        // eslint-disable-next-line prefer-arrow-callback
         tmpContainer.attach({ stream: true, stdout: true, stderr: true }, function (err, stream) {
           tempFastify.log.info('docker catched stream and resolving');
           if (err) {
@@ -87,17 +83,15 @@ class DockerService {
         );
         reject(err);
       }
-    }).catch((err) => {
-      return err;
-    });
+    }).catch((err) => err);
   }
 
   inspectContainer(containerId) {
-    // eslint-disable-next-line func-names
+    // eslint-disable-next-line prefer-arrow-callback
     // eslint-disable-next-line no-unused-vars
     return new Promise((resolve, reject) => {
       const containerTemp = this.docker.getContainer(containerId);
-      // eslint-disable-next-line func-names
+      // eslint-disable-next-line prefer-arrow-callback
       containerTemp.inspect(function (err, data) {
         // this.fastify.log.info('container came back with inspection', data);
         if (err) {
@@ -108,12 +102,10 @@ class DockerService {
         }
         resolve('container inspection took too long');
       });
-    }).catch((err) => {
-      return err;
-    });
+    }).catch((err) => err);
 
     // query API for container info
-    // eslint-disable-next-line func-names
+    // eslint-disable-next-line prefer-arrow-callback
 
     // return _this.dataObject;
   }
@@ -143,11 +135,11 @@ class DockerService {
             Binds: dockerFoldersToBind,
           },
         })
-        // eslint-disable-next-line func-names
+        // eslint-disable-next-line prefer-arrow-callback
         .then(function (container) {
           tempFastify.log.info('created container : ', container.id);
           tmpContainer = container;
-          // eslint-disable-next-line func-names
+          // eslint-disable-next-line prefer-arrow-callback
           tmpContainer.inspect(function (err, data) {
             if (err) {
               //  this.fastify.log.info(err);
@@ -163,7 +155,7 @@ class DockerService {
           });
           return tmpContainer.start();
         })
-        // eslint-disable-next-line func-names
+        // eslint-disable-next-line prefer-arrow-callback
         .then(async function () {
           const tempPluginDataRootPath = path.join(__dirname, `../pluginsDataFolder`);
           const filename = `${tempPluginDataRootPath}/${tempContainerInfo.creator}/${tempContainerInfo.id}/logs`;
@@ -171,7 +163,7 @@ class DockerService {
             'waiting for plugin to finish processing for container :',
             containerNameToGive
           );
-          // eslint-disable-next-line func-names
+          // eslint-disable-next-line prefer-arrow-callback
           tmpContainer.attach({ stream: true, stdout: true, stderr: true }, function (err, stream) {
             const strm = fs.createWriteStream(`${filename}/logfile.txt`);
             stream.pipe(strm);
@@ -180,19 +172,19 @@ class DockerService {
           tempFastify.log.info('waiting result', runRes);
           return runRes.StatusCode;
         })
-        // eslint-disable-next-line func-names
+        // eslint-disable-next-line prefer-arrow-callback
         .then(async function (errcode) {
           // errcode is recevied when container is terminated and exited with an error code > 0
           tempFastify.log.info(
             `${errcode} plugin container is done processing. Removing the container ${containerNameToGive}`
           );
-          // // eslint-disable-next-line func-names
+          // // eslint-disable-next-line prefer-arrow-callback
           const waitRes = await tmpContainer.remove();
           tempFastify.log.info(`wait response status ${waitRes}`);
 
           return waitRes;
         })
-        // eslint-disable-next-line func-names
+        // eslint-disable-next-line prefer-arrow-callback
         .catch(function (err) {
           tempFastify.log.error('error in catch docker utils creating container phase: ', err);
           return err;
@@ -218,9 +210,9 @@ class DockerService {
         });
         return contianerList;
       })
-      .catch((error) => {
-        return new Error('Something went wrong while getting docker container list', error);
-      });
+      .catch(
+        (error) => new Error('Something went wrong while getting docker container list', error)
+      );
   }
 
   listImages() {
@@ -261,7 +253,7 @@ class DockerService {
     const tempFastify = this.fastify;
     return new Promise((resolve, reject) => {
       try {
-        // eslint-disable-next-line func-names
+        // eslint-disable-next-line prefer-arrow-callback
         this.docker.pull(img, function (err, stream) {
           if (err) {
             reject(err);
@@ -299,9 +291,7 @@ class DockerService {
       } catch (err) {
         resolve(err);
       }
-    }).catch((err) => {
-      return err;
-    });
+    }).catch((err) => err);
   }
 
   checkContainerExistance(containerName) {
@@ -319,7 +309,7 @@ class DockerService {
 
       // eslint-disable-next-line prefer-destructuring
       // query API for container info
-      // eslint-disable-next-line func-names
+      // eslint-disable-next-line prefer-arrow-callback
       return container.inspect(function (err, data) {
         if (err) {
           //  this.fastify.log.info(err);
@@ -331,9 +321,7 @@ class DockerService {
           resolve(data);
         }
       });
-    }).catch((err) => {
-      return err;
-    });
+    }).catch((err) => err);
   }
 
   deleteContainer(containerName) {
@@ -348,9 +336,7 @@ class DockerService {
         tempFastify.log.error('error happened while deleting container  : ', containerName);
         reject(err);
       }
-    }).catch((err) => {
-      return err;
-    });
+    }).catch((err) => err);
   }
 }
 

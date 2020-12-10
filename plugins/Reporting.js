@@ -110,9 +110,7 @@ async function reporting(fastify) {
           const markupShapes = aimJSONs[
             i
           ].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection.MarkupEntity.map(
-            (me) => {
-              return me[`xsi:type`];
-            }
+            (me) => me[`xsi:type`]
           );
 
           // check if the shapes should be filter and if the aim matches the filter

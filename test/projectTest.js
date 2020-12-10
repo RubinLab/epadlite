@@ -53,8 +53,8 @@ beforeEach(() => {
 
   nock(config.statsEpad)
     .put('/epad/statistics/')
-    .query((query) => {
-      return (
+    .query(
+      (query) =>
         query.numOfUsers === '1' &&
         query.numOfProjects === '3' &&
         query.numOfPatients === '1' &&
@@ -67,16 +67,16 @@ beforeEach(() => {
         query.numOfPlugins === '0' &&
         query.numOfTemplates === '1' &&
         query.host.endsWith('0.0.0.0:5987')
-      );
-    })
+    )
     .reply(200);
 
   nock(config.statsEpad)
-    .put('/epad/statistics/templates/', (body) => {
-      return JSON.stringify(body) === JSON.stringify(jsonBuffer);
-    })
-    .query((query) => {
-      return (
+    .put(
+      '/epad/statistics/templates/',
+      (body) => JSON.stringify(body) === JSON.stringify(jsonBuffer)
+    )
+    .query(
+      (query) =>
         query.templateCode === 'ROI' &&
         query.templateName === 'ROIOnly' &&
         query.authors === 'amsnyder' &&
@@ -85,8 +85,7 @@ beforeEach(() => {
         query.templateDescription === 'Template used for collecting only ROIs' &&
         query.numOfAims === '0' &&
         query.host.endsWith('0.0.0.0:5987')
-      );
-    })
+    )
     .reply(200);
 });
 

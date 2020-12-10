@@ -288,9 +288,9 @@ async function other(fastify) {
           }
           // see if it was a dicom
           if (datasets.length > 0) {
-            await pqDicoms.add(() => {
-              return fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
-            });
+            await pqDicoms.add(() =>
+              fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
+            );
             datasets = [];
             studies = new Set();
           }
@@ -616,8 +616,8 @@ async function other(fastify) {
                       reject(folderErr);
                     }
                   else {
-                    promisses.push(() => {
-                      return fastify
+                    promisses.push(() =>
+                      fastify
                         .processFile(
                           zipDir,
                           files[i],
@@ -630,8 +630,8 @@ async function other(fastify) {
                         )
                         .catch((error) => {
                           result.errors.push(error);
-                        });
-                    });
+                        })
+                    );
                   }
               }
               pq.addAll(promisses).then(async (values) => {
@@ -1050,37 +1050,41 @@ async function other(fastify) {
     });
     return arr;
   });
-  fastify.decorate('parseOsirix', (docPath) => {
-    return new Promise((resolve, reject) => {
-      try {
-        const osirixObj = plist.parse(fs.readFileSync(docPath, 'utf8'));
-        resolve(osirixObj);
-      } catch (err) {
-        reject(err);
-      }
-    });
-  });
+  fastify.decorate(
+    'parseOsirix',
+    (docPath) =>
+      new Promise((resolve, reject) => {
+        try {
+          const osirixObj = plist.parse(fs.readFileSync(docPath, 'utf8'));
+          resolve(osirixObj);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
-  fastify.decorate('getImageMetaDataforOsirix', (annotation, username) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const { SOPInstanceUID, SeriesInstanceUID, StudyInstanceUID } = annotation.rois[0];
-        const parameters = {
-          instance: SOPInstanceUID,
-          series: SeriesInstanceUID,
-          study: StudyInstanceUID,
-        };
-        const seedData = await fastify.getImageMetadata(parameters);
-        const answers = fastify.getTemplateAnswers(seedData, annotation.name, '');
-        const merged = { ...seedData.aim, ...answers };
-        seedData.aim = merged;
-        seedData.user = { loginName: username, name: username };
-        resolve(seedData);
-      } catch (err) {
-        reject(new InternalError(`Getting data from image`, err));
-      }
-    });
-  });
+  fastify.decorate(
+    'getImageMetaDataforOsirix',
+    (annotation, username) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const { SOPInstanceUID, SeriesInstanceUID, StudyInstanceUID } = annotation.rois[0];
+          const parameters = {
+            instance: SOPInstanceUID,
+            series: SeriesInstanceUID,
+            study: StudyInstanceUID,
+          };
+          const seedData = await fastify.getImageMetadata(parameters);
+          const answers = fastify.getTemplateAnswers(seedData, annotation.name, '');
+          const merged = { ...seedData.aim, ...answers };
+          seedData.aim = merged;
+          seedData.user = { loginName: username, name: username };
+          resolve(seedData);
+        } catch (err) {
+          reject(new InternalError(`Getting data from image`, err));
+        }
+      })
+  );
 
   // eslint-disable-next-line consistent-return
   fastify.decorate('getTemplateAnswers', (metadata, annotationName, tempModality) => {
@@ -1206,16 +1210,14 @@ async function other(fastify) {
           .getPatientStudiesInternal(params, undefined, epadAuth, {}, true)
           .then((result) => {
             result.forEach((study) => {
-              promisses.push(() => {
-                return fastify.deleteStudyDicomsInternal({
+              promisses.push(() =>
+                fastify.deleteStudyDicomsInternal({
                   subject: params.subject,
                   study: study.studyUID,
-                });
-              });
+                })
+              );
             });
-            promisses.push(() => {
-              return fastify.deleteAimsInternal(params, epadAuth, { all: 'true' });
-            });
+            promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
             pq.addAll(promisses)
               .then(() => {
                 fastify.log.info(`Subject ${params.subject} deletion is initiated successfully`);
@@ -1260,46 +1262,42 @@ async function other(fastify) {
       });
   });
 
-  fastify.decorate('deleteStudyInternal', (params, epadAuth) => {
-    return new Promise((resolve, reject) => {
-      // delete study in dicomweb and annotations
-      const promisses = [];
-      promisses.push(() => {
-        return fastify.deleteStudyDicomsInternal(params);
-      });
-      promisses.push(() => {
-        return fastify.deleteAimsInternal(params, epadAuth, { all: 'true' });
-      });
-      pq.addAll(promisses)
-        .then(() => {
-          fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
-          resolve();
-        })
-        .catch((error) => {
-          reject(error);
-        });
-    });
-  });
+  fastify.decorate(
+    'deleteStudyInternal',
+    (params, epadAuth) =>
+      new Promise((resolve, reject) => {
+        // delete study in dicomweb and annotations
+        const promisses = [];
+        promisses.push(() => fastify.deleteStudyDicomsInternal(params));
+        promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
+        pq.addAll(promisses)
+          .then(() => {
+            fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
+            resolve();
+          })
+          .catch((error) => {
+            reject(error);
+          });
+      })
+  );
 
   fastify.decorate('deleteSeries', (request, reply) => {
     try {
       // delete study in dicomweb and annotations
       const promisses = [];
-      promisses.push(() => {
-        return fastify.deleteNonDicomSeriesInternal(request.params.series).catch((err) => {
+      promisses.push(() =>
+        fastify.deleteNonDicomSeriesInternal(request.params.series).catch((err) => {
           if (err.message !== 'No nondicom entity')
             fastify.log.warn(
               `Could not delete nondicom series. Error: ${err.message}. Trying dicom series delete`
             );
           return fastify.deleteSeriesDicomsInternal(request.params);
-        });
-      });
-      promisses.push(() => {
-        return fastify.deleteSeriesAimProjectRels(request.params);
-      });
-      promisses.push(() => {
-        return fastify.deleteAimsInternal(request.params, request.epadAuth, { all: 'true' });
-      });
+        })
+      );
+      promisses.push(() => fastify.deleteSeriesAimProjectRels(request.params));
+      promisses.push(() =>
+        fastify.deleteAimsInternal(request.params, request.epadAuth, { all: 'true' })
+      );
       if (config.env !== 'test') {
         fastify.log.info(
           `Series ${request.params.series} of Subject ${request.params.subject} deletion request recieved, sending response`
