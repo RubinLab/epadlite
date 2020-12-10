@@ -1872,7 +1872,10 @@ async function other(fastify) {
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner
-              if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
+              if (
+                reqInfo.level !== 'ontology' &&
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false
+              )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             default:

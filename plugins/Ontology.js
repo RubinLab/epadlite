@@ -33,7 +33,7 @@ async function Ontology(fastify) {
     }
   });
 
-  fastify.decorate('getAll', async (request, reply) => {
+  fastify.decorate('getOntologyAll', async (request, reply) => {
     const result = [];
     let whereString = {};
     const itemArray = [];
@@ -100,7 +100,7 @@ async function Ontology(fastify) {
     }
   });
 
-  fastify.decorate('getTerm', async (request, reply) => {
+  fastify.decorate('getOntologyTerm', async (request, reply) => {
     fastify.log.info('get term');
     const { codevalue: CODE_VALUE } = request.params;
     try {
@@ -114,7 +114,7 @@ async function Ontology(fastify) {
     }
   });
 
-  fastify.decorate('insertItem', async (request, reply) => {
+  fastify.decorate('insertOntologyItem', async (request, reply) => {
     fastify.log.info('insert item');
 
     try {
@@ -146,9 +146,10 @@ async function Ontology(fastify) {
     }
   });
 
-  fastify.decorate('updateItem', (request, reply) => {
+  fastify.decorate('updateOntologyItem', (request, reply) => {
     fastify.log.info('update item');
     try {
+      const { codevalue: codevalueprm } = request.params;
       const {
         codemeaning: CODE_MEANING,
         codevalue: CODE_VALUE,
@@ -167,13 +168,28 @@ async function Ontology(fastify) {
         },
         {
           where: {
-            CODE_MEANING,
+            CODE_VALUE: codevalueprm,
           },
         }
       );
       reply.code(200).send('lexcion object updated succesfully');
     } catch (err) {
       reply.code(500).send(new InternalError(`error happened while updating lexicon object`, err));
+    }
+  });
+
+  fastify.decorate('deleteOntologyItem', (request, reply) => {
+    fastify.log.info('update item');
+    try {
+      const { codevalue: CODE_VALUE } = request.params;
+      models.lexicon.destroy({
+        where: {
+          CODE_VALUE,
+        },
+      });
+      reply.code(200).send('lexcion object deleted succesfully');
+    } catch (err) {
+      reply.code(500).send(new InternalError(`error happened while deleting lexicon object`, err));
     }
   });
 
