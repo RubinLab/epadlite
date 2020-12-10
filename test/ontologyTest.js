@@ -15,6 +15,7 @@ describe('Ontology Tests', () => {
         .send({
           codemeaning: 'testcodemeaning1',
           codevalue: 'testcodevalue1',
+          creator: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -23,6 +24,7 @@ describe('Ontology Tests', () => {
         .send({
           codemeaning: 'testcodemeaning2',
           codevalue: 'testcodevalue2',
+          creator: 'admin',
         });
       // done();
     } catch (err) {
