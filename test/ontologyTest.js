@@ -8,9 +8,11 @@ const { expect } = chai;
 describe('Ontology Tests', () => {
   before(async () => {
     try {
+      console.log(`host info :http://${process.env.host}:${process.env.port}`);
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/ontology')
+        .auth('admin', 'admin')
         // .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning1',
@@ -20,6 +22,7 @@ describe('Ontology Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/ontology')
+        .auth('admin', 'admin')
         // .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning2',
@@ -50,6 +53,7 @@ describe('Ontology Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/ontology')
+      .auth('admin', 'admin')
       .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
