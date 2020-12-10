@@ -6,10 +6,10 @@ async function routes(fastify) {
     schema: {
       tags: ['ontology'],
       querystring: {
-        CODE_VALUE: { type: 'string' },
-        CODE_MEANING: { type: 'string' },
+        codevalue: { type: 'string' },
+        codemeaning: { type: 'string' },
         description: { type: 'string' },
-        SCHEMA_VERSION: { type: 'string' },
+        schemaversion: { type: 'string' },
       },
     },
     handler: fastify.getAll,
@@ -17,13 +17,13 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/ontology/:CODE_VALUE',
+    url: '/ontology/:codevalue',
     schema: {
       tags: ['ontology'],
       params: {
         type: 'object',
         properties: {
-          CODE_VALUE: {
+          codevalue: {
             type: 'string',
           },
         },
@@ -42,11 +42,11 @@ async function routes(fastify) {
       body: {
         type: 'object',
         properties: {
-          CODE_MEANING: { type: 'string' },
-          CODE_VALUE: { type: 'string' },
+          codemeaning: { type: 'string' },
+          codevalue: { type: 'string' },
           description: { type: 'string' },
-          SCHEMA_DESIGNATOR: { type: 'string' },
-          SCHEMA_VERSION: { type: 'string' },
+          schemadesignator: { type: 'string' },
+          schemaversion: { type: 'string' },
           creator: { type: 'string' },
         },
       },
@@ -92,11 +92,11 @@ async function routes(fastify) {
         type: 'object',
         properties: {
           // ID: { type: 'integer' },
-          CODE_VALUE: { type: 'string' },
-          CODE_MEANING: { type: 'string' },
+          codevalue: { type: 'string' },
+          codemeaning: { type: 'string' },
           description: { type: 'string' },
-          SCHEMA_DESIGNATOR: { type: 'string' },
-          SCHEMA_VERSION: { type: 'string' },
+          schemadesignator: { type: 'string' },
+          schemaversion: { type: 'string' },
         },
       },
     },

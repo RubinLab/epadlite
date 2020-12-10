@@ -20,12 +20,12 @@ async function Ontology(fastify) {
 
   fastify.decorate('addToArryOntologyInternal', (typeparam, itemobjparam, arrayobj) => {
     console.log('inner', typeparam);
-    const itemobj = itemobjparam;
+    //  const itemobj = itemobjparam;
     let type = {};
-    let obj = {};
-    if (typeof itemobj !== 'undefined') {
+    const obj = {};
+    if (typeof itemobjparam !== 'undefined') {
       type = {
-        [Op.like]: `%${itemobj}%`,
+        [Op.like]: `%${itemobjparam}%`,
       };
       obj.typeparam = type;
       console.log('obj', obj);
@@ -39,7 +39,12 @@ async function Ontology(fastify) {
     const itemArray = [];
     try {
       fastify.log.info('get all', request.query);
-      let { CODE_VALUE, CODE_MEANING, description, SCHEMA_VERSION } = request.query;
+      let {
+        codevalue: CODE_VALUE,
+        codemeaning: CODE_MEANING,
+        description,
+        schemaversion: SCHEMA_VERSION,
+      } = request.query;
       if (typeof CODE_VALUE !== 'undefined') {
         CODE_VALUE = {
           [Op.like]: `%${CODE_VALUE}%`,
@@ -76,14 +81,14 @@ async function Ontology(fastify) {
 
       for (let i = 0; i < lexicon.length; i += 1) {
         const lexiconObj = {
-          ID: lexicon[i].dataValues.ID,
-          CODE_MEANING: lexicon[i].dataValues.CODE_MEANING,
-          CODE_VALUE: lexicon[i].dataValues.CODE_VALUE,
+          id: lexicon[i].dataValues.ID,
+          codemenaing: lexicon[i].dataValues.CODE_MEANING,
+          codevalue: lexicon[i].dataValues.CODE_VALUE,
           description: lexicon[i].dataValues.description,
           createdtime: lexicon[i].dataValues.createdtime,
           updatetime: lexicon[i].dataValues.updatetime,
-          SCHEMA_DESIGNATOR: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
-          SCHEMA_VERSION: lexicon[i].dataValues.SCHEMA_VERSION,
+          schemadesignator: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
+          schemaversion: lexicon[i].dataValues.SCHEMA_VERSION,
           creator: lexicon[i].dataValues.creator,
         };
         result.push(lexiconObj);
@@ -97,7 +102,7 @@ async function Ontology(fastify) {
 
   fastify.decorate('getTerm', async (request, reply) => {
     fastify.log.info('get term');
-    const { CODE_VALUE } = request.params.CODE_VALUE;
+    const { codevalue: CODE_VALUE } = request.params;
     try {
       const lexiconObj = await models.lexicon.findOne({
         where: { CODE_VALUE },
@@ -114,11 +119,11 @@ async function Ontology(fastify) {
 
     try {
       const {
-        CODE_MEANING,
-        CODE_VALUE,
+        codemeaning: CODE_MEANING,
+        codevalue: CODE_VALUE,
         description,
-        SCHEMA_DESIGNATOR,
-        SCHEMA_VERSION,
+        schemadesignator: SCHEMA_DESIGNATOR,
+        schemaversion: SCHEMA_VERSION,
         creator,
       } = request.body;
 
@@ -145,11 +150,11 @@ async function Ontology(fastify) {
     fastify.log.info('update item');
     try {
       const {
-        CODE_MEANING,
-        CODE_VALUE,
+        codemeaning: CODE_MEANING,
+        codevalue: CODE_VALUE,
         description,
-        SCHEMA_DESIGNATOR,
-        SCHEMA_VERSION,
+        schemadesignator: SCHEMA_DESIGNATOR,
+        schemaversion: SCHEMA_VERSION,
       } = request.body;
       models.lexicon.update(
         {
