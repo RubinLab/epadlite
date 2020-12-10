@@ -267,26 +267,16 @@ async function dicomwebserver(fastify) {
               const aimsCountMap = {};
               if (!noStats)
                 _.chain(filteredAims)
-                  .groupBy((value) => {
-                    return value.subjectID;
-                  })
+                  .groupBy((value) => value.subjectID)
                   .map((value) => {
-                    const numberOfAims = _.reduce(
-                      value,
-                      (memo) => {
-                        return memo + 1;
-                      },
-                      0
-                    );
+                    const numberOfAims = _.reduce(value, (memo) => memo + 1, 0);
                     aimsCountMap[value[0].subjectID] = numberOfAims;
                   })
                   .value();
               // populate the subjects data by grouping the studies by patient id
               // and map each subject to epadlite subject object
               const result = _.chain(filteredStudies)
-                .groupBy((value) => {
-                  return value['00100020'].Value[0];
-                })
+                .groupBy((value) => value['00100020'].Value[0])
                 .map((value) => {
                   // combine the modalities in each study to create patient modatities list
                   const modalities = _.reduce(
@@ -301,13 +291,7 @@ async function dicomwebserver(fastify) {
                     []
                   );
                   // cumulate the number of studies
-                  const numberOfStudies = _.reduce(
-                    value,
-                    (memo) => {
-                      return memo + 1;
-                    },
-                    0
-                  );
+                  const numberOfStudies = _.reduce(value, (memo) => memo + 1, 0);
                   return {
                     subjectName: value[0]['00100010'].Value
                       ? value[0]['00100010'].Value[0].Alphabetic
@@ -405,9 +389,7 @@ async function dicomwebserver(fastify) {
           );
           const numberOfImages = _.reduce(
             studySeries,
-            (imageCount, series) => {
-              return imageCount + series.numberOfImages;
-            },
+            (imageCount, series) => imageCount + series.numberOfImages,
             0
           );
           resolve({ numberOfSeries: studySeries.length, numberOfImages });
@@ -471,9 +453,9 @@ async function dicomwebserver(fastify) {
                 study_id: value['00200010'].Value ? value['00200010'].Value[0] : null,
                 study_time: value['00080030'].Value ? value['00080030'].Value[0] : null,
               };
-              updateStudyPromises.push(() => {
-                return fastify.updateStudyDBRecord(studyUid, studyRec, epadAuth);
-              });
+              updateStudyPromises.push(() =>
+                fastify.updateStudyDBRecord(studyUid, studyRec, epadAuth)
+              );
             } else {
               // if it doesn't create study record and if not exists subject record
               try {
@@ -506,9 +488,9 @@ async function dicomwebserver(fastify) {
                   study_time: value['00080030'].Value ? value['00080030'].Value[0] : null,
                   subject_id: subject.id,
                 };
-                updateStudyPromises.push(() => {
-                  return fastify.updateStudyDBRecord(studyUid, studyRec, epadAuth);
-                });
+                updateStudyPromises.push(() =>
+                  fastify.updateStudyDBRecord(studyUid, studyRec, epadAuth)
+                );
               } catch (err) {
                 fastify.log.error(
                   `Could not create subject to add study ${studyUid} to epad. Error: ${err.message}`
@@ -579,17 +561,9 @@ async function dicomwebserver(fastify) {
               const aimsCountMap = {};
               if (!noStats)
                 _.chain(filteredAims)
-                  .groupBy((value) => {
-                    return value.studyUID;
-                  })
+                  .groupBy((value) => value.studyUID)
                   .map((value) => {
-                    const numberOfAims = _.reduce(
-                      value,
-                      (memo) => {
-                        return memo + 1;
-                      },
-                      0
-                    );
+                    const numberOfAims = _.reduce(value, (memo) => memo + 1, 0);
                     aimsCountMap[value[0].studyUID] = numberOfAims;
                   })
                   .value();
@@ -700,9 +674,7 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const studies = await this.request.get(`/studies${limit}`, header);
-          const studyUids = _.map(studies.data, (value) => {
-            return value['0020000D'].Value[0];
-          });
+          const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);
           let result = [];
           for (let j = 0; j < studyUids.length; j += 1) {
             // eslint-disable-next-line no-await-in-loop
@@ -761,17 +733,9 @@ async function dicomwebserver(fastify) {
               const aimsCountMap = {};
               if (noStats === undefined || noStats === false) {
                 _.chain(values[1])
-                  .groupBy((value) => {
-                    return value.seriesUID;
-                  })
+                  .groupBy((value) => value.seriesUID)
                   .map((value) => {
-                    const numberOfAims = _.reduce(
-                      value,
-                      (memo) => {
-                        return memo + 1;
-                      },
-                      0
-                    );
+                    const numberOfAims = _.reduce(value, (memo) => memo + 1, 0);
                     aimsCountMap[value[0].seriesUID] = numberOfAims;
                   })
                   .value();
@@ -781,46 +745,44 @@ async function dicomwebserver(fastify) {
               let filtered = values[0].data;
               if (query.filterDSO === 'true')
                 filtered = _.filter(values[0].data, (obj) => obj['00080060'].Value[0] !== 'SEG');
-              const result = _.map(filtered, (value) => {
-                return {
-                  projectID: params.project ? params.project : projectID,
-                  // TODO put in dicomweb but what if other dicomweb is used
-                  patientID:
-                    value['00100020'] && value['00100020'].Value
-                      ? fastify.replaceNull(value['00100020'].Value[0])
-                      : '',
-                  // TODO
-                  patientName:
-                    value['00100010'] && value['00100010'].Value
-                      ? value['00100010'].Value[0].Alphabetic
-                      : '',
-                  studyUID: value['0020000D'].Value[0],
-                  seriesUID: value['0020000E'].Value[0],
-                  seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
-                  seriesDescription:
-                    value['0008103E'] && value['0008103E'].Value ? value['0008103E'].Value[0] : '',
-                  examType: value['00080060'].Value ? value['00080060'].Value[0] : '',
-                  bodyPart: '', // TODO
-                  accessionNumber:
-                    value['00080050'] && value['00080050'].Value ? value['00080050'].Value[0] : '',
-                  numberOfImages:
-                    value['00201209'] && value['00201209'].Value ? value['00201209'].Value[0] : '',
-                  numberOfSeriesRelatedInstances:
-                    value['00201209'] && value['00201209'].Value ? value['00201209'].Value[0] : '',
-                  numberOfAnnotations: aimsCountMap[value['0020000E'].Value[0]]
-                    ? aimsCountMap[value['0020000E'].Value[0]]
-                    : 0,
-                  institution: '', // TODO
-                  stationName: '', // TODO
-                  department: '', // TODO
-                  createdTime: '', // TODO
-                  firstImageUIDInSeries: '', // TODO
-                  isDSO: value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
-                  isNonDicomSeries: false, // TODO
-                  seriesNo:
-                    value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
-                };
-              });
+              const result = _.map(filtered, (value) => ({
+                projectID: params.project ? params.project : projectID,
+                // TODO put in dicomweb but what if other dicomweb is used
+                patientID:
+                  value['00100020'] && value['00100020'].Value
+                    ? fastify.replaceNull(value['00100020'].Value[0])
+                    : '',
+                // TODO
+                patientName:
+                  value['00100010'] && value['00100010'].Value
+                    ? value['00100010'].Value[0].Alphabetic
+                    : '',
+                studyUID: value['0020000D'].Value[0],
+                seriesUID: value['0020000E'].Value[0],
+                seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
+                seriesDescription:
+                  value['0008103E'] && value['0008103E'].Value ? value['0008103E'].Value[0] : '',
+                examType: value['00080060'].Value ? value['00080060'].Value[0] : '',
+                bodyPart: '', // TODO
+                accessionNumber:
+                  value['00080050'] && value['00080050'].Value ? value['00080050'].Value[0] : '',
+                numberOfImages:
+                  value['00201209'] && value['00201209'].Value ? value['00201209'].Value[0] : '',
+                numberOfSeriesRelatedInstances:
+                  value['00201209'] && value['00201209'].Value ? value['00201209'].Value[0] : '',
+                numberOfAnnotations: aimsCountMap[value['0020000E'].Value[0]]
+                  ? aimsCountMap[value['0020000E'].Value[0]]
+                  : 0,
+                institution: '', // TODO
+                stationName: '', // TODO
+                department: '', // TODO
+                createdTime: '', // TODO
+                firstImageUIDInSeries: '', // TODO
+                isDSO: value['00080060'].Value && value['00080060'].Value[0] === 'SEG',
+                isNonDicomSeries: false, // TODO
+                seriesNo:
+                  value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
+              }));
               resolve(result);
             })
             .catch((error) => {
@@ -850,56 +812,50 @@ async function dicomwebserver(fastify) {
               // handle success
               // map each instance to epadlite image object
               const result = _.chain(response.data)
-                .map((value) => {
-                  return {
-                    projectID: params.project ? params.project : projectID,
-                    patientID:
-                      value['00100020'] && value['00100020'].Value
-                        ? fastify.replaceNull(value['00100020'].Value[0])
-                        : '',
-                    studyUID: value['0020000D'].Value ? value['0020000D'].Value[0] : '',
-                    seriesUID: value['0020000E'].Value ? value['0020000E'].Value[0] : '',
-                    imageUID: value['00080018'].Value ? value['00080018'].Value[0] : '',
-                    classUID:
-                      value['00080016'] && value['00080016'].Value
-                        ? value['00080016'].Value[0]
-                        : '',
-                    insertDate: '', // no date in studies call
-                    imageDate: '', // TODO
-                    sliceLocation: '', // TODO
-                    instanceNumber: Number(
-                      value['00200013'] && value['00200013'].Value
-                        ? value['00200013'].Value[0]
-                        : '1'
-                    ),
-                    losslessImage: '', // TODO
-                    // lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
-                    //   value['00080018'].Value[0]
-                    // }`,
-                    // send wado-uri instead of wado-rs
-                    lossyImage: fastify.getWadoPath(
-                      params.study,
-                      params.series,
-                      value['00080018'].Value[0]
-                    ),
-                    dicomElements: '', // TODO
-                    defaultDICOMElements: '', // TODO
-                    numberOfFrames:
-                      value['00280008'] && value['00280008'].Value ? value['00280008'].Value[0] : 1,
-                    isDSO:
-                      value['00080060'] && value['00080060'].Value
-                        ? value['00080060'].Value[0] === 'SEG'
-                        : false,
-                    multiFrameImage:
-                      value['00280008'] && value['00280008'].Value
-                        ? value['00280008'].Value[0] > 1
-                        : false,
-                    isFlaggedImage: '', // TODO
-                    rescaleIntercept: '', // TODO
-                    rescaleSlope: '', // TODO
-                    sliceOrder: '', // TODO
-                  };
-                })
+                .map((value) => ({
+                  projectID: params.project ? params.project : projectID,
+                  patientID:
+                    value['00100020'] && value['00100020'].Value
+                      ? fastify.replaceNull(value['00100020'].Value[0])
+                      : '',
+                  studyUID: value['0020000D'].Value ? value['0020000D'].Value[0] : '',
+                  seriesUID: value['0020000E'].Value ? value['0020000E'].Value[0] : '',
+                  imageUID: value['00080018'].Value ? value['00080018'].Value[0] : '',
+                  classUID:
+                    value['00080016'] && value['00080016'].Value ? value['00080016'].Value[0] : '',
+                  insertDate: '', // no date in studies call
+                  imageDate: '', // TODO
+                  sliceLocation: '', // TODO
+                  instanceNumber: Number(
+                    value['00200013'] && value['00200013'].Value ? value['00200013'].Value[0] : '1'
+                  ),
+                  losslessImage: '', // TODO
+                  // lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
+                  //   value['00080018'].Value[0]
+                  // }`,
+                  // send wado-uri instead of wado-rs
+                  lossyImage: fastify.getWadoPath(
+                    params.study,
+                    params.series,
+                    value['00080018'].Value[0]
+                  ),
+                  dicomElements: '', // TODO
+                  defaultDICOMElements: '', // TODO
+                  numberOfFrames:
+                    value['00280008'] && value['00280008'].Value ? value['00280008'].Value[0] : 1,
+                  isDSO:
+                    value['00080060'] && value['00080060'].Value
+                      ? value['00080060'].Value[0] === 'SEG'
+                      : false,
+                  multiFrameImage:
+                    value['00280008'] && value['00280008'].Value
+                      ? value['00280008'].Value[0] > 1
+                      : false,
+                  isFlaggedImage: '', // TODO
+                  rescaleIntercept: '', // TODO
+                  rescaleSlope: '', // TODO
+                  sliceOrder: '', // TODO
+                }))
                 .sortBy('instanceNumber')
                 .value();
               resolve(result);
@@ -929,12 +885,12 @@ async function dicomwebserver(fastify) {
       .catch((err) => reply.send(new InternalError('WADO', err)));
   });
 
-  fastify.decorate('getWadoInternal', (params) => {
-    return this.request.get(
+  fastify.decorate('getWadoInternal', (params) =>
+    this.request.get(
       `/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${params.image}`,
       { ...header, responseType: 'stream' }
-    );
-  });
+    )
+  );
 
   fastify.decorate('getPatient', (request, reply) => {
     fastify

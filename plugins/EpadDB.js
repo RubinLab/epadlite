@@ -661,24 +661,23 @@ async function epaddb(fastify, options, done) {
                   project_id: projectId,
                 },
               })
-              .catch((err) => {
-                return new InternalError(
-                  `Deleting project relation from projectplugin_project ${projectId}`,
-                  err
-                );
-              });
+              .catch(
+                (err) =>
+                  new InternalError(
+                    `Deleting project relation from projectplugin_project ${projectId}`,
+                    err
+                  )
+              );
             return 0;
           })
-          .catch((err) => {
-            return new InternalError(
-              `Deleting project relation from project_plugin ${projectId}`,
-              err
-            );
-          });
+          .catch(
+            (err) =>
+              new InternalError(`Deleting project relation from project_plugin ${projectId}`, err)
+          );
       })
-      .catch((err) => {
-        return new InternalError(`Deleting project relation from plugin_queue  ${projectId}`, err);
-      });
+      .catch(
+        (err) => new InternalError(`Deleting project relation from plugin_queue  ${projectId}`, err)
+      );
   });
 
   fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
@@ -1910,12 +1909,13 @@ async function epaddb(fastify, options, done) {
                 );
             });
         })
-        .catch((err) => {
-          return new InternalError(
-            'Something went wrong while getting all process to delete from queue',
-            err
-          );
-        });
+        .catch(
+          (err) =>
+            new InternalError(
+              'Something went wrong while getting all process to delete from queue',
+              err
+            )
+        );
     });
   });
   fastify.decorate('addPluginsToQueue', (request, reply) => {
@@ -2185,9 +2185,7 @@ async function epaddb(fastify, options, done) {
         });
         return parameters;
       })
-      .catch((err) => {
-        return new InternalError('error while getPluginProjectParametersInternal', err);
-      });
+      .catch((err) => new InternalError('error while getPluginProjectParametersInternal', err));
   });
   fastify.decorate('getPluginDeafultParametersInternal', (pluginid) => {
     const parameters = [];
@@ -2218,14 +2216,12 @@ async function epaddb(fastify, options, done) {
         });
         return parameters;
       })
-      .catch((err) => {
-        return new InternalError('error while getPluginDeafultParametersInternal', err);
-      });
+      .catch((err) => new InternalError('error while getPluginDeafultParametersInternal', err));
   });
   fastify.decorate(
     'createPluginfoldersInternal',
-    (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) => {
-      return new Promise(async (resolve, reject) => {
+    (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) =>
+      new Promise(async (resolve, reject) => {
         //  let aimsParamsProcessed = false;
         //  let dicomsParamsProcessed = false;
         let tempPluginparams = null;
@@ -2332,7 +2328,7 @@ async function epaddb(fastify, options, done) {
                     const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
                     const writeStream = fs
                       .createWriteStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
-                      // eslint-disable-next-line func-names
+                      // eslint-disable-next-line prefer-arrow-callback
                       .on('finish', function () {
                         fastify.log.info('dicom copy finished');
                         // unzip part
@@ -2387,7 +2383,7 @@ async function epaddb(fastify, options, done) {
                   fastify.log.info('getting projects dicoms.........');
                   const writeStream = fs
                     .createWriteStream(`${inputfolder}/dicoms.zip`)
-                    // eslint-disable-next-line func-names
+                    // eslint-disable-next-line prefer-arrow-callback
                     .on('finish', function () {
                       fastify.log.info('dicom copy finished');
                       // unzip part
@@ -2432,8 +2428,7 @@ async function epaddb(fastify, options, done) {
           }
         }
         resolve(1);
-      });
-    }
+      })
   );
   fastify.decorate('getUserPluginDataPathInternal', async () => {
     const dock = new DockerService(fs, fastify, path);
@@ -2456,8 +2451,8 @@ async function epaddb(fastify, options, done) {
       resolve(epadLitePwd);
     });
   });
-  fastify.decorate('extractPluginParamtersInternal', (queueObject, request) => {
-    return new Promise(async (resolve, reject) => {
+  fastify.decorate('extractPluginParamtersInternal', (queueObject, request) =>
+    new Promise(async (resolve, reject) => {
       const parametertype = queueObject.plugin_parametertype;
       const pluginid = queueObject.plugin_id;
       const projectdbid = queueObject.project_id;
@@ -2580,10 +2575,8 @@ async function epaddb(fastify, options, done) {
           reject(new InternalError('error while getting plugin runtime paraeters', err));
         }
       }
-    }).catch((err) => {
-      return new Error(err);
-    });
-  });
+    }).catch((err) => new Error(err))
+  );
 
   fastify.decorate('updateStatusQueueProcessInternal', (queuid, status) => {
     let tempTime = '1970-01-01 00:00:01';
@@ -2610,12 +2603,10 @@ async function epaddb(fastify, options, done) {
             },
           }
         )
-        .then((data) => {
-          return data;
-        })
-        .catch((err) => {
-          return new InternalError('error while updating queue process status for waiting', err);
-        });
+        .then((data) => data)
+        .catch(
+          (err) => new InternalError('error while updating queue process status for waiting', err)
+        );
     }
     if (status === 'running') {
       models.plugin_queue
@@ -2629,12 +2620,10 @@ async function epaddb(fastify, options, done) {
             },
           }
         )
-        .then((data) => {
-          return data;
-        })
-        .catch((err) => {
-          return new InternalError('error while updating queue process status for running', err);
-        });
+        .then((data) => data)
+        .catch(
+          (err) => new InternalError('error while updating queue process status for running', err)
+        );
     }
     if (status === 'ended' || status === 'error') {
       models.plugin_queue
@@ -2649,15 +2638,11 @@ async function epaddb(fastify, options, done) {
             },
           }
         )
-        .then((data) => {
-          return data;
-        })
-        .catch((err) => {
-          return new InternalError(
-            'error while updating queue process status for ended or error',
-            err
-          );
-        });
+        .then((data) => data)
+        .catch(
+          (err) =>
+            new InternalError('error while updating queue process status for ended or error', err)
+        );
     }
     if (status === 'stopping') {
       fastify.log.info('db is writing stopping ', status);
@@ -2672,91 +2657,93 @@ async function epaddb(fastify, options, done) {
             },
           }
         )
-        .then((data) => {
-          return data;
-        })
-        .catch((err) => {
-          return new InternalError('error while updating queue process status for stopping', err);
-        });
+        .then((data) => data)
+        .catch(
+          (err) => new InternalError('error while updating queue process status for stopping', err)
+        );
     }
   });
 
-  fastify.decorate('sortPluginParamsAndExtractWhatToMapInternal', async (pluginParamsObj) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        let tempPluginParams = null;
-        if (Array.isArray(pluginParamsObj.params)) {
-          tempPluginParams = [...pluginParamsObj.params];
-        } else {
-          const tempKeyArray = Object.keys(pluginParamsObj.params);
-          const temValuesArray = [];
+  fastify.decorate(
+    'sortPluginParamsAndExtractWhatToMapInternal',
+    async (pluginParamsObj) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let tempPluginParams = null;
+          if (Array.isArray(pluginParamsObj.params)) {
+            tempPluginParams = [...pluginParamsObj.params];
+          } else {
+            const tempKeyArray = Object.keys(pluginParamsObj.params);
+            const temValuesArray = [];
 
-          for (let i = 0; i < tempKeyArray.length; i += 1) {
-            temValuesArray.push(pluginParamsObj.params[tempKeyArray[i]]);
+            for (let i = 0; i < tempKeyArray.length; i += 1) {
+              temValuesArray.push(pluginParamsObj.params[tempKeyArray[i]]);
+            }
+            tempPluginParams = [...temValuesArray];
           }
-          tempPluginParams = [...temValuesArray];
-        }
 
-        const tempLocalFolder = pluginParamsObj.serverfolder;
+          const tempLocalFolder = pluginParamsObj.serverfolder;
 
-        // eslint-disable-next-line func-names
-        tempPluginParams.sort((first, second) => {
-          if (first.inputBinding === '' && second.inputBinding === '') {
-            return -1;
-          }
-          if (first.inputBinding !== '' && second.inputBinding !== '') {
-            if (parseInt(first.inputBinding, 10) < parseInt(second.inputBinding, 10)) {
+          // eslint-disable-next-line prefer-arrow-callback
+          tempPluginParams.sort((first, second) => {
+            if (first.inputBinding === '' && second.inputBinding === '') {
               return -1;
             }
+            if (first.inputBinding !== '' && second.inputBinding !== '') {
+              if (parseInt(first.inputBinding, 10) < parseInt(second.inputBinding, 10)) {
+                return -1;
+              }
 
-            return 1;
-          }
-          if (first.inputBinding === '' && second.inputBinding !== '') {
-            return -1;
-          }
-          if (first.inputBinding !== '' && second.inputBinding === '') {
-            return 1;
-          }
+              return 1;
+            }
+            if (first.inputBinding === '' && second.inputBinding !== '') {
+              return -1;
+            }
+            if (first.inputBinding !== '' && second.inputBinding === '') {
+              return 1;
+            }
 
-          return 0;
-        });
-        const onlyNameValues = [];
-        const foldersToBind = [];
-        for (let i = 0; i < tempPluginParams.length; i += 1) {
-          if (
-            tempPluginParams[i].format === 'InputFolder' ||
-            tempPluginParams[i].format === 'OutputFolder'
-          ) {
-            if (tempPluginParams[i].default_value !== '') {
-              foldersToBind.push(
-                `${tempLocalFolder}${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
-              );
+            return 0;
+          });
+          const onlyNameValues = [];
+          const foldersToBind = [];
+          for (let i = 0; i < tempPluginParams.length; i += 1) {
+            if (
+              tempPluginParams[i].format === 'InputFolder' ||
+              tempPluginParams[i].format === 'OutputFolder'
+            ) {
+              if (tempPluginParams[i].default_value !== '') {
+                foldersToBind.push(
+                  `${tempLocalFolder}${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
+                );
+              }
+            }
+            if (tempPluginParams[i].paramid === 'parameters') {
+              if (tempPluginParams[i].prefix !== '') {
+                onlyNameValues.push(tempPluginParams[i].prefix);
+              }
+              if (tempPluginParams[i].name !== '') {
+                onlyNameValues.push(tempPluginParams[i].name);
+              }
+              if (tempPluginParams[i].default_value !== '') {
+                onlyNameValues.push(tempPluginParams[i].default_value);
+              }
             }
           }
-          if (tempPluginParams[i].paramid === 'parameters') {
-            if (tempPluginParams[i].prefix !== '') {
-              onlyNameValues.push(tempPluginParams[i].prefix);
-            }
-            if (tempPluginParams[i].name !== '') {
-              onlyNameValues.push(tempPluginParams[i].name);
-            }
-            if (tempPluginParams[i].default_value !== '') {
-              onlyNameValues.push(tempPluginParams[i].default_value);
-            }
-          }
+          const returnObj = {
+            paramsDocker: onlyNameValues,
+            dockerFoldersToBind: foldersToBind,
+          };
+
+          return resolve(returnObj);
+        } catch (err) {
+          return reject(
+            new InternalError('error sortPluginParamsAndExtractWhatToMapInternal', err)
+          );
+          //  reject(err);
         }
-        const returnObj = {
-          paramsDocker: onlyNameValues,
-          dockerFoldersToBind: foldersToBind,
-        };
-
-        return resolve(returnObj);
-      } catch (err) {
-        return reject(new InternalError('error sortPluginParamsAndExtractWhatToMapInternal', err));
-        //  reject(err);
-      }
-    });
-  });
+      })
+  );
 
   fastify.decorate('downloadPluginResult', (request, reply) => {
     const queueObject = request.body;
@@ -2768,7 +2755,7 @@ async function epaddb(fastify, options, done) {
       zlib: { level: 9 }, // Sets the compression level.
     });
 
-    // eslint-disable-next-line func-names
+    // eslint-disable-next-line prefer-arrow-callback
     archive.on('error', function (err) {
       throw err;
     });
@@ -3266,31 +3253,33 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('updateCompletenessOnDeleteAssignee', async (userID, worklistID) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const completenessDeleteArr = [];
-        const username = await fastify.findUserNameInternal(userID);
-        const worklistStudy = await models.worklist_study.findAll({
-          where: { worklist_id: worklistID },
-          attributes: ['id'],
-          raw: true,
-        });
-        worklistStudy.forEach((el) => {
-          completenessDeleteArr.push(
-            models.worklist_study_completeness.destroy({
-              where: { worklist_study_id: el.id, assignee: username },
-            })
-          );
-        });
-        Promise.all(completenessDeleteArr)
-          .then(() => resolve())
-          .catch((err) => reject(err));
-      } catch (err) {
-        reject();
-      }
-    });
-  });
+  fastify.decorate(
+    'updateCompletenessOnDeleteAssignee',
+    async (userID, worklistID) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const completenessDeleteArr = [];
+          const username = await fastify.findUserNameInternal(userID);
+          const worklistStudy = await models.worklist_study.findAll({
+            where: { worklist_id: worklistID },
+            attributes: ['id'],
+            raw: true,
+          });
+          worklistStudy.forEach((el) => {
+            completenessDeleteArr.push(
+              models.worklist_study_completeness.destroy({
+                where: { worklist_study_id: el.id, assignee: username },
+              })
+            );
+          });
+          Promise.all(completenessDeleteArr)
+            .then(() => resolve())
+            .catch((err) => reject(err));
+        } catch (err) {
+          reject();
+        }
+      })
+  );
 
   fastify.decorate('updateWorklist', (request, reply) => {
     if (request.body.assigneeList) {
@@ -3634,9 +3623,7 @@ async function epaddb(fastify, options, done) {
         );
         const sumOfImageCounts = _.reduce(
           seriesArr,
-          (memo, series) => {
-            return memo + series.numberOfImages;
-          },
+          (memo, series) => memo + series.numberOfImages,
           0
         );
 
@@ -4300,9 +4287,7 @@ async function epaddb(fastify, options, done) {
           },
         ],
       });
-      return subjects.map((subject) => {
-        return subject.dataValues.subjectuid;
-      });
+      return subjects.map((subject) => subject.dataValues.subjectuid);
     } catch (err) {
       fastify.log.error(
         `Couldn't retrieve list of subjectuids from project ${projectID} Error: ${err.message}`
@@ -4323,9 +4308,7 @@ async function epaddb(fastify, options, done) {
         attributes: ['subject_uid'],
         group: ['subject_uid'],
       });
-      return projectAims.map((subject) => {
-        return subject.dataValues.subject_uid;
-      });
+      return projectAims.map((subject) => subject.dataValues.subject_uid);
     } catch (err) {
       fastify.log.error(
         `Couldn't retrieve list of subjectuids from project ${projectID} Error: ${err.message}`
@@ -5179,8 +5162,8 @@ async function epaddb(fastify, options, done) {
   //   });
   // });
 
-  fastify.decorate('updateWorklistRequirement', async (worklistId, reqId, epadAuth, body) => {
-    return fastify.upsert(
+  fastify.decorate('updateWorklistRequirement', async (worklistId, reqId, epadAuth, body) =>
+    fastify.upsert(
       models.worklist_requirement,
       {
         ...body,
@@ -5192,8 +5175,8 @@ async function epaddb(fastify, options, done) {
         id: reqId,
       },
       epadAuth.username
-    );
-  });
+    )
+  );
 
   fastify.decorate('deleteWorklistRequirement', async (request, reply) => {
     try {
@@ -5945,9 +5928,7 @@ async function epaddb(fastify, options, done) {
                   await fastify.saveAimInternal(leftovers[i].aim_uid, request.params.project, true);
                   fastify.log.info(`Aim not deleted from system as it exists in other project`);
                 }
-                const deletedAims = request.body.filter((e) => {
-                  return !leftovers.includes(e);
-                });
+                const deletedAims = request.body.filter((e) => !leftovers.includes(e));
                 await fastify.deleteCouchDocsInternal(deletedAims);
                 await fastify.aimUpdateGatewayInBulk(
                   args,
@@ -6274,9 +6255,7 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('add0s', (val) => {
-    return val > 9 ? val : `0${val}`;
-  });
+  fastify.decorate('add0s', (val) => (val > 9 ? val : `0${val}`));
 
   fastify.decorate('getFormattedDate', (dateFromDB) => {
     const dbDate = new Date(dateFromDB);
@@ -7416,9 +7395,9 @@ async function epaddb(fastify, options, done) {
             const ds = dcmjs.data.DicomMessage.readFile(arrayBuffer);
             const dicomUid =
               ds.dict['00080018'] && ds.dict['00080018'].Value ? ds.dict['00080018'].Value[0] : i;
-            dcmPromises.push(() => {
-              return fs.writeFile(`${dataDir}/${dicomUid}.dcm`, Buffer.from(arrayBuffer));
-            });
+            dcmPromises.push(() =>
+              fs.writeFile(`${dataDir}/${dicomUid}.dcm`, Buffer.from(arrayBuffer))
+            );
             isThereDataToWrite = true;
           }
           await fastify.pq.addAll(dcmPromises);
@@ -7428,12 +7407,12 @@ async function epaddb(fastify, options, done) {
             const aims = await fastify.getAimsInternal('json', params, undefined, epadAuth);
             const segRetrievePromises = [];
             for (let i = 0; i < aims.length; i += 1) {
-              aimPromises.push(() => {
-                return fs.writeFile(
+              aimPromises.push(() =>
+                fs.writeFile(
                   `${dataDir}/${aims[i].ImageAnnotationCollection.uniqueIdentifier.root}.json`,
                   JSON.stringify(aims[i])
-                );
-              });
+                )
+              );
               // only get the segs if we are retrieving series. study already gets it
               if (
                 retrieveSegs &&
@@ -7444,9 +7423,7 @@ async function epaddb(fastify, options, done) {
                 const segEntity =
                   aims[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                     .segmentationEntityCollection.SegmentationEntity[0];
-                segRetrievePromises.push(() => {
-                  return fastify.getSegDicom(segEntity);
-                });
+                segRetrievePromises.push(() => fastify.getSegDicom(segEntity));
               }
               isThereDataToWrite = true;
             }
@@ -7458,9 +7435,9 @@ async function epaddb(fastify, options, done) {
               const segWritePromises = [];
               const segs = await fastify.pq.addAll(segRetrievePromises);
               for (let i = 0; i < segs.length; i += 1) {
-                segWritePromises.push(() => {
-                  return fs.writeFile(`${dataDir}/segs/${segs[i].uid}.dcm`, segs[i].buffer);
-                });
+                segWritePromises.push(() =>
+                  fs.writeFile(`${dataDir}/segs/${segs[i].uid}.dcm`, segs[i].buffer)
+                );
                 isThereDataToWrite = true;
               }
               await fastify.pq.addAll(segWritePromises);
@@ -9584,12 +9561,10 @@ async function epaddb(fastify, options, done) {
             ],
             attributes: ['aim_uid'],
           });
-          const aimProjects = projectAims.map((projectAim) => {
-            return {
-              aim: projectAim.dataValues.aim_uid,
-              project: projectAim.dataValues.project.dataValues.projectid,
-            };
-          });
+          const aimProjects = projectAims.map((projectAim) => ({
+            aim: projectAim.dataValues.aim_uid,
+            project: projectAim.dataValues.project.dataValues.projectid,
+          }));
           await fastify.addProjectIdsToAimsInternal(aimProjects);
           resolve();
         } catch (err) {

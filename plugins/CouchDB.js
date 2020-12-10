@@ -403,9 +403,7 @@ async function couchdb(fastify, options) {
                 const segEntity =
                   aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                     .segmentationEntityCollection.SegmentationEntity[0];
-                segRetrievePromises.push(() => {
-                  return fastify.getSegDicom(segEntity);
-                });
+                segRetrievePromises.push(() => fastify.getSegDicom(segEntity));
               }
             });
             if (params.summary && params.summary.toLowerCase() === 'true') {
@@ -713,13 +711,13 @@ async function couchdb(fastify, options) {
     return aim;
   });
 
-  fastify.decorate('isCollaborator', (project, epadAuth) => {
-    return (
+  fastify.decorate(
+    'isCollaborator',
+    (project, epadAuth) =>
       epadAuth &&
       epadAuth.projectToRole &&
       epadAuth.projectToRole.includes(`${project}:Collaborator`)
-    );
-  });
+  );
 
   fastify.decorate('getAims', async (request, reply) => {
     try {
@@ -978,55 +976,57 @@ async function couchdb(fastify, options) {
   });
 
   // does not do project filtering! should only be used for deleting from system
-  fastify.decorate('deleteAimsInternal', (params, epadAuth) => {
-    return new Promise((resolve, reject) => {
-      const aimUsers = {};
-      fastify
-        .getAimsInternal('summary', params, undefined, epadAuth)
-        .then((result) => {
-          const aimPromisses = [];
-          result.forEach((aim) => {
-            aimUsers[aim.userName] = 'aim';
-            aimPromisses.push(fastify.deleteAimInternal(aim.aimID));
-          });
-          Promise.all(aimPromisses)
-            .then(async () => {
-              const updateWorklistPromises = [];
-              const { project, subject, study } = params;
-              const aimUsersArr = Object.keys(aimUsers);
-              // TODO this is system delete only, which means subject/study is deleted from system
-              // do we need to update completeness at all?
-              if (project && study) {
-                fastify
-                  .findProjectIdInternal(project)
-                  .then((res) => {
-                    aimUsersArr.forEach((userName) => {
-                      updateWorklistPromises.push(
-                        fastify.aimUpdateGateway(
-                          res,
-                          subject,
-                          study,
-                          userName,
-                          epadAuth,
-                          undefined,
-                          params.project
-                        )
-                      );
-                    });
-                    Promise.all(updateWorklistPromises)
-                      .then(() => resolve())
-                      .catch((deleteErr) => reject(deleteErr));
-                  })
-                  .catch((projectFindErr) => reject(projectFindErr));
-              } else {
-                resolve();
-              }
-            })
-            .catch((deleteErr) => reject(deleteErr));
-        })
-        .catch((err) => reject(err));
-    });
-  });
+  fastify.decorate(
+    'deleteAimsInternal',
+    (params, epadAuth) =>
+      new Promise((resolve, reject) => {
+        const aimUsers = {};
+        fastify
+          .getAimsInternal('summary', params, undefined, epadAuth)
+          .then((result) => {
+            const aimPromisses = [];
+            result.forEach((aim) => {
+              aimUsers[aim.userName] = 'aim';
+              aimPromisses.push(fastify.deleteAimInternal(aim.aimID));
+            });
+            Promise.all(aimPromisses)
+              .then(async () => {
+                const updateWorklistPromises = [];
+                const { project, subject, study } = params;
+                const aimUsersArr = Object.keys(aimUsers);
+                // TODO this is system delete only, which means subject/study is deleted from system
+                // do we need to update completeness at all?
+                if (project && study) {
+                  fastify
+                    .findProjectIdInternal(project)
+                    .then((res) => {
+                      aimUsersArr.forEach((userName) => {
+                        updateWorklistPromises.push(
+                          fastify.aimUpdateGateway(
+                            res,
+                            subject,
+                            study,
+                            userName,
+                            epadAuth,
+                            undefined,
+                            params.project
+                          )
+                        );
+                      });
+                      Promise.all(updateWorklistPromises)
+                        .then(() => resolve())
+                        .catch((deleteErr) => reject(deleteErr));
+                    })
+                    .catch((projectFindErr) => reject(projectFindErr));
+                } else {
+                  resolve();
+                }
+              })
+              .catch((deleteErr) => reject(deleteErr));
+          })
+          .catch((err) => reject(err));
+      })
+  );
 
   // template accessors
   // fastify.decorate('getTemplates', (request, reply) => {
