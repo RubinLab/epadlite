@@ -1,4 +1,4 @@
-// defines routes for templates
+//  defines routes for ontology
 async function routes(fastify) {
   fastify.route({
     method: 'GET',

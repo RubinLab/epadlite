@@ -15,12 +15,9 @@ async function Ontology(fastify) {
         path.join(__dirname, '/../models', filenames[i])
       );
     }
-    // console.log('models ', models);
   });
 
   fastify.decorate('addToArryOntologyInternal', (typeparam, itemobjparam, arrayobj) => {
-    console.log('inner', typeparam);
-    //  const itemobj = itemobjparam;
     let type = {};
     const obj = {};
     if (typeof itemobjparam !== 'undefined') {
@@ -28,7 +25,6 @@ async function Ontology(fastify) {
         [Op.like]: `%${itemobjparam}%`,
       };
       obj.typeparam = type;
-      console.log('obj', obj);
       arrayobj.push({ obj });
     }
   });
@@ -51,7 +47,6 @@ async function Ontology(fastify) {
         };
         itemArray.push({ CODE_VALUE });
       }
-      //  fastify.addToArryOntologyInternal('CODE_VALUE', CODE_VALUE, itemArray);
       if (typeof CODE_MEANING !== 'undefined') {
         CODE_MEANING = {
           [Op.like]: `%${CODE_MEANING}%`,
@@ -107,7 +102,6 @@ async function Ontology(fastify) {
       const lexiconObj = await models.lexicon.findOne({
         where: { CODE_VALUE },
       });
-      console.log('cavcav : ', lexiconObj);
       reply.code(200).send(lexiconObj);
     } catch (err) {
       reply.code(500).send(new InternalError(`error happened while getting lexicon term `, err));
@@ -133,7 +127,6 @@ async function Ontology(fastify) {
         description,
         SCHEMA_DESIGNATOR,
         SCHEMA_VERSION,
-        //  creator: request.epadAuth.username,
         creator,
         createdtime: Date.now(),
         updatetime: Date.now(),
@@ -197,9 +190,8 @@ async function Ontology(fastify) {
     try {
       fastify.initOntologyModels();
     } catch (err) {
-      fastify.log.error(`Cannot connect to mariadb (err:${err.message}), shutting down the server`);
+      fastify.log.error('error happened while initiating ontology models', err);
     }
-    // need to add hook for close to remove the db if test;
   });
 }
 

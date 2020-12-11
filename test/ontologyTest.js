@@ -8,41 +8,37 @@ const { expect } = chai;
 describe('Ontology Tests', () => {
   before(async () => {
     try {
-      console.log(`host info :http://${process.env.host}:8080`);
+      console.log(`host info :http://${process.env.host}:${process.env.port}`);
       await chai
-        .request(`http://${process.env.host}:8080}`)
+        .request(`http://${process.env.host}:${process.env.port}}`)
         .post('/ontology')
-        .auth('admin', 'admin')
-        // .query({ username: 'admin' })
+        .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning1',
           codevalue: 'testcodevalue1',
           creator: 'admin',
         });
       await chai
-        .request(`http://${process.env.host}:8080`)
+        .request(`http://${process.env.host}:${process.env.port}`)
         .post('/ontology')
-        .auth('admin', 'admin')
-        // .query({ username: 'admin' })
+        .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning2',
           codevalue: 'testcodevalue2',
           creator: 'admin',
         });
-      // done();
     } catch (err) {
-      // done(err);
       console.log(`Ontology Tests before error: ${err.message}`);
     }
   });
   after(async () => {
     try {
       await chai
-        .request(`http://${process.env.host}:8080`)
+        .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/ontology/testcodevalue1')
         .query({ username: 'admin' });
       await chai
-        .request(`http://${process.env.host}:8080`)
+        .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/ontology/testcodevalue2')
         .query({ username: 'admin' });
     } catch (err) {
@@ -51,7 +47,7 @@ describe('Ontology Tests', () => {
   });
   it('should have 2 lexicon data', done => {
     chai
-      .request(`http://${process.env.host}:8080`)
+      .request(`http://${process.env.host}:${process.env.port}`)
       .get('/ontology')
       .auth('admin', 'admin')
       .query({ username: 'admin' })
