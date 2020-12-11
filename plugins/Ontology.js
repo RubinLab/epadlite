@@ -82,7 +82,7 @@ async function Ontology(fastify) {
       for (let i = 0; i < lexicon.length; i += 1) {
         const lexiconObj = {
           id: lexicon[i].dataValues.ID,
-          codemenaing: lexicon[i].dataValues.CODE_MEANING,
+          codemeaning: lexicon[i].dataValues.CODE_MEANING,
           codevalue: lexicon[i].dataValues.CODE_VALUE,
           description: lexicon[i].dataValues.description,
           createdtime: lexicon[i].dataValues.createdtime,
