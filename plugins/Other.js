@@ -733,7 +733,14 @@ async function other(fastify) {
                   .catch((err) => {
                     reject(err);
                   });
-              } else {
+              } else if (
+                jsonBuffer.ImageAnnotationCollection &&
+                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
+                  .code &&
+                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
+                  .code !== 'SEG'
+              ) {
+                // aim saving via upload, ignore SEG Only annotations
                 fastify
                   .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                   .then((res) => {
@@ -746,6 +753,8 @@ async function other(fastify) {
                   .catch((err) => {
                     reject(err);
                   });
+              } else {
+                reject(new Error(`SEG Only aim upload not supported (${filename})`));
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
               fastify
