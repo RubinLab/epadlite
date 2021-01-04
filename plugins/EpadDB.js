@@ -9208,6 +9208,9 @@ async function epaddb(fastify, options, done) {
         request.params.series = seriesUid;
         await fastify.editTags(request, reply);
       }
+    } else if (request.query.annotationStatus) {
+      // TODO set annotation status
+      // NOT_STARTED(1), IN_PROGRESS(2), DONE(3), ERROR(4);
     } else {
       const promisses = [];
       promisses.push(

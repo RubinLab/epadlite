@@ -437,6 +437,9 @@ async function routes(fastify) {
           editTags: {
             type: 'string',
           },
+          annotationStatus: {
+            type: 'string',
+          },
         },
       },
       body: {
