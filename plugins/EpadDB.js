@@ -10197,6 +10197,24 @@ async function epaddb(fastify, options, done) {
                 MODIFY COLUMN path varchar(1024) NOT NULL;`,
               { transaction: t }
             );
+
+            // update worklist status
+            await fastify.orm.query(
+              `ALTER TABLE project_subject_study_series_user_status 
+                DROP FOREIGN KEY IF EXISTS FK_psssustatus_worklist,
+                DROP CONSTRAINT IF EXISTS psssustatus_user;`,
+              { transaction: t }
+            );
+            await fastify.orm.query(
+              `ALTER TABLE project_subject_study_series_user_status 
+                ADD COLUMN IF NOT EXISTS worklist_id int(10) unsigned DEFAULT NULL AFTER id, 
+                ADD FOREIGN KEY IF NOT EXISTS FK_psssustatus_worklist (worklist_id) REFERENCES worklist (id) ON DELETE CASCADE ON UPDATE CASCADE, 
+                ADD CONSTRAINT psssustatus_user UNIQUE (worklist_id, project_id, subject_id, study_id, series_uid, user_id);`,
+              { transaction: t }
+            );
+            fastify.log.warn(
+              'worklist_id column is added to project_subject_study_series_user_status'
+            );
           });
 
           // the db schema is updated successfully lets copy the files
