@@ -122,6 +122,14 @@ async function routes(fastify) {
           study: { type: 'string' },
         },
       },
+      query: {
+        type: 'object',
+        properties: {
+          annotationStatus: {
+            type: 'integer',
+          },
+        },
+      },
     },
     body: {
       type: 'object',

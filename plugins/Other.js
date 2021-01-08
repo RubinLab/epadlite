@@ -1845,7 +1845,17 @@ async function other(fastify) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
-              if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
+              if (
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
+                !(
+                  reqInfo.level === 'worklist' &&
+                  (await fastify.isAssigneeOfWorklist(
+                    reqInfo.objectId,
+                    request.epadAuth.username
+                  )) &&
+                  request.query.annotationStatus
+                )
+              )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':

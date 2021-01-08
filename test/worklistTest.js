@@ -382,6 +382,16 @@ describe('Worklist Tests', () => {
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users')
+        .query({ username: 'admin' })
+        .send({
+          username: 'testProgressUser3@gmail.com',
+          firstname: 'user3Name',
+          lastname: 'user3Surname',
+          email: 'testProgressUser3@gmail.com',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
         .post('/worklists?username=testProgressUser1@gmail.com')
         .send({
           name: 'testProgressW',
@@ -418,6 +428,10 @@ describe('Worklist Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/users/testProgressUser2@gmail.com')
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/testProgressUser3@gmail.com')
         .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -795,6 +809,90 @@ describe('Worklist Tests', () => {
         .then((res) => {
           expect(res.body[0].requirements.length).to.be.eql(1);
           expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should get worklist progress for worklist testProgressW', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists/testProgressW/progress')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          const worklistId = res.body[0].worklist_id;
+          const projectId = res.body[0].project_id;
+          expect(res.body).to.deep.include({
+            worklist_id: worklistId,
+            project_id: projectId,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser2@gmail.com',
+            assignee_name: 'user2Name user2Surname',
+            worklist_requirement_id: 2,
+            worklist_requirement_desc: '1:ROI:series',
+            completeness: 100,
+          });
+          expect(res.body).to.deep.include({
+            worklist_id: worklistId,
+            project_id: projectId,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser1@gmail.com',
+            assignee_name: 'user1Name user1Surname',
+            worklist_requirement_id: 2,
+            worklist_requirement_desc: '1:ROI:series',
+            completeness: 100,
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should update the progress for testProgressUser2 to not started', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'testProgressUser2@gmail.com', annotationStatus: 1 })
+        .send()
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should update the progress for testProgressUser2 to not started', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'testProgressUser2@gmail.com', annotationStatus: 1 })
+        .send()
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should not be able to update the progress for testProgressUser3 to not started', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'testProgressUser3@gmail.com', annotationStatus: 1 })
+        .send()
+        .then((res) => {
+          expect(res.statusCode).to.equal(403);
           done();
         })
         .catch((e) => {
