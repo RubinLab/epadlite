@@ -3880,6 +3880,44 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('getManualProgressMap', async (worklistId) => {
+    // I could not create association with composite foreign key
+    const manualProgress = await models.project_subject_study_series_user_status.findAll({
+      where: { worklist_id: worklistId },
+      raw: true,
+      attributes: [
+        'worklist_id',
+        'project_id',
+        'subject_id',
+        'study_id',
+        'user_id',
+        'annotationStatus',
+      ],
+    });
+    const manualProgressMap = {};
+    for (let i = 0; i < manualProgress.length; i += 1) {
+      manualProgressMap[
+        `${manualProgress[i].worklist_id}-${manualProgress[i].project_id}-${manualProgress[i].subject_id}-${manualProgress[i].study_id}-${manualProgress[i].user_id}`
+      ] = manualProgress[i].annotationStatus;
+    }
+    return manualProgressMap;
+  });
+
+  fastify.decorate(
+    'getManualProgressForUser',
+    (manualProgressMap, worklistId, projectId, subjectId, studyId, userId) => {
+      switch (manualProgressMap[`${worklistId}-${projectId}-${subjectId}-${studyId}-${userId}`]) {
+        case 2:
+          return 50;
+        case 3:
+          return 100;
+        default:
+          return 0;
+      }
+    }
+  );
+
+  // TODO this is get studies interface. /worklists/:w/users/:u/studies is better
   fastify.decorate('getWorklistSubjects', async (request, reply) => {
     // get worklist name and id from worklist
     // get details from worklist_study table
@@ -3894,38 +3932,95 @@ async function epaddb(fastify, options, done) {
           worklistid: request.params.worklist,
         },
         attributes: ['name', 'id', 'duedate'],
+        include: ['users'],
       });
       workListName = worklist.dataValues.name;
       worklistIdKey = worklist.dataValues.id;
       worklistDuedate = worklist.dataValues.duedate;
-      list = await models.worklist_study.findAll({
-        where: { worklist_id: worklistIdKey },
-        include: [models.subject, models.study],
-      });
-      const result = [];
-      for (let i = 0; i < list.length; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
-        const projectId = await models.project.findOne({
-          where: { id: list[i].dataValues.project_id },
-          attributes: ['projectid'],
-        });
-        const obj = {
-          completionDate: list[i].dataValues.completedate,
-          projectID: projectId.dataValues.projectid,
-          sortOrder: list[i].dataValues.sortorder,
-          startDate: list[i].dataValues.startdate,
-          subjectID: list[i].dataValues.subject.dataValues.subjectuid,
-          studyUID: list[i].dataValues.study.dataValues.studyuid,
-          studyDate: list[i].dataValues.study.dataValues.studydate,
-          workListID: request.params.worklist,
-          workListName,
-          worklistDuedate,
-          subjectName: list[i].dataValues.subject.dataValues.name,
-          studyDescription: list[i].dataValues.study.dataValues.description,
-        };
-        result.push(obj);
+      let userId;
+      for (let i = 0; i < worklist.users.length; i += 1) {
+        if (worklist.users[i].username === request.params.user) {
+          userId = worklist.users[i].id;
+          break;
+        }
       }
-      reply.code(200).send(Object.values(result));
+      if (!userId) {
+        reply.send(
+          new BadRequestError(
+            `Getting subjects of the worklist ${request.params.worklist}`,
+            new Error(`User ${request.params.user} is not an assignee of the worklist`)
+          )
+        );
+      } else if (
+        request.epadAuth.username !== request.params.user &&
+        request.epadAuth.username !== worklist.dataValues.creator
+      ) {
+        reply.send(
+          new UnauthorizedError('User is not the assignee or the creator of the worklist')
+        );
+      } else {
+        list = await models.worklist_study.findAll({
+          where: { worklist_id: worklistIdKey, '$progress.assignee$': request.epadAuth.username },
+          include: ['progress', models.subject, models.study],
+        });
+        const manualProgressMap = await fastify.getManualProgressMap(worklist.dataValues.id);
+        const result = [];
+        for (let i = 0; i < list.length; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          const projectId = await models.project.findOne({
+            where: { id: list[i].dataValues.project_id },
+            attributes: ['projectid'],
+          });
+          if (
+            manualProgressMap[
+              `${list[i].dataValues.worklist_id}-${list[i].dataValues.project_id}-${list[i].dataValues.subject_id}-${list[i].dataValues.study_id}-${userId}`
+            ]
+          ) {
+            const completeness = fastify.getManualProgressForUser(
+              manualProgressMap,
+              list[i].dataValues.worklist_id,
+              list[i].dataValues.project_id,
+              list[i].dataValues.subject_id,
+              list[i].dataValues.study_id,
+              userId
+            );
+            result.push({
+              completionDate: list[i].dataValues.completedate,
+              projectID: projectId.dataValues.projectid,
+              sortOrder: list[i].dataValues.sortorder,
+              startDate: list[i].dataValues.startdate,
+              subjectID: list[i].dataValues.subject.dataValues.subjectuid,
+              studyUID: list[i].dataValues.study.dataValues.studyuid,
+              studyDate: list[i].dataValues.study.dataValues.studydate,
+              workListID: request.params.worklist,
+              workListName,
+              worklistDuedate,
+              subjectName: list[i].dataValues.subject.dataValues.name,
+              studyDescription: list[i].dataValues.study.dataValues.description,
+              completeness,
+              progressType: 'MANUAL',
+            });
+          } else {
+            result.push({
+              completionDate: list[i].dataValues.completedate,
+              projectID: projectId.dataValues.projectid,
+              sortOrder: list[i].dataValues.sortorder,
+              startDate: list[i].dataValues.startdate,
+              subjectID: list[i].dataValues.subject.dataValues.subjectuid,
+              studyUID: list[i].dataValues.study.dataValues.studyuid,
+              studyDate: list[i].dataValues.study.dataValues.studydate,
+              workListID: request.params.worklist,
+              workListName,
+              worklistDuedate,
+              subjectName: list[i].dataValues.subject.dataValues.name,
+              studyDescription: list[i].dataValues.study.dataValues.description,
+              completeness: list[i].dataValues.progress[0].dataValues.completeness, // I get only the specific user's progress
+              progressType: 'AUTO',
+            });
+          }
+        }
+        reply.code(200).send(Object.values(result));
+      }
     } catch (err) {
       if (err instanceof ResourceNotFoundError)
         reply.send(
@@ -5805,24 +5900,7 @@ async function epaddb(fastify, options, done) {
           attributes: ['worklist_id', 'project_id', 'subject_id', 'study_id'],
         });
         // I could not create association with composite foreign key
-        const manualProgress = await models.project_subject_study_series_user_status.findAll({
-          where: { worklist_id: worklist.id },
-          raw: true,
-          attributes: [
-            'worklist_id',
-            'project_id',
-            'subject_id',
-            'study_id',
-            'user_id',
-            'annotationStatus',
-          ],
-        });
-        const manualProgressMap = {};
-        for (let i = 0; i < manualProgress.length; i += 1) {
-          manualProgressMap[
-            `${manualProgress[i].worklist_id}-${manualProgress[i].project_id}-${manualProgress[i].subject_id}-${manualProgress[i].study_id}-${manualProgress[i].user_id}`
-          ] = manualProgress[i].annotationStatus;
-        }
+        const manualProgressMap = await fastify.getManualProgressMap(worklist.id);
         for (let i = 0; i < worklistStudies.length; i += 1) {
           for (let j = 0; j < worklistStudies[i].dataValues.progress.length; j += 1) {
             const { numOfAims, template, level } = requirements[
@@ -5836,21 +5914,14 @@ async function epaddb(fastify, options, done) {
                 `${worklistStudies[i].dataValues.worklist_id}-${worklistStudies[i].dataValues.project_id}-${worklistStudies[i].dataValues.subject_id}-${worklistStudies[i].dataValues.study_id}-${id}`
               ]
             ) {
-              let completeness = 0;
-              switch (
-                manualProgressMap[
-                  `${worklistStudies[i].dataValues.worklist_id}-${worklistStudies[i].dataValues.project_id}-${worklistStudies[i].dataValues.subject_id}-${worklistStudies[i].dataValues.study_id}-${id}`
-                ]
-              ) {
-                case 2:
-                  completeness = 50;
-                  break;
-                case 3:
-                  completeness = 100;
-                  break;
-                default:
-                  completeness = 0;
-              }
+              const completeness = fastify.getManualProgressForUser(
+                manualProgressMap,
+                worklistStudies[i].dataValues.worklist_id,
+                worklistStudies[i].dataValues.project_id,
+                worklistStudies[i].dataValues.subject_id,
+                worklistStudies[i].dataValues.study_id,
+                id
+              );
               progressList.push({
                 worklist_id: worklistStudies[i].dataValues.worklist_id,
                 project_id: worklistStudies[i].dataValues.project_id,

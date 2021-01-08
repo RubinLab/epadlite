@@ -1061,6 +1061,79 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
+    it('should get worklist studies for worklist testProgressW for user testProgressUser1@gmail.com with user testProgressUser1@gmail.com', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists/testProgressW/users/testProgressUser1@gmail.com/subjects')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body).to.deep.include({
+            completionDate: null,
+            projectID: 'testProgressP',
+            sortOrder: null,
+            startDate: null,
+            subjectID: '3',
+            studyUID: '0023.2015.09.28.3',
+            studyDate: '2015-09-28',
+            workListID: 'testProgressW',
+            workListName: 'testProgressW',
+            worklistDuedate: '2019-12-01',
+            subjectName: 'Phantom',
+            studyDescription: 'Made up study desc',
+            completeness: 100,
+            progressType: 'AUTO',
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should not get worklist studies for worklist testProgressW for user testProgressUser1@gmail.com with user testProgressUser2@gmail.com', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists/testProgressW/users/testProgressUser1@gmail.com/subjects')
+        .query({ username: 'testProgressUser2@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(403);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should get worklist studies for worklist testProgressW for user testProgressUser2@gmail.com with user testProgressUser2@gmail.com', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists/testProgressW/users/testProgressUser2@gmail.com/subjects')
+        .query({ username: 'testProgressUser2@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body).to.deep.include({
+            completionDate: null,
+            projectID: 'testProgressP',
+            sortOrder: null,
+            startDate: null,
+            subjectID: '3',
+            studyUID: '0023.2015.09.28.3',
+            studyDate: '2015-09-28',
+            workListID: 'testProgressW',
+            workListName: 'testProgressW',
+            worklistDuedate: '2019-12-01',
+            subjectName: 'Phantom',
+            studyDescription: 'Made up study desc',
+            completeness: 50,
+            progressType: 'MANUAL',
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('aims should delete all aims in testProgressP ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
