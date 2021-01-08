@@ -5784,28 +5784,82 @@ async function epaddb(fastify, options, done) {
           include: ['progress', 'subject', 'study'],
           attributes: ['worklist_id', 'project_id', 'subject_id', 'study_id'],
         });
+        // I could not create association with composite foreign key
+        const manualProgress = await models.project_subject_study_series_user_status.findAll({
+          where: { worklist_id: worklist.id },
+          raw: true,
+          attributes: [
+            'worklist_id',
+            'project_id',
+            'subject_id',
+            'study_id',
+            'user_id',
+            'annotationStatus',
+          ],
+        });
+        const manualProgressMap = {};
+        for (let i = 0; i < manualProgress.length; i += 1) {
+          manualProgressMap[
+            `${manualProgress[i].worklist_id}-${manualProgress[i].project_id}-${manualProgress[i].subject_id}-${manualProgress[i].study_id}-${manualProgress[i].user_id}`
+          ] = manualProgress[i].annotationStatus;
+        }
         for (let i = 0; i < worklistStudies.length; i += 1) {
           for (let j = 0; j < worklistStudies[i].dataValues.progress.length; j += 1) {
             const { numOfAims, template, level } = requirements[
               worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id
             ];
-            const { firstname, lastname } = users[
+            const { firstname, lastname, id } = users[
               worklistStudies[i].dataValues.progress[j].dataValues.assignee
             ];
-            progressList.push({
-              worklist_id: worklistStudies[i].dataValues.worklist_id,
-              project_id: worklistStudies[i].dataValues.project_id,
-              subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
-              subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
-              study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
-              study_desc: worklistStudies[i].dataValues.study.dataValues.description,
-              assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
-              assignee_name: `${firstname} ${lastname}`,
-              worklist_requirement_id:
-                worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id,
-              worklist_requirement_desc: `${numOfAims}:${template}:${level}`,
-              completeness: worklistStudies[i].dataValues.progress[j].dataValues.completeness,
-            });
+            if (
+              manualProgressMap[
+                `${worklistStudies[i].dataValues.worklist_id}-${worklistStudies[i].dataValues.project_id}-${worklistStudies[i].dataValues.subject_id}-${worklistStudies[i].dataValues.study_id}-${id}`
+              ]
+            ) {
+              let completeness = 0;
+              switch (
+                manualProgressMap[
+                  `${worklistStudies[i].dataValues.worklist_id}-${worklistStudies[i].dataValues.project_id}-${worklistStudies[i].dataValues.subject_id}-${worklistStudies[i].dataValues.study_id}-${id}`
+                ]
+              ) {
+                case 2:
+                  completeness = 50;
+                  break;
+                case 3:
+                  completeness = 100;
+                  break;
+                default:
+                  completeness = 0;
+              }
+              progressList.push({
+                worklist_id: worklistStudies[i].dataValues.worklist_id,
+                project_id: worklistStudies[i].dataValues.project_id,
+                subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
+                subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
+                study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
+                study_desc: worklistStudies[i].dataValues.study.dataValues.description,
+                assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
+                assignee_name: `${firstname} ${lastname}`,
+                completeness,
+                type: 'MANUAL',
+              });
+            } else {
+              progressList.push({
+                worklist_id: worklistStudies[i].dataValues.worklist_id,
+                project_id: worklistStudies[i].dataValues.project_id,
+                subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
+                subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
+                study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
+                study_desc: worklistStudies[i].dataValues.study.dataValues.description,
+                assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
+                assignee_name: `${firstname} ${lastname}`,
+                worklist_requirement_id:
+                  worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id,
+                worklist_requirement_desc: `${numOfAims}:${template}:${level}`,
+                completeness: worklistStudies[i].dataValues.progress[j].dataValues.completeness,
+                type: 'AUTO',
+              });
+            }
           }
         }
         reply.code(200).send(progressList);
