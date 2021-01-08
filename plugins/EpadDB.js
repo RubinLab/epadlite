@@ -3639,9 +3639,9 @@ async function epaddb(fastify, options, done) {
         for (let i = 0; i < result.length; i += 1) ids.push(result[i].dataValues.id);
         if (request.query.annotationStatus !== undefined) {
           // set annotation status
-          // NOT_STARTED(1), IN_PROGRESS(2), DONE(3), ERROR(4)
+          // NOT_STARTED(1), IN_PROGRESS(2), DONE(3), ERROR(4), DELETE(0)
           // API should not accept ERROR(4)
-          if (request.query.annotationStatus < 1 || request.query.annotationStatus > 3) {
+          if (request.query.annotationStatus < 0 || request.query.annotationStatus > 3) {
             reply.send(
               new InternalError(
                 'Setting annotation status ',
@@ -3653,29 +3653,49 @@ async function epaddb(fastify, options, done) {
             fastify
               .findUserIdInternal(request.epadAuth.username)
               .then((userId) => {
-                fastify
-                  .upsert(
-                    models.project_subject_study_series_user_status,
-                    {
-                      worklist_id: ids[0],
-                      study_id: ids[3],
-                      subject_id: ids[2],
-                      project_id: ids[1],
-                      user_id: userId,
-                      annotationStatus: request.query.annotationStatus,
-                      updatetime: Date.now(),
-                    },
-                    {
-                      worklist_id: ids[0],
-                      study_id: ids[3],
-                      subject_id: ids[2],
-                      project_id: ids[1],
-                      user_id: userId,
-                    },
-                    request.epadAuth.username
-                  )
-                  .then(() => reply.send('Annotation status updated successfully'))
-                  .catch((err) => reply.send(new InternalError('Updating annotation status', err)));
+                if (request.query.annotationStatus === 0) {
+                  // delete the tuple so that we can go back to auto
+                  models.project_subject_study_series_user_status
+                    .destroy({
+                      where: {
+                        worklist_id: ids[0],
+                        study_id: ids[3],
+                        subject_id: ids[2],
+                        project_id: ids[1],
+                        user_id: userId,
+                      },
+                    })
+                    .then(() => reply.send('Annotation status deleted successfully'))
+                    .catch((err) =>
+                      reply.send(new InternalError('Deleting annotation status', err))
+                    );
+                } else {
+                  fastify
+                    .upsert(
+                      models.project_subject_study_series_user_status,
+                      {
+                        worklist_id: ids[0],
+                        study_id: ids[3],
+                        subject_id: ids[2],
+                        project_id: ids[1],
+                        user_id: userId,
+                        annotationStatus: request.query.annotationStatus,
+                        updatetime: Date.now(),
+                      },
+                      {
+                        worklist_id: ids[0],
+                        study_id: ids[3],
+                        subject_id: ids[2],
+                        project_id: ids[1],
+                        user_id: userId,
+                      },
+                      request.epadAuth.username
+                    )
+                    .then(() => reply.send('Annotation status updated successfully'))
+                    .catch((err) =>
+                      reply.send(new InternalError('Updating annotation status', err))
+                    );
+                }
               })
               .catch((err) =>
                 reply.send(new InternalError('Updating annotation status getting userinfo', err))

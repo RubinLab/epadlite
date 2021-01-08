@@ -1005,6 +1005,62 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
+    it('should delete the manual progress for testProgressUser1', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'testProgressUser1@gmail.com', annotationStatus: 0 })
+        .send()
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should get worklist progress for worklist testProgressW with one progress again', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists/testProgressW/progress')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          const worklistId = res.body[0].worklist_id;
+          const projectId = res.body[0].project_id;
+          expect(res.body).to.deep.include({
+            worklist_id: worklistId,
+            project_id: projectId,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser2@gmail.com',
+            assignee_name: 'user2Name user2Surname',
+            completeness: 50,
+            type: 'MANUAL',
+          });
+          expect(res.body).to.deep.include({
+            worklist_id: worklistId,
+            project_id: projectId,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser1@gmail.com',
+            assignee_name: 'user1Name user1Surname',
+            worklist_requirement_id: 2,
+            worklist_requirement_desc: '1:ROI:series',
+            completeness: 100,
+            type: 'AUTO',
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('aims should delete all aims in testProgressP ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
