@@ -1064,7 +1064,7 @@ describe('Worklist Tests', () => {
     it('should get worklist studies for worklist testProgressW for user testProgressUser1@gmail.com with user testProgressUser1@gmail.com', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/worklists/testProgressW/users/testProgressUser1@gmail.com/subjects')
+        .get('/worklists/testProgressW/users/testProgressUser1@gmail.com/studies')
         .query({ username: 'testProgressUser1@gmail.com' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
@@ -1094,7 +1094,7 @@ describe('Worklist Tests', () => {
     it('should not get worklist studies for worklist testProgressW for user testProgressUser1@gmail.com with user testProgressUser2@gmail.com', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/worklists/testProgressW/users/testProgressUser1@gmail.com/subjects')
+        .get('/worklists/testProgressW/users/testProgressUser1@gmail.com/studies')
         .query({ username: 'testProgressUser2@gmail.com' })
         .then((res) => {
           expect(res.statusCode).to.equal(403);
@@ -1107,7 +1107,7 @@ describe('Worklist Tests', () => {
     it('should get worklist studies for worklist testProgressW for user testProgressUser2@gmail.com with user testProgressUser2@gmail.com', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/worklists/testProgressW/users/testProgressUser2@gmail.com/subjects')
+        .get('/worklists/testProgressW/users/testProgressUser2@gmail.com/studies')
         .query({ username: 'testProgressUser2@gmail.com' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);

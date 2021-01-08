@@ -3917,8 +3917,7 @@ async function epaddb(fastify, options, done) {
     }
   );
 
-  // TODO this is get studies interface. /worklists/:w/users/:u/studies is better
-  fastify.decorate('getWorklistSubjects', async (request, reply) => {
+  fastify.decorate('getWorklistStudies', async (request, reply) => {
     // get worklist name and id from worklist
     // get details from worklist_study table
     let workListName;
