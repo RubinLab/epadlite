@@ -379,6 +379,7 @@ describe('Worklist Tests', () => {
           firstname: 'user2Name',
           lastname: 'user2Surname',
           email: 'testProgressUser2@gmail.com',
+          permissions: 'CreateProject',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -412,12 +413,26 @@ describe('Worklist Tests', () => {
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects?username=testProgressUser2@gmail.com')
+        .send({
+          projectId: 'testProgressP2',
+          projectName: 'testProgressP2',
+          projectDescription: 'testdesc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testProgressP/users/testProgressUser2@gmail.com')
         .query({ username: 'testProgressUser1@gmail.com' })
         .send({ role: 'Member' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testProgressP2/subjects/3/studies/0023.2015.09.28.3')
         .query({ username: 'admin' });
     });
     after(async () => {
@@ -505,6 +520,61 @@ describe('Worklist Tests', () => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should fail adding study from testProgressP2 to the worklist', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put(
+          '/worklists/testProgressW/projects/testProgressP2/subjects/3/studies/0023.2015.09.28.3'
+        )
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(500);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should fail adding subject 3 from testProgressP2 to the worklist ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/worklists/testProgressW/projects/testProgressP2/subjects/3')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(500);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should delete the study association', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/worklists/testProgressW/studies')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .send([{ projectID: 'testProgressP', subjectID: '3', studyUID: '0023.2015.09.28.3' }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should add subject 3 from testProgressP to the worklist by testProgressUser2@gmail.com', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/worklists/testProgressW/projects/testProgressP/subjects/3')
         .query({ username: 'testProgressUser1@gmail.com' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
