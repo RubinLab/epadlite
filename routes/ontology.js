@@ -51,7 +51,7 @@ async function routes(fastify) {
       //   },
       // },
     },
-    handler: fastify.getOntologyTerm,
+    handler: fastify.getOntologyTermByCodeValue,
   });
 
   fastify.route({
@@ -61,7 +61,7 @@ async function routes(fastify) {
       tags: ['ontology'],
       body: {
         type: 'object',
-        required: ['codemeaning', 'codevalue', ''],
+        required: ['codemeaning'],
         properties: {
           codemeaning: { type: 'string' },
           codevalue: { type: 'string' },

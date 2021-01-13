@@ -95,7 +95,7 @@ async function Ontology(fastify) {
     }
   });
 
-  fastify.decorate('getOntologyTerm', async (request, reply) => {
+  fastify.decorate('getOntologyTermByCodeValue', async (request, reply) => {
     fastify.log.info('get term');
     const { codevalue: CODE_VALUE } = request.params;
     try {
@@ -108,22 +108,36 @@ async function Ontology(fastify) {
     }
   });
 
+  fastify.decorate('generateCodeValueInternal', () => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const retVal = await models.lexicon.findAll({
+          limit: 1,
+          order: [['ID', 'DESC']],
+        });
+        resolve(5);
+      } catch (err) {
+        reject(err);
+      }
+      //console.log('last id :', retVal);
+    });
+  });
+
   fastify.decorate('insertOntologyItem', async (request, reply) => {
-    fastify.log.info('insert item');
+    fastify.log.info('insert item', await fastify.generateCodeValueInternal());
 
     try {
       const {
         codemeaning: CODE_MEANING,
-        codevalue: CODE_VALUE,
         description,
         schemadesignator: SCHEMA_DESIGNATOR,
         schemaversion: SCHEMA_VERSION,
         creator,
       } = request.body;
 
-      await models.lexicon.create({
+      const retVal = await models.lexicon.create({
         CODE_MEANING,
-        CODE_VALUE,
+        CODE_VALUE: await fastify.generateCodeValueInternal(),
         description,
         SCHEMA_DESIGNATOR,
         SCHEMA_VERSION,
@@ -131,7 +145,14 @@ async function Ontology(fastify) {
         createdtime: Date.now(),
         updatetime: Date.now(),
       });
-      reply.code(200).send('lexcion object inserted succesfully');
+      const resultInJson = {
+        id: retVal.dataValues.ID,
+        codevalue: retVal.dataValues.CODE_VALUE,
+        codemeaning: retVal.dataValues.CODE_MEANING,
+        schemadesignator: retVal.dataValues.SCHEMA_DESIGNATOR,
+      };
+      console.log('returning value :', resultInJson);
+      reply.code(200).send(resultInJson);
     } catch (err) {
       reply
         .code(500)
