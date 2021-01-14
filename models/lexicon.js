@@ -44,6 +44,23 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.STRING(8),
         allowNull: true,
       },
+      referenceuid: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      referencename: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      referencetype: {
+        type: DataTypes.STRING(1),
+        allowNull: true,
+      },
+      indexno: {
+        type: DataTypes.INTEGER(11),
+        allowNull: true,
+        defaultValue: 0,
+      },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,

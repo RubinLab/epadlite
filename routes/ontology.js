@@ -10,6 +10,9 @@ async function routes(fastify) {
         codemeaning: { type: 'string' },
         description: { type: 'string' },
         schemaversion: { type: 'string' },
+        referenceuid: { type: 'string' },
+        referencename: { type: 'string' },
+        referencetype: { type: 'string' },
       },
       // response: {
       //   200: {
@@ -54,6 +57,10 @@ async function routes(fastify) {
     handler: fastify.getOntologyTermByCodeValue,
   });
 
+  // referenceuid : template uid or plugin id
+  // referencename : template name or plugin name
+  // referencetype : t for template or p for plugin
+
   fastify.route({
     method: 'POST',
     url: '/ontology',
@@ -61,13 +68,16 @@ async function routes(fastify) {
       tags: ['ontology'],
       body: {
         type: 'object',
-        required: ['codemeaning'],
+        required: ['codemeaning', 'referenceuid', 'referencename', 'referencetype'],
         properties: {
           codemeaning: { type: 'string' },
           codevalue: { type: 'string' },
           description: { type: 'string' },
           schemadesignator: { type: 'string' },
           schemaversion: { type: 'string' },
+          referenceuid: { type: 'string' },
+          referencename: { type: 'string' },
+          referencetype: { type: 'string' },
           creator: { type: 'string' },
         },
       },
@@ -89,6 +99,9 @@ async function routes(fastify) {
           description: { type: 'string' },
           schemadesignator: { type: 'string' },
           schemaversion: { type: 'string' },
+          referenceuid: { type: 'string' },
+          referencename: { type: 'string' },
+          referencetype: { type: 'string' },
         },
       },
     },

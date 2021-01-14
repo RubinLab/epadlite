@@ -9938,6 +9938,14 @@ async function epaddb(fastify, options, done) {
               MODIFY COLUMN status varchar(10) ;`,
               { transaction: t }
             );
+            await fastify.orm.query(
+              `ALTER TABLE lexicon 
+                ADD COLUMN IF NOT EXISTS referenceuid varchar(100) NULL AFTER SCHEMA_VERSION,
+                ADD COLUMN IF NOT EXISTS referencename varchar(100) NULL AFTER referenceuid,
+                ADD COLUMN IF NOT EXISTS referencetype char(1) NULL AFTER referencename,
+                ADD COLUMN IF NOT EXISTS indexno int(11) DEFAULT 0 AFTER referencetype;`,
+              { transaction: t }
+            );
             // cavit
             // set the orphaned project_user entities to the first admin
             await fastify.orm.query(

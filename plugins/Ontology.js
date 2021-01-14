@@ -29,6 +29,100 @@ async function Ontology(fastify) {
     }
   });
 
+  fastify.decorate('getOntologyAllInternal', async requestObject => {
+    const result = [];
+    let whereString = {};
+    const itemArray = [];
+    return new Promise ((reject,resolve)=>{
+          try {
+            fastify.log.info('get all', requestObject);
+            let {
+              codevalue: CODE_VALUE,
+              codemeaning: CODE_MEANING,
+              description,
+              schemaversion: SCHEMA_VERSION,
+              referenceuid,
+              referencename,
+              referencetype,
+            } = requestObject;
+            if (typeof CODE_VALUE !== 'undefined') {
+              CODE_VALUE = {
+                [Op.like]: `%${CODE_VALUE}%`,
+              };
+              itemArray.push({ CODE_VALUE });
+            }
+            if (typeof CODE_MEANING !== 'undefined') {
+              CODE_MEANING = {
+                [Op.like]: `%${CODE_MEANING}%`,
+              };
+              itemArray.push({ CODE_MEANING });
+            }
+            if (typeof description !== 'undefined') {
+              description = {
+                [Op.like]: `%${description}%`,
+              };
+              itemArray.push({ description });
+            }
+            if (typeof SCHEMA_VERSION !== 'undefined') {
+              SCHEMA_VERSION = {
+                [Op.like]: `%${SCHEMA_VERSION}%`,
+              };
+              itemArray.push({ SCHEMA_VERSION });
+            }
+
+            if (typeof referenceuid !== 'undefined') {
+              referenceuid = {
+                [Op.like]: `%${referenceuid}%`,
+              };
+              itemArray.push({ referenceuid });
+            }
+            if (typeof referencename !== 'undefined') {
+              referencename = {
+                [Op.like]: `%${referencename}%`,
+              };
+              itemArray.push({ referencename });
+            }
+            if (typeof referencetype !== 'undefined') {
+              referencetype = {
+                [Op.like]: `%${referencetype}%`,
+              };
+              itemArray.push({ referencetype });
+            }
+
+            if (itemArray.length === 1) {
+              whereString = { where: { ...itemArray[0] } };
+            } else {
+              whereString = { where: { [Op.and]: [...itemArray] } };
+            }
+
+            const lexicon = await models.lexicon.findAll(whereString);
+
+            for (let i = 0; i < lexicon.length; i += 1) {
+              const lexiconObj = {
+                id: lexicon[i].dataValues.ID,
+                codemeaning: lexicon[i].dataValues.CODE_MEANING,
+                codevalue: lexicon[i].dataValues.CODE_VALUE,
+                description: lexicon[i].dataValues.description,
+                createdtime: lexicon[i].dataValues.createdtime,
+                updatetime: lexicon[i].dataValues.updatetime,
+                schemadesignator: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
+                schemaversion: lexicon[i].dataValues.SCHEMA_VERSION,
+                referenceuid: lexicon[i].dataValues.referenceuid,
+                referencename: lexicon[i].dataValues.referencename,
+                referencetype: lexicon[i].dataValues.referencetype,
+                indexno: lexicon[i].dataValues.indexno,
+                creator: lexicon[i].dataValues.creator,
+              };
+              result.push(lexiconObj);
+            }
+
+            resolve(result);
+          } catch (err) {
+            reject(new InternalError(`error happened while getting all lexicon rows`, err));
+          }
+    });
+  });
+
   fastify.decorate('getOntologyAll', async (request, reply) => {
     const result = [];
     let whereString = {};
@@ -40,6 +134,9 @@ async function Ontology(fastify) {
         codemeaning: CODE_MEANING,
         description,
         schemaversion: SCHEMA_VERSION,
+        referenceuid,
+        referencename,
+        referencetype,
       } = request.query;
       if (typeof CODE_VALUE !== 'undefined') {
         CODE_VALUE = {
@@ -66,6 +163,25 @@ async function Ontology(fastify) {
         itemArray.push({ SCHEMA_VERSION });
       }
 
+      if (typeof referenceuid !== 'undefined') {
+        referenceuid = {
+          [Op.like]: `%${referenceuid}%`,
+        };
+        itemArray.push({ referenceuid });
+      }
+      if (typeof referencename !== 'undefined') {
+        referencename = {
+          [Op.like]: `%${referencename}%`,
+        };
+        itemArray.push({ referencename });
+      }
+      if (typeof referencetype !== 'undefined') {
+        referencetype = {
+          [Op.like]: `%${referencetype}%`,
+        };
+        itemArray.push({ referencetype });
+      }
+
       if (itemArray.length === 1) {
         whereString = { where: { ...itemArray[0] } };
       } else {
@@ -84,6 +200,10 @@ async function Ontology(fastify) {
           updatetime: lexicon[i].dataValues.updatetime,
           schemadesignator: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
           schemaversion: lexicon[i].dataValues.SCHEMA_VERSION,
+          referenceuid: lexicon[i].dataValues.referenceuid,
+          referencename: lexicon[i].dataValues.referencename,
+          referencetype: lexicon[i].dataValues.referencetype,
+          indexno: lexicon[i].dataValues.indexno,
           creator: lexicon[i].dataValues.creator,
         };
         result.push(lexiconObj);
@@ -113,34 +233,39 @@ async function Ontology(fastify) {
       try {
         const retVal = await models.lexicon.findAll({
           limit: 1,
-          order: [['ID', 'DESC']],
+          order: [['indexno', 'DESC']],
         });
-        resolve(5);
+        resolve(retVal[0].dataValues.indexno);
       } catch (err) {
         reject(err);
       }
-      //console.log('last id :', retVal);
     });
   });
 
   fastify.decorate('insertOntologyItem', async (request, reply) => {
-    fastify.log.info('insert item', await fastify.generateCodeValueInternal());
-
+    const nextindex = (await fastify.generateCodeValueInternal()) + 1;
     try {
       const {
         codemeaning: CODE_MEANING,
         description,
         schemadesignator: SCHEMA_DESIGNATOR,
         schemaversion: SCHEMA_VERSION,
+        referenceuid,
+        referencename,
+        referencetype,
         creator,
       } = request.body;
 
       const retVal = await models.lexicon.create({
         CODE_MEANING,
-        CODE_VALUE: await fastify.generateCodeValueInternal(),
+        CODE_VALUE: `999EPAD${nextindex}`,
         description,
         SCHEMA_DESIGNATOR,
         SCHEMA_VERSION,
+        referenceuid,
+        referencename,
+        referencetype,
+        indexno: nextindex,
         creator,
         createdtime: Date.now(),
         updatetime: Date.now(),
@@ -150,6 +275,7 @@ async function Ontology(fastify) {
         codevalue: retVal.dataValues.CODE_VALUE,
         codemeaning: retVal.dataValues.CODE_MEANING,
         schemadesignator: retVal.dataValues.SCHEMA_DESIGNATOR,
+        indexno: retVal.dataValues.indexno,
       };
       console.log('returning value :', resultInJson);
       reply.code(200).send(resultInJson);
@@ -170,6 +296,9 @@ async function Ontology(fastify) {
         description,
         schemadesignator: SCHEMA_DESIGNATOR,
         schemaversion: SCHEMA_VERSION,
+        referenceuid,
+        referencename,
+        referencetype,
       } = request.body;
       models.lexicon.update(
         {
@@ -178,6 +307,9 @@ async function Ontology(fastify) {
           description,
           SCHEMA_DESIGNATOR,
           SCHEMA_VERSION,
+          referenceuid,
+          referencename,
+          referencetype,
           updatetime: Date.now(),
         },
         {
