@@ -14,16 +14,6 @@ async function routes(fastify) {
         referencename: { type: 'string' },
         referencetype: { type: 'string' },
       },
-      // response: {
-      //   200: {
-      //     type: 'object',
-      //     properties: {
-      //       id: { type: 'number' },
-      //       name: { type: 'string' },
-      //       parentId: { type: 'number' },
-      //     },
-      //   },
-      // },
     },
 
     handler: fastify.getOntologyAll,

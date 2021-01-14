@@ -30,189 +30,106 @@ async function Ontology(fastify) {
   });
 
   fastify.decorate('getOntologyAllInternal', async requestObject => {
-    const result = [];
-    let whereString = {};
-    const itemArray = [];
-    return new Promise ((reject,resolve)=>{
-          try {
-            fastify.log.info('get all', requestObject);
-            let {
-              codevalue: CODE_VALUE,
-              codemeaning: CODE_MEANING,
-              description,
-              schemaversion: SCHEMA_VERSION,
-              referenceuid,
-              referencename,
-              referencetype,
-            } = requestObject;
-            if (typeof CODE_VALUE !== 'undefined') {
-              CODE_VALUE = {
-                [Op.like]: `%${CODE_VALUE}%`,
-              };
-              itemArray.push({ CODE_VALUE });
-            }
-            if (typeof CODE_MEANING !== 'undefined') {
-              CODE_MEANING = {
-                [Op.like]: `%${CODE_MEANING}%`,
-              };
-              itemArray.push({ CODE_MEANING });
-            }
-            if (typeof description !== 'undefined') {
-              description = {
-                [Op.like]: `%${description}%`,
-              };
-              itemArray.push({ description });
-            }
-            if (typeof SCHEMA_VERSION !== 'undefined') {
-              SCHEMA_VERSION = {
-                [Op.like]: `%${SCHEMA_VERSION}%`,
-              };
-              itemArray.push({ SCHEMA_VERSION });
-            }
+    return new Promise(async (resolve, reject) => {
+      const result = [];
+      let whereString = {};
+      const itemArray = [];
+      try {
+        fastify.log.info('get all', requestObject);
+        let {
+          codevalue: CODE_VALUE,
+          codemeaning: CODE_MEANING,
+          description,
+          schemaversion: SCHEMA_VERSION,
+          referenceuid,
+          referencename,
+          referencetype,
+        } = requestObject;
+        if (typeof CODE_VALUE !== 'undefined') {
+          CODE_VALUE = {
+            [Op.like]: `%${CODE_VALUE}%`,
+          };
+          itemArray.push({ CODE_VALUE });
+        }
+        if (typeof CODE_MEANING !== 'undefined') {
+          CODE_MEANING = {
+            [Op.like]: `%${CODE_MEANING}%`,
+          };
+          itemArray.push({ CODE_MEANING });
+        }
+        if (typeof description !== 'undefined') {
+          description = {
+            [Op.like]: `%${description}%`,
+          };
+          itemArray.push({ description });
+        }
+        if (typeof SCHEMA_VERSION !== 'undefined') {
+          SCHEMA_VERSION = {
+            [Op.like]: `%${SCHEMA_VERSION}%`,
+          };
+          itemArray.push({ SCHEMA_VERSION });
+        }
 
-            if (typeof referenceuid !== 'undefined') {
-              referenceuid = {
-                [Op.like]: `%${referenceuid}%`,
-              };
-              itemArray.push({ referenceuid });
-            }
-            if (typeof referencename !== 'undefined') {
-              referencename = {
-                [Op.like]: `%${referencename}%`,
-              };
-              itemArray.push({ referencename });
-            }
-            if (typeof referencetype !== 'undefined') {
-              referencetype = {
-                [Op.like]: `%${referencetype}%`,
-              };
-              itemArray.push({ referencetype });
-            }
+        if (typeof referenceuid !== 'undefined') {
+          referenceuid = {
+            [Op.like]: `%${referenceuid}%`,
+          };
+          itemArray.push({ referenceuid });
+        }
+        if (typeof referencename !== 'undefined') {
+          referencename = {
+            [Op.like]: `%${referencename}%`,
+          };
+          itemArray.push({ referencename });
+        }
+        if (typeof referencetype !== 'undefined') {
+          referencetype = {
+            [Op.like]: `%${referencetype}%`,
+          };
+          itemArray.push({ referencetype });
+        }
 
-            if (itemArray.length === 1) {
-              whereString = { where: { ...itemArray[0] } };
-            } else {
-              whereString = { where: { [Op.and]: [...itemArray] } };
-            }
+        if (itemArray.length === 1) {
+          whereString = { where: { ...itemArray[0] } };
+        } else {
+          whereString = { where: { [Op.and]: [...itemArray] } };
+        }
 
-            const lexicon = await models.lexicon.findAll(whereString);
+        const lexicon = await models.lexicon.findAll(whereString);
 
-            for (let i = 0; i < lexicon.length; i += 1) {
-              const lexiconObj = {
-                id: lexicon[i].dataValues.ID,
-                codemeaning: lexicon[i].dataValues.CODE_MEANING,
-                codevalue: lexicon[i].dataValues.CODE_VALUE,
-                description: lexicon[i].dataValues.description,
-                createdtime: lexicon[i].dataValues.createdtime,
-                updatetime: lexicon[i].dataValues.updatetime,
-                schemadesignator: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
-                schemaversion: lexicon[i].dataValues.SCHEMA_VERSION,
-                referenceuid: lexicon[i].dataValues.referenceuid,
-                referencename: lexicon[i].dataValues.referencename,
-                referencetype: lexicon[i].dataValues.referencetype,
-                indexno: lexicon[i].dataValues.indexno,
-                creator: lexicon[i].dataValues.creator,
-              };
-              result.push(lexiconObj);
-            }
-
-            resolve(result);
-          } catch (err) {
-            reject(new InternalError(`error happened while getting all lexicon rows`, err));
-          }
+        for (let i = 0; i < lexicon.length; i += 1) {
+          const lexiconObj = {
+            id: lexicon[i].dataValues.ID,
+            codemeaning: lexicon[i].dataValues.CODE_MEANING,
+            codevalue: lexicon[i].dataValues.CODE_VALUE,
+            description: lexicon[i].dataValues.description,
+            createdtime: lexicon[i].dataValues.createdtime,
+            updatetime: lexicon[i].dataValues.updatetime,
+            schemadesignator: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
+            schemaversion: lexicon[i].dataValues.SCHEMA_VERSION,
+            referenceuid: lexicon[i].dataValues.referenceuid,
+            referencename: lexicon[i].dataValues.referencename,
+            referencetype: lexicon[i].dataValues.referencetype,
+            indexno: lexicon[i].dataValues.indexno,
+            creator: lexicon[i].dataValues.creator,
+          };
+          result.push(lexiconObj);
+        }
+        resolve(result);
+      } catch (err) {
+        reject(new InternalError(`error happened while getting all lexicon rows`, err));
+      }
     });
   });
 
-  fastify.decorate('getOntologyAll', async (request, reply) => {
-    const result = [];
-    let whereString = {};
-    const itemArray = [];
-    try {
-      fastify.log.info('get all', request.query);
-      let {
-        codevalue: CODE_VALUE,
-        codemeaning: CODE_MEANING,
-        description,
-        schemaversion: SCHEMA_VERSION,
-        referenceuid,
-        referencename,
-        referencetype,
-      } = request.query;
-      if (typeof CODE_VALUE !== 'undefined') {
-        CODE_VALUE = {
-          [Op.like]: `%${CODE_VALUE}%`,
-        };
-        itemArray.push({ CODE_VALUE });
-      }
-      if (typeof CODE_MEANING !== 'undefined') {
-        CODE_MEANING = {
-          [Op.like]: `%${CODE_MEANING}%`,
-        };
-        itemArray.push({ CODE_MEANING });
-      }
-      if (typeof description !== 'undefined') {
-        description = {
-          [Op.like]: `%${description}%`,
-        };
-        itemArray.push({ description });
-      }
-      if (typeof SCHEMA_VERSION !== 'undefined') {
-        SCHEMA_VERSION = {
-          [Op.like]: `%${SCHEMA_VERSION}%`,
-        };
-        itemArray.push({ SCHEMA_VERSION });
-      }
-
-      if (typeof referenceuid !== 'undefined') {
-        referenceuid = {
-          [Op.like]: `%${referenceuid}%`,
-        };
-        itemArray.push({ referenceuid });
-      }
-      if (typeof referencename !== 'undefined') {
-        referencename = {
-          [Op.like]: `%${referencename}%`,
-        };
-        itemArray.push({ referencename });
-      }
-      if (typeof referencetype !== 'undefined') {
-        referencetype = {
-          [Op.like]: `%${referencetype}%`,
-        };
-        itemArray.push({ referencetype });
-      }
-
-      if (itemArray.length === 1) {
-        whereString = { where: { ...itemArray[0] } };
-      } else {
-        whereString = { where: { [Op.and]: [...itemArray] } };
-      }
-
-      const lexicon = await models.lexicon.findAll(whereString);
-
-      for (let i = 0; i < lexicon.length; i += 1) {
-        const lexiconObj = {
-          id: lexicon[i].dataValues.ID,
-          codemeaning: lexicon[i].dataValues.CODE_MEANING,
-          codevalue: lexicon[i].dataValues.CODE_VALUE,
-          description: lexicon[i].dataValues.description,
-          createdtime: lexicon[i].dataValues.createdtime,
-          updatetime: lexicon[i].dataValues.updatetime,
-          schemadesignator: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
-          schemaversion: lexicon[i].dataValues.SCHEMA_VERSION,
-          referenceuid: lexicon[i].dataValues.referenceuid,
-          referencename: lexicon[i].dataValues.referencename,
-          referencetype: lexicon[i].dataValues.referencetype,
-          indexno: lexicon[i].dataValues.indexno,
-          creator: lexicon[i].dataValues.creator,
-        };
-        result.push(lexiconObj);
-      }
-
-      reply.code(200).send(result);
-    } catch (err) {
-      reply.code(500).send(new InternalError(`error happened while getting all lexicon rows`, err));
-    }
+  fastify.decorate('getOntologyAll', (request, reply) => {
+    const ReqObj = request.query;
+    fastify
+      .getOntologyAllInternal(ReqObj)
+      .then(resultObj => {
+        reply.code(200).send(resultObj);
+      })
+      .catch(err => reply.send(err));
   });
 
   fastify.decorate('getOntologyTermByCodeValue', async (request, reply) => {
