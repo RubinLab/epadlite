@@ -117,7 +117,9 @@ async function Ontology(fastify) {
         }
         resolve(result);
       } catch (err) {
-        reject(new InternalError(`error happened while getting all lexicon rows`, err));
+        reject(
+          new InternalError(`error happened in ternal phase while getting all lexicon rows`, err)
+        );
       }
     });
   });
@@ -129,13 +131,17 @@ async function Ontology(fastify) {
         .getOntologyAllInternal(ReqObj)
         .then(resultObj => {
           for (let i = 0; i < resultObj.length; i += 1) {
-            if (resultObj[i].codemeaning === codemeaningParam) {
+            if (resultObj[i].codemeaning.toUpperCase() === codemeaningParam.toUpperCase()) {
               resolve(409);
             }
           }
           resolve(200);
         })
-        .catch(err => reject(err));
+        .catch(err =>
+          reject(
+            new InternalError(`error happened while checking the duplicate of codemeaning`, err)
+          )
+        );
     });
   });
 
@@ -147,11 +153,14 @@ async function Ontology(fastify) {
       .then(resultObj => {
         reply.code(200).send(resultObj);
       })
-      .catch(err => reply.send(err));
+      .catch(err =>
+        reply
+          .code(500)
+          .send(new InternalError(`error happened while getting all lexicon rows`, err))
+      );
   });
 
   fastify.decorate('getOntologyTermByCodeValue', async (request, reply) => {
-    fastify.log.info('get term');
     const { codevalue: CODE_VALUE } = request.params;
     try {
       const lexiconObj = await models.lexicon.findOne({
@@ -172,7 +181,12 @@ async function Ontology(fastify) {
         });
         resolve(retVal[0].dataValues.indexno);
       } catch (err) {
-        reject(err);
+        reject(
+          new InternalError(
+            `error happened while generating a codevalue for a new lexicon entry  `,
+            err
+          )
+        );
       }
     });
   });
@@ -186,7 +200,6 @@ async function Ontology(fastify) {
         .code(500)
         .send(new InternalError(`error happened while checking codemenaing existance`, err));
     }
-    console.log('code : ', code);
     if (code === 200) {
       try {
         const nextindex = (await fastify.generateCodeValueInternal()) + 1;
@@ -222,7 +235,6 @@ async function Ontology(fastify) {
           schemadesignator: retVal.dataValues.SCHEMA_DESIGNATOR,
           indexno: retVal.dataValues.indexno,
         };
-        console.log('returning value :', resultInJson);
         reply.code(200).send(resultInJson);
       } catch (err) {
         reply
@@ -234,52 +246,7 @@ async function Ontology(fastify) {
     }
   });
 
-  // fastify.decorate('insertOntologyItem', async (request, reply) => {
-  //   const nextindex = (await fastify.generateCodeValueInternal()) + 1;
-  //   try {
-  //     const {
-  //       codemeaning: CODE_MEANING,
-  //       description,
-  //       schemadesignator: SCHEMA_DESIGNATOR,
-  //       schemaversion: SCHEMA_VERSION,
-  //       referenceuid,
-  //       referencename,
-  //       referencetype,
-  //       creator,
-  //     } = request.body;
-
-  //     const retVal = await models.lexicon.create({
-  //       CODE_MEANING,
-  //       CODE_VALUE: `999EPAD${nextindex}`,
-  //       description,
-  //       SCHEMA_DESIGNATOR,
-  //       SCHEMA_VERSION,
-  //       referenceuid,
-  //       referencename,
-  //       referencetype,
-  //       indexno: nextindex,
-  //       creator,
-  //       createdtime: Date.now(),
-  //       updatetime: Date.now(),
-  //     });
-  //     const resultInJson = {
-  //       id: retVal.dataValues.ID,
-  //       codevalue: retVal.dataValues.CODE_VALUE,
-  //       codemeaning: retVal.dataValues.CODE_MEANING,
-  //       schemadesignator: retVal.dataValues.SCHEMA_DESIGNATOR,
-  //       indexno: retVal.dataValues.indexno,
-  //     };
-  //     console.log('returning value :', resultInJson);
-  //     reply.code(200).send(resultInJson);
-  //   } catch (err) {
-  //     reply
-  //       .code(500)
-  //       .send(new InternalError(`error happened while insterting lexicon object`, err));
-  //   }
-  // });
-
   fastify.decorate('updateOntologyItem', (request, reply) => {
-    fastify.log.info('update item');
     try {
       const { codevalue: codevalueprm } = request.params;
       const {
@@ -317,7 +284,6 @@ async function Ontology(fastify) {
   });
 
   fastify.decorate('deleteOntologyItem', (request, reply) => {
-    fastify.log.info('update item');
     try {
       const { codevalue: CODE_VALUE } = request.params;
       models.lexicon.destroy({
