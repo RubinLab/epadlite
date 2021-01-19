@@ -132,10 +132,10 @@ async function Ontology(fastify) {
         .then(resultObj => {
           for (let i = 0; i < resultObj.length; i += 1) {
             if (resultObj[i].codemeaning.toUpperCase() === codemeaningParam.toUpperCase()) {
-              resolve(409);
+              resolve({ code: 409, lexiconObj: resultObj[i] });
             }
           }
-          resolve(200);
+          resolve({ code: 200 });
         })
         .catch(err =>
           reject(
@@ -179,7 +179,12 @@ async function Ontology(fastify) {
           limit: 1,
           order: [['indexno', 'DESC']],
         });
-        resolve(retVal[0].dataValues.indexno);
+
+        if (retVal.length > 0) {
+          resolve(retVal[0].dataValues.indexno);
+        } else {
+          resolve(0);
+        }
       } catch (err) {
         reject(
           new InternalError(
@@ -191,16 +196,74 @@ async function Ontology(fastify) {
     });
   });
 
+  fastify.decorate('insertOntologyItemInternal', async lexiconObj => {
+    return new Promise(async (resolve, reject) => {
+      let returnObj = null;
+      try {
+        returnObj = await fastify.checkDuplicateCodemeaningInternal(lexiconObj.codemeaning);
+      } catch (err) {
+        reject(new InternalError(`error happened while checking codemenaing existance`, err));
+      }
+      if (returnObj.code === 200) {
+        try {
+          const nextindex = (await fastify.generateCodeValueInternal()) + 1;
+          const {
+            codemeaning: CODE_MEANING,
+            description,
+            schemadesignator: SCHEMA_DESIGNATOR,
+            schemaversion: SCHEMA_VERSION,
+            referenceuid,
+            referencename,
+            referencetype,
+            creator,
+          } = lexiconObj;
+
+          const retVal = await models.lexicon.create({
+            CODE_MEANING,
+            CODE_VALUE: `999EPAD${nextindex}`,
+            description,
+            SCHEMA_DESIGNATOR,
+            SCHEMA_VERSION,
+            referenceuid,
+            referencename,
+            referencetype,
+            indexno: nextindex,
+            creator,
+            createdtime: Date.now(),
+            updatetime: Date.now(),
+          });
+          //  console.log('retVal', retVal);
+          const resultInJson = {
+            id: retVal.ID,
+            codevalue: retVal.CODE_VALUE,
+            codemeaning: retVal.CODE_MEANING,
+            schemadesignator: retVal.SCHEMA_DESIGNATOR,
+            indexno: retVal.indexno,
+            referenceuid,
+            referencename,
+            referencetype,
+            creator,
+          };
+          resolve(resultInJson);
+        } catch (err) {
+          reject(new InternalError(`error happened while insterting lexicon object`, err));
+        }
+      } else {
+        reject(returnObj);
+      }
+    });
+  });
+
   fastify.decorate('insertOntologyItem', async (request, reply) => {
-    let code = null;
+    let resultObj = null;
     try {
-      code = await fastify.checkDuplicateCodemeaningInternal(request.body.codemeaning);
+      resultObj = await fastify.checkDuplicateCodemeaningInternal(request.body.codemeaning);
     } catch (err) {
       reply
         .code(500)
         .send(new InternalError(`error happened while checking codemenaing existance`, err));
     }
-    if (code === 200) {
+    if (resultObj.code === 200) {
       try {
         const nextindex = (await fastify.generateCodeValueInternal()) + 1;
         const {
@@ -242,7 +305,8 @@ async function Ontology(fastify) {
           .send(new InternalError(`error happened while insterting lexicon object`, err));
       }
     } else {
-      reply.code(code).send(new Error('Duplicate codemeaning'));
+      //  reply.code(resultObj.code).send(new Error('Duplicate codemeaning'));
+      reply.code(resultObj.code).send(resultObj.lexiconObj);
     }
   });
 

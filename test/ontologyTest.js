@@ -15,7 +15,9 @@ describe('Ontology Tests', () => {
         .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning1',
-          codevalue: 'testcodevalue1',
+          referenceuid: 'testcodevalue1',
+          referencename: 'plugin',
+          referencetype: 'plugin',
           creator: 'admin',
         });
       await chai
@@ -24,7 +26,9 @@ describe('Ontology Tests', () => {
         .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning2',
-          codevalue: 'testcodevalue2',
+          referenceuid: 'testcodevalue2',
+          referencename: 'plugin2',
+          referencetype: 'plugin2',
           creator: 'admin',
         });
     } catch (err) {
@@ -35,11 +39,11 @@ describe('Ontology Tests', () => {
     try {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/ontology/testcodevalue1')
+        .delete('/ontology/999EPAD1')
         .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/ontology/testcodevalue2')
+        .delete('/ontology/999EPAD2')
         .query({ username: 'admin' });
     } catch (err) {
       console.log(`Ontology Tests after error: ${err.message}`);
