@@ -3068,6 +3068,8 @@ async function epaddb(fastify, options, done) {
           'admin'
           //  request.epadAuth
         );
+        fastify.log.info('upload dir back error: ', errors);
+        fastify.log.info('upload dir back success: ', success);
         resolve(200);
       } catch (err) {
         reject(err);
