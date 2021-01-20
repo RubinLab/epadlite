@@ -2836,8 +2836,8 @@ async function epaddb(fastify, options, done) {
         console.log('ext :', ext[ext.length - 1]);
 
         if (extensionParam === ext[ext.length - 1] || extensionParam === '') {
-          console.log('pushing,....');
-          cumfileArrayParam.push(path.join(__dirname, `${dirParam}/${infuncfileArray[i]}`));
+          console.log(`pushing,....${dirParam}/${infuncfileArray[i]}`);
+          cumfileArrayParam.push({ path: dirParam, file: infuncfileArray[i] });
         }
       }
     }
@@ -2845,13 +2845,15 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('parseCsvForPluginCalculationsInternal', csvFileParam => {
-    console.log('parsing csv file');
+    console.log('parsing csv file', csvFileParam);
+    console.log('parsing csv file', csvFileParam.path);
+    console.log('parsing csv file', csvFileParam.file);
     const result = [];
-    const necessaryPath = csvFileParam.split('pluginsDataFolder');
-    const uselast = necessaryPath[necessaryPath.length - 1];
-    console.log('reding cvs : ', uselast);
+    // const necessaryPath = csvFileParam.split('pluginsDataFolder');
+    // const uselast = necessaryPath[necessaryPath.length - 1];
+    console.log('reding cvs : ', `${csvFileParam.path}/${csvFileParam.file}`);
     return new Promise((resolve, reject) => {
-      fs.createReadStream(path.join(__dirname, `../pluginsDataFolder${uselast}`))
+      fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
         .pipe(csv({ skipLines: 6, headers: ['key', 'value'] }))
         .on('data', data => result.push(data))
         .on('end', () => {
@@ -2952,14 +2954,11 @@ async function epaddb(fastify, options, done) {
     });
   });
   fastify.decorate('createPartialAimForPluginCalcInternal', (csvFileParam, pluginInfoParam) => {
-    console.log('createPartialAimForPluginCalcInternal', csvFileParam);
-
     const partCalcEntityArray = [];
 
     return new Promise(async (resolve, reject) => {
       try {
         for (let i = 0; i < csvFileParam.length; i += 1) {
-          console.log(csvFileParam[i].key);
           const lexiconObj = {
             codemeaning: csvFileParam[i].key,
             description: 'plugin adds automatically',
@@ -2974,7 +2973,7 @@ async function epaddb(fastify, options, done) {
           try {
             // eslint-disable-next-line no-await-in-loop
             const newLexiconObj = await fastify.insertOntologyItemInternal(lexiconObj);
-            console.log('newLexiconObj', newLexiconObj);
+
             // eslint-disable-next-line no-await-in-loop
             const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
               newLexiconObj,
@@ -2982,11 +2981,9 @@ async function epaddb(fastify, options, done) {
             );
             partCalcEntityArray.push(resultCalcEntitObj);
           } catch (err) {
-            console.log('error part : ', err);
             if (err instanceof InternalError) {
               throw err;
             } else if (err.code === 409) {
-              console.log('409 duplicate', err.lexiconObj);
               err.lexiconObj.referenceuid = lexiconObj.referenceuid;
               err.lexiconObj.referencename = lexiconObj.referencename;
               // eslint-disable-next-line no-await-in-loop
@@ -2999,7 +2996,7 @@ async function epaddb(fastify, options, done) {
             }
           }
         }
-        console.log('all calc entities :', JSON.stringify(partCalcEntityArray));
+
         resolve(partCalcEntityArray);
       } catch (err) {
         reject(
@@ -3020,70 +3017,53 @@ async function epaddb(fastify, options, done) {
       return new Promise((resolve, reject) => {
         try {
           fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
-          console.log('###############');
-          console.log('###############');
+          console.log('###############mergePartialCalcAimWithUserAimPluginCalcInternal');
+          console.log('###############aimFileLocation', aimFileLocation);
           console.log('###############');
           console.log('mergin partial calc aim to user aim', partialAimParam);
           console.log('###############', __dirname);
           console.log('###############');
           console.log('###############');
-          let necessaryPath = fileArray[0].split('pluginsDataFolder');
-          necessaryPath = necessaryPath[necessaryPath.length - 1];
-          fs.readFile(
-            path.join(__dirname, `../pluginsDataFolder/${necessaryPath}`),
-            'utf8',
-            (err, jsonString) => {
-              if (err) {
-                console.log('File read failed:', err);
-                reject(err);
-              }
-              pareAimFile = JSON.parse(jsonString);
-              console.log(
-                'File data:',
-                pareAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .calculationEntityCollection.CalculationEntity
-              );
-              const newMergedCalcEntity = pareAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
-                partialAimParam
-              );
-              pareAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity = newMergedCalcEntity;
-              console.log(
-                'after File data:',
-                JSON.stringify(
-                  pareAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                    .calculationEntityCollection.CalculationEntity
-                )
-              );
-              fs.writeFile(
-                path.join(__dirname, `../pluginsDataFolder/${necessaryPath}`),
-                JSON.stringify(pareAimFile),
-                errWrite => {
-                  if (errWrite) throw errWrite;
-                  console.log('The file has been saved!');
-                }
-              );
-            }
-          );
 
-          resolve(`../pluginsDataFolder/${necessaryPath}`);
+          fs.readFile(`${fileArray[0].path}/${fileArray[0].file}`, 'utf8', (err, jsonString) => {
+            if (err) {
+              reject(err);
+            }
+            pareAimFile = JSON.parse(jsonString);
+
+            const newMergedCalcEntity = pareAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
+              partialAimParam
+            );
+            pareAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity = newMergedCalcEntity;
+
+            fs.writeFile(
+              `${fileArray[0].path}/${fileArray[0].file}`,
+              JSON.stringify(pareAimFile),
+              errWrite => {
+                if (errWrite) throw errWrite;
+                fastify.log.info('partial calculation aim merged with user aim');
+              }
+            );
+          });
+
+          resolve(fileArray[0]);
         } catch (err) {
           reject(err);
         }
       });
     }
   );
-  fastify.decorate('uploadMergedAimPluginCalcInternal', async aimFileLocation => {
+  fastify.decorate('uploadMergedAimPluginCalcInternal', async (aimFileLocation, projectidParam) => {
     return new Promise(async (resolve, reject) => {
       const fileArray = [];
-      fileArray.push('jjvecshort.json');
-      let necessaryPath = aimFileLocation.split('/');
+      fileArray.push(aimFileLocation.file);
 
       try {
         console.log('uploadig the merged aim file back to epad', aimFileLocation);
         const { success, errors } = await fastify.saveFiles(
-          `/Users/cavit/epad/epadLiteCodeGit/epadlite/pluginsDataFolder/admin/1/aims`,
+          aimFileLocation.path,
           fileArray,
-          { project: 'cav' },
+          { project: projectidParam },
           {},
           'admin'
           //  request.epadAuth
@@ -3213,11 +3193,17 @@ async function epaddb(fastify, options, done) {
             const fileArray = [];
 
             if (fs.existsSync(`${pluginParameters.serverfolder}/output`)) {
+              const dcmFilesWithoutPath = [];
+
               fastify.findFilesAndSubfilesInternal(
                 `${pluginParameters.serverfolder}/output`,
                 fileArray,
                 'dcm'
               );
+
+              for (let cnt = 0; cnt < fileArray.length; cnt += 1) {
+                dcmFilesWithoutPath.push(fileArray[cnt].file);
+              }
               console.log('*******************************');
               console.log('*******************************');
               console.log('*******************************');
@@ -3226,7 +3212,7 @@ async function epaddb(fastify, options, done) {
               console.log('*******************************');
 
               fastify.log.info('file array : ', fileArray);
-              console.log('*******************************');
+              console.log('****************dcm files', dcmFilesWithoutPath);
               console.log('*******************************');
               console.log('*******************************');
               console.log('*******************************');
@@ -3235,7 +3221,7 @@ async function epaddb(fastify, options, done) {
               //  eslint-disable-next-line no-await-in-loop
               const { success, errors } = await fastify.saveFiles(
                 `${pluginParameters.serverfolder}/output`,
-                fileArray,
+                dcmFilesWithoutPath,
                 { project: pluginParameters.projectid },
                 {},
                 request.epadAuth
@@ -3244,7 +3230,7 @@ async function epaddb(fastify, options, done) {
               fastify.log.info('projectdb id :', pluginParameters.projectdbid);
               fastify.log.info('upload dir back error: ', errors);
               fastify.log.info('upload dir back success: ', success);
-              console.log('plugin parameters', pluginParameters);
+
               //  end
 
               // write plugin calculations to aim
@@ -3257,15 +3243,12 @@ async function epaddb(fastify, options, done) {
               console.log('cvs array :', csvArray);
               // eslint-disable-next-line no-await-in-loop
               const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
-
+              console.log('calc obj : ', calcObj);
               const pluginInfoFromParams = {
                 pluginnameid: pluginParameters.pluginnameid,
                 pluginname: pluginParameters.pluginname,
               };
-              console.log('xxxxxxxxxxxx');
-              console.log('xxxxxxxxxxxx', pluginParameters);
-              console.log('xxxxxxxxxxxx');
-              console.log('xxxxxxxxxxxx');
+
               // eslint-disable-next-line no-await-in-loop
               const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
                 calcObj,
@@ -3278,7 +3261,10 @@ async function epaddb(fastify, options, done) {
                 `${pluginParameters.serverfolder}/aims`
               );
               // eslint-disable-next-line no-await-in-loop
-              await fastify.uploadMergedAimPluginCalcInternal(mergedaimFileLocation);
+              await fastify.uploadMergedAimPluginCalcInternal(
+                mergedaimFileLocation,
+                pluginParameters.projectid
+              );
             }
 
             return 'completed';
