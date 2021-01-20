@@ -2862,7 +2862,7 @@ async function epaddb(fastify, options, done) {
         .on('error', err => {
           reject(
             new InternalError(
-              'error happened whole parsing calculations cvs to write into aim',
+              'error happened while reading plugin calculation csv file in output folder',
               err
             )
           );
@@ -2949,7 +2949,7 @@ async function epaddb(fastify, options, done) {
         };
         resolve(partCalcEntity);
       } catch (err) {
-        reject(err);
+        reject(new InternalError('error happened while creating plugin calculation entity', err));
       }
     });
   });
@@ -3001,7 +3001,7 @@ async function epaddb(fastify, options, done) {
       } catch (err) {
         reject(
           new InternalError(
-            'error happened whole createing partial aim from plugin calculations',
+            'error happened while creating partial aim from plugin calculations',
             err
           )
         );
@@ -3013,7 +3013,7 @@ async function epaddb(fastify, options, done) {
     'mergePartialCalcAimWithUserAimPluginCalcInternal',
     (partialAimParam, userAimParam, aimFileLocation) => {
       const fileArray = [];
-      let pareAimFile = null;
+      let parsedAimFile = null;
       return new Promise((resolve, reject) => {
         try {
           fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
@@ -3027,20 +3027,30 @@ async function epaddb(fastify, options, done) {
 
           fs.readFile(`${fileArray[0].path}/${fileArray[0].file}`, 'utf8', (err, jsonString) => {
             if (err) {
-              reject(err);
+              reject(
+                new InternalError(
+                  'error happened while reading user aim file to send to the plugin to merge calculations',
+                  err
+                )
+              );
             }
-            pareAimFile = JSON.parse(jsonString);
+            parsedAimFile = JSON.parse(jsonString);
 
-            const newMergedCalcEntity = pareAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
+            const newMergedCalcEntity = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
               partialAimParam
             );
-            pareAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity = newMergedCalcEntity;
+            parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity = newMergedCalcEntity;
 
             fs.writeFile(
               `${fileArray[0].path}/${fileArray[0].file}`,
-              JSON.stringify(pareAimFile),
+              JSON.stringify(parsedAimFile),
               errWrite => {
-                if (errWrite) throw errWrite;
+                if (errWrite) {
+                  throw new InternalError(
+                    'error happened while saving the plugin calculation added aim',
+                    errWrite
+                  );
+                }
                 fastify.log.info('partial calculation aim merged with user aim');
               }
             );
@@ -3048,7 +3058,12 @@ async function epaddb(fastify, options, done) {
 
           resolve(fileArray[0]);
         } catch (err) {
-          reject(err);
+          reject(
+            new InternalError(
+              'error happened while mergin user aim with plugin calculation entites',
+              err
+            )
+          );
         }
       });
     }
@@ -3072,7 +3087,12 @@ async function epaddb(fastify, options, done) {
         fastify.log.info('upload dir back success: ', success);
         resolve(200);
       } catch (err) {
-        reject(err);
+        reject(
+          new InternalError(
+            'error happened while uploading merged aim with plugin calculations',
+            err
+          )
+        );
       }
     });
   });
