@@ -5902,7 +5902,7 @@ async function epaddb(fastify, options, done) {
             query.all && query.all === 'true'
               ? aimQry
               : { '$project.projectid$': params.project, ...aimQry };
-          const args = await models.project_aim.findAll({
+          const dbAims = await models.project_aim.findAll({
             where: qry,
             attributes: [
               'project_id',
@@ -5915,21 +5915,18 @@ async function epaddb(fastify, options, done) {
             raw: true,
             include: [{ model: models.project }],
           });
-          let aimUids = [];
+          const aimUids = [];
           let segDeletePromises = []; // an array for deleting all segs
-          if (body && Array.isArray(body)) {
-            aimUids = body;
-          } else {
-            for (let i = 0; i < args.length; i += 1) {
-              aimUids.push(args[i].aim_uid);
-              if (args[i].dso_series_uid)
-                segDeletePromises.push(
-                  fastify.deleteSeriesDicomsInternal({
-                    study: args[i].study_uid,
-                    series: args[i].dso_series_uid,
-                  })
-                );
-            }
+
+          for (let i = 0; i < dbAims.length; i += 1) {
+            aimUids.push(dbAims[i].aim_uid);
+            if (dbAims[i].dso_series_uid)
+              segDeletePromises.push(
+                fastify.deleteSeriesDicomsInternal({
+                  study: dbAims[i].study_uid,
+                  series: dbAims[i].dso_series_uid,
+                })
+              );
           }
 
           const numDeleted = await models.project_aim.destroy({
@@ -5940,7 +5937,7 @@ async function epaddb(fastify, options, done) {
           try {
             if (query.all && query.all === 'true') {
               await fastify.deleteCouchDocsInternal(aimUids);
-              await fastify.aimUpdateGatewayInBulk(args, epadAuth, params.project);
+              await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
               await Promise.all(segDeletePromises);
               resolve(`Aims deleted from system and removed from ${numDeleted} projects`);
             } else {
@@ -5957,7 +5954,7 @@ async function epaddb(fastify, options, done) {
               });
               if (leftovers.length === 0) {
                 await fastify.deleteCouchDocsInternal(aimUids);
-                await fastify.aimUpdateGatewayInBulk(args, epadAuth, params.project);
+                await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
 
                 await Promise.all(segDeletePromises);
                 resolve(`Aims deleted from system as they didn't exist in any other project`);
@@ -5970,19 +5967,22 @@ async function epaddb(fastify, options, done) {
                   fastify.log.info(`Aim not deleted from system as it exists in other project`);
                   leftoverIds.push(leftovers[i].aim_uid);
                 }
-                const deletedAims = aimUids.filter((e) => !leftoverIds.includes(e));
+                const deletedAims = dbAims.filter((e) => !leftoverIds.includes(e.aim_uid));
                 segDeletePromises = [];
+                const deletedAimUids = [];
                 for (let i = 0; i < deletedAims.length; i += 1) {
-                  if (deletedAims[i].dso_series_uid)
+                  if (deletedAims[i].dso_series_uid) {
+                    deletedAimUids.push(deletedAims[i].aim_uid);
                     segDeletePromises.push(
                       fastify.deleteSeriesDicomsInternal({
                         study: deletedAims[i].study_uid,
                         series: deletedAims[i].dso_series_uid,
                       })
                     );
+                  }
                 }
-                await fastify.deleteCouchDocsInternal(deletedAims);
-                await fastify.aimUpdateGatewayInBulk(args, epadAuth, params.project);
+                await fastify.deleteCouchDocsInternal(deletedAimUids);
+                await fastify.aimUpdateGatewayInBulk(deletedAims, epadAuth, params.project);
                 await Promise.all(segDeletePromises);
                 resolve(
                   `${leftovers.length} aims not deleted from system as they exist in other project`
