@@ -236,43 +236,22 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(this.request.get(`/studies${query}`, header));
           if (!noStats)
-            if (params.project)
-              promisses.push(
-                fastify.getAimsInternal(
-                  'summary',
-                  {
-                    project: params.project,
-                    subject: '',
-                    study: '',
-                    series: '',
-                  },
-                  undefined,
-                  epadAuth
-                )
-              );
-            else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
+            promisses.push(
+              fastify.getProjectAimCountMap({ project: params.project }, epadAuth, 'subject_uid')
+            );
           Promise.all(promisses)
             .then(async (values) => {
               // handle success
               // filter the results if patient id filter is given
-              const { filteredStudies, filteredAims } = await fastify.filter(
+              const { filteredStudies } = await fastify.filter(
                 values[0].data,
-                values[1],
+                [],
                 filter,
                 tag,
                 aimField,
                 negateFilter
               );
-              // populate an aim counts map containing each subject
-              const aimsCountMap = {};
-              if (!noStats)
-                _.chain(filteredAims)
-                  .groupBy((value) => value.subjectID)
-                  .map((value) => {
-                    const numberOfAims = _.reduce(value, (memo) => memo + 1, 0);
-                    aimsCountMap[value[0].subjectID] = numberOfAims;
-                  })
-                  .value();
+              const aimsCountMap = values[1] ? values[1] : [];
               // populate the subjects data by grouping the studies by patient id
               // and map each subject to epadlite subject object
               const result = _.chain(filteredStudies)
@@ -527,46 +506,33 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(this.request.get(`/studies${query}`, header));
           // get aims for a specific patient
-          if (!noStats) {
-            if (params.project)
-              promisses.push(
-                fastify.getAimsInternal(
-                  'summary',
-                  {
-                    project: params.project,
-                    subject: params.subject ? params.subject : '',
-                    study: '',
-                    series: '',
-                  },
-                  undefined,
-                  epadAuth
-                )
-              );
-            else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
-          }
+          if (!noStats)
+            promisses.push(
+              fastify.getProjectAimCountMap(
+                {
+                  project: params.project,
+                  subject: params.subject,
+                },
+                epadAuth,
+                'study_uid'
+              )
+            );
+
           Promise.all(promisses)
             .then(async (values) => {
               // handle success
               // filter the results if patient id filter is given
               // eslint-disable-next-line prefer-const
-              let { filteredStudies, filteredAims } = await fastify.filter(
+              let { filteredStudies } = await fastify.filter(
                 values[0].data,
-                values[1],
+                [],
                 filter,
                 tag,
                 aimField,
                 negateFilter
               );
               // populate an aim counts map containing each study
-              const aimsCountMap = {};
-              if (!noStats)
-                _.chain(filteredAims)
-                  .groupBy((value) => value.studyUID)
-                  .map((value) => {
-                    const numberOfAims = _.reduce(value, (memo) => memo + 1, 0);
-                    aimsCountMap[value[0].studyUID] = numberOfAims;
-                  })
-                  .value();
+              const aimsCountMap = values[1] ? values[1] : [];
 
               if (
                 filteredStudies.length === 0 ||
@@ -709,42 +675,27 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(this.request.get(`/studies/${params.study}/series`, header));
           // get aims for a specific study
-          if (noStats === undefined || noStats === false)
-            if (params.project)
-              promisses.push(
-                fastify.getAimsInternal(
-                  'summary',
-                  {
-                    project: params.project,
-                    subject: params.subject,
-                    study: params.study,
-                    series: '',
-                  },
-                  undefined,
-                  epadAuth
-                )
-              );
-            else promisses.push(fastify.getAimsInternal('summary', params, undefined, epadAuth));
-
+          if (!noStats)
+            promisses.push(
+              fastify.getProjectAimCountMap(
+                {
+                  project: params.project,
+                  subject: params.subject,
+                  study: params.study,
+                },
+                epadAuth,
+                'series_uid'
+              )
+            );
           Promise.all(promisses)
             .then((values) => {
               // handle success
               // populate an aim counts map containing each series
-              const aimsCountMap = {};
-              if (noStats === undefined || noStats === false) {
-                _.chain(values[1])
-                  .groupBy((value) => value.seriesUID)
-                  .map((value) => {
-                    const numberOfAims = _.reduce(value, (memo) => memo + 1, 0);
-                    aimsCountMap[value[0].seriesUID] = numberOfAims;
-                  })
-                  .value();
-              }
-              // handle success
+              const aimsCountMap = values[1] ? values[1] : [];
               // map each series to epadlite series object
               let filtered = values[0].data;
               if (query.filterDSO === 'true')
-                filtered = _.filter(values[0].data, (obj) => obj['00080060'].Value[0] !== 'SEG');
+                filtered = _.filter(filtered, (obj) => obj['00080060'].Value[0] !== 'SEG');
               const result = _.map(filtered, (value) => ({
                 projectID: params.project ? params.project : projectID,
                 // TODO put in dicomweb but what if other dicomweb is used

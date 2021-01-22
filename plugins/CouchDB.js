@@ -3,9 +3,8 @@
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const archiver = require('archiver');
-const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const dateFormatter = require('date-format');
 const atob = require('atob');
+const path = require('path');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 const {
@@ -14,6 +13,7 @@ const {
   BadRequestError,
   UnauthenticatedError,
 } = require('../utils/EpadErrors');
+const EpadNotification = require('../utils/EpadNotification');
 
 async function couchdb(fastify, options) {
   fastify.decorate('init', async () => {
@@ -293,11 +293,14 @@ async function couchdb(fastify, options) {
     return row;
   });
 
+  // returns stream if online (total_rows===aimsResult.rows.length)
+  // zip file path otherwise
   fastify.decorate(
     'downloadAims',
-    (params, aims) =>
-      new Promise((resolve, reject) => {
+    (downloadParams, aimsResult, epadAuth, params) =>
+      new Promise(async (resolve, reject) => {
         try {
+          const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
           const dir = `tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
@@ -306,167 +309,63 @@ async function couchdb(fastify, options) {
           if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir);
             fs.mkdirSync(`${dir}/annotations`);
-            // create the header base
-            let header = [
-              // Date_Created	Patient_Name	Patient_ID	Reviewer	Name Comment	Points	Study_UID	Series_UID	Image_UID
-              { id: 'aimUid', title: 'Aim_UID' },
-              { id: 'date', title: 'Date_Created' },
-              { id: 'patientName', title: 'Patient_Name' },
-              { id: 'patientId', title: 'Patient_ID' },
-              { id: 'reviewer', title: 'Reviewer' },
-              { id: 'name', title: 'Name' },
-              { id: 'comment', title: 'Comment' },
-              { id: 'userComment', title: 'User_Comment' },
-              { id: 'points', title: 'Points' },
-              { id: 'dsoSeriesUid', title: 'DSO_Series_UID' },
-              { id: 'studyUid', title: 'Study_UID' },
-              { id: 'seriesUid', title: 'Series_UID' },
-              { id: 'imageUid', title: 'Image_UID' },
-            ];
 
-            const data = [];
-            const segRetrievePromises = [];
-            aims.forEach((aim) => {
-              if (params.summary && params.summary.toLowerCase() === 'true') {
-                const imageAnnotations =
-                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
-
-                imageAnnotations.forEach((imageAnnotation) => {
-                  const commentSplit = imageAnnotation.comment.value.split('~~');
-                  const points = [];
-                  if (
-                    imageAnnotation.markupEntityCollection &&
-                    imageAnnotation.markupEntityCollection.MarkupEntity[0]
-                  ) {
-                    imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
-                      (coor) => {
-                        points.push(`(${coor.x.value} ${coor.y.value})`);
-                      }
-                    );
-                  }
-
-                  header = fastify.getCalculationHeaders(imageAnnotation, header);
-                  header = fastify.getOtherHeaders(imageAnnotation, header);
-                  header = fastify.arrayUnique(header, 'id');
-                  // add values common to all annotations
-                  let row = {
-                    aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
-                    date: dateFormatter.asString(
-                      dateFormatter.ISO8601_FORMAT,
-                      dateFormatter.parse(
-                        'yyyyMMddhhmmssSSS',
-                        `${imageAnnotation.dateTime.value}000`
-                      )
-                    ),
-                    patientName: aim.ImageAnnotationCollection.person.name.value,
-                    patientId: aim.ImageAnnotationCollection.person.id.value,
-                    reviewer: aim.ImageAnnotationCollection.user.name.value,
-                    name: imageAnnotation.name.value.split('~')[0],
-                    comment: commentSplit[0],
-                    userComment: commentSplit.length > 1 ? commentSplit[1] : '',
-                    points: `[${points}]`,
-                    dsoSeriesUid:
-                      imageAnnotation.segmentationEntityCollection &&
-                      imageAnnotation.segmentationEntityCollection.SegmentationEntity
-                        ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
-                            .seriesInstanceUid.root
-                        : '',
-                    studyUid:
-                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                        .imageStudy.instanceUid.root,
-                    seriesUid:
-                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                        .imageStudy.imageSeries.instanceUid.root,
-                    imageUid:
-                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                        .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
-                  };
-
-                  row = fastify.getCalculationData(imageAnnotation, row);
-                  row = fastify.getOtherData(imageAnnotation, row);
-                  data.push(row);
-                });
-              }
-              if (params.aim && params.aim.toLowerCase() === 'true') {
-                fs.writeFileSync(
-                  `${dir}/annotations/${aim.ImageAnnotationCollection.uniqueIdentifier.root}.json`,
-                  JSON.stringify(aim)
-                );
-                isThereDataToWrite = true;
-              }
-              if (
-                params.seg &&
-                params.seg.toLowerCase() === 'true' &&
-                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .segmentationEntityCollection
-              ) {
-                const segEntity =
-                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                    .segmentationEntityCollection.SegmentationEntity[0];
-                segRetrievePromises.push(() => fastify.getSegDicom(segEntity));
-              }
-            });
-            if (params.summary && params.summary.toLowerCase() === 'true') {
-              // create the csv writer and write the summary
-              const csvWriter = createCsvWriter({
-                path: `${dir}/annotations/summary.csv`,
-                header,
+            isThereDataToWrite =
+              (await fastify.prepAimDownload(
+                `${dir}/annotations`,
+                params || {},
+                epadAuth,
+                downloadParams,
+                aimsResult
+              )) || isThereDataToWrite;
+            if (isThereDataToWrite) {
+              const downloadFolder = path.join(__dirname, '../download');
+              if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
+              const zipFilePath = offline
+                ? `${downloadFolder}/annotations_${timestamp}.zip`
+                : `${dir}/annotations.zip`;
+              // create a file to stream archive data to.
+              const output = fs.createWriteStream(zipFilePath);
+              const archive = archiver('zip', {
+                zlib: { level: 9 }, // Sets the compression level.
               });
-              csvWriter
-                .writeRecords(data)
-                .then(() => fastify.log.info('The summary CSV file was written successfully'));
-              isThereDataToWrite = true;
-            }
-            fastify.pq
-              .addAll(segRetrievePromises)
-              .then((segs) => {
-                for (let i = 0; i < segs.length; i += 1) {
-                  fs.writeFileSync(`${dir}/annotations/${segs[i].uid}.dcm`, segs[i].buffer);
-                  isThereDataToWrite = true;
-                }
-                if (isThereDataToWrite) {
-                  // create a file to stream archive data to.
-                  const output = fs.createWriteStream(`${dir}/annotations.zip`);
-                  const archive = archiver('zip', {
-                    zlib: { level: 9 }, // Sets the compression level.
-                  });
-                  // create the archive
-                  archive
-                    .directory(`${dir}/annotations`, false)
-                    .on('error', (err) => reject(new InternalError('Archiving aims', err)))
-                    .pipe(output);
+              // create the archive
+              archive
+                .directory(`${dir}/annotations`, false)
+                .on('error', (err) => reject(new InternalError('Archiving aims', err)))
+                .pipe(output);
 
-                  output.on('close', () => {
-                    fastify.log.info(`Created zip in ${dir}`);
-                    const readStream = fs.createReadStream(`${dir}/annotations.zip`);
-                    // delete tmp folder after the file is sent
-                    readStream.once('end', () => {
-                      readStream.destroy(); // make sure stream closed, not close if download aborted.
-                      fs.remove(dir, (error) => {
-                        if (error)
-                          fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                        else fastify.log.info(`${dir} deleted`);
-                      });
-                    });
-                    resolve(readStream);
-                  });
-                  archive.finalize();
-                } else {
+              output.on('close', () => {
+                fastify.log.info(`Created zip in ${zipFilePath}`);
+                if (offline) {
                   fs.remove(dir, (error) => {
                     if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                     else fastify.log.info(`${dir} deleted`);
                   });
-                  reject(
-                    new InternalError(
-                      'Downloading aims',
-                      new Error('No aim or summary in download')
-                    )
-                  );
+                  resolve(`/download/annotations_${timestamp}.zip`);
+                } else {
+                  const readStream = fs.createReadStream(`${dir}/annotations.zip`);
+                  // delete tmp folder after the file is sent
+                  readStream.once('end', () => {
+                    readStream.destroy(); // make sure stream closed, not close if download aborted.
+                    fs.remove(dir, (error) => {
+                      if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                      else fastify.log.info(`${dir} deleted`);
+                    });
+                  });
+                  resolve(readStream);
                 }
-              })
-              .catch((segErr) => {
-                reject(new InternalError('Downloading aims with segmentations', segErr));
               });
+              archive.finalize();
+            } else {
+              fs.remove(dir, (error) => {
+                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                else fastify.log.info(`${dir} deleted`);
+              });
+              reject(
+                new InternalError('Downloading aims', new Error('No aim or summary in download'))
+              );
+            }
           }
         } catch (err) {
           reject(new InternalError('Downloading aims', err));
@@ -496,6 +395,7 @@ async function couchdb(fastify, options) {
     if (params.subject) qryParts.push(`patient_id:'${params.subject}'`);
     if (params.study) qryParts.push(`study_uid:'${params.study}'`);
     if (params.series) qryParts.push(`series_uid:'${params.series}'`);
+    else if (params.series === '') qryParts.push(`series_uid:'noseries'`);
     if (fastify.isCollaborator(params.project, epadAuth))
       qryParts.push(`user:${epadAuth.username}`);
     if (filter) {
@@ -510,23 +410,15 @@ async function couchdb(fastify, options) {
     return qryParts.join(' AND ');
   });
 
-  // add accessor methods with decorate
   fastify.decorate(
-    'getAimsInternal',
-    (format, params, filter, epadAuth) =>
+    'getAimsCouchInternal',
+    (db, searchQry, format, bookmark) =>
       new Promise((resolve, reject) => {
-        try {
-          if (config.auth && config.auth !== 'none' && epadAuth === undefined)
-            reject(new UnauthenticatedError('No epadauth in request'));
-          const db = fastify.couch.db.use(config.db);
-          const qry = fastify.generateSearchQuery(params, epadAuth, filter);
-          const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
-          if (format !== 'summary') {
-            dbFilter.include_docs = true;
-            dbFilter.attachments = true;
-          }
-          db.search('search', 'aimSearch', dbFilter, async (error, body) => {
+        const dbFilter = { ...searchQry, bookmark };
+        db.search('search', 'aimSearch', dbFilter, async (error, body) => {
+          try {
             if (!error) {
+              const resObj = { total_rows: body.total_rows, bookmark: body.bookmark };
               const res = [];
               if (format === 'summary') {
                 for (let i = 0; i < body.rows.length; i += 1) {
@@ -552,7 +444,8 @@ async function couchdb(fastify, options) {
                     userName: body.rows[i].fields.user,
                   });
                 }
-                resolve(res);
+                resObj.rows = res;
+                resolve(resObj);
               } else {
                 for (let i = 0; i < body.rows.length; i += 1) {
                   // eslint-disable-next-line no-await-in-loop
@@ -562,19 +455,137 @@ async function couchdb(fastify, options) {
                   );
                   res.push(aim);
                 }
-                if (format === 'stream') {
-                  // download aims only
-                  fastify
-                    .downloadAims({ aim: 'true' }, res)
-                    .then((result) => resolve(result))
-                    .catch((err) => reject(err));
-                } else {
-                  // the default is json! The old APIs were XML, no XML in epadlite
-                  resolve(res);
-                }
+                resObj.rows = res;
+                resolve(resObj);
               }
+            } else {
+              reject(error);
             }
-          });
+          } catch (err2) {
+            reject(new InternalError('Get aims from couch', err2));
+          }
+        });
+      })
+  );
+
+  // add accessor methods with decorate
+  fastify.decorate(
+    'getAimsInternal',
+    (format, params, filter, epadAuth, bookmark, request, all = false) =>
+      new Promise((resolve, reject) => {
+        try {
+          if (config.auth && config.auth !== 'none' && epadAuth === undefined)
+            reject(new UnauthenticatedError('No epadauth in request'));
+          const db = fastify.couch.db.use(config.db);
+          const qry = fastify.generateSearchQuery(params, epadAuth, filter);
+          const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
+          if (format !== 'summary') {
+            dbFilter.include_docs = true;
+            dbFilter.attachments = true;
+          }
+          fastify
+            .getAimsCouchInternal(db, dbFilter, format, bookmark)
+            .then((resObj) => {
+              try {
+                if (format === 'stream') {
+                  if (resObj.total_rows !== resObj.rows.length) {
+                    // get everything and send an email
+                    fastify
+                      .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                      .then((result) => {
+                        fastify.log.info(`Zip file ready in ${result}`);
+                        // get the protocol and hostname from the request
+                        const link = `${request.protocol}://${request.hostname}${result}`;
+                        // send notification and/or email with link
+                        if (request)
+                          new EpadNotification(request, 'Download ready', link, false).notify(
+                            fastify
+                          );
+                        if (config.notificationEmail) {
+                          fastify.nodemailer.sendMail(
+                            {
+                              from: config.notificationEmail.address,
+                              to: epadAuth.email,
+                              subject: 'ePAD - Download Ready',
+                              html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
+                            },
+                            (err, info) => {
+                              if (err)
+                                fastify.log.error(
+                                  `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
+                                );
+                              else
+                                fastify.log.info(
+                                  `Email accepted for ${JSON.stringify(info.accepted)}`
+                                );
+                            }
+                          );
+                        }
+                      })
+                      .catch((err) => reject(err));
+                    resolve({ total_rows: resObj.total_rows });
+                  } else {
+                    // download aims only
+                    fastify
+                      .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                      .then((result) => resolve(result))
+                      .catch((err) => reject(err));
+                  }
+                } else {
+                  fastify
+                    .getAllAimPages(resObj, db, dbFilter, format, all)
+                    .then((returnResObj) => resolve(returnResObj))
+                    .catch((err) =>
+                      fastify.log.error(`Could not get all pages for aims. Error: ${err.message}`)
+                    );
+                }
+              } catch (err2) {
+                reject(new InternalError('Packing download or sending', err2));
+              }
+            })
+            .catch((error) => reject(error));
+        } catch (err) {
+          reject(new InternalError('Get aims', err));
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getAllAimPages',
+    (resObj, db, dbFilter, format, all) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const returnResObj = resObj;
+          // get all batches
+          let totalAimCount = resObj.rows.length;
+          let newBookmark = resObj.bookmark;
+          if (all && resObj.total_rows !== resObj.rows.length) {
+            fastify.log.info(
+              `Get requires time to get ${Math.ceil(
+                resObj.total_rows / resObj.rows.length
+              )} batches`
+            );
+            fastify.log.info('Got first batch');
+            let i = 2;
+            // get batches till we get all aims
+            while (totalAimCount < resObj.total_rows) {
+              // eslint-disable-next-line no-await-in-loop
+              const newResult = await fastify.getAimsCouchInternal(
+                db,
+                dbFilter,
+                format,
+                newBookmark
+              );
+              newBookmark = newResult.bookmark;
+              totalAimCount += newResult.rows.length;
+              returnResObj.rows.push(...newResult.rows);
+
+              fastify.log.info(`Got batch ${i}`);
+              i += 1;
+            }
+          }
+          fastify.log.info(`Resolving ${totalAimCount} aims`);
+          resolve(returnResObj);
         } catch (err) {
           reject(new InternalError('Get aims', err));
         }
@@ -725,7 +736,9 @@ async function couchdb(fastify, options) {
         request.query.format,
         request.params,
         undefined,
-        request.epadAuth
+        request.epadAuth,
+        request.query.bookmark,
+        request
       );
       if (request.query.format === 'stream') {
         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
@@ -778,7 +791,14 @@ async function couchdb(fastify, options) {
       .getAimsFromUIDsInternal(request.query, request.body)
       .then((res) => {
         fastify
-          .downloadAims(request.query, res)
+          .downloadAims(
+            request.query,
+            {
+              total_rows: res.length,
+              rows: res,
+            },
+            request.epadAuth
+          )
           .then((result) => {
             reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
             reply.code(200).send(result);
@@ -974,72 +994,6 @@ async function couchdb(fastify, options) {
         else reply.send(err);
       });
   });
-
-  // does not do project filtering! should only be used for deleting from system
-  fastify.decorate(
-    'deleteAimsInternal',
-    (params, epadAuth) =>
-      new Promise((resolve, reject) => {
-        const aimUsers = {};
-        fastify
-          .getAimsInternal('summary', params, undefined, epadAuth)
-          .then((result) => {
-            const aimPromisses = [];
-            result.forEach((aim) => {
-              aimUsers[aim.userName] = 'aim';
-              aimPromisses.push(fastify.deleteAimInternal(aim.aimID));
-            });
-            Promise.all(aimPromisses)
-              .then(async () => {
-                const updateWorklistPromises = [];
-                const { project, subject, study } = params;
-                const aimUsersArr = Object.keys(aimUsers);
-                // TODO this is system delete only, which means subject/study is deleted from system
-                // do we need to update completeness at all?
-                if (project && study) {
-                  fastify
-                    .findProjectIdInternal(project)
-                    .then((res) => {
-                      aimUsersArr.forEach((userName) => {
-                        updateWorklistPromises.push(
-                          fastify.aimUpdateGateway(
-                            res,
-                            subject,
-                            study,
-                            userName,
-                            epadAuth,
-                            undefined,
-                            params.project
-                          )
-                        );
-                      });
-                      Promise.all(updateWorklistPromises)
-                        .then(() => resolve())
-                        .catch((deleteErr) => reject(deleteErr));
-                    })
-                    .catch((projectFindErr) => reject(projectFindErr));
-                } else {
-                  resolve();
-                }
-              })
-              .catch((deleteErr) => reject(deleteErr));
-          })
-          .catch((err) => reject(err));
-      })
-  );
-
-  // template accessors
-  // fastify.decorate('getTemplates', (request, reply) => {
-  //   fastify
-  //     .getTemplatesInternal(request.query)
-  //     .then(result => {
-  //       if (request.query.format === 'stream') {
-  //         reply.header('Content-Disposition', `attachment; filename=templates.zip`);
-  //       }
-  //       reply.code(200).send(result);
-  //     })
-  //     .catch(err => reply.send(err));
-  // });
 
   fastify.decorate(
     'getTemplateInternal',
@@ -1389,7 +1343,7 @@ async function couchdb(fastify, options) {
         if (request.query.format === 'stream') {
           reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
         }
-        if (result.length === 1) reply.code(200).send(result[0]);
+        if (result.rows.length === 1) reply.code(200).send(result.rows[0]);
         else {
           reply.send(new ResourceNotFoundError('Aim', request.params.aimuid));
         }

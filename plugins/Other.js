@@ -733,7 +733,14 @@ async function other(fastify) {
                   .catch((err) => {
                     reject(err);
                   });
-              } else {
+              } else if (
+                jsonBuffer.ImageAnnotationCollection &&
+                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
+                  .code &&
+                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
+                  .code !== 'SEG'
+              ) {
+                // aim saving via upload, ignore SEG Only annotations
                 fastify
                   .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                   .then((res) => {
@@ -746,6 +753,8 @@ async function other(fastify) {
                   .catch((err) => {
                     reject(err);
                   });
+              } else {
+                reject(new Error(`SEG Only aim upload not supported (${filename})`));
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
               fastify
@@ -1217,7 +1226,7 @@ async function other(fastify) {
                 })
               );
             });
-            promisses.push(() => fastify.deleteAimsInternal(params, epadAuth));
+            promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
             pq.addAll(promisses)
               .then(() => {
                 fastify.log.info(`Subject ${params.subject} deletion is initiated successfully`);
@@ -1269,7 +1278,7 @@ async function other(fastify) {
         // delete study in dicomweb and annotations
         const promisses = [];
         promisses.push(() => fastify.deleteStudyDicomsInternal(params));
-        promisses.push(() => fastify.deleteAimsInternal(params, epadAuth));
+        promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
         pq.addAll(promisses)
           .then(() => {
             fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
@@ -1295,7 +1304,9 @@ async function other(fastify) {
         })
       );
       promisses.push(() => fastify.deleteSeriesAimProjectRels(request.params));
-      promisses.push(() => fastify.deleteAimsInternal(request.params, request.epadAuth));
+      promisses.push(() =>
+        fastify.deleteAimsInternal(request.params, request.epadAuth, { all: 'true' })
+      );
       if (config.env !== 'test') {
         fastify.log.info(
           `Series ${request.params.series} of Subject ${request.params.subject} deletion request recieved, sending response`
@@ -1576,6 +1587,9 @@ async function other(fastify) {
             epadAuth.permissions = user.permissions;
             epadAuth.projectToRole = user.projectToRole;
             epadAuth.admin = user.admin;
+            // putting the email from db in epadAuth
+            // TODO what if they change it just in keycloak
+            epadAuth.email = user.email;
           }
         } catch (errUser) {
           reject(errUser);
@@ -1635,6 +1649,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
@@ -1839,7 +1854,17 @@ async function other(fastify) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
-              if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
+              if (
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
+                !(
+                  reqInfo.level === 'worklist' &&
+                  (await fastify.isAssigneeOfWorklist(
+                    reqInfo.objectId,
+                    request.epadAuth.username
+                  )) &&
+                  request.query.annotationStatus
+                )
+              )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
@@ -1926,7 +1951,7 @@ async function other(fastify) {
         delete queryObj.series;
       }
       fastify
-        .getAimsInternal('summary', params, queryObj, request.epadAuth)
+        .getAimsInternal('summary', params, queryObj, request.epadAuth, request.query.bookmark)
         .then((result) => reply.code(200).send(result))
         .catch((err) => reply.send(err));
     } catch (err) {

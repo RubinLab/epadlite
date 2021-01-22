@@ -10,6 +10,9 @@ const schedule = require('node-schedule-tz');
 const archiver = require('archiver');
 const toArrayBuffer = require('to-array-buffer');
 const unzip = require('unzip-stream');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const dateFormatter = require('date-format');
+
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -3305,6 +3308,24 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('isAssigneeOfWorklist', async (worklistId, username) => {
+    try {
+      const worklists = await models.worklist.findAll({
+        where: {
+          '$users.username$': username,
+          worklistid: worklistId,
+        },
+        include: ['users'],
+      });
+      return worklists && worklists.length === 1;
+    } catch (err) {
+      fastify.log.error(
+        `Could not check if the user ${username} is an assignee of the worklist ${worklistId}`
+      );
+      return false;
+    }
+  });
+
   fastify.decorate('getWorklistsOfCreator', async (request, reply) => {
     try {
       const worklists = await models.worklist.findAll({
@@ -3425,43 +3446,54 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('assignSubjectToWorklist', async (request, reply) => {
-    if (!request.body || request.body.subjectName === undefined) {
-      reply.send(
-        new BadRequestError(
-          'Assign subject to worklist',
-          new Error('Missing subject name in request')
-        )
-      );
-    } else {
-      const ids = [];
-      const promises = [];
-      const studyDescMap = {};
-      const relationPromiseArr = [];
-      // find project's integer id
-      // find worklist's integer id
-      promises.push(
-        models.worklist.findOne({
-          where: { worklistid: request.params.worklist },
-          attributes: ['id'],
-        })
-      );
-      promises.push(
-        models.project.findOne({
-          where: { projectid: request.params.project },
-          attributes: ['id'],
-        })
-      );
-      promises.push(
-        models.subject.findOne({
-          where: { subjectuid: request.params.subject },
-          attributes: ['id'],
-        })
-      );
+  fastify.decorate('assignSubjectToWorklist', (request, reply) => {
+    const ids = [];
+    const promises = [];
+    const studyDescMap = {};
+    const relationPromiseArr = [];
+    // find project's integer id
+    // find worklist's integer id
+    promises.push(
+      models.worklist.findOne({
+        where: { worklistid: request.params.worklist },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.subject.findOne({
+        where: { subjectuid: request.params.subject },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.user.findOne({
+        where: { username: request.epadAuth.username },
+        attributes: ['id'],
+      })
+    );
 
-      Promise.all(promises).then(async (result) => {
-        for (let i = 0; i < result.length; i += 1) ids.push(result[i].dataValues.id);
-
+    Promise.all(promises).then(async (result) => {
+      for (let i = 0; i < result.length; i += 1) ids.push(result[i].dataValues.id);
+      const projectUsers = await models.project_user.findAll({
+        where: { project_id: ids[1], user_id: ids[3] },
+        raw: true,
+      });
+      if (projectUsers.length === 0) {
+        reply.send(
+          new InternalError(
+            'Adding study to worklist',
+            new Error(
+              `User ${request.epadAuth.username} does not have access to project ${request.params.project}. Give access to the user before adding the item to the worklist`
+            )
+          )
+        );
+      } else {
         // go to project_subject get the id of where project and subject matches
         let projectSubject;
         try {
@@ -3580,8 +3612,8 @@ async function epaddb(fastify, options, done) {
           .catch((err) => {
             reply.send(new InternalError('Creating worklist subject association in db', err));
           });
-      });
-    }
+      }
+    });
   });
 
   fastify.decorate('assignStudyToWorklist', (request, reply) => {
@@ -3612,71 +3644,151 @@ async function epaddb(fastify, options, done) {
         attributes: ['id'],
       })
     );
+    promises.push(
+      models.user.findOne({
+        where: { username: request.epadAuth.username },
+        attributes: ['id'],
+      })
+    );
 
     Promise.all(promises)
       .then(async (result) => {
         for (let i = 0; i < result.length; i += 1) ids.push(result[i].dataValues.id);
-        const seriesArr = await fastify.getStudySeriesInternal(
-          request.params,
-          { filterDSO: 'true' },
-          request.epadAuth
-        );
-        const sumOfImageCounts = _.reduce(
-          seriesArr,
-          (memo, series) => memo + series.numberOfImages,
-          0
-        );
-
-        fastify
-          .upsert(
-            models.worklist_study,
-            {
-              worklist_id: ids[0],
-              study_id: ids[3],
-              subject_id: ids[2],
-              project_id: ids[1],
-              updatetime: Date.now(),
-              numOfSeries: seriesArr.length,
-              numOfImages: sumOfImageCounts,
-            },
-            {
-              worklist_id: ids[0],
-              study_id: ids[3],
-              subject_id: ids[2],
-              project_id: ids[1],
-            },
-            request.epadAuth.username
-          )
-          .then(async (id) => {
-            try {
-              const userNamePromises = [];
-              // get user id's from worklist_user for the worklist
-              const userIds = await models.worklist_user.findAll({
-                where: { worklist_id: ids[0] },
-                attributes: ['user_id'],
-              });
-              // findUsernames by userid's
-              userIds.forEach((el) => {
-                userNamePromises.push(fastify.findUserNameInternal(el.dataValues.user_id));
-              });
-              Promise.all(userNamePromises)
-                .then((res) => {
-                  const updateCompPromises = [];
-                  // iterate over usernames array and updateCompleteness
-                  res.forEach((username) =>
-                    updateCompPromises.push(
-                      fastify.updateWorklistCompleteness(
-                        ids[1],
-                        request.params.subject,
-                        request.params.study,
-                        username,
-                        request.epadAuth
-                      )
-                    )
-                  );
-                  Promise.all(updateCompPromises)
-                    .then(() => {
-                      reply.code(200).send(`Saving successful - ${id}`);
+        if (request.query.annotationStatus !== undefined) {
+          // set annotation status
+          // NOT_STARTED(1), IN_PROGRESS(2), DONE(3), ERROR(4), DELETE(0)
+          // API should not accept ERROR(4)
+          if (request.query.annotationStatus < 0 || request.query.annotationStatus > 3) {
+            reply.send(
+              new InternalError(
+                'Setting annotation status ',
+                new Error(`Unknown status ${request.query.annotationStatus}`)
+              )
+            );
+          } else if (request.query.annotationStatus === 0) {
+            // I get the user from the authentication 'cause only I can say I'm done with a case
+            // delete the tuple so that we can go back to auto
+            models.project_subject_study_series_user_status
+              .destroy({
+                where: {
+                  worklist_id: ids[0],
+                  study_id: ids[3],
+                  subject_id: ids[2],
+                  project_id: ids[1],
+                  user_id: ids[4],
+                },
+              })
+              .then(() => reply.send('Annotation status deleted successfully'))
+              .catch((err) => reply.send(new InternalError('Deleting annotation status', err)));
+          } else {
+            fastify
+              .upsert(
+                models.project_subject_study_series_user_status,
+                {
+                  worklist_id: ids[0],
+                  study_id: ids[3],
+                  subject_id: ids[2],
+                  project_id: ids[1],
+                  user_id: ids[4],
+                  annotationStatus: request.query.annotationStatus,
+                  updatetime: Date.now(),
+                },
+                {
+                  worklist_id: ids[0],
+                  study_id: ids[3],
+                  subject_id: ids[2],
+                  project_id: ids[1],
+                  user_id: ids[4],
+                },
+                request.epadAuth.username
+              )
+              .then(() => reply.send('Annotation status updated successfully'))
+              .catch((err) => reply.send(new InternalError('Updating annotation status', err)));
+          }
+        } else {
+          const seriesArr = await fastify.getStudySeriesInternal(
+            request.params,
+            { filterDSO: 'true' },
+            request.epadAuth
+          );
+          const sumOfImageCounts = _.reduce(
+            seriesArr,
+            (memo, series) => memo + series.numberOfImages,
+            0
+          );
+          const projectUsers = await models.project_user.findAll({
+            where: { project_id: ids[1], user_id: ids[4] },
+            raw: true,
+          });
+          if (projectUsers.length === 0) {
+            reply.send(
+              new InternalError(
+                'Adding study to worklist',
+                new Error(
+                  `User ${request.epadAuth.username} does not have access to project ${request.params.project}. Give access to the user before adding the item to the worklist`
+                )
+              )
+            );
+          } else {
+            fastify
+              .upsert(
+                models.worklist_study,
+                {
+                  worklist_id: ids[0],
+                  study_id: ids[3],
+                  subject_id: ids[2],
+                  project_id: ids[1],
+                  updatetime: Date.now(),
+                  numOfSeries: seriesArr.length,
+                  numOfImages: sumOfImageCounts,
+                },
+                {
+                  worklist_id: ids[0],
+                  study_id: ids[3],
+                  subject_id: ids[2],
+                  project_id: ids[1],
+                },
+                request.epadAuth.username
+              )
+              .then(async (id) => {
+                try {
+                  const userNamePromises = [];
+                  // get user id's from worklist_user for the worklist
+                  const userIds = await models.worklist_user.findAll({
+                    where: { worklist_id: ids[0] },
+                    attributes: ['user_id'],
+                  });
+                  // findUsernames by userid's
+                  userIds.forEach((el) => {
+                    userNamePromises.push(fastify.findUserNameInternal(el.dataValues.user_id));
+                  });
+                  Promise.all(userNamePromises)
+                    .then((res) => {
+                      const updateCompPromises = [];
+                      // iterate over usernames array and updateCompleteness
+                      res.forEach((username) =>
+                        updateCompPromises.push(
+                          fastify.updateWorklistCompleteness(
+                            ids[1],
+                            request.params.subject,
+                            request.params.study,
+                            username,
+                            request.epadAuth
+                          )
+                        )
+                      );
+                      Promise.all(updateCompPromises)
+                        .then(() => {
+                          reply.code(200).send(`Saving successful - ${id}`);
+                        })
+                        .catch((err) =>
+                          reply.send(
+                            new InternalError(
+                              'Updating completeness in worklist study association',
+                              err
+                            )
+                          )
+                        );
                     })
                     .catch((err) =>
                       reply.send(
@@ -3686,21 +3798,17 @@ async function epaddb(fastify, options, done) {
                         )
                       )
                     );
-                })
-                .catch((err) =>
+                } catch (err) {
                   reply.send(
                     new InternalError('Updating completeness in worklist study association', err)
-                  )
-                );
-            } catch (err) {
-              reply.send(
-                new InternalError('Updating completeness in worklist study association', err)
-              );
-            }
-          })
-          .catch((err) => {
-            reply.send(new InternalError('Creating worklist study association in db', err));
-          });
+                  );
+                }
+              })
+              .catch((err) => {
+                reply.send(new InternalError('Creating worklist study association in db', err));
+              });
+          }
+        }
       })
       .catch((err) => reply.send(new InternalError('Creating worklist study association', err)));
   });
@@ -3793,7 +3901,44 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('getWorklistSubjects', async (request, reply) => {
+  fastify.decorate('getManualProgressMap', async (worklistId) => {
+    // I could not create association with composite foreign key
+    const manualProgress = await models.project_subject_study_series_user_status.findAll({
+      where: { worklist_id: worklistId },
+      raw: true,
+      attributes: [
+        'worklist_id',
+        'project_id',
+        'subject_id',
+        'study_id',
+        'user_id',
+        'annotationStatus',
+      ],
+    });
+    const manualProgressMap = {};
+    for (let i = 0; i < manualProgress.length; i += 1) {
+      manualProgressMap[
+        `${manualProgress[i].worklist_id}-${manualProgress[i].project_id}-${manualProgress[i].subject_id}-${manualProgress[i].study_id}-${manualProgress[i].user_id}`
+      ] = manualProgress[i].annotationStatus;
+    }
+    return manualProgressMap;
+  });
+
+  fastify.decorate(
+    'getManualProgressForUser',
+    (manualProgressMap, worklistId, projectId, subjectId, studyId, userId) => {
+      switch (manualProgressMap[`${worklistId}-${projectId}-${subjectId}-${studyId}-${userId}`]) {
+        case 2:
+          return 50;
+        case 3:
+          return 100;
+        default:
+          return 0;
+      }
+    }
+  );
+
+  fastify.decorate('getWorklistStudies', async (request, reply) => {
     // get worklist name and id from worklist
     // get details from worklist_study table
     let workListName;
@@ -3807,38 +3952,95 @@ async function epaddb(fastify, options, done) {
           worklistid: request.params.worklist,
         },
         attributes: ['name', 'id', 'duedate'],
+        include: ['users'],
       });
       workListName = worklist.dataValues.name;
       worklistIdKey = worklist.dataValues.id;
       worklistDuedate = worklist.dataValues.duedate;
-      list = await models.worklist_study.findAll({
-        where: { worklist_id: worklistIdKey },
-        include: [models.subject, models.study],
-      });
-      const result = [];
-      for (let i = 0; i < list.length; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
-        const projectId = await models.project.findOne({
-          where: { id: list[i].dataValues.project_id },
-          attributes: ['projectid'],
-        });
-        const obj = {
-          completionDate: list[i].dataValues.completedate,
-          projectID: projectId.dataValues.projectid,
-          sortOrder: list[i].dataValues.sortorder,
-          startDate: list[i].dataValues.startdate,
-          subjectID: list[i].dataValues.subject.dataValues.subjectuid,
-          studyUID: list[i].dataValues.study.dataValues.studyuid,
-          studyDate: list[i].dataValues.study.dataValues.studydate,
-          workListID: request.params.worklist,
-          workListName,
-          worklistDuedate,
-          subjectName: list[i].dataValues.subject.dataValues.name,
-          studyDescription: list[i].dataValues.study.dataValues.description,
-        };
-        result.push(obj);
+      let userId;
+      for (let i = 0; i < worklist.users.length; i += 1) {
+        if (worklist.users[i].username === request.params.user) {
+          userId = worklist.users[i].id;
+          break;
+        }
       }
-      reply.code(200).send(Object.values(result));
+      if (!userId) {
+        reply.send(
+          new BadRequestError(
+            `Getting subjects of the worklist ${request.params.worklist}`,
+            new Error(`User ${request.params.user} is not an assignee of the worklist`)
+          )
+        );
+      } else if (
+        request.epadAuth.username !== request.params.user &&
+        request.epadAuth.username !== worklist.dataValues.creator
+      ) {
+        reply.send(
+          new UnauthorizedError('User is not the assignee or the creator of the worklist')
+        );
+      } else {
+        list = await models.worklist_study.findAll({
+          where: { worklist_id: worklistIdKey, '$progress.assignee$': request.epadAuth.username },
+          include: ['progress', models.subject, models.study],
+        });
+        const manualProgressMap = await fastify.getManualProgressMap(worklist.dataValues.id);
+        const result = [];
+        for (let i = 0; i < list.length; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          const projectId = await models.project.findOne({
+            where: { id: list[i].dataValues.project_id },
+            attributes: ['projectid'],
+          });
+          if (
+            manualProgressMap[
+              `${list[i].dataValues.worklist_id}-${list[i].dataValues.project_id}-${list[i].dataValues.subject_id}-${list[i].dataValues.study_id}-${userId}`
+            ]
+          ) {
+            const completeness = fastify.getManualProgressForUser(
+              manualProgressMap,
+              list[i].dataValues.worklist_id,
+              list[i].dataValues.project_id,
+              list[i].dataValues.subject_id,
+              list[i].dataValues.study_id,
+              userId
+            );
+            result.push({
+              completionDate: list[i].dataValues.completedate,
+              projectID: projectId.dataValues.projectid,
+              sortOrder: list[i].dataValues.sortorder,
+              startDate: list[i].dataValues.startdate,
+              subjectID: list[i].dataValues.subject.dataValues.subjectuid,
+              studyUID: list[i].dataValues.study.dataValues.studyuid,
+              studyDate: list[i].dataValues.study.dataValues.studydate,
+              workListID: request.params.worklist,
+              workListName,
+              worklistDuedate,
+              subjectName: list[i].dataValues.subject.dataValues.name,
+              studyDescription: list[i].dataValues.study.dataValues.description,
+              completeness,
+              progressType: 'MANUAL',
+            });
+          } else {
+            result.push({
+              completionDate: list[i].dataValues.completedate,
+              projectID: projectId.dataValues.projectid,
+              sortOrder: list[i].dataValues.sortorder,
+              startDate: list[i].dataValues.startdate,
+              subjectID: list[i].dataValues.subject.dataValues.subjectuid,
+              studyUID: list[i].dataValues.study.dataValues.studyuid,
+              studyDate: list[i].dataValues.study.dataValues.studydate,
+              workListID: request.params.worklist,
+              workListName,
+              worklistDuedate,
+              subjectName: list[i].dataValues.subject.dataValues.name,
+              studyDescription: list[i].dataValues.study.dataValues.description,
+              completeness: list[i].dataValues.progress[0].dataValues.completeness, // I get only the specific user's progress
+              progressType: 'AUTO',
+            });
+          }
+        }
+        reply.code(200).send(Object.values(result));
+      }
     } catch (err) {
       if (err instanceof ResourceNotFoundError)
         reply.send(
@@ -4238,6 +4440,27 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate(
+    'getProjectAimCountMap',
+    (params, epadAuth, field) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let whereJSON = {};
+          if (params.project) whereJSON = { ...whereJSON, '$project.projectid$': params.project };
+          if (params.subject) whereJSON = { ...whereJSON, subject_uid: params.subject };
+          if (params.study) whereJSON = { ...whereJSON, study_uid: params.study };
+          const projectAims = await models.project_aim.findAll({
+            where: whereJSON,
+            attributes: ['aim_uid', 'user', field],
+            include: [{ model: models.project }],
+          });
+          resolve(fastify.getAimCountMap(projectAims, params.project, epadAuth, field));
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate('getAimCountMap', (projectAims, project, epadAuth, field) => {
     const aimsCountMap = {};
     // if all or undefined no aim counts
@@ -4630,51 +4853,6 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  // from CouchDB
-  // fastify.decorate('getSeriesAimsFromProject', async (request, reply) => {
-  //   const project = await models.project.findOne({ where: { projectid: request.params.project } });
-  //     const aimUids = [];
-  //     const projectSubjects = await models.project_subject.findAll({ where: { project_id: project.id } });
-  //     if (projectSubjects)
-  //       // projects will be an array of Project instances with the specified name
-  //       projectSubjects.forEach(projectSubject => subjectUids.push(projectSubject.subject_uid));
-  //     const result = await fastify.getPatientsInternal(subjectUids);
-  //     reply.code(200).send(result);
-  //   fastify
-  //     .getAimsInternal(request.query.format, request.params)
-  //     .then(result => {
-  //       if (request.query.format === 'stream') {
-  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-  //       }
-  //       reply.code(200).send(result);
-  //     })
-  //     .catch(err => reply.code(503).send(err));
-  // });
-
-  // fastify.decorate('getStudyAims', (request, reply) => {
-  //   fastify
-  //     .getAimsInternal(request.query.format, request.params)
-  //     .then(result => {
-  //       if (request.query.format === 'stream') {
-  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-  //       }
-  //       reply.code(200).send(result);
-  //     })
-  //     .catch(err => reply.code(503).send(err));
-  // });
-
-  // fastify.decorate('getSubjectAims', (request, reply) => {
-  //   fastify
-  //     .getAimsInternal(request.query.format, request.params)
-  //     .then(result => {
-  //       if (request.query.format === 'stream') {
-  //         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
-  //       }
-  //       reply.code(200).send(result);
-  //     })
-  //     .catch(err => reply.code(503).send(err));
-  // });
-
   fastify.decorate(
     'getAimUidsForProjectFilter',
     (params, filter) =>
@@ -4823,20 +5001,22 @@ async function epaddb(fastify, options, done) {
         request.query.format,
         request.params,
         filter,
-        request.epadAuth
+        request.epadAuth,
+        request.query.bookmark,
+        request
       );
       if (request.query.report) {
         switch (request.query.report) {
           case 'RECIST':
             // should be one patient
-            if (request.params.subject) result = fastify.getRecist(result);
+            if (request.params.subject) result = fastify.getRecist(result.rows);
             else {
               reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
               return;
             }
             break;
           case 'Longitudinal':
-            if (request.params.subject) result = fastify.getLongitudinal(result);
+            if (request.params.subject) result = fastify.getLongitudinal(result.rows);
             else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
               return;
@@ -4849,7 +5029,7 @@ async function epaddb(fastify, options, done) {
         switch (request.query.format) {
           case 'returnTable':
             result = fastify.fillTable(
-              result,
+              result.rows,
               request.query.templatecode,
               request.query.columns.split(','),
               request.query.shapes
@@ -4859,14 +5039,14 @@ async function epaddb(fastify, options, done) {
             reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
             break;
           case 'summary':
-            result = result.map((obj) => ({ ...obj, projectID: request.params.project }));
+            result.rows = result.rows.map((obj) => ({ ...obj, projectID: request.params.project }));
             break;
           default:
             if (request.query.longitudinal_ref) {
               const aimsByName = {};
               const aimsByTUID = {};
               let tUIDCount = 0;
-              result.forEach((aim) => {
+              result.rows.forEach((aim) => {
                 const name = aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
                   '~'
                 )[0];
@@ -4967,7 +5147,7 @@ async function epaddb(fastify, options, done) {
       if (request.query.format === 'stream') {
         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
       }
-      if (result.length === 1) reply.code(200).send(result[0]);
+      if (result.rows.length === 1) reply.code(200).send(result.rows[0]);
       else {
         reply.send(new ResourceNotFoundError('Aim', request.params.aimuid));
       }
@@ -5009,12 +5189,13 @@ async function epaddb(fastify, options, done) {
         } else {
           // get aim to populate project_aim data
 
-          [aim] = await fastify.getAimsInternal(
+          const aimsRes = await fastify.getAimsInternal(
             'json',
             {}, // I do not need params, looking for a specific aim (not in this project)
             { aims: [aimUid] },
             request.epadAuth
           );
+          [aim] = aimsRes.rows;
           // just update the projects
           await fastify.saveAimInternal(aimUid, request.params.project);
         }
@@ -5431,9 +5612,12 @@ async function epaddb(fastify, options, done) {
               'json',
               { project: projectUid, subject: subjectUid },
               undefined,
-              epadAuth
+              epadAuth,
+              undefined,
+              undefined,
+              true
             );
-            await fastify.getAndSaveRecist(projectId, subject, result, epadAuth, transaction);
+            await fastify.getAndSaveRecist(projectId, subject, result.rows, epadAuth, transaction);
             resolve('Reports updated!');
           }
         } catch (err) {
@@ -5735,28 +5919,58 @@ async function epaddb(fastify, options, done) {
           include: ['progress', 'subject', 'study'],
           attributes: ['worklist_id', 'project_id', 'subject_id', 'study_id'],
         });
+        // I could not create association with composite foreign key
+        const manualProgressMap = await fastify.getManualProgressMap(worklist.id);
         for (let i = 0; i < worklistStudies.length; i += 1) {
           for (let j = 0; j < worklistStudies[i].dataValues.progress.length; j += 1) {
             const { numOfAims, template, level } = requirements[
               worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id
             ];
-            const { firstname, lastname } = users[
+            const { firstname, lastname, id } = users[
               worklistStudies[i].dataValues.progress[j].dataValues.assignee
             ];
-            progressList.push({
-              worklist_id: worklistStudies[i].dataValues.worklist_id,
-              project_id: worklistStudies[i].dataValues.project_id,
-              subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
-              subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
-              study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
-              study_desc: worklistStudies[i].dataValues.study.dataValues.description,
-              assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
-              assignee_name: `${firstname} ${lastname}`,
-              worklist_requirement_id:
-                worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id,
-              worklist_requirement_desc: `${numOfAims}:${template}:${level}`,
-              completeness: worklistStudies[i].dataValues.progress[j].dataValues.completeness,
-            });
+            if (
+              manualProgressMap[
+                `${worklistStudies[i].dataValues.worklist_id}-${worklistStudies[i].dataValues.project_id}-${worklistStudies[i].dataValues.subject_id}-${worklistStudies[i].dataValues.study_id}-${id}`
+              ]
+            ) {
+              const completeness = fastify.getManualProgressForUser(
+                manualProgressMap,
+                worklistStudies[i].dataValues.worklist_id,
+                worklistStudies[i].dataValues.project_id,
+                worklistStudies[i].dataValues.subject_id,
+                worklistStudies[i].dataValues.study_id,
+                id
+              );
+              progressList.push({
+                worklist_id: worklistStudies[i].dataValues.worklist_id,
+                project_id: worklistStudies[i].dataValues.project_id,
+                subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
+                subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
+                study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
+                study_desc: worklistStudies[i].dataValues.study.dataValues.description,
+                assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
+                assignee_name: `${firstname} ${lastname}`,
+                completeness,
+                type: 'MANUAL',
+              });
+            } else {
+              progressList.push({
+                worklist_id: worklistStudies[i].dataValues.worklist_id,
+                project_id: worklistStudies[i].dataValues.project_id,
+                subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
+                subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
+                study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
+                study_desc: worklistStudies[i].dataValues.study.dataValues.description,
+                assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
+                assignee_name: `${firstname} ${lastname}`,
+                worklist_requirement_id:
+                  worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id,
+                worklist_requirement_desc: `${numOfAims}:${template}:${level}`,
+                completeness: worklistStudies[i].dataValues.progress[j].dataValues.completeness,
+                type: 'AUTO',
+              });
+            }
           }
         }
         reply.code(200).send(progressList);
@@ -5882,77 +6096,13 @@ async function epaddb(fastify, options, done) {
       )
         reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
-        let numDeleted;
-        const qry =
-          request.query.all && request.query.all === 'true'
-            ? { aim_uid: request.body }
-            : { project_id: project.id, aim_uid: request.body };
-        if (request.body && Array.isArray(request.body)) {
-          const args = await models.project_aim.findAll({
-            where: qry,
-            attributes: ['project_id', 'subject_uid', 'study_uid', 'user', 'aim_uid'],
-            raw: true,
-          });
-
-          numDeleted = await models.project_aim.destroy({
-            where: qry,
-          });
-
-          // if delete from all or it doesn't exist in any other project, delete from system
-          try {
-            if (request.query.all && request.query.all === 'true') {
-              await fastify.deleteCouchDocsInternal(request.body);
-              await fastify.aimUpdateGatewayInBulk(args, request.epadAuth, request.params.project);
-              reply
-                .code(200)
-                .send(`Aims deleted from system and removed from ${numDeleted} projects`);
-            } else {
-              const leftovers = await models.project_aim.findAll({
-                where: { aim_uid: request.body },
-                attributes: ['project_id', 'subject_uid', 'study_uid', 'user', 'aim_uid'],
-              });
-              if (leftovers.length === 0) {
-                await fastify.deleteCouchDocsInternal(request.body);
-                await fastify.aimUpdateGatewayInBulk(
-                  args,
-                  request.epadAuth,
-                  request.params.project
-                );
-                reply
-                  .code(200)
-                  .send(`Aims deleted from system as they didn't exist in any other project`);
-              } else {
-                for (let i = 0; i < leftovers.length; i += 1) {
-                  // go one one by
-                  // eslint-disable-next-line no-await-in-loop
-                  await fastify.saveAimInternal(leftovers[i].aim_uid, request.params.project, true);
-                  fastify.log.info(`Aim not deleted from system as it exists in other project`);
-                }
-                const deletedAims = request.body.filter((e) => !leftovers.includes(e));
-                await fastify.deleteCouchDocsInternal(deletedAims);
-                await fastify.aimUpdateGatewayInBulk(
-                  args,
-                  request.epadAuth,
-                  request.params.project
-                );
-                reply
-                  .code(200)
-                  .send(
-                    `${leftovers.length} aims not deleted from system as they exist in other project`
-                  );
-              }
-            }
-          } catch (deleteErr) {
-            reply.send(
-              new InternalError(
-                `Aims ${JSON.stringify(request.body)} deletion from system ${
-                  request.params.project
-                }`,
-                deleteErr
-              )
-            );
-          }
-        }
+        const aimDelete = await fastify.deleteAimsInternal(
+          request.params,
+          request.epadAuth,
+          request.query,
+          request.body
+        );
+        reply.code(200).send(aimDelete);
       }
     } catch (err) {
       reply.send(
@@ -5963,6 +6113,129 @@ async function epaddb(fastify, options, done) {
       );
     }
   });
+
+  // segs
+  fastify.decorate(
+    'deleteAimsInternal',
+    (params, epadAuth, query, body) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let aimQry = {};
+          if (body && Array.isArray(body)) aimQry = { aim_uid: body };
+          else {
+            if (params.subject) aimQry = { ...aimQry, subject_uid: params.subject };
+            if (params.study) aimQry = { ...aimQry, study_uid: params.study };
+            if (params.series) aimQry = { ...aimQry, series_uid: params.series };
+          }
+          const qry =
+            query.all && query.all === 'true'
+              ? aimQry
+              : { '$project.projectid$': params.project, ...aimQry };
+          const dbAims = await models.project_aim.findAll({
+            where: qry,
+            attributes: [
+              'project_id',
+              'subject_uid',
+              'study_uid',
+              'user',
+              'aim_uid',
+              'dso_series_uid',
+            ],
+            raw: true,
+            include: [{ model: models.project }],
+          });
+          const aimUids = [];
+          let segDeletePromises = []; // an array for deleting all segs
+
+          for (let i = 0; i < dbAims.length; i += 1) {
+            aimUids.push(dbAims[i].aim_uid);
+            if (dbAims[i].dso_series_uid)
+              segDeletePromises.push(
+                fastify.deleteSeriesDicomsInternal({
+                  study: dbAims[i].study_uid,
+                  series: dbAims[i].dso_series_uid,
+                })
+              );
+          }
+
+          const numDeleted = await models.project_aim.destroy({
+            where: { aim_uid: aimUids },
+          });
+
+          // if delete from all or it doesn't exist in any other project, delete from system
+          try {
+            if (query.all && query.all === 'true') {
+              await fastify.deleteCouchDocsInternal(aimUids);
+              await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
+              await Promise.all(segDeletePromises);
+              resolve(`Aims deleted from system and removed from ${numDeleted} projects`);
+            } else {
+              const leftovers = await models.project_aim.findAll({
+                where: aimQry,
+                attributes: [
+                  'project_id',
+                  'subject_uid',
+                  'study_uid',
+                  'user',
+                  'aim_uid',
+                  'dso_series_uid',
+                ],
+              });
+              if (leftovers.length === 0) {
+                await fastify.deleteCouchDocsInternal(aimUids);
+                await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
+
+                await Promise.all(segDeletePromises);
+                resolve(`Aims deleted from system as they didn't exist in any other project`);
+              } else {
+                const leftoverIds = [];
+                for (let i = 0; i < leftovers.length; i += 1) {
+                  // go one one by
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.saveAimInternal(leftovers[i].aim_uid, params.project, true);
+                  fastify.log.info(`Aim not deleted from system as it exists in other project`);
+                  leftoverIds.push(leftovers[i].aim_uid);
+                }
+                const deletedAims = dbAims.filter((e) => !leftoverIds.includes(e.aim_uid));
+                segDeletePromises = [];
+                const deletedAimUids = [];
+                for (let i = 0; i < deletedAims.length; i += 1) {
+                  if (deletedAims[i].dso_series_uid) {
+                    deletedAimUids.push(deletedAims[i].aim_uid);
+                    segDeletePromises.push(
+                      fastify.deleteSeriesDicomsInternal({
+                        study: deletedAims[i].study_uid,
+                        series: deletedAims[i].dso_series_uid,
+                      })
+                    );
+                  }
+                }
+                await fastify.deleteCouchDocsInternal(deletedAimUids);
+                await fastify.aimUpdateGatewayInBulk(deletedAims, epadAuth, params.project);
+                await Promise.all(segDeletePromises);
+                resolve(
+                  `${leftovers.length} aims not deleted from system as they exist in other project`
+                );
+              }
+            }
+          } catch (deleteErr) {
+            reject(
+              new InternalError(
+                `Aims ${JSON.stringify(aimUids)} deletion from system ${params.project}`,
+                deleteErr
+              )
+            );
+          }
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Aims ${JSON.stringify(body || params)}  deletion from project ${params.project}`,
+              err
+            )
+          );
+        }
+      })
+  );
 
   fastify.decorate(
     'aimUpdateGatewayInBulk',
@@ -7380,6 +7653,238 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  // downloadParams = { aim: 'true', seg: 'true', summary: 'true' }
+  fastify.decorate(
+    'prepAimDownloadOneBatch',
+    (dataDir, params, downloadParams, aims, header, data) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // have a boolean just to avoid filesystem check for empty annotations directory
+          let isThereDataToWrite = false;
+          // get aims
+          const aimPromises = [];
+          const segRetrievePromises = [];
+          if (
+            (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') ||
+            (downloadParams.aim && downloadParams.aim.toLowerCase() === 'true') ||
+            (downloadParams.seg && downloadParams.seg.toLowerCase() === 'true')
+          ) {
+            aims.forEach((aim) => {
+              if (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') {
+                const imageAnnotations =
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
+
+                imageAnnotations.forEach((imageAnnotation) => {
+                  const commentSplit = imageAnnotation.comment.value.split('~~');
+                  const points = [];
+                  if (
+                    imageAnnotation.markupEntityCollection &&
+                    imageAnnotation.markupEntityCollection.MarkupEntity[0]
+                  ) {
+                    imageAnnotation.markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.forEach(
+                      (coor) => {
+                        points.push(`(${coor.x.value} ${coor.y.value})`);
+                      }
+                    );
+                  }
+
+                  // eslint-disable-next-line no-param-reassign
+                  header = fastify.getCalculationHeaders(imageAnnotation, header);
+                  // eslint-disable-next-line no-param-reassign
+                  header = fastify.getOtherHeaders(imageAnnotation, header);
+                  // eslint-disable-next-line no-param-reassign
+                  header = fastify.arrayUnique(header, 'id');
+                  // add values common to all annotations
+                  let row = {
+                    aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                    date: dateFormatter.asString(
+                      dateFormatter.ISO8601_FORMAT,
+                      dateFormatter.parse(
+                        'yyyyMMddhhmmssSSS',
+                        `${imageAnnotation.dateTime.value}000`
+                      )
+                    ),
+                    patientName: aim.ImageAnnotationCollection.person.name.value,
+                    patientId: aim.ImageAnnotationCollection.person.id.value,
+                    reviewer: aim.ImageAnnotationCollection.user.name.value,
+                    name: imageAnnotation.name.value.split('~')[0],
+                    comment: commentSplit[0],
+                    userComment: commentSplit.length > 1 ? commentSplit[1] : '',
+                    points: `[${points}]`,
+                    dsoSeriesUid:
+                      imageAnnotation.segmentationEntityCollection &&
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity
+                        ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                            .seriesInstanceUid.root
+                        : '',
+                    studyUid:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.instanceUid.root,
+                    seriesUid:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.imageSeries.instanceUid.root,
+                    imageUid:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
+                  };
+
+                  row = fastify.getCalculationData(imageAnnotation, row);
+                  row = fastify.getOtherData(imageAnnotation, row);
+                  data.push(row);
+                });
+              }
+              if (downloadParams.aim && downloadParams.aim.toLowerCase() === 'true') {
+                aimPromises.push(() =>
+                  fs.writeFile(
+                    `${dataDir}/${aim.ImageAnnotationCollection.uniqueIdentifier.root}.json`,
+                    JSON.stringify(aim)
+                  )
+                );
+              }
+              // only get the segs if we are retrieving series. study already gets it
+              if (
+                downloadParams.seg &&
+                downloadParams.seg.toLowerCase() === 'true' &&
+                aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .segmentationEntityCollection
+              ) {
+                const segEntity =
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .segmentationEntityCollection.SegmentationEntity[0];
+                segRetrievePromises.push(() => fastify.getSegDicom(segEntity));
+              }
+              isThereDataToWrite = true;
+            });
+            await fastify.pq.addAll(aimPromises);
+            if (
+              downloadParams.seg &&
+              downloadParams.seg.toLowerCase() === 'true' &&
+              segRetrievePromises.length > 0
+            ) {
+              // we need to create the segs dir. this should only happen with retrieveSegs
+              fs.mkdirSync(`${dataDir}/segs`);
+              const segWritePromises = [];
+              const segs = await fastify.pq.addAll(segRetrievePromises);
+              for (let i = 0; i < segs.length; i += 1) {
+                segWritePromises.push(() =>
+                  fs.writeFile(`${dataDir}/segs/${segs[i].uid}.dcm`, segs[i].buffer)
+                );
+                isThereDataToWrite = true;
+              }
+              await fastify.pq.addAll(segWritePromises);
+            }
+          }
+          resolve(isThereDataToWrite);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'prepAimDownload',
+    (dataDir, params, epadAuth, downloadParams, aimsResult) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // have a boolean just to avoid filesystem check for empty annotations directory
+          let isThereDataToWrite = false;
+          // create the header base
+          const header = [
+            // Date_Created	Patient_Name	Patient_ID	Reviewer	Name Comment	Points	Study_UID	Series_UID	Image_UID
+            { id: 'aimUid', title: 'Aim_UID' },
+            { id: 'date', title: 'Date_Created' },
+            { id: 'patientName', title: 'Patient_Name' },
+            { id: 'patientId', title: 'Patient_ID' },
+            { id: 'reviewer', title: 'Reviewer' },
+            { id: 'name', title: 'Name' },
+            { id: 'comment', title: 'Comment' },
+            { id: 'userComment', title: 'User_Comment' },
+            { id: 'points', title: 'Points' },
+            { id: 'dsoSeriesUid', title: 'DSO_Series_UID' },
+            { id: 'studyUid', title: 'Study_UID' },
+            { id: 'seriesUid', title: 'Series_UID' },
+            { id: 'imageUid', title: 'Image_UID' },
+          ];
+          const data = [];
+          const aims = aimsResult.rows;
+          if (aims.length < aimsResult.total_rows) {
+            fastify.log.info(
+              `Download requires time to get ${Math.ceil(
+                aimsResult.total_rows / aims.length
+              )} batches`
+            );
+            let totalAimCount = aims.length;
+            let { bookmark } = aimsResult;
+            // put the first batch
+            isThereDataToWrite =
+              (await fastify.prepAimDownloadOneBatch(
+                dataDir,
+                params,
+                downloadParams,
+                aims,
+                header,
+                data
+              )) || isThereDataToWrite;
+            fastify.log.info('Downloaded first batch');
+            let i = 2;
+            // get batches and put them in download dir till we get all aims
+            while (totalAimCount < aimsResult.total_rows) {
+              // eslint-disable-next-line no-await-in-loop
+              const newResult = await fastify.getAimsInternal(
+                'json',
+                params,
+                undefined,
+                epadAuth,
+                bookmark
+              );
+              isThereDataToWrite =
+                // eslint-disable-next-line no-await-in-loop
+                (await fastify.prepAimDownloadOneBatch(
+                  dataDir,
+                  params,
+                  downloadParams,
+                  newResult.rows,
+                  header,
+                  data
+                )) || isThereDataToWrite;
+              // eslint-disable-next-line prefer-destructuring
+              bookmark = newResult.bookmark;
+              totalAimCount += newResult.rows.length;
+
+              fastify.log.info(`Downloaded batch ${i}`);
+              i += 1;
+            }
+          } else {
+            isThereDataToWrite = await fastify.prepAimDownloadOneBatch(
+              dataDir,
+              params,
+              downloadParams,
+              aims,
+              header,
+              data
+            );
+          }
+          if (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') {
+            // create the csv writer and write the summary
+            const csvWriter = createCsvWriter({
+              path: `${dataDir}/summary.csv`,
+              header,
+            });
+            csvWriter
+              .writeRecords(data)
+              .then(() => fastify.log.info('The summary CSV file was written successfully'));
+            isThereDataToWrite = true;
+          }
+          resolve(isThereDataToWrite);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  // if the download is for one series only or a list of series, retrieveSegs is sent as true
+  // if it is study or a list of studies it is false
+  // TODO should we check if it is already downloaded?
   fastify.decorate(
     'prepSeriesDownloadDir',
     (dataDir, params, query, epadAuth, retrieveSegs, fileUids) =>
@@ -7402,54 +7907,23 @@ async function epaddb(fastify, options, done) {
           }
           await fastify.pq.addAll(dcmPromises);
           if (query.includeAims && query.includeAims === 'true') {
-            // get aims
-            const aimPromises = [];
-            const aims = await fastify.getAimsInternal('json', params, undefined, epadAuth);
-            const segRetrievePromises = [];
-            for (let i = 0; i < aims.length; i += 1) {
-              aimPromises.push(() =>
-                fs.writeFile(
-                  `${dataDir}/${aims[i].ImageAnnotationCollection.uniqueIdentifier.root}.json`,
-                  JSON.stringify(aims[i])
-                )
-              );
-              // only get the segs if we are retrieving series. study already gets it
-              if (
-                retrieveSegs &&
-                params.series &&
-                aims[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .segmentationEntityCollection
-              ) {
-                const segEntity =
-                  aims[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                    .segmentationEntityCollection.SegmentationEntity[0];
-                segRetrievePromises.push(() => fastify.getSegDicom(segEntity));
-              }
-              isThereDataToWrite = true;
-            }
-            await fastify.pq.addAll(aimPromises);
-
-            if (retrieveSegs && segRetrievePromises.length > 0) {
-              // we need to create the segs dir. this should only happen with retrieveSegs
-              fs.mkdirSync(`${dataDir}/segs`);
-              const segWritePromises = [];
-              const segs = await fastify.pq.addAll(segRetrievePromises);
-              for (let i = 0; i < segs.length; i += 1) {
-                segWritePromises.push(() =>
-                  fs.writeFile(`${dataDir}/segs/${segs[i].uid}.dcm`, segs[i].buffer)
-                );
-                isThereDataToWrite = true;
-              }
-              await fastify.pq.addAll(segWritePromises);
-            }
-            const files = await fastify.getFilesFromUIDsInternal(
-              { format: 'stream' },
-              fileUids,
+            const aimsResult = await fastify.getAimsInternal('json', params, undefined, epadAuth);
+            const isThereAimToWrite = await fastify.prepAimDownload(
+              dataDir,
               params,
-              dataDir
+              epadAuth,
+              retrieveSegs ? { aim: 'true', seg: 'true' } : { aim: 'true' },
+              aimsResult
             );
-            isThereDataToWrite = isThereDataToWrite || files;
+            isThereDataToWrite = isThereDataToWrite || isThereAimToWrite;
           }
+          const files = await fastify.getFilesFromUIDsInternal(
+            { format: 'stream' },
+            fileUids,
+            params,
+            dataDir
+          );
+          isThereDataToWrite = isThereDataToWrite || files;
           resolve(isThereDataToWrite);
         } catch (err) {
           reject(err);
@@ -7484,6 +7958,23 @@ async function epaddb(fastify, options, done) {
               fileUids
             );
             isThereDataToWrite = isThereDataToWrite || isThereData;
+          }
+          if (query.includeAims && query.includeAims === 'true') {
+            const studyAimsParams = { ...params, series: '' }; // for study aims, series uid is empty
+            const aimsResult = await fastify.getAimsInternal(
+              'json',
+              studyAimsParams,
+              undefined,
+              epadAuth
+            );
+            const isThereAimToWrite = await fastify.prepAimDownload(
+              dataDir,
+              studyAimsParams,
+              epadAuth,
+              { aim: 'true' },
+              aimsResult
+            );
+            isThereDataToWrite = isThereDataToWrite || isThereAimToWrite;
           }
           const files = await fastify.getFilesFromUIDsInternal(
             { format: 'stream' },
@@ -7645,7 +8136,7 @@ async function epaddb(fastify, options, done) {
                   },
                   query,
                   epadAuth,
-                  false,
+                  true,
                   fileUids
                 );
                 isThereDataToWrite = isThereDataToWrite || isThereData;
@@ -9145,7 +9636,7 @@ async function epaddb(fastify, options, done) {
 
           let numOfAims = 0;
           let numOfTemplateAimsMap = {};
-          if (config.env !== 'test' && config.mode === 'thick') {
+          if (config.env !== 'test') {
             numOfAims = await models.project_aim.count({
               col: 'aim_uid',
               distinct: true,
@@ -9155,15 +9646,6 @@ async function epaddb(fastify, options, done) {
               attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
               raw: true,
             });
-          } else {
-            // sending empty epadAuth, would fail in thick mode, but this is not called on thick mode
-            const aims = await fastify.getAimsInternal('summary', {}, undefined, {});
-            numOfAims = aims.length;
-            for (let i = 0; i < aims.length; i += 1) {
-              if (numOfTemplateAimsMap[aims[i].template])
-                numOfTemplateAimsMap[aims[i].template] += 1;
-              numOfTemplateAimsMap[aims[i].template] = 1;
-            }
           }
 
           // TODO are these correct? check with thick
@@ -9482,7 +9964,9 @@ async function epaddb(fastify, options, done) {
 
           resolve();
         } catch (err) {
-          reject(new InternalError(`Saving notification ${config.statsEpad}`, err));
+          reject(
+            new InternalError(`Getting notifications for user ${request.epadAuth.username}`, err)
+          );
         }
       })
   );
@@ -9939,6 +10423,36 @@ async function epaddb(fastify, options, done) {
                 MODIFY COLUMN path varchar(1024) NOT NULL;`,
               { transaction: t }
             );
+
+            // update worklist status
+            await fastify.orm.query(
+              `ALTER TABLE project_subject_study_series_user_status 
+                DROP FOREIGN KEY IF EXISTS FK_psssustatus_worklist,
+                DROP FOREIGN KEY IF EXISTS FK_psssustatus_project,
+                DROP KEY IF EXISTS FK_psssustatus_project,
+                DROP FOREIGN KEY IF EXISTS FK_psssustatus_study,
+                DROP KEY IF EXISTS FK_psssustatus_study,
+                DROP FOREIGN KEY IF EXISTS FK_psssustatus_subject,
+                DROP KEY IF EXISTS FK_psssustatus_subject,
+                DROP FOREIGN KEY IF EXISTS FK_psssustatus_user,
+                DROP KEY IF EXISTS FK_psssustatus_user,
+                DROP CONSTRAINT IF EXISTS psssustatus_user;`,
+              { transaction: t }
+            );
+            await fastify.orm.query(
+              `ALTER TABLE project_subject_study_series_user_status 
+                ADD COLUMN IF NOT EXISTS worklist_id int(10) unsigned DEFAULT NULL AFTER id, 
+                ADD FOREIGN KEY IF NOT EXISTS FK_psssustatus_worklist (worklist_id) REFERENCES worklist (id) ON DELETE CASCADE ON UPDATE CASCADE, 
+                ADD FOREIGN KEY IF NOT EXISTS FK_psssustatus_project (project_id) REFERENCES project (id) ON DELETE CASCADE ON UPDATE CASCADE, 
+                ADD FOREIGN KEY IF NOT EXISTS FK_psssustatus_study (study_id) REFERENCES study (id) ON DELETE CASCADE ON UPDATE CASCADE, 
+                ADD FOREIGN KEY IF NOT EXISTS FK_psssustatus_subject (subject_id) REFERENCES subject (id) ON DELETE CASCADE ON UPDATE CASCADE, 
+                ADD FOREIGN KEY IF NOT EXISTS FK_psssustatus_user (user_id) REFERENCES user (id) ON DELETE CASCADE ON UPDATE CASCADE, 
+                ADD CONSTRAINT psssustatus_user UNIQUE (worklist_id, project_id, subject_id, study_id, series_uid, user_id);`,
+              { transaction: t }
+            );
+            fastify.log.warn(
+              'worklist_id column is added to project_subject_study_series_user_status'
+            );
           });
 
           // the db schema is updated successfully lets copy the files
@@ -10023,7 +10537,16 @@ async function epaddb(fastify, options, done) {
             // fill in each project relation table
             // 1. project_aim
             // get aims from couch and add entities
-            const aims = await fastify.getAimsInternal('json', {}, undefined, epadAuth);
+            const aimsRes = await fastify.getAimsInternal(
+              'json',
+              {},
+              undefined,
+              epadAuth,
+              undefined,
+              undefined,
+              true
+            );
+            const aims = aimsRes.rows;
             for (let i = 0; i < aims.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
               await fastify.addProjectAimRelInternal(aims[i], project, epadAuth, t);

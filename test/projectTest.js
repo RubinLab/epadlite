@@ -1137,7 +1137,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.be.eql([jsonBuffer]);
+          expect(res.body.rows).to.be.eql([jsonBuffer]);
           done();
         })
         .catch((e) => {
@@ -1889,7 +1889,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -1919,8 +1919,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.be.a('array');
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.rows).to.be.a('array');
+          expect(res.body.rows.length).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -1968,7 +1968,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.be.eql([jsonBuffer]);
+          expect(res.body.rows).to.be.eql([jsonBuffer]);
           done();
         })
         .catch((e) => {
@@ -2041,7 +2041,7 @@ describe('Project Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(
-            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            res.body.rows[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
               '~'
             )[0]
           ).to.be.eql('Lesion1');
@@ -2061,7 +2061,7 @@ describe('Project Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(
-            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            res.body.rows[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
               '~'
             )[0]
           ).to.be.eql('Lesion1');
@@ -2079,7 +2079,7 @@ describe('Project Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(
-            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            res.body.rows[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
               '~'
             )[0]
           ).to.be.eql('Lesion1');
@@ -2177,7 +2177,7 @@ describe('Project Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(
-            res.body[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
+            res.body.rows[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
               '~'
             )[0]
           ).to.be.eql('Lesion2');
@@ -2208,7 +2208,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -2223,7 +2223,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.rows.length).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -2238,7 +2238,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.rows.length).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -2266,7 +2266,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -2280,7 +2280,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -2312,8 +2312,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.be.a('array');
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.rows).to.be.a('array');
+          expect(res.body.rows.length).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -2353,7 +2353,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.rows.length).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -2368,7 +2368,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.rows.length).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -2396,7 +2396,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -2410,7 +2410,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -2424,7 +2424,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -4020,7 +4020,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -4135,7 +4135,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.rows.length).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -4178,7 +4178,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.rows.length).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -4239,8 +4239,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
-          expect(res.body[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+          expect(res.body.rows.length).to.be.eql(1);
+          expect(res.body.rows[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
             '2.25.211702350959705565754863799143359605362'
           );
           done();
@@ -4256,8 +4256,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
-          expect(res.body[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+          expect(res.body.rows.length).to.be.eql(1);
+          expect(res.body.rows[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
             '2.25.211702350959705565754863799143359605362'
           );
           done();
@@ -4286,7 +4286,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -4300,8 +4300,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(1);
-          expect(res.body[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
+          expect(res.body.rows.length).to.be.eql(1);
+          expect(res.body.rows[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.eql(
             '2.25.211702350959705565754863799143359605362'
           );
           done();
@@ -4492,7 +4492,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {
@@ -4908,9 +4908,9 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.be.a('array');
-          expect(res.body.length).to.be.eql(12);
-          expect(res.body).to.be.eql(jsonBuffer);
+          expect(res.body.rows).to.be.a('array');
+          expect(res.body.rows.length).to.be.eql(12);
+          expect(res.body.rows).to.be.eql(jsonBuffer);
           done();
         })
         .catch((e) => {
@@ -5122,7 +5122,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          expect(res.body.total_rows).to.equal(12);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch((e) => {
@@ -5137,7 +5138,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          expect(res.body.total_rows).to.equal(8);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch((e) => {
@@ -5152,7 +5154,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          expect(res.body.total_rows).to.equal(8);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch((e) => {
@@ -5167,7 +5170,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
+          expect(res.body.total_rows).to.equal(3);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch((e) => {
@@ -5238,8 +5242,8 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.be.a('array');
-          expect(res.body.length).to.be.eql(0);
+          expect(res.body.rows).to.be.a('array');
+          expect(res.body.rows.length).to.be.eql(0);
           done();
         })
         .catch((e) => {

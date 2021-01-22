@@ -126,6 +126,23 @@ fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix })
 if (config.mode === 'thick') {
   fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require
 }
+if (config.notificationEmail) {
+  fastify.register(require('fastify-nodemailer'), {
+    pool: true,
+    host: config.notificationEmail.host,
+    port: config.notificationEmail.port,
+    secure: config.notificationEmail.isTls, // use TLS
+    auth: config.notificationEmail.auth,
+  });
+}
+
+// download folder required for static
+const downloadFolder = path.join(__dirname, '/download');
+if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
+fastify.register(require('fastify-static'), {
+  root: path.join(__dirname, 'download'),
+  prefix: '/download/',
+});
 // Run the server!
 fastify.listen(port, host);
 
