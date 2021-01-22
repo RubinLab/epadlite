@@ -979,7 +979,7 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
-    it('should get worklist progress for worklist testProgressW with one progress', (done) => {
+    it('should get worklist progress for worklist testProgressW with one manual progress', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/worklists/testProgressW/progress')
@@ -1021,7 +1021,7 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
-    it('should update the progress for testProgressUser1 to IN_PROGRESS', (done) => {
+    it('should update the progress for testProgressUser1 to DONE', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
@@ -1089,7 +1089,7 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
-    it('should get worklist progress for worklist testProgressW with one progress again', (done) => {
+    it('should get worklist progress for worklist testProgressW with one manual progress again', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/worklists/testProgressW/progress')
