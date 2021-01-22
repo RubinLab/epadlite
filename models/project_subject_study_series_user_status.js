@@ -10,6 +10,14 @@ module.exports = function (sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
+      worklist_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+        references: {
+          model: 'worklist',
+          key: 'id',
+        },
+      },
       project_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
