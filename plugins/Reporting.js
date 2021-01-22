@@ -1,3 +1,4 @@
+/* eslint-disable no-async-promise-executor */
 const fp = require('fastify-plugin');
 const _ = require('lodash');
 
@@ -9,7 +10,7 @@ async function reporting(fastify) {
   fastify.decorate('checkForShapes', (markupEntityArray, shapes) => {
     // first normalize the shapes to handle different versions of the shape names
     const normShapes = [];
-    shapes.forEach(shape => {
+    shapes.forEach((shape) => {
       switch (shape.toLowerCase()) {
         case 'line':
         case 'multipoint':
@@ -87,10 +88,7 @@ async function reporting(fastify) {
             template.toLowerCase()
         ) {
           fastify.log.debug(
-            `Aim template is ${
-              aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
-                .code
-            } was looking for ${template}`
+            `Aim template is ${aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code} was looking for ${template}`
           );
           // eslint-disable-next-line no-continue
           continue;
@@ -112,9 +110,7 @@ async function reporting(fastify) {
           const markupShapes = aimJSONs[
             i
           ].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection.MarkupEntity.map(
-            me => {
-              return me[`xsi:type`];
-            }
+            (me) => me[`xsi:type`]
           );
 
           // check if the shapes should be filter and if the aim matches the filter
@@ -208,7 +204,7 @@ async function reporting(fastify) {
           const ioes =
             aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
               .imagingObservationEntityCollection.ImagingObservationEntity;
-          ioes.forEach(ioe => {
+          ioes.forEach((ioe) => {
             // imagingObservationEntity can have both imagingObservationEntityCharacteristic and imagingPhysicalEntityCharacteristic
             if (ioe.label.value.toLowerCase() in row) {
               row[ioe.label.value.toLowerCase()] = fastify.formJsonObj(
@@ -219,7 +215,7 @@ async function reporting(fastify) {
             if (ioe.imagingObservationCharacteristicCollection) {
               const iocs =
                 ioe.imagingObservationCharacteristicCollection.ImagingObservationCharacteristic;
-              iocs.forEach(ioc => {
+              iocs.forEach((ioc) => {
                 if (ioc.label.value.toLowerCase() in row) {
                   if (
                     ioc.characteristicQuantificationCollection &&
@@ -246,7 +242,7 @@ async function reporting(fastify) {
               ipcs =
                 ioe.imagingPhysicalEntityCharacteristicCollection
                   .ImagingPhysicalEntityCharacteristic;
-              ipcs.forEach(ipc => {
+              ipcs.forEach((ipc) => {
                 if (ipc.label.value.toLowerCase() in row) {
                   row[ipc.label.value.toLowerCase()] = fastify.formJsonObj(
                     ipc.typeCode[0][`iso:displayName`].value,
@@ -279,7 +275,7 @@ async function reporting(fastify) {
                 .imagingPhysicalEntityCollection.ImagingPhysicalEntity
             );
           }
-          ipes.forEach(ipe => {
+          ipes.forEach((ipe) => {
             if (ipe.label.value.toLowerCase() in row) {
               row[ipe.label.value.toLowerCase()] = fastify.formJsonObj(
                 ipe.typeCode[0][`iso:displayName`].value,
@@ -290,7 +286,7 @@ async function reporting(fastify) {
               const ipcs =
                 ipe.imagingPhysicalEntityCharacteristicCollection
                   .ImagingPhysicalEntityCharacteristic;
-              ipcs.forEach(ipc => {
+              ipcs.forEach((ipc) => {
                 if (ipc.label.value.toLowerCase() in row) {
                   row[ipc.label.value.toLowerCase()] = fastify.formJsonObj(
                     ipc.typeCode[0][`iso:displayName`].value,
@@ -323,7 +319,7 @@ async function reporting(fastify) {
                 .questionCollection.Question
             );
           }
-          qs.forEach(q => {
+          qs.forEach((q) => {
             if (q.question.value.toLowerCase() in row) {
               row[q.question.value.toLowerCase()] = fastify.formJsonObj(q.answer.value);
             }
@@ -354,7 +350,7 @@ async function reporting(fastify) {
             );
           }
           // eslint-disable-next-line no-loop-func
-          calcs.forEach(calc => {
+          calcs.forEach((calc) => {
             // if it is a very old annotation and the line length is saved as LineLength handle that
             if (
               (calc.description.value.toLowerCase() in row ||
@@ -417,15 +413,13 @@ async function reporting(fastify) {
       return table;
     } catch (err) {
       fastify.log.error(
-        `Error during filling table for ${template}, ${columns}, ${shapesIn} and ${
-          aimJSONs.length
-        }. Error: ${err.message}`
+        `Error during filling table for ${template}, ${columns}, ${shapesIn} and ${aimJSONs.length}. Error: ${err.message}`
       );
     }
     return [];
   });
 
-  fastify.decorate('getRecist', aimJSONs => {
+  fastify.decorate('getRecist', (aimJSONs) => {
     try {
       const table = fastify.fillTable(aimJSONs, 'RECIST', [
         'Name',
@@ -763,7 +757,7 @@ async function reporting(fastify) {
     return responseCats;
   });
 
-  fastify.decorate('cleanArray', arr => {
+  fastify.decorate('cleanArray', (arr) => {
     const out = [];
     for (let i = 0; i < arr.length; i += 1)
       if (arr[i] !== undefined && arr[i] != null) {
@@ -772,7 +766,7 @@ async function reporting(fastify) {
     return out;
   });
 
-  fastify.decorate('cleanConsecutives', arr => {
+  fastify.decorate('cleanConsecutives', (arr) => {
     if (!arr) return null;
     const out = [];
     for (let i = 0; i < arr.length; i += 1)
@@ -911,9 +905,7 @@ async function reporting(fastify) {
           const lesionIndex = fastify.getLesionIndex(index, mode, lesions[i]);
           if (table[lesionIndex][0] !== null && table[lesionIndex][0] !== lesionName)
             fastify.log.warn(
-              `Lesion name at ${studyDate} is different from the same lesion on a different date. The existing one is: ${
-                table[lesionIndex][0]
-              } whereas this is: ${lesionName}`
+              `Lesion name at ${studyDate} is different from the same lesion on a different date. The existing one is: ${table[lesionIndex][0]} whereas this is: ${lesionName}`
             );
           table[lesionIndex][0] = lesionName;
 
@@ -927,9 +919,7 @@ async function reporting(fastify) {
               table[lesionIndex][nextCol].toLowerCase() !== aimType
             )
               fastify.log.warn(
-                `Type at date ${studyDate} is different from the same lesion on a different date. The existing one is: ${
-                  table[lesionIndex][nextCol]
-                } whereas this is: ${aimType}`
+                `Type at date ${studyDate} is different from the same lesion on a different date. The existing one is: ${table[lesionIndex][nextCol]} whereas this is: ${aimType}`
               );
             table[lesionIndex][nextCol] = aimType;
             nextCol += 1;
@@ -940,9 +930,7 @@ async function reporting(fastify) {
             table[lesionIndex][nextCol].toLowerCase() !== location
           )
             fastify.log.warn(
-              `Location at date ${studyDate} is different from the same lesion on a different date. The existing one is:${
-                table[lesionIndex][nextCol]
-              } whereas this is:${location}`
+              `Location at date ${studyDate} is different from the same lesion on a different date. The existing one is:${table[lesionIndex][nextCol]} whereas this is:${location}`
             );
           table[lesionIndex][nextCol] = location;
           // get the lesion and get the timepoint. if it is integer put that otherwise calculate using study dates
@@ -1148,13 +1136,23 @@ async function reporting(fastify) {
               });
             } else {
               // eslint-disable-next-line no-await-in-loop
-              const aims = await fastify.getAimsInternal('json', params, undefined, epadAuth);
-              fastify.log.info(`${aims.length} aims found for ${subjProjPairs[i].subjectID}`);
+              const aimsRes = await fastify.getAimsInternal(
+                'json',
+                params,
+                undefined,
+                epadAuth,
+                undefined,
+                undefined,
+                true
+              );
+              fastify.log.info(
+                `${aimsRes.rows.length} aims found for ${subjProjPairs[i].subjectID}`
+              );
 
               const report =
                 metric === 'RECIST'
-                  ? fastify.getRecist(aims)
-                  : fastify.getLongitudinal(aims, template, shapes);
+                  ? fastify.getRecist(aimsRes.rows)
+                  : fastify.getLongitudinal(aimsRes.rows, template, shapes);
               if (report == null) {
                 fastify.log.warn(
                   `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`

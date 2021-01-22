@@ -1,6 +1,6 @@
 /* jshint indent: 2 */
 
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define(
     'project_subject_study_series_user_status',
     {
@@ -9,6 +9,14 @@ module.exports = function(sequelize, DataTypes) {
         allowNull: false,
         primaryKey: true,
         autoIncrement: true,
+      },
+      worklist_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: true,
+        references: {
+          model: 'worklist',
+          key: 'id',
+        },
       },
       project_id: {
         type: DataTypes.INTEGER(10).UNSIGNED,

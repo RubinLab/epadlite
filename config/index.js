@@ -68,4 +68,5 @@ if (process.env.CORS_ORIGIN) {
 }
 config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
 config.secret = process.env.SECRET || config.secret || undefined;
+
 module.exports = config;

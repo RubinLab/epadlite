@@ -1,6 +1,6 @@
 /* jshint indent: 2 */
 
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   const project = sequelize.define(
     'project',
     {
@@ -55,7 +55,7 @@ module.exports = function(sequelize, DataTypes) {
       tableName: 'project',
     }
   );
-  project.associate = models => {
+  project.associate = (models) => {
     project.belongsToMany(models.user, {
       through: 'project_user',
       as: 'users',
