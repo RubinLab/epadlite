@@ -568,7 +568,7 @@ async function couchdb(fastify, options) {
             fastify.log.info('Got first batch');
             let i = 2;
             // get batches till we get all aims
-            while (totalAimCount < resObj.total_rows && i < 5) {
+            while (totalAimCount < resObj.total_rows) {
               // eslint-disable-next-line no-await-in-loop
               const newResult = await fastify.getAimsCouchInternal(
                 db,
