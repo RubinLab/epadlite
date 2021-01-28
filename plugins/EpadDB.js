@@ -12,6 +12,7 @@ const toArrayBuffer = require('to-array-buffer');
 const unzip = require('unzip-stream');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
+const csv = require('csv-parser');
 
 // eslint-disable-next-line no-global-assign
 window = {};
@@ -2454,11 +2455,20 @@ async function epaddb(fastify, options, done) {
       resolve(epadLitePwd);
     });
   });
-  fastify.decorate('extractPluginParamtersInternal', (queueObject, request) =>
-    new Promise(async (resolve, reject) => {
+  fastify.decorate('extractPluginParamtersInternal', (queueObject, request) => {
+    return new Promise(async (resolve, reject) => {
+      console.log('ccccc vvvvvvvvv');
+      console.log('ccccc vvvvvvvvv');
+      console.log('ccccc queue obj', queueObject);
+      console.log('ccccc vvvvvvvvv');
+      console.log('ccccc vvvvvvvvv');
+      console.log('ccccc vvvvvvvvv');
+
       const parametertype = queueObject.plugin_parametertype;
       const pluginid = queueObject.plugin_id;
       const projectdbid = queueObject.project_id;
+      const pluginnameid = queueObject.plugin.plugin_id;
+      const pluginname = queueObject.plugin.name;
       const { projectid } = queueObject.project;
       // eslint-disable-next-line prefer-destructuring
       const processmultipleaims = queueObject.plugin.processmultipleaims;
@@ -2477,19 +2487,26 @@ async function epaddb(fastify, options, done) {
         // });
       }
 
-      const dock = new DockerService(fs, fastify, path);
-      const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
-      const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
-      let epadLitePwd = '';
-      fastify.log.info('getting epad_lite bind points to reflect : ', epadLiteBindPoints);
-      for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
-        if (epadLiteBindPoints[cntPoints].includes('pluginData')) {
-          epadLitePwd = epadLiteBindPoints[cntPoints];
-          break;
-        }
-      }
-      const tmpLocalServerBindPoint = epadLitePwd.split(':')[0];
-      const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${queueObject.id}/`;
+      //  const dock = new DockerService(fs, fastify, path);
+      //  const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
+      //  const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
+      // let epadLitePwd = '';
+      // fastify.log.info('getting epad_lite bind points to reflect : ', epadLiteBindPoints);
+      // for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
+      //   if (epadLiteBindPoints[cntPoints].includes('pluginData')) {
+      //     epadLitePwd = epadLiteBindPoints[cntPoints];
+      //     break;
+      //   }
+      // }
+      //  const tmpLocalServerBindPoint = epadLitePwd.split(':')[0];
+      //  const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${
+      //  queueObject.id
+      // }/`;
+
+      const localServerBindPoint = path.join(
+        __dirname,
+        `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}`
+      );
 
       const pluginsDataFolderlog = path.join(
         __dirname,
@@ -2516,6 +2533,8 @@ async function epaddb(fastify, options, done) {
             serverfolder: localServerBindPoint,
             projectid,
             projectdbid,
+            pluginnameid,
+            pluginname,
           };
           resolve(returnObject);
         } catch (err) {
@@ -2544,6 +2563,8 @@ async function epaddb(fastify, options, done) {
             serverfolder: localServerBindPoint,
             projectid,
             projectdbid,
+            pluginnameid,
+            pluginname,
           };
           resolve(returnObject);
         } catch (err) {
@@ -2572,6 +2593,8 @@ async function epaddb(fastify, options, done) {
             serverfolder: localServerBindPoint,
             projectid,
             projectdbid,
+            pluginnameid,
+            pluginname,
           };
           resolve(returnObject);
         } catch (err) {
@@ -2579,7 +2602,7 @@ async function epaddb(fastify, options, done) {
         }
       }
     }).catch((err) => new Error(err))
-  );
+  });
 
   fastify.decorate('updateStatusQueueProcessInternal', (queuid, status) => {
     let tempTime = '1970-01-01 00:00:01';
@@ -2767,6 +2790,339 @@ async function epaddb(fastify, options, done) {
     archive.finalize();
     archive.pipe(reply.raw);
   });
+  fastify.decorate('findFilesAndSubfilesInternal', (dirParam, fileArrayParam, extensionParam) => {
+    const infuncfileArray = fs.readdirSync(dirParam);
+    let cumfileArrayParam = [];
+    if (Array.isArray(fileArrayParam)) {
+      cumfileArrayParam = fileArrayParam;
+    }
+
+    for (let i = 0; i < infuncfileArray.length; i += 1) {
+      console.log('file name : ', `${dirParam}/${infuncfileArray[i]}`);
+      if (fs.statSync(`${dirParam}/${infuncfileArray[i]}`).isDirectory()) {
+        // eslint-disable-next-line no-const-assign
+        cumfileArrayParam = fastify.findFilesAndSubfilesInternal(
+          `${dirParam}/${infuncfileArray[i]}`,
+          cumfileArrayParam,
+          extensionParam
+        );
+      } else {
+        console.log('not a dir :', `${dirParam}/${infuncfileArray[i]}`);
+        const ext = infuncfileArray[i].split('.');
+        console.log('ext :', ext[ext.length - 1]);
+
+        if (extensionParam === ext[ext.length - 1] || extensionParam === '') {
+          console.log(`pushing,....${dirParam}/${infuncfileArray[i]}`);
+          cumfileArrayParam.push({ path: dirParam, file: infuncfileArray[i] });
+        }
+      }
+    }
+    return cumfileArrayParam;
+  });
+  //  plugin calculations verify codemaning existance in ontology and add calculations to the user aim part
+  fastify.decorate('parseCsvForPluginCalculationsInternal', csvFileParam => {
+    console.log('parsing csv file', csvFileParam);
+    console.log('parsing csv file', csvFileParam.path);
+    console.log('parsing csv file', csvFileParam.file);
+    const result = [];
+    // const necessaryPath = csvFileParam.split('pluginsDataFolder');
+    // const uselast = necessaryPath[necessaryPath.length - 1];
+    console.log('reding cvs : ', `${csvFileParam.path}/${csvFileParam.file}`);
+    return new Promise((resolve, reject) => {
+      fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
+        .pipe(csv({ skipLines: 6, headers: ['key', 'value'] }))
+        .on('data', data => result.push(data))
+        .on('end', () => {
+          resolve(result);
+        })
+        .on('error', err => {
+          reject(
+            new InternalError(
+              'error happened while reading plugin calculation csv file in output folder',
+              err
+            )
+          );
+        });
+    });
+  });
+  fastify.decorate('createCalcEntityforPluginCalcInternal', (lexiconObjParam, calcValueParam) => {
+    console.log('creating aim for plugin calc', lexiconObjParam);
+    return new Promise((resolve, reject) => {
+      try {
+        const partCalcEntity = {
+          uniqueIdentifier: {
+            root: fastify.generateUidInternal(),
+          },
+          typeCode: [
+            {
+              code: lexiconObjParam.codevalue,
+              codeSystemName: '99EPAD',
+              'iso:displayName': {
+                'xmlns:iso': 'uri:iso.org:21090',
+                value: lexiconObjParam.codemeaning,
+              },
+            },
+          ],
+          description: {
+            value: lexiconObjParam.codemeaning,
+          },
+          calculationResultCollection: {
+            CalculationResult: [
+              {
+                type: 'Scalar',
+                'xsi:type': 'CompactCalculationResult',
+                unitOfMeasure: {
+                  value: '{ratio}',
+                },
+                dataType: {
+                  code: 'C48870',
+                  codeSystemName: 'NCI',
+                  'iso:displayName': {
+                    'xmlns:iso': 'uri:iso.org:21090',
+                    value: 'Double',
+                  },
+                },
+                dimensionCollection: {
+                  Dimension: [
+                    {
+                      index: {
+                        value: 0,
+                      },
+                      size: {
+                        value: 1,
+                      },
+                      label: {
+                        value: lexiconObjParam.codemeaning,
+                      },
+                    },
+                  ],
+                },
+                value: {
+                  value: calcValueParam,
+                },
+              },
+            ],
+          },
+          algorithm: {
+            name: {
+              value: lexiconObjParam.referencename,
+            },
+            type: [
+              {
+                code: lexiconObjParam.referenceuid,
+                codeSystemName: '99EPAD',
+                codeSystemVersion: '1',
+                'iso:displayName': {
+                  'xmlns:iso': 'uri:iso.org:21090',
+                  value: lexiconObjParam.referencename,
+                },
+              },
+            ],
+            version: {
+              value: 1,
+            },
+          },
+        };
+        resolve(partCalcEntity);
+      } catch (err) {
+        reject(new InternalError('error happened while creating plugin calculation entity', err));
+      }
+    });
+  });
+  fastify.decorate('createPartialAimForPluginCalcInternal', (csvFileParam, pluginInfoParam) => {
+    const partCalcEntityArray = [];
+    let willCallRemoteOntology = false;
+
+    return new Promise(async (resolve, reject) => {
+      try {
+        if (config.ontologyApiKey && config.ontologyName && config.ontologyName !== 'local') {
+          willCallRemoteOntology = true;
+        }
+        for (let i = 0; i < csvFileParam.length; i += 1) {
+          let newLexiconObj = {};
+          const lexiconObj = {
+            codemeaning: csvFileParam[i].key,
+            description: 'plugin adds automatically',
+            schemadesignator: '99EPAD',
+            schemaversion: 'v1',
+            referenceuid: pluginInfoParam.pluginnameid,
+            referencename: pluginInfoParam.pluginname,
+            referencetype: 'p',
+            creator: 'epadplugins',
+          };
+
+          try {
+            // this part needs to call remote ontology server
+            if (willCallRemoteOntology === true) {
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log(
+                'calling remote ontology server to insert codevalue or get codevalue for plugin calculation entites'
+              );
+              // Axios.get(`epadbuildlite.stanford.edu/ontology/`, {
+              //   headers: { Authorization: `apikey token=${config.API_KEY}` },
+              // });
+              // eslint-disable-next-line no-await-in-loop
+              newLexiconObj = await Axios.post(`${config.statsEpad}/ontology`, {
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: {
+                    ontologyApiKey: config.ontologyApiKey,
+                    ontologyName: config.ontologyName,
+                  },
+                },
+                lexiconObj,
+              });
+              // need to add header ontologyName, ontologyApiKey
+              // eslint-disable-next-line no-await-in-loop
+              // newLexiconObj = await fastify.insertOntologyItemInternal(lexiconObj);
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+            } else {
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+
+              // eslint-disable-next-line no-await-in-loop
+              newLexiconObj = await fastify.insertOntologyItemInternal(lexiconObj);
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+            }
+            // eslint-disable-next-line no-await-in-loop
+            const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
+              newLexiconObj,
+              csvFileParam[i].value
+            );
+            partCalcEntityArray.push(resultCalcEntitObj);
+          } catch (err) {
+            if (err instanceof InternalError) {
+              throw err;
+            } else if (err.code === 409) {
+              err.lexiconObj.referenceuid = lexiconObj.referenceuid;
+              err.lexiconObj.referencename = lexiconObj.referencename;
+              // eslint-disable-next-line no-await-in-loop
+              const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
+                err.lexiconObj,
+                csvFileParam[i].value
+              );
+              partCalcEntityArray.push(resultCalcEntitObj);
+              // lexicon object exist already so get codemeaning to form partial aim calculations
+            }
+          }
+        }
+
+        resolve(partCalcEntityArray);
+      } catch (err) {
+        reject(
+          new InternalError(
+            'error happened while creating partial aim from plugin calculations',
+            err
+          )
+        );
+      }
+    });
+  });
+
+  fastify.decorate(
+    'mergePartialCalcAimWithUserAimPluginCalcInternal',
+    (partialAimParam, userAimParam, aimFileLocation) => {
+      const fileArray = [];
+      let parsedAimFile = null;
+      return new Promise((resolve, reject) => {
+        try {
+          fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
+          console.log('###############mergePartialCalcAimWithUserAimPluginCalcInternal');
+          console.log('###############aimFileLocation', aimFileLocation);
+          console.log('###############');
+          console.log('mergin partial calc aim to user aim', partialAimParam);
+          console.log('###############', __dirname);
+          console.log('###############');
+          console.log('###############');
+
+          fs.readFile(`${fileArray[0].path}/${fileArray[0].file}`, 'utf8', (err, jsonString) => {
+            if (err) {
+              reject(
+                new InternalError(
+                  'error happened while reading user aim file to send to the plugin to merge calculations',
+                  err
+                )
+              );
+            }
+            parsedAimFile = JSON.parse(jsonString);
+
+            const newMergedCalcEntity = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
+              partialAimParam
+            );
+            parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity = newMergedCalcEntity;
+
+            fs.writeFile(
+              `${fileArray[0].path}/${fileArray[0].file}`,
+              JSON.stringify(parsedAimFile),
+              errWrite => {
+                if (errWrite) {
+                  throw new InternalError(
+                    'error happened while saving the plugin calculation added aim',
+                    errWrite
+                  );
+                }
+                fastify.log.info('partial calculation aim merged with user aim');
+              }
+            );
+          });
+
+          resolve(fileArray[0]);
+        } catch (err) {
+          reject(
+            new InternalError(
+              'error happened while mergin user aim with plugin calculation entites',
+              err
+            )
+          );
+        }
+      });
+    }
+  );
+  fastify.decorate('uploadMergedAimPluginCalcInternal', async (aimFileLocation, projectidParam) => {
+    return new Promise(async (resolve, reject) => {
+      const fileArray = [];
+      fileArray.push(aimFileLocation.file);
+
+      try {
+        console.log('uploadig the merged aim file back to epad', aimFileLocation);
+        const { success, errors } = await fastify.saveFiles(
+          aimFileLocation.path,
+          fileArray,
+          { project: projectidParam },
+          {},
+          'admin'
+          //  request.epadAuth
+        );
+        fastify.log.info('upload dir back error: ', errors);
+        fastify.log.info('upload dir back success: ', success);
+        resolve(200);
+      } catch (err) {
+        reject(
+          new InternalError(
+            'error happened while uploading merged aim with plugin calculations',
+            err
+          )
+        );
+      }
+    });
+  });
+
+  fastify.decorate('generateUidInternal', () => {
+    let uid = `2.25.${Math.floor(1 + Math.random() * 9)}`;
+    for (let index = 0; index < 38; index += 1) {
+      uid += Math.floor(Math.random() * 10);
+    }
+    return uid;
+  });
+  //  plugin calculations verify codemaning existance in ontology and add calculations to the user aim part ends
 
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
@@ -2880,30 +3236,39 @@ async function epaddb(fastify, options, done) {
             new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
             fastify.log.info('plugin finished working', imageRepo);
 
-            const checkFileExtension = (fileName) => {
-              const nameArry = fileName.split('.');
-              const ext = nameArry[nameArry.length - 1];
-              if (ext === 'dcm') {
-                return true;
-              }
-              return false;
-            };
-
             //  upload the result from container to the series
-            if (fs.existsSync(`${pluginParameters.serverfolder}output`)) {
-              const fileArray = fs
-                .readdirSync(`${pluginParameters.serverfolder}output`)
-                // eslint-disable-next-line no-loop-func
-                .map((fileName) => {
-                  fastify.log.info('filename : ', fileName);
-                  return fileName;
-                })
-                .filter(checkFileExtension);
+            const fileArray = [];
+
+            if (fs.existsSync(`${pluginParameters.serverfolder}/output`)) {
+              const dcmFilesWithoutPath = [];
+
+              fastify.findFilesAndSubfilesInternal(
+                `${pluginParameters.serverfolder}/output`,
+                fileArray,
+                'dcm'
+              );
+
+              for (let cnt = 0; cnt < fileArray.length; cnt += 1) {
+                dcmFilesWithoutPath.push(fileArray[cnt].file);
+              }
+              console.log('*******************************');
+              console.log('*******************************');
+              console.log('*******************************');
+              console.log('*******************************');
+              console.log('*******************************');
+              console.log('*******************************');
+
               fastify.log.info('file array : ', fileArray);
+              console.log('****************dcm files', dcmFilesWithoutPath);
+              console.log('*******************************');
+              console.log('*******************************');
+              console.log('*******************************');
+              console.log('*******************************');
+              console.log('*******************************');
               //  eslint-disable-next-line no-await-in-loop
               const { success, errors } = await fastify.saveFiles(
-                `${pluginParameters.serverfolder}output`,
-                fileArray,
+                `${pluginParameters.serverfolder}/output`,
+                dcmFilesWithoutPath,
                 { project: pluginParameters.projectid },
                 {},
                 request.epadAuth
@@ -2912,8 +3277,43 @@ async function epaddb(fastify, options, done) {
               fastify.log.info('projectdb id :', pluginParameters.projectdbid);
               fastify.log.info('upload dir back error: ', errors);
               fastify.log.info('upload dir back success: ', success);
+
               //  end
+
+              // write plugin calculations to aim
+              const csvArray = [];
+              fastify.findFilesAndSubfilesInternal(
+                `${pluginParameters.serverfolder}/output`,
+                csvArray,
+                'csv'
+              );
+              console.log('cvs array :', csvArray);
+              // eslint-disable-next-line no-await-in-loop
+              const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
+              console.log('calc obj : ', calcObj);
+              const pluginInfoFromParams = {
+                pluginnameid: pluginParameters.pluginnameid,
+                pluginname: pluginParameters.pluginname,
+              };
+
+              // eslint-disable-next-line no-await-in-loop
+              const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
+                calcObj,
+                pluginInfoFromParams
+              );
+              // eslint-disable-next-line no-await-in-loop
+              const mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
+                returnPartialPluginCalcAim,
+                'userAim:Param',
+                `${pluginParameters.serverfolder}/aims`
+              );
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.uploadMergedAimPluginCalcInternal(
+                mergedaimFileLocation,
+                pluginParameters.projectid
+              );
             }
+
             return 'completed';
           } catch (err) {
             const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
@@ -10349,6 +10749,14 @@ async function epaddb(fastify, options, done) {
             await fastify.orm.query(
               `ALTER TABLE plugin_queue
               MODIFY COLUMN status varchar(10) ;`,
+              { transaction: t }
+            );
+            await fastify.orm.query(
+              `ALTER TABLE lexicon 
+                ADD COLUMN IF NOT EXISTS referenceuid varchar(100) NULL AFTER SCHEMA_VERSION,
+                ADD COLUMN IF NOT EXISTS referencename varchar(100) NULL AFTER referenceuid,
+                ADD COLUMN IF NOT EXISTS referencetype char(1) NULL AFTER referencename,
+                ADD COLUMN IF NOT EXISTS indexno int(11) DEFAULT 0 AFTER referencetype;`,
               { transaction: t }
             );
             // cavit
