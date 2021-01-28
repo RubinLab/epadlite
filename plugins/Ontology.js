@@ -25,8 +25,8 @@ async function Ontology(fastify) {
         let configApiKey = null;
         if (Object.prototype.hasOwnProperty.call(request, 'headers')) {
           if (Object.prototype.hasOwnProperty.call(request, 'Authorization')) {
-            if (Object.prototype.hasOwnProperty.call(request, 'epadapikey')) {
-              configApiKey = request.headers.Authorization.epadapikey;
+            if (Object.prototype.hasOwnProperty.call(request, 'ontologyApiKey')) {
+              configApiKey = request.headers.Authorization.ontologyApiKey;
             }
           }
         }
@@ -52,12 +52,12 @@ async function Ontology(fastify) {
     });
   });
 
-  fastify.decorate('getApiKeyForClientInternal', clientNameParam => {
-    const clientName = clientNameParam;
+  fastify.decorate('getApiKeyForClientInternal', clientOntologyNameParam => {
+    const clientOntologyName = clientOntologyNameParam;
     return new Promise(async (resolve, reject) => {
       try {
         const apikeyReturn = await models.registeredapps.findOne({
-          where: { hostname: clientName },
+          where: { ontologyname: clientOntologyName },
         });
         resolve(apikeyReturn);
       } catch (err) {

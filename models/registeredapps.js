@@ -15,8 +15,12 @@ module.exports = function(sequelize, DataTypes) {
         allowNull: false,
         unique: true,
       },
+      ontologyname: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
       hostname: {
-        type: DataTypes.STRING(256),
+        type: DataTypes.STRING(128),
         allowNull: true,
       },
       epadtype: {
