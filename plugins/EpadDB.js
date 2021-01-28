@@ -2955,10 +2955,15 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('createPartialAimForPluginCalcInternal', (csvFileParam, pluginInfoParam) => {
     const partCalcEntityArray = [];
+    let willCallRemoteOntology = false;
 
     return new Promise(async (resolve, reject) => {
       try {
+        if (config.ontologyApiKey && config.ontologyName && config.ontologyName !== 'local') {
+          willCallRemoteOntology = true;
+        }
         for (let i = 0; i < csvFileParam.length; i += 1) {
+          let newLexiconObj = {};
           const lexiconObj = {
             codemeaning: csvFileParam[i].key,
             description: 'plugin adds automatically',
@@ -2971,9 +2976,46 @@ async function epaddb(fastify, options, done) {
           };
 
           try {
-            // eslint-disable-next-line no-await-in-loop
-            const newLexiconObj = await fastify.insertOntologyItemInternal(lexiconObj);
+            // this part needs to call remote ontology server
+            if (willCallRemoteOntology === true) {
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log(
+                'calling remote ontology server to insert codevalue or get codevalue for plugin calculation entites'
+              );
+              // Axios.get(`epadbuildlite.stanford.edu/ontology/`, {
+              //   headers: { Authorization: `apikey token=${config.API_KEY}` },
+              // });
+              // eslint-disable-next-line no-await-in-loop
+              newLexiconObj = await Axios.post(`${config.statsEpad}/ontology`, {
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: {
+                    ontologyApiKey: config.ontologyApiKey,
+                    ontologyName: config.ontologyName,
+                  },
+                },
+                lexiconObj,
+              });
+              // need to add header ontologyName, ontologyApiKey
+              // eslint-disable-next-line no-await-in-loop
+              // newLexiconObj = await fastify.insertOntologyItemInternal(lexiconObj);
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+            } else {
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
 
+              // eslint-disable-next-line no-await-in-loop
+              newLexiconObj = await fastify.insertOntologyItemInternal(lexiconObj);
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
+            }
             // eslint-disable-next-line no-await-in-loop
             const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
               newLexiconObj,

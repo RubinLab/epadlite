@@ -2,8 +2,6 @@ const { Op } = require('sequelize');
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
-const Axios = require('axios');
-const config = require('../config/index');
 
 const { InternalError } = require('../utils/EpadErrors');
 
@@ -23,18 +21,22 @@ async function Ontology(fastify) {
     return new Promise(async (resolve, reject) => {
       try {
         let configApiKey = null;
+        let ontologyName = null;
         if (Object.prototype.hasOwnProperty.call(request, 'headers')) {
           if (Object.prototype.hasOwnProperty.call(request, 'Authorization')) {
             if (Object.prototype.hasOwnProperty.call(request, 'ontologyApiKey')) {
               configApiKey = request.headers.Authorization.ontologyApiKey;
             }
+            if (Object.prototype.hasOwnProperty.call(request, 'ontologyName')) {
+              ontologyName = request.headers.Authorization.ontologyApiKey;
+            }
           }
         }
-        const hostname = config.ontologyName;
+
         if (configApiKey) {
           fastify.log.info('acess token received verifiying the validity');
 
-          const apikeyreturn = await fastify.getApiKeyForClientInternal(hostname);
+          const apikeyreturn = await fastify.getApiKeyForClientInternal(ontologyName);
           if (apikeyreturn === null || apikeyreturn.dataValues.apikey !== configApiKey) {
             reject(new Error('no vaid api key'));
           }
@@ -246,6 +248,7 @@ async function Ontology(fastify) {
   });
 
   fastify.decorate('insertOntologyItemInternal', async lexiconObj => {
+    // this function need to call remote ontology server if no valid ontology apikey
     return new Promise(async (resolve, reject) => {
       let returnObj = null;
       try {
