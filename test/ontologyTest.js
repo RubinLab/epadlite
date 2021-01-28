@@ -5,30 +5,27 @@ const chaiHttp = require('chai-http');
 chai.use(chaiHttp);
 const { expect } = chai;
 
-describe('Ontology Tests', () => {
+describe.only('Ontology Tests', () => {
   before(async () => {
     try {
-      console.log(`host info :http://${process.env.host}:${process.env.port}`);
       await chai
-        .request(`http://${process.env.host}:${process.env.port}}`)
+        .request(`http://${process.env.host}:${process.env.port}`)
         .post('/ontology')
-        .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning1',
           referenceuid: 'testcodevalue1',
-          referencename: 'plugin',
-          referencetype: 'plugin',
+          referencename: 'plugin1',
+          referencetype: 'p',
           creator: 'admin',
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/ontology')
-        .query({ username: 'admin' })
         .send({
           codemeaning: 'testcodemeaning2',
           referenceuid: 'testcodevalue2',
           referencename: 'plugin2',
-          referencetype: 'plugin2',
+          referencetype: 'p',
           creator: 'admin',
         });
     } catch (err) {
@@ -39,11 +36,11 @@ describe('Ontology Tests', () => {
     try {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/ontology/999EPAD1')
+        .delete('/ontology/99EPAD_1')
         .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/ontology/999EPAD2')
+        .delete('/ontology/99EPAD_2')
         .query({ username: 'admin' });
     } catch (err) {
       console.log(`Ontology Tests after error: ${err.message}`);
@@ -54,7 +51,6 @@ describe('Ontology Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/ontology')
       .auth('admin', 'admin')
-      .query({ username: 'admin' })
       .then(res => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(2);

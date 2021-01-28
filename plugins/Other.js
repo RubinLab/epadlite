@@ -1646,7 +1646,8 @@ async function other(fastify) {
       config.auth !== 'none' &&
       !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
       !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
-      !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) // disabling auth for put is dangerous
+      !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) &&
+      !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) // disabling auth for put is dangerous
     ) {
       // if auth has been given in config, verify authentication
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;

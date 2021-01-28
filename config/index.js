@@ -60,6 +60,7 @@ config.pollDW =
     ? config.pollDW
     : 3; // in minutes, 0 => no poll
 config.corsOrigin = config.corsOrigin || false;
+config.ontologyName = process.env.ONTOLOGY_NAME || config.ontologyName || 'localhost';
 // env variables comes as string if it is true or false we need to convert to boolean
 if (process.env.CORS_ORIGIN) {
   if (process.env.CORS_ORIGIN === 'true') config.corsOrigin = true;

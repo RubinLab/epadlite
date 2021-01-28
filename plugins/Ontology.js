@@ -2,6 +2,8 @@ const { Op } = require('sequelize');
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
+const Axios = require('axios');
+const config = require('../config/index');
 
 const { InternalError } = require('../utils/EpadErrors');
 
@@ -15,6 +17,53 @@ async function Ontology(fastify) {
         path.join(__dirname, '/../models', filenames[i])
       );
     }
+  });
+
+  fastify.decorate('validateApiKeyInternal', async request => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        let configApiKey = null;
+        if (Object.prototype.hasOwnProperty.call(request, 'headers')) {
+          if (Object.prototype.hasOwnProperty.call(request, 'Authorization')) {
+            if (Object.prototype.hasOwnProperty.call(request, 'epadapikey')) {
+              configApiKey = request.headers.Authorization.epadapikey;
+            }
+          }
+        }
+        const hostname = config.ontologyName;
+        if (configApiKey) {
+          fastify.log.info('acess token received verifiying the validity');
+
+          const apikeyreturn = await fastify.getApiKeyForClientInternal(hostname);
+          if (apikeyreturn === null || apikeyreturn.dataValues.apikey !== configApiKey) {
+            reject(new Error('no vaid api key'));
+          }
+
+          fastify.log.info('you have a valid api key');
+          resolve();
+        } else {
+          reject(new Error('no api key provided'));
+        }
+      } catch (err) {
+        throw new InternalError(`error happened while validating api key`, err);
+      }
+    }).catch(err => {
+      throw new InternalError(`error happened while validating api key`, err);
+    });
+  });
+
+  fastify.decorate('getApiKeyForClientInternal', clientNameParam => {
+    const clientName = clientNameParam;
+    return new Promise(async (resolve, reject) => {
+      try {
+        const apikeyReturn = await models.registeredapps.findOne({
+          where: { hostname: clientName },
+        });
+        resolve(apikeyReturn);
+      } catch (err) {
+        reject(new InternalError(`error happened while getting api key for the client`, err));
+      }
+    });
   });
 
   fastify.decorate('addToArryOntologyInternal', (typeparam, itemobjparam, arrayobj) => {
@@ -220,7 +269,7 @@ async function Ontology(fastify) {
 
           const retVal = await models.lexicon.create({
             CODE_MEANING,
-            CODE_VALUE: `999EPAD${nextindex}`,
+            CODE_VALUE: `99EPAD_${nextindex}`,
             description,
             SCHEMA_DESIGNATOR,
             SCHEMA_VERSION,
@@ -232,7 +281,7 @@ async function Ontology(fastify) {
             createdtime: Date.now(),
             updatetime: Date.now(),
           });
-          //  console.log('retVal', retVal);
+
           const resultInJson = {
             id: retVal.ID,
             codevalue: retVal.CODE_VALUE,
@@ -254,64 +303,101 @@ async function Ontology(fastify) {
     });
   });
 
+  // fastify.decorate('insertOntologyItem', async (request, reply) => {
+  //   let resultObj = null;
+  //   console.log('request', request.raw.socket.parser.incoming.url);
+  //   console.log('request', request.raw.socket.parser.incoming.method);
+  //   console.log('request', request.raw.socket.parser.incoming.hostname);
+  //   console.log('request body', request.body);
+  //   // Axios.get(`epadbuildlite.stanford.edu/ontology/`, {
+  //   //   headers: { Authorization: `apikey token=${config.API_KEY}` },
+  //   // });
+  //   // const request = Axios.create({baseURL: config.statsEpad,});
+  //   // await request.put(encodeURI(epadUrl));
+  //   try {
+  //     await fastify.validateApiKeyInternal(request);
+  //     resultObj = await fastify.checkDuplicateCodemeaningInternal(request.body.codemeaning);
+  //   } catch (err) {
+  //     if (err instanceof Error) {
+  //       reply
+  //         .code(500)
+  //         .send(new InternalError(`you need to register. you don't have a valid api key`, err));
+  //     } else {
+  //       reply
+  //         .code(500)
+  //         .send(new InternalError(`error happened while checking codemenaing existance`, err));
+  //     }
+  //   }
+  //   if (resultObj.code === 200) {
+  //     try {
+  //       const nextindex = (await fastify.generateCodeValueInternal()) + 1;
+  //       const {
+  //         codemeaning: CODE_MEANING,
+  //         description,
+  //         schemadesignator: SCHEMA_DESIGNATOR,
+  //         schemaversion: SCHEMA_VERSION,
+  //         referenceuid,
+  //         referencename,
+  //         referencetype,
+  //         creator,
+  //       } = request.body;
+
+  //       const retVal = await models.lexicon.create({
+  //         CODE_MEANING,
+  //         CODE_VALUE: `99EPAD_${nextindex}`,
+  //         description,
+  //         SCHEMA_DESIGNATOR,
+  //         SCHEMA_VERSION,
+  //         referenceuid,
+  //         referencename,
+  //         referencetype,
+  //         indexno: nextindex,
+  //         creator,
+  //         createdtime: Date.now(),
+  //         updatetime: Date.now(),
+  //       });
+  //       const resultInJson = {
+  //         id: retVal.dataValues.ID,
+  //         codevalue: retVal.dataValues.CODE_VALUE,
+  //         codemeaning: retVal.dataValues.CODE_MEANING,
+  //         schemadesignator: retVal.dataValues.SCHEMA_DESIGNATOR,
+  //         indexno: retVal.dataValues.indexno,
+  //       };
+  //       reply.code(200).send(resultInJson);
+  //     } catch (err) {
+  //       reply
+  //         .code(500)
+  //         .send(new InternalError(`error happened while insterting lexicon object`, err));
+  //     }
+  //   } else {
+  //     reply.code(resultObj.code).send(resultObj.lexiconObj);
+  //   }
+  // });
+
   fastify.decorate('insertOntologyItem', async (request, reply) => {
     let resultObj = null;
     try {
-      resultObj = await fastify.checkDuplicateCodemeaningInternal(request.body.codemeaning);
+      await fastify.validateApiKeyInternal(request);
+      resultObj = await fastify.insertOntologyItemInternal(request.body);
+      reply.code(200).send(resultObj);
     } catch (err) {
-      reply
-        .code(500)
-        .send(new InternalError(`error happened while checking codemenaing existance`, err));
-    }
-    if (resultObj.code === 200) {
-      try {
-        const nextindex = (await fastify.generateCodeValueInternal()) + 1;
-        const {
-          codemeaning: CODE_MEANING,
-          description,
-          schemadesignator: SCHEMA_DESIGNATOR,
-          schemaversion: SCHEMA_VERSION,
-          referenceuid,
-          referencename,
-          referencetype,
-          creator,
-        } = request.body;
-
-        const retVal = await models.lexicon.create({
-          CODE_MEANING,
-          CODE_VALUE: `999EPAD${nextindex}`,
-          description,
-          SCHEMA_DESIGNATOR,
-          SCHEMA_VERSION,
-          referenceuid,
-          referencename,
-          referencetype,
-          indexno: nextindex,
-          creator,
-          createdtime: Date.now(),
-          updatetime: Date.now(),
-        });
-        const resultInJson = {
-          id: retVal.dataValues.ID,
-          codevalue: retVal.dataValues.CODE_VALUE,
-          codemeaning: retVal.dataValues.CODE_MEANING,
-          schemadesignator: retVal.dataValues.SCHEMA_DESIGNATOR,
-          indexno: retVal.dataValues.indexno,
-        };
-        reply.code(200).send(resultInJson);
-      } catch (err) {
+      if (err instanceof InternalError) {
         reply
           .code(500)
           .send(new InternalError(`error happened while insterting lexicon object`, err));
+      } else if (err instanceof Error) {
+        reply
+          .code(401)
+          .send(new InternalError(`you need to register. you don't have a valid api key`, err));
+      } else {
+        reply.code(resultObj.code).send(resultObj.lexiconObj);
       }
-    } else {
-      //  reply.code(resultObj.code).send(new Error('Duplicate codemeaning'));
-      reply.code(resultObj.code).send(resultObj.lexiconObj);
     }
   });
 
-  fastify.decorate('updateOntologyItem', (request, reply) => {
+  fastify.decorate('updateOntologyItem', async (request, reply) => {
     try {
+      await fastify.validateApiKeyInternal(request);
       const { codevalue: codevalueprm } = request.params;
       const {
         codemeaning: CODE_MEANING,
@@ -343,12 +429,21 @@ async function Ontology(fastify) {
       );
       reply.code(200).send('lexcion object updated succesfully');
     } catch (err) {
-      reply.code(500).send(new InternalError(`error happened while updating lexicon object`, err));
+      if (err instanceof Error) {
+        reply
+          .code(401)
+          .send(new InternalError(`you need to register. you don't have a valid api key`, err));
+      } else {
+        reply
+          .code(500)
+          .send(new InternalError(`error happened while updating lexicon object`, err));
+      }
     }
   });
 
-  fastify.decorate('deleteOntologyItem', (request, reply) => {
+  fastify.decorate('deleteOntologyItem', async (request, reply) => {
     try {
+      await fastify.validateApiKeyInternal(request);
       const { codevalue: CODE_VALUE } = request.params;
       models.lexicon.destroy({
         where: {
@@ -357,7 +452,15 @@ async function Ontology(fastify) {
       });
       reply.code(200).send('lexcion object deleted succesfully');
     } catch (err) {
-      reply.code(500).send(new InternalError(`error happened while deleting lexicon object`, err));
+      if (err instanceof Error) {
+        reply
+          .code(401)
+          .send(new InternalError(`you need to register. you don't have a valid api key`, err));
+      } else {
+        reply
+          .code(500)
+          .send(new InternalError(`error happened while deleting lexicon object`, err));
+      }
     }
   });
 

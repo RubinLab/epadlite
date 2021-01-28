@@ -2843,7 +2843,7 @@ async function epaddb(fastify, options, done) {
     }
     return cumfileArrayParam;
   });
-
+  //  plugin calculations verify codemaning existance in ontology and add calculations to the user aim part
   fastify.decorate('parseCsvForPluginCalculationsInternal', csvFileParam => {
     console.log('parsing csv file', csvFileParam);
     console.log('parsing csv file', csvFileParam.path);
@@ -2875,12 +2875,12 @@ async function epaddb(fastify, options, done) {
       try {
         const partCalcEntity = {
           uniqueIdentifier: {
-            root: '2.25.example4',
+            root: fastify.generateUidInternal(),
           },
           typeCode: [
             {
               code: lexiconObjParam.codevalue,
-              codeSystemName: '999EPAD',
+              codeSystemName: '99EPAD',
               'iso:displayName': {
                 'xmlns:iso': 'uri:iso.org:21090',
                 value: lexiconObjParam.codemeaning,
@@ -2934,7 +2934,7 @@ async function epaddb(fastify, options, done) {
             type: [
               {
                 code: lexiconObjParam.referenceuid,
-                codeSystemName: '999EPAD',
+                codeSystemName: '99EPAD',
                 codeSystemVersion: '1',
                 'iso:displayName': {
                   'xmlns:iso': 'uri:iso.org:21090',
@@ -2962,7 +2962,7 @@ async function epaddb(fastify, options, done) {
           const lexiconObj = {
             codemeaning: csvFileParam[i].key,
             description: 'plugin adds automatically',
-            schemadesignator: '999EPAD',
+            schemadesignator: '99EPAD',
             schemaversion: 'v1',
             referenceuid: pluginInfoParam.pluginnameid,
             referencename: pluginInfoParam.pluginname,
@@ -3096,6 +3096,15 @@ async function epaddb(fastify, options, done) {
       }
     });
   });
+
+  fastify.decorate('generateUidInternal', () => {
+    let uid = `2.25.${Math.floor(1 + Math.random() * 9)}`;
+    for (let index = 0; index < 38; index += 1) {
+      uid += Math.floor(Math.random() * 10);
+    }
+    return uid;
+  });
+  //  plugin calculations verify codemaning existance in ontology and add calculations to the user aim part ends
 
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
