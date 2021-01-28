@@ -1,4 +1,4 @@
-const { Op } = require('sequelize');
+const { Sequelize, Op } = require('sequelize');
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
@@ -11,9 +11,14 @@ async function Ontology(fastify) {
   fastify.decorate('initOntologyModels', async () => {
     const filenames = fs.readdirSync(`${__dirname}/../models`);
     for (let i = 0; i < filenames.length; i += 1) {
-      models[filenames[i].replace(/\.[^/.]+$/, '')] = fastify.orm.import(
-        path.join(__dirname, '/../models', filenames[i])
-      );
+      // models[filenames[i].replace(/\.[^/.]+$/, '')] = fastify.orm.import(
+      //   path.join(__dirname, '/../models', filenames[i])
+      // );
+      models[filenames[i].replace(/\.[^/.]+$/, '')] = require(path.join(
+        __dirname,
+        '/../models',
+        filenames[i]
+      ))(fastify.orm, Sequelize.DataTypes);
     }
   });
 
