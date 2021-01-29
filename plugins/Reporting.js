@@ -1245,8 +1245,13 @@ async function reporting(fastify) {
       })
   );
 
-  fastify.decorate('getBestResponse', (report, type, metric) => {
+  fastify.decorate('getBestResponse', (reportMultiUser, type, metric) => {
     try {
+      // TODO how to support multiple readers in waterfall getting the first report for now
+      const report =
+        Object.keys(reportMultiUser).length > 0
+          ? reportMultiUser[Object.keys(reportMultiUser)[0]]
+          : reportMultiUser;
       let rr;
       switch (type) {
         case 'MIN':
@@ -1272,7 +1277,7 @@ async function reporting(fastify) {
     } catch (err) {
       fastify.log.error(
         `Error generating best response for report ${JSON.stringify(
-          report
+          reportMultiUser
         )} metric ${metric} and type ${type} Error: ${err.message}`
       );
     }
