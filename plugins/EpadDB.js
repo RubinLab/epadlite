@@ -4462,6 +4462,10 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate('getAimCountMap', (projectAims, project, epadAuth, field) => {
+    // if user has no role in project (public project)
+    if (!fastify.hasRoleInProject(project, epadAuth)) {
+      return {};
+    }
     const aimsCountMap = {};
     // if all or undefined no aim counts
     for (let i = 0; i < projectAims.length; i += 1) {
