@@ -477,9 +477,7 @@ async function couchdb(fastify, options) {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
             reject(new UnauthenticatedError('No epadauth in request'));
           // if user has no role in project (public project)
-          if (
-            !fastify.hasRoleInProject(params.project, epadAuth)
-          )
+          if (!fastify.hasRoleInProject(params.project, epadAuth))
             resolve({ total_rows: 0, rows: [] });
           else {
             const db = fastify.couch.db.use(config.db);
