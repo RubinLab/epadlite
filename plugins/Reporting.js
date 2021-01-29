@@ -840,49 +840,67 @@ async function reporting(fastify) {
           'Location',
           'Template',
           'Shapes',
+          'Username',
         ],
         shapes
       );
       if (lesions.length === 0) return null;
 
       // get targets
-      const tLesionNames = [];
-      const studyDates = [];
-
+      const users = {};
       // first pass fill in the lesion names and study dates (x and y axis of the table)
       for (let i = 0; i < lesions.length; i += 1) {
+        const username = lesions[i].username.value.toLowerCase();
+        if (!users[username]) {
+          users[username] = {
+            tLesionNames: [],
+            studyDates: [],
+            lesions: [],
+          };
+        }
         const lesionName = lesions[i].name.value.toLowerCase();
         const studyDate = lesions[i].studydate.value;
-        if (!studyDates.includes(studyDate)) studyDates.push(studyDate);
-        if (!tLesionNames.includes(lesionName)) tLesionNames.push(lesionName);
+        if (!users[username].studyDates.includes(studyDate))
+          users[username].studyDates.push(studyDate);
+        if (!users[username].tLesionNames.includes(lesionName))
+          users[username].tLesionNames.push(lesionName);
+        users[username].lesions.push(lesions[i]);
       }
-      // sort lists
-      tLesionNames.sort();
-      studyDates.sort();
+      const rrUsers = {};
+      const usernames = Object.keys(users);
+      for (let u = 0; u < usernames.length; u += 1) {
+        // sort lists
+        users[usernames[u]].tLesionNames.sort();
+        users[usernames[u]].studyDates.sort();
 
-      if (tLesionNames.length > 0 && studyDates.length > 0) {
-        // fill in the table for target lesions
-        const { table, UIDs, timepoints } = fastify.fillReportTable(
-          tLesionNames,
-          studyDates,
-          lesions,
-          undefined, // no type filtering
-          'name', // no tracking UID for now
-          fastify.numOfLongitudinalHeaderCols,
-          true,
-          false
-        );
+        if (
+          users[usernames[u]].tLesionNames.length > 0 &&
+          users[usernames[u]].studyDates.length > 0
+        ) {
+          // fill in the table for target lesions
+          const { table, UIDs, timepoints } = fastify.fillReportTable(
+            users[usernames[u]].tLesionNames,
+            users[usernames[u]].studyDates,
+            users[usernames[u]].lesions,
+            undefined, // no type filtering
+            'name', // no tracking UID for now
+            fastify.numOfLongitudinalHeaderCols,
+            true,
+            false
+          );
 
-        const rr = {
-          tLesionNames,
-          studyDates,
-          tTable: table,
-          tUIDs: UIDs,
-          stTimepoints: timepoints,
-          tTimepoints: fastify.cleanConsecutives(timepoints),
-        };
-        return rr;
+          const rr = {
+            tLesionNames: users[usernames[u]].tLesionNames,
+            studyDates: users[usernames[u]].studyDates,
+            tTable: table,
+            tUIDs: UIDs,
+            stTimepoints: timepoints,
+            tTimepoints: fastify.cleanConsecutives(timepoints),
+          };
+          rrUsers[usernames[u]] = rr;
+        }
       }
+      if (Object.keys(rrUsers).length > 0) return rrUsers;
       fastify.log.info(`no target lesion in table ${lesions}`);
       return null;
     } catch (err) {
