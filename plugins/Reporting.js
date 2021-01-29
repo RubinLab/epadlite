@@ -185,6 +185,12 @@ async function reporting(fastify) {
           aimJSONs[i].ImageAnnotationCollection.uniqueIdentifier.root
         );
 
+        fastify.fillColumn(
+          row,
+          'username',
+          aimJSONs[i].ImageAnnotationCollection.user.loginName.value
+        );
+
         if (
           aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
             .trackingUniqueIdentifier
@@ -438,6 +444,7 @@ async function reporting(fastify) {
         'Trial Arm',
         'Trial CaseID',
         'TrackingUniqueIdentifier',
+        'Username',
       ]);
       const tableV2 = fastify.fillTable(aimJSONs, 'RECIST_v2', [
         'Name',
@@ -457,155 +464,194 @@ async function reporting(fastify) {
         'Trial Arm',
         'Trial CaseID',
         'TrackingUniqueIdentifier',
+        'Username',
       ]);
 
       const lesions = table.concat(tableV2);
-      const tLesionNames = [];
-      const studyDates = [];
-      const ntLesionNames = [];
       const targetTypes = ['target', 'target lesion', 'resolved lesion'];
-      const ntNewLesionStudyDates = [];
-      const tTrackingUIDs = [];
-      const ntTrackingUIDs = [];
-      let lesionWTrackingUIDCount = 0;
+      const users = {};
       // first pass fill in the lesion names and study dates (x and y axis of the table)
       for (let i = 0; i < lesions.length; i += 1) {
+        const username = lesions[i].username.value.toLowerCase();
+        if (!users[username]) {
+          users[username] = {
+            tLesionNames: [],
+            studyDates: [],
+            ntLesionNames: [],
+            ntNewLesionStudyDates: [],
+            tTrackingUIDs: [],
+            ntTrackingUIDs: [],
+            lesions: [],
+            lesionWTrackingUIDCount: 0,
+          };
+        }
         const lesionName = lesions[i].name.value.toLowerCase();
         const studyDate = lesions[i].studydate.value;
         const trackingUID = lesions[i].trackinguniqueidentifier
           ? lesions[i].trackinguniqueidentifier.value
           : undefined;
         const type = lesions[i].type.value.toLowerCase();
-        if (!studyDates.includes(studyDate)) studyDates.push(studyDate);
+        if (!users[username].studyDates.includes(studyDate))
+          users[username].studyDates.push(studyDate);
         if (targetTypes.includes(type.toLowerCase())) {
-          if (!tLesionNames.includes(lesionName)) tLesionNames.push(lesionName);
-          if (trackingUID && !tTrackingUIDs.includes(trackingUID)) tTrackingUIDs.push(trackingUID);
+          if (!users[username].tLesionNames.includes(lesionName))
+            users[username].tLesionNames.push(lesionName);
+          if (trackingUID && !users[username].tTrackingUIDs.includes(trackingUID))
+            users[username].tTrackingUIDs.push(trackingUID);
         } else {
-          if (!ntLesionNames.includes(lesionName)) ntLesionNames.push(lesionName);
-          if (trackingUID && !ntTrackingUIDs.includes(trackingUID))
-            ntTrackingUIDs.push(trackingUID);
+          if (!users[username].ntLesionNames.includes(lesionName))
+            users[username].ntLesionNames.push(lesionName);
+          if (trackingUID && !users[username].ntTrackingUIDs.includes(trackingUID))
+            users[username].ntTrackingUIDs.push(trackingUID);
         }
+        users[username].lesions.push(lesions[i]);
         if (trackingUID) {
-          lesionWTrackingUIDCount += 1;
+          users[username].lesionWTrackingUIDCount += 1;
         }
       }
-      // sort lists
-      tLesionNames.sort();
-      studyDates.sort();
-      ntLesionNames.sort();
+      const rrUsers = {};
+      const usernames = Object.keys(users);
+      for (let u = 0; u < usernames.length; u += 1) {
+        // sort lists
+        users[usernames[u]].tLesionNames.sort();
+        users[usernames[u]].studyDates.sort();
+        users[usernames[u]].ntLesionNames.sort();
 
-      let mode = 'name';
-      let tIndex = tLesionNames;
-      let ntIndex = ntLesionNames;
-      if (lesionWTrackingUIDCount === lesions.length && lesions.length > 0) {
-        fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
-        mode = 'trackingUID';
-        tIndex = tTrackingUIDs;
-        ntIndex = ntTrackingUIDs;
-      }
-      if (tLesionNames.length > 0 && studyDates.length > 0) {
-        // fill in the table for target lesions
-        const target = fastify.fillReportTable(tIndex, studyDates, lesions, targetTypes, mode);
-        // fill in the table for non-target lesions
-        const nonTargetTypes = ['non-target', 'nontarget', 'non-cancer lesion', 'new lesion'];
-
-        const nonTarget = fastify.fillReportTable(
-          ntIndex,
-          studyDates,
-          lesions,
-          nonTargetTypes,
-          mode
-        );
-        for (let i = 0; i < nonTarget.table.length; i += 1) {
-          for (let j = 0; j < studyDates.length; j += 1) {
-            if (
-              nonTarget.table[i][j + 3] != null &&
-              nonTarget.table[i][j + 3].trim().toLowerCase() === 'new lesion' &&
-              !ntNewLesionStudyDates.includes(studyDates[j])
-            ) {
-              ntNewLesionStudyDates.push(studyDates[j]);
-            }
-          }
+        let mode = 'name';
+        let tIndex = users[usernames[u]].tLesionNames;
+        let ntIndex = users[usernames[u]].ntLesionNames;
+        if (
+          users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
+          users[usernames[u]].lesions.length > 0
+        ) {
+          fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
+          mode = 'trackingUID';
+          tIndex = users[usernames[u]].tTrackingUIDs;
+          ntIndex = users[usernames[u]].ntTrackingUIDs;
         }
 
-        const isThereNewLesion = [];
-        if (ntNewLesionStudyDates.length > 0) {
-          for (let i = 0; i < ntNewLesionStudyDates.length; i += 1)
-            isThereNewLesion[studyDates.indexOf(ntNewLesionStudyDates[i])] = true;
-        }
+        if (
+          users[usernames[u]].tLesionNames.length > 0 &&
+          users[usernames[u]].studyDates.length > 0
+        ) {
+          // fill in the table for target lesions
+          const target = fastify.fillReportTable(
+            tIndex,
+            users[usernames[u]].studyDates,
+            users[usernames[u]].lesions,
+            targetTypes,
+            mode
+          );
+          // fill in the table for non-target lesions
+          const nonTargetTypes = ['non-target', 'nontarget', 'non-cancer lesion', 'new lesion'];
 
-        // calculate the sums first
-        const tSums = fastify.calcSums(target.table, target.timepoints);
-        // calculate the rrs
-        const tRRBaseline = fastify.calcRRBaseline(tSums, target.timepoints);
-        const tRRMin = fastify.calcRRMin(tSums, target.timepoints);
-        // use rrmin not baseline
-        const responseCats = fastify.calcResponseCat(
-          tRRMin,
-          target.timepoints,
-          isThereNewLesion,
-          tSums
-        );
-        // check for the reappear. we just have reappear in nontarget right now
-        // if the previous was CR, and there is a reappear it is PD
-        for (let i = 0; i < responseCats.length; i += 1) {
-          if (
-            responseCats[i] != null &&
-            responseCats[i].toUpperCase() === 'CR' &&
-            i < responseCats.length - 1 &&
-            ntLesionNames.length > 0
-          ) {
-            // this is cr, find the next timepoint
-            // stop looking if the timepoint is greater than +1
-            for (let k = i + 1; k < target.timepoints.length; k += 1) {
-              if (target.timepoints[k] === target.timepoints[i] + 1) {
-                // see for all the nontarget lesions
-                for (let j = 0; j < nonTarget.table.length; j += 1) {
-                  if (
-                    nonTarget.table[j][k] != null &&
-                    nonTarget.table[j][k].toLowerCase().includes('reappeared')
-                  )
-                    responseCats[k] = 'PD';
-                }
-              } else if (target.timepoints[k] > target.timepoints[i] + 1) {
-                break;
+          const nonTarget = fastify.fillReportTable(
+            ntIndex,
+            users[usernames[u]].studyDates,
+            users[usernames[u]].lesions,
+            nonTargetTypes,
+            mode
+          );
+          for (let i = 0; i < nonTarget.table.length; i += 1) {
+            for (let j = 0; j < users[usernames[u]].studyDates.length; j += 1) {
+              if (
+                nonTarget.table[i][j + 3] != null &&
+                nonTarget.table[i][j + 3].trim().toLowerCase() === 'new lesion' &&
+                !users[usernames[u]].ntNewLesionStudyDates.includes(
+                  users[usernames[u]].studyDates[j]
+                )
+              ) {
+                users[usernames[u]].ntNewLesionStudyDates.push(users[usernames[u]].studyDates[j]);
               }
             }
           }
-        }
 
-        if (ntLesionNames.length > 0 && studyDates.length > 0) {
-          const rr = {
-            tLesionNames,
-            studyDates,
-            tTable: target.table,
-            tSums: fastify.cleanArray(tSums),
-            tRRBaseline: fastify.cleanArray(tRRBaseline),
-            tRRMin: fastify.cleanArray(tRRMin),
-            tResponseCats: fastify.cleanArray(responseCats),
-            tUIDs: target.UIDs,
-            stTimepoints: target.timepoints,
-            tTimepoints: fastify.cleanConsecutives(target.timepoints),
-            ntLesionNames,
-            ntTable: nonTarget.table,
-            ntUIDs: nonTarget.UIDs,
-          };
-          return rr;
+          const isThereNewLesion = [];
+          if (users[usernames[u]].ntNewLesionStudyDates.length > 0) {
+            for (let i = 0; i < users[usernames[u]].ntNewLesionStudyDates.length; i += 1)
+              isThereNewLesion[
+                users[usernames[u]].studyDates.indexOf(users[usernames[u]].ntNewLesionStudyDates[i])
+              ] = true;
+          }
+
+          // calculate the sums first
+          const tSums = fastify.calcSums(target.table, target.timepoints);
+          // calculate the rrs
+          const tRRBaseline = fastify.calcRRBaseline(tSums, target.timepoints);
+          const tRRMin = fastify.calcRRMin(tSums, target.timepoints);
+          // use rrmin not baseline
+          const responseCats = fastify.calcResponseCat(
+            tRRMin,
+            target.timepoints,
+            isThereNewLesion,
+            tSums
+          );
+          // check for the reappear. we just have reappear in nontarget right now
+          // if the previous was CR, and there is a reappear it is PD
+          for (let i = 0; i < responseCats.length; i += 1) {
+            if (
+              responseCats[i] != null &&
+              responseCats[i].toUpperCase() === 'CR' &&
+              i < responseCats.length - 1 &&
+              users[usernames[u]].ntLesionNames.length > 0
+            ) {
+              // this is cr, find the next timepoint
+              // stop looking if the timepoint is greater than +1
+              for (let k = i + 1; k < target.timepoints.length; k += 1) {
+                if (target.timepoints[k] === target.timepoints[i] + 1) {
+                  // see for all the nontarget lesions
+                  for (let j = 0; j < nonTarget.table.length; j += 1) {
+                    if (
+                      nonTarget.table[j][k] != null &&
+                      nonTarget.table[j][k].toLowerCase().includes('reappeared')
+                    )
+                      responseCats[k] = 'PD';
+                  }
+                } else if (target.timepoints[k] > target.timepoints[i] + 1) {
+                  break;
+                }
+              }
+            }
+          }
+
+          if (
+            users[usernames[u]].ntLesionNames.length > 0 &&
+            users[usernames[u]].studyDates.length > 0
+          ) {
+            const rr = {
+              tLesionNames: users[usernames[u]].tLesionNames,
+              studyDates: users[usernames[u]].studyDates,
+              tTable: target.table,
+              tSums: fastify.cleanArray(tSums),
+              tRRBaseline: fastify.cleanArray(tRRBaseline),
+              tRRMin: fastify.cleanArray(tRRMin),
+              tResponseCats: fastify.cleanArray(responseCats),
+              tUIDs: target.UIDs,
+              stTimepoints: target.timepoints,
+              tTimepoints: fastify.cleanConsecutives(target.timepoints),
+              ntLesionNames: users[usernames[u]].ntLesionNames,
+              ntTable: nonTarget.table,
+              ntUIDs: nonTarget.UIDs,
+            };
+            rrUsers[usernames[u]] = rr;
+          } else {
+            const rr = {
+              tLesionNames: users[usernames[u]].tLesionNames,
+              studyDates: users[usernames[u]].studyDates,
+              tTable: target.table,
+              tSums: fastify.cleanArray(tSums),
+              tRRBaseline: fastify.cleanArray(tRRBaseline),
+              tRRMin: fastify.cleanArray(tRRMin),
+              tResponseCats: fastify.cleanArray(responseCats),
+              tUIDs: target.UIDs,
+              stTimepoints: target.timepoints,
+              tTimepoints: fastify.cleanConsecutives(target.timepoints),
+            };
+            rrUsers[usernames[u]] = rr;
+          }
         }
-        const rr = {
-          tLesionNames,
-          studyDates,
-          tTable: target.table,
-          tSums: fastify.cleanArray(tSums),
-          tRRBaseline: fastify.cleanArray(tRRBaseline),
-          tRRMin: fastify.cleanArray(tRRMin),
-          tResponseCats: fastify.cleanArray(responseCats),
-          tUIDs: target.UIDs,
-          stTimepoints: target.timepoints,
-          tTimepoints: fastify.cleanConsecutives(target.timepoints),
-        };
-        return rr;
       }
+      if (Object.keys(rrUsers).length > 0) return rrUsers;
       fastify.log.info(`no target lesion in table ${table}`);
 
       return null;
