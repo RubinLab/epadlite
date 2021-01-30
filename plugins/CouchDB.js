@@ -476,74 +476,79 @@ async function couchdb(fastify, options) {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
             reject(new UnauthenticatedError('No epadauth in request'));
-          const db = fastify.couch.db.use(config.db);
-          const qry = fastify.generateSearchQuery(params, epadAuth, filter);
-          const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
-          if (format !== 'summary') {
-            dbFilter.include_docs = true;
-            dbFilter.attachments = true;
-          }
-          fastify
-            .getAimsCouchInternal(db, dbFilter, format, bookmark)
-            .then((resObj) => {
-              try {
-                if (format === 'stream') {
-                  if (resObj.total_rows !== resObj.rows.length) {
-                    // get everything and send an email
-                    fastify
-                      .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
-                      .then((result) => {
-                        fastify.log.info(`Zip file ready in ${result}`);
-                        // get the protocol and hostname from the request
-                        const link = `${request.protocol}://${request.hostname}${result}`;
-                        // send notification and/or email with link
-                        if (request)
-                          new EpadNotification(request, 'Download ready', link, false).notify(
-                            fastify
-                          );
-                        if (config.notificationEmail) {
-                          fastify.nodemailer.sendMail(
-                            {
-                              from: config.notificationEmail.address,
-                              to: epadAuth.email,
-                              subject: 'ePAD - Download Ready',
-                              html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
-                            },
-                            (err, info) => {
-                              if (err)
-                                fastify.log.error(
-                                  `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
-                                );
-                              else
-                                fastify.log.info(
-                                  `Email accepted for ${JSON.stringify(info.accepted)}`
-                                );
-                            }
-                          );
-                        }
-                      })
-                      .catch((err) => reject(err));
-                    resolve({ total_rows: resObj.total_rows });
+          // if there is a project and user has no role in project (public project)
+          if (params.project && !fastify.hasRoleInProject(params.project, epadAuth))
+            resolve({ total_rows: 0, rows: [] });
+          else {
+            const db = fastify.couch.db.use(config.db);
+            const qry = fastify.generateSearchQuery(params, epadAuth, filter);
+            const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
+            if (format !== 'summary') {
+              dbFilter.include_docs = true;
+              dbFilter.attachments = true;
+            }
+            fastify
+              .getAimsCouchInternal(db, dbFilter, format, bookmark)
+              .then((resObj) => {
+                try {
+                  if (format === 'stream') {
+                    if (resObj.total_rows !== resObj.rows.length) {
+                      // get everything and send an email
+                      fastify
+                        .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                        .then((result) => {
+                          fastify.log.info(`Zip file ready in ${result}`);
+                          // get the protocol and hostname from the request
+                          const link = `${request.protocol}://${request.hostname}${result}`;
+                          // send notification and/or email with link
+                          if (request)
+                            new EpadNotification(request, 'Download ready', link, false).notify(
+                              fastify
+                            );
+                          if (config.notificationEmail) {
+                            fastify.nodemailer.sendMail(
+                              {
+                                from: config.notificationEmail.address,
+                                to: epadAuth.email,
+                                subject: 'ePAD - Download Ready',
+                                html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
+                              },
+                              (err, info) => {
+                                if (err)
+                                  fastify.log.error(
+                                    `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
+                                  );
+                                else
+                                  fastify.log.info(
+                                    `Email accepted for ${JSON.stringify(info.accepted)}`
+                                  );
+                              }
+                            );
+                          }
+                        })
+                        .catch((err) => reject(err));
+                      resolve({ total_rows: resObj.total_rows });
+                    } else {
+                      // download aims only
+                      fastify
+                        .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                        .then((result) => resolve(result))
+                        .catch((err) => reject(err));
+                    }
                   } else {
-                    // download aims only
                     fastify
-                      .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
-                      .then((result) => resolve(result))
-                      .catch((err) => reject(err));
+                      .getAllAimPages(resObj, db, dbFilter, format, all)
+                      .then((returnResObj) => resolve(returnResObj))
+                      .catch((err) =>
+                        fastify.log.error(`Could not get all pages for aims. Error: ${err.message}`)
+                      );
                   }
-                } else {
-                  fastify
-                    .getAllAimPages(resObj, db, dbFilter, format, all)
-                    .then((returnResObj) => resolve(returnResObj))
-                    .catch((err) =>
-                      fastify.log.error(`Could not get all pages for aims. Error: ${err.message}`)
-                    );
+                } catch (err2) {
+                  reject(new InternalError('Packing download or sending', err2));
                 }
-              } catch (err2) {
-                reject(new InternalError('Packing download or sending', err2));
-              }
-            })
-            .catch((error) => reject(error));
+              })
+              .catch((error) => reject(error));
+          }
         } catch (err) {
           reject(new InternalError('Get aims', err));
         }
@@ -728,6 +733,17 @@ async function couchdb(fastify, options) {
       epadAuth &&
       epadAuth.projectToRole &&
       epadAuth.projectToRole.includes(`${project}:Collaborator`)
+  );
+
+  fastify.decorate(
+    'hasRoleInProject',
+    (project, epadAuth) =>
+      epadAuth &&
+      (epadAuth.admin ||
+        (epadAuth.projectToRole &&
+          (epadAuth.projectToRole.includes(`${project}:Collaborator`) ||
+            epadAuth.projectToRole.includes(`${project}:Member`) ||
+            epadAuth.projectToRole.includes(`${project}:Owner`))))
   );
 
   fastify.decorate('getAims', async (request, reply) => {
