@@ -5535,8 +5535,13 @@ async function epaddb(fastify, options, done) {
     (projectId, subject, result, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
-          const recist = fastify.getRecist(result);
-          if (recist && recist !== {}) {
+          const reportMultiUser = fastify.getRecist(result);
+          if (reportMultiUser && reportMultiUser !== {}) {
+            // TODO how to support multiple readers in waterfall getting the first report for now
+            const recist =
+              Object.keys(reportMultiUser).length > 0
+                ? reportMultiUser[Object.keys(reportMultiUser)[0]]
+                : reportMultiUser;
             const bestResponseBaseline = recist.tRRBaseline ? Math.min(...recist.tRRBaseline) : 0;
             const bestResponseMin = recist.tRRMin ? Math.min(...recist.tRRMin) : 0;
             await fastify.upsert(
@@ -5545,7 +5550,7 @@ async function epaddb(fastify, options, done) {
                 project_id: projectId,
                 subject_id: subject.id,
                 type: 'recist',
-                report: JSON.stringify(recist),
+                report: JSON.stringify(reportMultiUser),
                 best_response_baseline: bestResponseBaseline,
                 best_response_min: bestResponseMin,
                 updated: true,
