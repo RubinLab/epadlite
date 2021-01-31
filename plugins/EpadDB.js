@@ -2455,8 +2455,8 @@ async function epaddb(fastify, options, done) {
       resolve(epadLitePwd);
     });
   });
-  fastify.decorate('extractPluginParamtersInternal', (queueObject, request) => {
-    return new Promise(async (resolve, reject) => {
+  fastify.decorate('extractPluginParamtersInternal', (queueObject, request) =>
+    new Promise(async (resolve, reject) => {
       console.log('ccccc vvvvvvvvv');
       console.log('ccccc vvvvvvvvv');
       console.log('ccccc queue obj', queueObject);
@@ -2482,26 +2482,7 @@ async function epaddb(fastify, options, done) {
       );
       if (!fs.existsSync(pluginsDataFolder)) {
         fs.mkdirSync(pluginsDataFolder, { recursive: true });
-        // fs.chmodSync(`${pluginsDataFolder}`, '777', { recursive: true }, () => {
-        //   fastify.log.info(`file rights changed by epad_lite for the folder ${pluginsDataFolder}`);
-        // });
       }
-
-      //  const dock = new DockerService(fs, fastify, path);
-      //  const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
-      //  const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
-      // let epadLitePwd = '';
-      // fastify.log.info('getting epad_lite bind points to reflect : ', epadLiteBindPoints);
-      // for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
-      //   if (epadLiteBindPoints[cntPoints].includes('pluginData')) {
-      //     epadLitePwd = epadLiteBindPoints[cntPoints];
-      //     break;
-      //   }
-      // }
-      //  const tmpLocalServerBindPoint = epadLitePwd.split(':')[0];
-      //  const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${
-      //  queueObject.id
-      // }/`;
 
       const localServerBindPoint = path.join(
         __dirname,
@@ -2602,7 +2583,7 @@ async function epaddb(fastify, options, done) {
         }
       }
     }).catch((err) => new Error(err))
-  });
+  );
 
   fastify.decorate('updateStatusQueueProcessInternal', (queuid, status) => {
     let tempTime = '1970-01-01 00:00:01';
@@ -2820,7 +2801,7 @@ async function epaddb(fastify, options, done) {
     return cumfileArrayParam;
   });
   //  plugin calculations verify codemaning existance in ontology and add calculations to the user aim part
-  fastify.decorate('parseCsvForPluginCalculationsInternal', csvFileParam => {
+  fastify.decorate('parseCsvForPluginCalculationsInternal', (csvFileParam) => {
     console.log('parsing csv file', csvFileParam);
     console.log('parsing csv file', csvFileParam.path);
     console.log('parsing csv file', csvFileParam.file);
@@ -2831,11 +2812,11 @@ async function epaddb(fastify, options, done) {
     return new Promise((resolve, reject) => {
       fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
         .pipe(csv({ skipLines: 6, headers: ['key', 'value'] }))
-        .on('data', data => result.push(data))
+        .on('data', (data) => result.push(data))
         .on('end', () => {
           resolve(result);
         })
-        .on('error', err => {
+        .on('error', (err) => {
           reject(
             new InternalError(
               'error happened while reading plugin calculation csv file in output folder',
@@ -2967,10 +2948,8 @@ async function epaddb(fastify, options, done) {
               newLexiconObj = await Axios.post(`${config.statsEpad}/ontology`, {
                 headers: {
                   'Content-Type': 'application/json',
-                  Authorization: {
-                    ontologyApiKey: config.ontologyApiKey,
-                    ontologyName: config.ontologyName,
-                  },
+                  Authorization: `apikey config.ontologyApiKey`, // sadece api key e bak tablodan
+                  // ontologyName: config.ontologyName, // put da direk config den
                 },
                 lexiconObj,
               });
@@ -3062,7 +3041,7 @@ async function epaddb(fastify, options, done) {
             fs.writeFile(
               `${fileArray[0].path}/${fileArray[0].file}`,
               JSON.stringify(parsedAimFile),
-              errWrite => {
+              (errWrite) => {
                 if (errWrite) {
                   throw new InternalError(
                     'error happened while saving the plugin calculation added aim',
@@ -3086,34 +3065,36 @@ async function epaddb(fastify, options, done) {
       });
     }
   );
-  fastify.decorate('uploadMergedAimPluginCalcInternal', async (aimFileLocation, projectidParam) => {
-    return new Promise(async (resolve, reject) => {
-      const fileArray = [];
-      fileArray.push(aimFileLocation.file);
+  fastify.decorate(
+    'uploadMergedAimPluginCalcInternal',
+    async (aimFileLocation, projectidParam) =>
+      new Promise(async (resolve, reject) => {
+        const fileArray = [];
+        fileArray.push(aimFileLocation.file);
 
-      try {
-        console.log('uploadig the merged aim file back to epad', aimFileLocation);
-        const { success, errors } = await fastify.saveFiles(
-          aimFileLocation.path,
-          fileArray,
-          { project: projectidParam },
-          {},
-          'admin'
-          //  request.epadAuth
-        );
-        fastify.log.info('upload dir back error: ', errors);
-        fastify.log.info('upload dir back success: ', success);
-        resolve(200);
-      } catch (err) {
-        reject(
-          new InternalError(
-            'error happened while uploading merged aim with plugin calculations',
-            err
-          )
-        );
-      }
-    });
-  });
+        try {
+          console.log('uploadig the merged aim file back to epad', aimFileLocation);
+          const { success, errors } = await fastify.saveFiles(
+            aimFileLocation.path,
+            fileArray,
+            { project: projectidParam },
+            {},
+            'admin'
+            //  request.epadAuth
+          );
+          fastify.log.info('upload dir back error: ', errors);
+          fastify.log.info('upload dir back success: ', success);
+          resolve(200);
+        } catch (err) {
+          reject(
+            new InternalError(
+              'error happened while uploading merged aim with plugin calculations',
+              err
+            )
+          );
+        }
+      })
+  );
 
   fastify.decorate('generateUidInternal', () => {
     let uid = `2.25.${Math.floor(1 + Math.random() * 9)}`;

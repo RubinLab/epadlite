@@ -1,3 +1,4 @@
+/* eslint-disable no-async-promise-executor */
 const { Sequelize, Op } = require('sequelize');
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
@@ -11,9 +12,7 @@ async function Ontology(fastify) {
   fastify.decorate('initOntologyModels', async () => {
     const filenames = fs.readdirSync(`${__dirname}/../models`);
     for (let i = 0; i < filenames.length; i += 1) {
-      // models[filenames[i].replace(/\.[^/.]+$/, '')] = fastify.orm.import(
-      //   path.join(__dirname, '/../models', filenames[i])
-      // );
+      // eslint-disable-next-line import/no-dynamic-require, global-require
       models[filenames[i].replace(/\.[^/.]+$/, '')] = require(path.join(
         __dirname,
         '/../models',
@@ -22,49 +21,46 @@ async function Ontology(fastify) {
     }
   });
 
-  fastify.decorate('validateApiKeyInternal', async request => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        let configApiKey = null;
-        let ontologyName = null;
-        if (Object.prototype.hasOwnProperty.call(request, 'headers')) {
-          if (Object.prototype.hasOwnProperty.call(request, 'Authorization')) {
-            if (Object.prototype.hasOwnProperty.call(request, 'ontologyApiKey')) {
-              configApiKey = request.headers.Authorization.ontologyApiKey;
-            }
-            if (Object.prototype.hasOwnProperty.call(request, 'ontologyName')) {
-              ontologyName = request.headers.Authorization.ontologyApiKey;
+  fastify.decorate(
+    'validateApiKeyInternal',
+    async (request) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let configApiKey = null;
+
+          if (Object.prototype.hasOwnProperty.call(request, 'headers')) {
+            if (Object.prototype.hasOwnProperty.call(request, 'Authorization')) {
+              if (Object.prototype.hasOwnProperty.call(request, 'ontologyApiKey')) {
+                configApiKey = request.headers.Authorization.ontologyApiKey;
+              }
             }
           }
-        }
 
-        if (configApiKey) {
-          fastify.log.info('acess token received verifiying the validity');
+          if (configApiKey) {
+            fastify.log.info('acess token received verifiying the validity');
 
-          const apikeyreturn = await fastify.getApiKeyForClientInternal(ontologyName);
-          if (apikeyreturn === null || apikeyreturn.dataValues.apikey !== configApiKey) {
-            reject(new Error('no vaid api key'));
+            const apikeyreturn = await fastify.getApiKeyForClientInternal(configApiKey);
+            if (apikeyreturn === null || apikeyreturn.dataValues.apikey !== configApiKey) {
+              reject(new Error('no vaid api key'));
+            }
+
+            fastify.log.info('you have a valid api key');
+            resolve();
+          } else {
+            reject(new Error('no api key provided'));
           }
-
-          fastify.log.info('you have a valid api key');
-          resolve();
-        } else {
-          reject(new Error('no api key provided'));
+        } catch (err) {
+          throw new InternalError(`error happened while validating api key`, err);
         }
-      } catch (err) {
-        throw new InternalError(`error happened while validating api key`, err);
-      }
-    }).catch(err => {
-      throw new InternalError(`error happened while validating api key`, err);
-    });
-  });
+      })
+  );
 
-  fastify.decorate('getApiKeyForClientInternal', clientOntologyNameParam => {
-    const clientOntologyName = clientOntologyNameParam;
+  fastify.decorate('getApiKeyForClientInternal', (clientOntologyApiKeyParam) => {
+    const clientOntologyApiKey = clientOntologyApiKeyParam;
     return new Promise(async (resolve, reject) => {
       try {
         const apikeyReturn = await models.registeredapps.findOne({
-          where: { ontologyname: clientOntologyName },
+          where: { apikey: clientOntologyApiKey },
         });
         resolve(apikeyReturn);
       } catch (err) {
@@ -85,107 +81,109 @@ async function Ontology(fastify) {
     }
   });
 
-  fastify.decorate('getOntologyAllInternal', async requestObject => {
-    return new Promise(async (resolve, reject) => {
-      const result = [];
-      let whereString = {};
-      const itemArray = [];
-      try {
-        fastify.log.info('get all', requestObject);
-        let {
-          codevalue: CODE_VALUE,
-          codemeaning: CODE_MEANING,
-          description,
-          schemaversion: SCHEMA_VERSION,
-          referenceuid,
-          referencename,
-          referencetype,
-        } = requestObject;
-        if (typeof CODE_VALUE !== 'undefined') {
-          CODE_VALUE = {
-            [Op.like]: `%${CODE_VALUE}%`,
-          };
-          itemArray.push({ CODE_VALUE });
-        }
-        if (typeof CODE_MEANING !== 'undefined') {
-          CODE_MEANING = {
-            [Op.like]: `%${CODE_MEANING}%`,
-          };
-          itemArray.push({ CODE_MEANING });
-        }
-        if (typeof description !== 'undefined') {
-          description = {
-            [Op.like]: `%${description}%`,
-          };
-          itemArray.push({ description });
-        }
-        if (typeof SCHEMA_VERSION !== 'undefined') {
-          SCHEMA_VERSION = {
-            [Op.like]: `%${SCHEMA_VERSION}%`,
-          };
-          itemArray.push({ SCHEMA_VERSION });
-        }
+  fastify.decorate(
+    'getOntologyAllInternal',
+    async (requestObject) =>
+      new Promise(async (resolve, reject) => {
+        const result = [];
+        let whereString = {};
+        const itemArray = [];
+        try {
+          fastify.log.info('get all', requestObject);
+          let {
+            codevalue: CODE_VALUE,
+            codemeaning: CODE_MEANING,
+            description,
+            schemaversion: SCHEMA_VERSION,
+            referenceuid,
+            referencename,
+            referencetype,
+          } = requestObject;
+          if (typeof CODE_VALUE !== 'undefined') {
+            CODE_VALUE = {
+              [Op.like]: `%${CODE_VALUE}%`,
+            };
+            itemArray.push({ CODE_VALUE });
+          }
+          if (typeof CODE_MEANING !== 'undefined') {
+            CODE_MEANING = {
+              [Op.like]: `%${CODE_MEANING}%`,
+            };
+            itemArray.push({ CODE_MEANING });
+          }
+          if (typeof description !== 'undefined') {
+            description = {
+              [Op.like]: `%${description}%`,
+            };
+            itemArray.push({ description });
+          }
+          if (typeof SCHEMA_VERSION !== 'undefined') {
+            SCHEMA_VERSION = {
+              [Op.like]: `%${SCHEMA_VERSION}%`,
+            };
+            itemArray.push({ SCHEMA_VERSION });
+          }
 
-        if (typeof referenceuid !== 'undefined') {
-          referenceuid = {
-            [Op.like]: `%${referenceuid}%`,
-          };
-          itemArray.push({ referenceuid });
-        }
-        if (typeof referencename !== 'undefined') {
-          referencename = {
-            [Op.like]: `%${referencename}%`,
-          };
-          itemArray.push({ referencename });
-        }
-        if (typeof referencetype !== 'undefined') {
-          referencetype = {
-            [Op.like]: `%${referencetype}%`,
-          };
-          itemArray.push({ referencetype });
-        }
+          if (typeof referenceuid !== 'undefined') {
+            referenceuid = {
+              [Op.like]: `%${referenceuid}%`,
+            };
+            itemArray.push({ referenceuid });
+          }
+          if (typeof referencename !== 'undefined') {
+            referencename = {
+              [Op.like]: `%${referencename}%`,
+            };
+            itemArray.push({ referencename });
+          }
+          if (typeof referencetype !== 'undefined') {
+            referencetype = {
+              [Op.like]: `%${referencetype}%`,
+            };
+            itemArray.push({ referencetype });
+          }
 
-        if (itemArray.length === 1) {
-          whereString = { where: { ...itemArray[0] } };
-        } else {
-          whereString = { where: { [Op.and]: [...itemArray] } };
+          if (itemArray.length === 1) {
+            whereString = { where: { ...itemArray[0] } };
+          } else {
+            whereString = { where: { [Op.and]: [...itemArray] } };
+          }
+
+          const lexicon = await models.lexicon.findAll(whereString);
+
+          for (let i = 0; i < lexicon.length; i += 1) {
+            const lexiconObj = {
+              id: lexicon[i].dataValues.ID,
+              codemeaning: lexicon[i].dataValues.CODE_MEANING,
+              codevalue: lexicon[i].dataValues.CODE_VALUE,
+              description: lexicon[i].dataValues.description,
+              createdtime: lexicon[i].dataValues.createdtime,
+              updatetime: lexicon[i].dataValues.updatetime,
+              schemadesignator: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
+              schemaversion: lexicon[i].dataValues.SCHEMA_VERSION,
+              referenceuid: lexicon[i].dataValues.referenceuid,
+              referencename: lexicon[i].dataValues.referencename,
+              referencetype: lexicon[i].dataValues.referencetype,
+              indexno: lexicon[i].dataValues.indexno,
+              creator: lexicon[i].dataValues.creator,
+            };
+            result.push(lexiconObj);
+          }
+          resolve(result);
+        } catch (err) {
+          reject(
+            new InternalError(`error happened in ternal phase while getting all lexicon rows`, err)
+          );
         }
+      })
+  );
 
-        const lexicon = await models.lexicon.findAll(whereString);
-
-        for (let i = 0; i < lexicon.length; i += 1) {
-          const lexiconObj = {
-            id: lexicon[i].dataValues.ID,
-            codemeaning: lexicon[i].dataValues.CODE_MEANING,
-            codevalue: lexicon[i].dataValues.CODE_VALUE,
-            description: lexicon[i].dataValues.description,
-            createdtime: lexicon[i].dataValues.createdtime,
-            updatetime: lexicon[i].dataValues.updatetime,
-            schemadesignator: lexicon[i].dataValues.SCHEMA_DESIGNATOR,
-            schemaversion: lexicon[i].dataValues.SCHEMA_VERSION,
-            referenceuid: lexicon[i].dataValues.referenceuid,
-            referencename: lexicon[i].dataValues.referencename,
-            referencetype: lexicon[i].dataValues.referencetype,
-            indexno: lexicon[i].dataValues.indexno,
-            creator: lexicon[i].dataValues.creator,
-          };
-          result.push(lexiconObj);
-        }
-        resolve(result);
-      } catch (err) {
-        reject(
-          new InternalError(`error happened in ternal phase while getting all lexicon rows`, err)
-        );
-      }
-    });
-  });
-
-  fastify.decorate('checkDuplicateCodemeaningInternal', codemeaningParam => {
+  fastify.decorate('checkDuplicateCodemeaningInternal', (codemeaningParam) => {
     const ReqObj = { CODE_MEANING: codemeaningParam };
     return new Promise((resolve, reject) => {
       fastify
         .getOntologyAllInternal(ReqObj)
-        .then(resultObj => {
+        .then((resultObj) => {
           for (let i = 0; i < resultObj.length; i += 1) {
             if (resultObj[i].codemeaning.toUpperCase() === codemeaningParam.toUpperCase()) {
               resolve({ code: 409, lexiconObj: resultObj[i] });
@@ -193,7 +191,7 @@ async function Ontology(fastify) {
           }
           resolve({ code: 200 });
         })
-        .catch(err =>
+        .catch((err) =>
           reject(
             new InternalError(`error happened while checking the duplicate of codemeaning`, err)
           )
@@ -206,10 +204,10 @@ async function Ontology(fastify) {
 
     fastify
       .getOntologyAllInternal(ReqObj)
-      .then(resultObj => {
+      .then((resultObj) => {
         reply.code(200).send(resultObj);
       })
-      .catch(err =>
+      .catch((err) =>
         reply
           .code(500)
           .send(new InternalError(`error happened while getting all lexicon rows`, err))
@@ -228,88 +226,92 @@ async function Ontology(fastify) {
     }
   });
 
-  fastify.decorate('generateCodeValueInternal', () => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const retVal = await models.lexicon.findAll({
-          limit: 1,
-          order: [['indexno', 'DESC']],
-        });
-
-        if (retVal.length > 0) {
-          resolve(retVal[0].dataValues.indexno);
-        } else {
-          resolve(0);
-        }
-      } catch (err) {
-        reject(
-          new InternalError(
-            `error happened while generating a codevalue for a new lexicon entry  `,
-            err
-          )
-        );
-      }
-    });
-  });
-
-  fastify.decorate('insertOntologyItemInternal', async lexiconObj => {
-    // this function need to call remote ontology server if no valid ontology apikey
-    return new Promise(async (resolve, reject) => {
-      let returnObj = null;
-      try {
-        returnObj = await fastify.checkDuplicateCodemeaningInternal(lexiconObj.codemeaning);
-      } catch (err) {
-        reject(new InternalError(`error happened while checking codemenaing existance`, err));
-      }
-      if (returnObj.code === 200) {
+  fastify.decorate(
+    'generateCodeValueInternal',
+    () =>
+      new Promise(async (resolve, reject) => {
         try {
-          const nextindex = (await fastify.generateCodeValueInternal()) + 1;
-          const {
-            codemeaning: CODE_MEANING,
-            description,
-            schemadesignator: SCHEMA_DESIGNATOR,
-            schemaversion: SCHEMA_VERSION,
-            referenceuid,
-            referencename,
-            referencetype,
-            creator,
-          } = lexiconObj;
-
-          const retVal = await models.lexicon.create({
-            CODE_MEANING,
-            CODE_VALUE: `99EPAD_${nextindex}`,
-            description,
-            SCHEMA_DESIGNATOR,
-            SCHEMA_VERSION,
-            referenceuid,
-            referencename,
-            referencetype,
-            indexno: nextindex,
-            creator,
-            createdtime: Date.now(),
-            updatetime: Date.now(),
+          const retVal = await models.lexicon.findAll({
+            limit: 1,
+            order: [['indexno', 'DESC']],
           });
 
-          const resultInJson = {
-            id: retVal.ID,
-            codevalue: retVal.CODE_VALUE,
-            codemeaning: retVal.CODE_MEANING,
-            schemadesignator: retVal.SCHEMA_DESIGNATOR,
-            indexno: retVal.indexno,
-            referenceuid,
-            referencename,
-            referencetype,
-            creator,
-          };
-          resolve(resultInJson);
+          if (retVal.length > 0) {
+            resolve(retVal[0].dataValues.indexno);
+          } else {
+            resolve(0);
+          }
         } catch (err) {
-          reject(new InternalError(`error happened while insterting lexicon object`, err));
+          reject(
+            new InternalError(
+              `error happened while generating a codevalue for a new lexicon entry  `,
+              err
+            )
+          );
         }
-      } else {
-        reject(returnObj);
-      }
-    });
-  });
+      })
+  );
+
+  fastify.decorate(
+    'insertOntologyItemInternal',
+    async (lexiconObj) =>
+      // this function need to call remote ontology server if no valid ontology apikey
+      new Promise(async (resolve, reject) => {
+        let returnObj = null;
+        try {
+          returnObj = await fastify.checkDuplicateCodemeaningInternal(lexiconObj.codemeaning);
+        } catch (err) {
+          reject(new InternalError(`error happened while checking codemenaing existance`, err));
+        }
+        if (returnObj.code === 200) {
+          try {
+            const nextindex = (await fastify.generateCodeValueInternal()) + 1;
+            const {
+              codemeaning: CODE_MEANING,
+              description,
+              schemadesignator: SCHEMA_DESIGNATOR,
+              schemaversion: SCHEMA_VERSION,
+              referenceuid,
+              referencename,
+              referencetype,
+              creator,
+            } = lexiconObj;
+
+            const retVal = await models.lexicon.create({
+              CODE_MEANING,
+              CODE_VALUE: `99EPAD_${nextindex}`,
+              description,
+              SCHEMA_DESIGNATOR,
+              SCHEMA_VERSION,
+              referenceuid,
+              referencename,
+              referencetype,
+              indexno: nextindex,
+              creator,
+              createdtime: Date.now(),
+              updatetime: Date.now(),
+            });
+
+            const resultInJson = {
+              id: retVal.ID,
+              codevalue: retVal.CODE_VALUE,
+              codemeaning: retVal.CODE_MEANING,
+              schemadesignator: retVal.SCHEMA_DESIGNATOR,
+              indexno: retVal.indexno,
+              referenceuid,
+              referencename,
+              referencetype,
+              creator,
+            };
+            resolve(resultInJson);
+          } catch (err) {
+            reject(new InternalError(`error happened while insterting lexicon object`, err));
+          }
+        } else {
+          reject(returnObj);
+        }
+      })
+  );
 
   // fastify.decorate('insertOntologyItem', async (request, reply) => {
   //   let resultObj = null;

@@ -1650,7 +1650,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
-      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) && 
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
       req.method !== 'OPTIONS'
     ) {
@@ -1856,7 +1856,8 @@ async function other(fastify) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
-              if (reqInfo.level !== 'ontology' &&
+              if (
+                reqInfo.level !== 'ontology' &&
                 (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
                 !(
                   reqInfo.level === 'worklist' &&
