@@ -27,12 +27,10 @@ async function Ontology(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           let configApiKey = null;
-
-          if (Object.prototype.hasOwnProperty.call(request, 'headers')) {
-            if (Object.prototype.hasOwnProperty.call(request, 'Authorization')) {
-              if (Object.prototype.hasOwnProperty.call(request, 'ontologyApiKey')) {
-                configApiKey = request.headers.Authorization.ontologyApiKey;
-              }
+          if (Object.prototype.hasOwnProperty.call(request.raw, 'headers')) {
+            if (Object.prototype.hasOwnProperty.call(request.raw.headers, 'authorization')) {
+              // eslint-disable-next-line prefer-destructuring
+              configApiKey = request.raw.headers.authorization.split(' ')[1];
             }
           }
 
@@ -396,9 +394,7 @@ async function Ontology(fastify) {
           .code(500)
           .send(new InternalError(`error happened while insterting lexicon object`, err));
       } else if (err instanceof Error) {
-        reply
-          .code(401)
-          .send(new InternalError(`you need to register. you don't have a valid api key`, err));
+        reply.code(401).send(new Error(`you need to register. you don't have a valid api key`));
       } else {
         reply.code(resultObj.code).send(resultObj.lexiconObj);
       }
@@ -440,9 +436,7 @@ async function Ontology(fastify) {
       reply.code(200).send('lexcion object updated succesfully');
     } catch (err) {
       if (err instanceof Error) {
-        reply
-          .code(401)
-          .send(new InternalError(`you need to register. you don't have a valid api key`, err));
+        reply.code(401).send(new Error(`you need to register. you don't have a valid api key`));
       } else {
         reply
           .code(500)
