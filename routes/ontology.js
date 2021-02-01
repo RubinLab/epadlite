@@ -33,16 +33,6 @@ async function routes(fastify) {
           },
         },
       },
-      // response: {
-      //   200: {
-      //     type: 'object',
-      //     properties: {
-      //       id: { type: 'number' },
-      //       name: { type: 'string' },
-      //       parentId: { type: 'number' },
-      //     },
-      //   },
-      // },
     },
     handler: fastify.getOntologyTermByCodeValue,
   });
