@@ -243,6 +243,13 @@ async function epaddb(fastify, options, done) {
             } catch (userCreateErr) {
               reject(new InternalError('Creating admin user in testdb', userCreateErr));
             }
+            try {
+              await fastify.orm.query(
+                `INSERT IGNORE INTO registeredapps(apikey, ontologyname, hostname, epadtype, creator, createdtime, updatetime) VALUES('1111', 'testontologyname', 'testontologyhost', 't', 'test', ${Date.now()}, ${Date.now()})`
+              );
+            } catch (apikeyerror) {
+              reject(new InternalError('Creating apikey  in testdb', apikeyerror));
+            }
           }
           fastify.log.info('Connected to mariadb server');
           resolve();
