@@ -396,7 +396,7 @@ async function Ontology(fastify) {
       } else if (err instanceof Error) {
         reply.code(401).send(new Error(`you need to register. you don't have a valid api key`));
       } else {
-        reply.code(resultObj.code).send(resultObj.lexiconObj);
+        reply.code(err.code).send(err.lexiconObj);
       }
     }
   });
@@ -436,7 +436,9 @@ async function Ontology(fastify) {
       reply.code(200).send('lexcion object updated succesfully');
     } catch (err) {
       if (err instanceof Error) {
-        reply.code(401).send(new Error(`you need to register. you don't have a valid api key`));
+        reply
+          .code(401)
+          .send(new InternalError(`you need to register. you don't have a valid api key`, err));
       } else {
         reply
           .code(500)

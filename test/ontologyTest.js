@@ -82,4 +82,44 @@ describe.only('Ontology Tests', () => {
         done(e);
       });
   });
+  it('wrong apikey provided, should return 401', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/ontology')
+      .send({
+        codemeaning: 'testcodemeaningx',
+        referenceuid: 'testcodevaluex',
+        referencename: 'pluginx',
+        referencetype: 'p',
+        creator: 'admin',
+      })
+      .set('Authorization', 'apikey 2222')
+      .then((res) => {
+        expect(res.statusCode).to.equal(401);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('duplicate entry for lexicon , should return 409 (conflict)', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/ontology')
+      .send({
+        codemeaning: 'testcodemeaning2',
+        referenceuid: 'testcodevalue2',
+        referencename: 'plugin2',
+        referencetype: 'p',
+        creator: 'admin',
+      })
+      .set('Authorization', 'apikey 1111')
+      .then((res) => {
+        expect(res.statusCode).to.equal(409);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
 });
