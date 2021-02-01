@@ -4,7 +4,7 @@ const chaiHttp = require('chai-http');
 chai.use(chaiHttp);
 const { expect } = chai;
 
-describe.only('Ontology Tests', () => {
+describe('Ontology Tests', () => {
   before(async () => {
     try {
       await chai
