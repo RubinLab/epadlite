@@ -2788,7 +2788,6 @@ async function epaddb(fastify, options, done) {
     for (let i = 0; i < infuncfileArray.length; i += 1) {
       console.log('file name : ', `${dirParam}/${infuncfileArray[i]}`);
       if (fs.statSync(`${dirParam}/${infuncfileArray[i]}`).isDirectory()) {
-        // eslint-disable-next-line no-const-assign
         cumfileArrayParam = fastify.findFilesAndSubfilesInternal(
           `${dirParam}/${infuncfileArray[i]}`,
           cumfileArrayParam,
@@ -2923,7 +2922,7 @@ async function epaddb(fastify, options, done) {
 
     return new Promise(async (resolve, reject) => {
       try {
-        if (config.ontologyApiKey && config.ontologyName && config.ontologyName !== 'local') {
+        if (config.ontologyApiKey) {
           willCallRemoteOntology = true;
         }
         for (let i = 0; i < csvFileParam.length; i += 1) {
