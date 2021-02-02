@@ -299,18 +299,21 @@ class DockerService {
     return new Promise((resolve, reject) => {
       try {
         if (this.fs.existsSync('/var/run/docker.sock')) {
-          tempFastify.log.error('var/run/docker.sock found');
+          tempFastify.log.info('var/run/docker.sock found');
         }
       } catch (err) {
         tempFastify.log.error('var/run/docker.sock not found. Check your docker installation');
         tempFastify.log.error(err);
       }
+      console.log('step 1 - checkContainerExistance ', containerName);
       const container = this.docker.getContainer(containerName);
 
       // eslint-disable-next-line prefer-destructuring
       // query API for container info
       // eslint-disable-next-line prefer-arrow-callback
       return container.inspect(function (err, data) {
+        console.log('step 2 err- checkContainerExistance ', err);
+        console.log('step 2 data- checkContainerExistance ', data);
         if (err) {
           //  this.fastify.log.info(err);
           // tempFastify.log.error('error happened while checking container presence : ', err);

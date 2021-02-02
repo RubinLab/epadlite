@@ -1397,6 +1397,7 @@ async function other(fastify) {
         templates: 'template',
         users: 'user',
         worklists: 'worklist',
+        ontology: 'ontology',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -1650,6 +1651,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
+      !req.req.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
@@ -1855,6 +1857,7 @@ async function other(fastify) {
               break;
             case 'PUT': // check permissions
               if (
+                reqInfo.level !== 'ontology' &&
                 (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
                 !(
                   reqInfo.level === 'worklist' &&
@@ -1880,7 +1883,10 @@ async function other(fastify) {
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner
-              if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
+              if (
+                reqInfo.level !== 'ontology' &&
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false
+              )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             default:
