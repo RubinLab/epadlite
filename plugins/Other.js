@@ -1622,6 +1622,18 @@ async function other(fastify) {
       fastify.connectedUsers[
         req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'
       ] = res.raw;
+      fastify.saveEventLog(
+        req,
+        {
+          username: req.epadAuth.username ? req.epadAuth.username : 'nouser',
+          function: 'User Logged In',
+          params: req.hostname,
+          createdtime: new Date(),
+          error: false,
+          refresh: false,
+        },
+        true
+      );
       // send unsent notifications
       await fastify.getUnnotifiedEventLogs(req);
     }
@@ -1639,6 +1651,18 @@ async function other(fastify) {
       ];
       fastify.log.info('Current users');
       fastify.log.info(fastify.connectedUsers);
+      fastify.saveEventLog(
+        req,
+        {
+          username: req.epadAuth.username ? req.epadAuth.username : 'nouser',
+          function: 'User Logged Out',
+          params: req.hostname,
+          createdtime: new Date(),
+          error: false,
+          refresh: false,
+        },
+        true
+      );
     }
   );
 
