@@ -322,6 +322,9 @@ async function other(fastify) {
             if (err.message.includes('socket hang up')) {
               fastify.log.warn('DICOMweb hang up the socker trying again');
               setTimeout(await fastify.saveDicomsInternal(data, boundary), 1000);
+            } else {
+              fastify.log.error(`Could not send to DICOMweb ${err.message}`);
+              reject(err);
             }
           }
           resolve();

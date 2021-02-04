@@ -161,6 +161,7 @@ async function dicomwebserver(fastify) {
             ...{
               'Content-Type': `multipart/related; type=application/dicom; boundary=${boundary}`,
               maxContentLength: Buffer.byteLength(data) + 1,
+              maxBodyLength: Buffer.byteLength(data) + 1,
             },
             // },
           };
