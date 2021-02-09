@@ -5352,8 +5352,9 @@ async function epaddb(fastify, options, done) {
           const reportJson = JSON.parse(projSubjReport.dataValues.report);
           // if the user is a collaborator (s)he should only see his/her report
           if (fastify.isCollaborator(params.project, epadAuth)) {
-            if (epadAuth.username) return { [epadAuth.username]: reportJson[epadAuth.username] };
-            return {};
+            if (reportJson[epadAuth.username])
+              return { [epadAuth.username]: reportJson[epadAuth.username] };
+            return null;
           }
           return reportJson;
         }
