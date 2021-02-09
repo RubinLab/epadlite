@@ -373,7 +373,7 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('generateSearchQuery', (params, epadAuth, filter) => {
+  fastify.decorate('generateSearchQuery', async (params, epadAuth, filter) => {
     // if new search indexes are added, it should be added here too
     const validQryParams = [
       'patient_name',
@@ -391,7 +391,6 @@ async function couchdb(fastify, options) {
     ];
     const qryParts = [];
     // use ' for uids not other ones
-    if (params.project) qryParts.push(`project:'${params.project}'`);
     if (params.subject) qryParts.push(`patient_id:'${params.subject}'`);
     if (params.study) qryParts.push(`study_uid:'${params.study}'`);
     if (params.series) qryParts.push(`series_uid:'${params.series}'`);
@@ -405,6 +404,27 @@ async function couchdb(fastify, options) {
         else if (key === 'aims') qryParts.push(`(${value.join(' OR ')})`);
         else if (validQryParams.includes(key)) qryParts.push(`${key}:${value}`);
       }
+    }
+    if (params.project) {
+      qryParts.push(`project:'${params.project}'`);
+      if (qryParts.length === 0) return '*:*';
+      return qryParts.join(' AND ');
+    }
+    if (!epadAuth.admin) {
+      const { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
+        epadAuth
+      );
+      // add collaborator filtering
+      const projectFilter = [];
+      if (aimAccessProjIds.length > 0)
+        projectFilter.push(`project:(${aimAccessProjIds.join(' OR ')})`);
+      if (collaboratorProjIds.length > 0)
+        projectFilter.push(
+          `(project:${collaboratorProjIds.join(
+            ` AND user:${epadAuth.username}) OR (project:`
+          )} AND user:${epadAuth.username})`
+        );
+      qryParts.push(`( ${projectFilter.join(' OR ')})`);
     }
     if (qryParts.length === 0) return '*:*';
     return qryParts.join(' AND ');
@@ -481,73 +501,79 @@ async function couchdb(fastify, options) {
             resolve({ total_rows: 0, rows: [] });
           else {
             const db = fastify.couch.db.use(config.db);
-            const qry = fastify.generateSearchQuery(params, epadAuth, filter);
-            const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
-            if (format !== 'summary') {
-              dbFilter.include_docs = true;
-              dbFilter.attachments = true;
-            }
             fastify
-              .getAimsCouchInternal(db, dbFilter, format, bookmark)
-              .then((resObj) => {
-                try {
-                  if (format === 'stream') {
-                    if (resObj.total_rows !== resObj.rows.length) {
-                      // get everything and send an email
-                      fastify
-                        .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
-                        .then((result) => {
-                          fastify.log.info(`Zip file ready in ${result}`);
-                          // get the protocol and hostname from the request
-                          const link = `${request.protocol}://${request.hostname}${result}`;
-                          // send notification and/or email with link
-                          if (request)
-                            new EpadNotification(request, 'Download ready', link, false).notify(
-                              fastify
-                            );
-                          if (config.notificationEmail) {
-                            fastify.nodemailer.sendMail(
-                              {
-                                from: config.notificationEmail.address,
-                                to: epadAuth.email,
-                                subject: 'ePAD - Download Ready',
-                                html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
-                              },
-                              (err, info) => {
-                                if (err)
-                                  fastify.log.error(
-                                    `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
-                                  );
-                                else
-                                  fastify.log.info(
-                                    `Email accepted for ${JSON.stringify(info.accepted)}`
-                                  );
-                              }
-                            );
-                          }
-                        })
-                        .catch((err) => reject(err));
-                      resolve({ total_rows: resObj.total_rows });
-                    } else {
-                      // download aims only
-                      fastify
-                        .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
-                        .then((result) => resolve(result))
-                        .catch((err) => reject(err));
-                    }
-                  } else {
-                    fastify
-                      .getAllAimPages(resObj, db, dbFilter, format, all)
-                      .then((returnResObj) => resolve(returnResObj))
-                      .catch((err) =>
-                        fastify.log.error(`Could not get all pages for aims. Error: ${err.message}`)
-                      );
-                  }
-                } catch (err2) {
-                  reject(new InternalError('Packing download or sending', err2));
+              .generateSearchQuery(params, epadAuth, filter)
+              .then((qry) => {
+                const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
+                if (format !== 'summary') {
+                  dbFilter.include_docs = true;
+                  dbFilter.attachments = true;
                 }
+                fastify
+                  .getAimsCouchInternal(db, dbFilter, format, bookmark)
+                  .then((resObj) => {
+                    try {
+                      if (format === 'stream') {
+                        if (resObj.total_rows !== resObj.rows.length) {
+                          // get everything and send an email
+                          fastify
+                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                            .then((result) => {
+                              fastify.log.info(`Zip file ready in ${result}`);
+                              // get the protocol and hostname from the request
+                              const link = `${request.protocol}://${request.hostname}${result}`;
+                              // send notification and/or email with link
+                              if (request)
+                                new EpadNotification(request, 'Download ready', link, false).notify(
+                                  fastify
+                                );
+                              if (config.notificationEmail) {
+                                fastify.nodemailer.sendMail(
+                                  {
+                                    from: config.notificationEmail.address,
+                                    to: epadAuth.email,
+                                    subject: 'ePAD - Download Ready',
+                                    html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
+                                  },
+                                  (err, info) => {
+                                    if (err)
+                                      fastify.log.error(
+                                        `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
+                                      );
+                                    else
+                                      fastify.log.info(
+                                        `Email accepted for ${JSON.stringify(info.accepted)}`
+                                      );
+                                  }
+                                );
+                              }
+                            })
+                            .catch((err) => reject(err));
+                          resolve({ total_rows: resObj.total_rows });
+                        } else {
+                          // download aims only
+                          fastify
+                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                            .then((result) => resolve(result))
+                            .catch((err) => reject(err));
+                        }
+                      } else {
+                        fastify
+                          .getAllAimPages(resObj, db, dbFilter, format, all)
+                          .then((returnResObj) => resolve(returnResObj))
+                          .catch((err) =>
+                            fastify.log.error(
+                              `Could not get all pages for aims. Error: ${err.message}`
+                            )
+                          );
+                      }
+                    } catch (err2) {
+                      reject(new InternalError('Packing download or sending', err2));
+                    }
+                  })
+                  .catch((error) => reject(error));
               })
-              .catch((error) => reject(error));
+              .catch((qryErr) => reject(qryErr));
           }
         } catch (err) {
           reject(new InternalError('Get aims', err));
