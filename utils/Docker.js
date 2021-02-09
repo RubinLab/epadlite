@@ -118,6 +118,11 @@ class DockerService {
     const tempContainerInfo = containerInfo;
     const paramsDocker = [...params.paramsDocker];
     const dockerFoldersToBind = [...params.dockerFoldersToBind];
+    console.log('****************************');
+    console.log('****************************');
+    console.log('***************dockerFoldersToBind*************', dockerFoldersToBind);
+    console.log('***********************paramsDocker*****', paramsDocker);
+    console.log('****************************');
 
     return (
       this.docker
@@ -269,7 +274,7 @@ class DockerService {
                 // eslint-disable-next-line operator-assignment
                 showInfo = `${showInfo}.`;
                 // eslint-disable-next-line prefer-template
-                process.stdout.write(infoWord + showInfo + '\r');
+                tempFastify.log.info(infoWord + showInfo + '\r');
                 //  process.stdout.write('\r');
                 counter += 1;
               } else {

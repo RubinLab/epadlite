@@ -2233,6 +2233,11 @@ async function epaddb(fastify, options, done) {
     'createPluginfoldersInternal',
     (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) =>
       new Promise(async (resolve, reject) => {
+        console.log('createPluginfoldersInternal user folder ; ');
+        console.log('user folder ; ');
+        console.log('user folder ; ');
+        console.log('user folder ; ');
+        console.log('user folder ; ', userfolder);
         //  let aimsParamsProcessed = false;
         //  let dicomsParamsProcessed = false;
         let tempPluginparams = null;
@@ -2728,7 +2733,15 @@ async function epaddb(fastify, options, done) {
             ) {
               if (tempPluginParams[i].default_value !== '') {
                 foldersToBind.push(
-                  `${tempLocalFolder}${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
+                  `${tempLocalFolder}/${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
+                );
+                console.log('******************* cheking folder mapping ');
+                console.log('******************* cheking folder mapping ');
+                console.log('******************* cheking folder mapping ');
+                console.log('******************* cheking folder mapping ');
+                console.log('******************* cheking folder mapping ');
+                console.log(
+                  `${tempLocalFolder}/${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
                 );
               }
             }
@@ -3113,6 +3126,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
+    console.log('runPluginsQueueInternal called : queue list :  ', pluginQueueList);
     try {
       for (let i = 0; i < pluginQueueList.length; i += 1) {
         const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${pluginQueueList[i].plugin.image_tag}`;
@@ -3132,6 +3146,11 @@ async function epaddb(fastify, options, done) {
           pluginQueueList[i],
           request
         );
+        console.log('checking bind point error A: ');
+        console.log('checking bind point error A: ');
+        console.log('checking bind point error A: ');
+        console.log('checking bind point error A: ');
+        console.log('sorted params : ', pluginParameters);
         fastify.log.info('pluginParameters :', pluginParameters);
         // eslint-disable-next-line no-prototype-builtins
         if (pluginParameters.hasOwnProperty('message')) {
@@ -3188,7 +3207,11 @@ async function epaddb(fastify, options, done) {
             const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
               pluginParameters
             );
-
+            console.log('checking bind point error : ');
+            console.log('checking bind point error : ');
+            console.log('checking bind point error : ');
+            console.log('checking bind point error : ');
+            console.log('sorted params : ', sortedParams);
             // eslint-disable-next-line no-await-in-loop
             await fastify.updateStatusQueueProcessInternal(queueId, 'running');
             // opreationresult = ` plugin image : ${imageRepo} is runing`;
