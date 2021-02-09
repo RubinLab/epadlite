@@ -1191,7 +1191,7 @@ async function reporting(fastify) {
               subject: subjProjPairs[i].subjectID,
             };
             // eslint-disable-next-line no-await-in-loop
-            const bestResponse = await fastify.getReportFromDB(params, metric, type);
+            const bestResponse = await fastify.getReportFromDB(params, metric, epadAuth, type);
             if (bestResponse !== null) {
               waterfallData.push({
                 name: subjProjPairs[i].subjectID,

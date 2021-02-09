@@ -5328,7 +5328,7 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('getReportFromDB', async (params, report, bestResponseType) => {
+  fastify.decorate('getReportFromDB', async (params, report, epadAuth, bestResponseType) => {
     try {
       const projSubjReport = await models.project_subject_report.findOne({
         where: {
@@ -5349,7 +5349,13 @@ async function epaddb(fastify, options, done) {
           return null;
         }
         if (projSubjReport.dataValues.report) {
-          return JSON.parse(projSubjReport.dataValues.report);
+          const reportJson = JSON.parse(projSubjReport.dataValues.report);
+          // if the user is a collaborator (s)he should only see his/her report
+          if (fastify.isCollaborator(params.project, epadAuth)) {
+            if (epadAuth.username) return { [epadAuth.username]: reportJson[epadAuth.username] };
+            return {};
+          }
+          return reportJson;
         }
       }
       return null;
@@ -5374,7 +5380,11 @@ async function epaddb(fastify, options, done) {
           case 'RECIST':
             // should be one patient
             if (request.params.subject) {
-              result = await fastify.getReportFromDB(request.params, request.query.report);
+              result = await fastify.getReportFromDB(
+                request.params,
+                request.query.report,
+                request.epadAuth
+              );
               if (result) {
                 reply.code(200).send(result);
                 return;
@@ -6004,11 +6014,12 @@ async function epaddb(fastify, options, done) {
             resolve('No DICOMS, skipping report generation');
           } else {
             // just RECIST for now
+            // get the RECIST as admin all the time so that we have everyone's data in db and filter when returning
             const result = await fastify.getAimsInternal(
               'json',
               { project: projectUid, subject: subjectUid },
               undefined,
-              epadAuth,
+              { admin: true },
               undefined,
               undefined,
               true
