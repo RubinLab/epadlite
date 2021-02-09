@@ -184,7 +184,7 @@ class DockerService {
             `${errcode} plugin container is done processing. Removing the container ${containerNameToGive}`
           );
           // // eslint-disable-next-line prefer-arrow-callback
-          const waitRes = await tmpContainer.remove();
+          const waitRes = 'true'; // await tmpContainer.remove();
           tempFastify.log.info(`wait response status ${waitRes}`);
 
           return waitRes;
