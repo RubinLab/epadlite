@@ -2524,7 +2524,7 @@ async function epaddb(fastify, options, done) {
       }
       const tmpLocalServerBindPoint = epadLitePwd.split(':')[0];
       // this part is important
-      const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${queueObject.id}/`;
+      const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${queueObject.id}`;
       fastify.log.info('getting epad_lite bind points and pwd local : ', localServerBindPoint);
       if (parametertype === 'default') {
         try {
