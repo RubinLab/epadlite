@@ -2496,10 +2496,10 @@ async function epaddb(fastify, options, done) {
         fs.mkdirSync(pluginsDataFolder, { recursive: true });
       }
 
-      const localServerBindPoint = path.join(
-        __dirname,
-        `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}`
-      );
+      // const localServerBindPoint = path.join(
+      //   __dirname,
+      //   `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}`
+      // );
 
       const pluginsDataFolderlog = path.join(
         __dirname,
@@ -2508,6 +2508,23 @@ async function epaddb(fastify, options, done) {
       if (!fs.existsSync(`${pluginsDataFolderlog}`)) {
         fs.mkdirSync(`${pluginsDataFolderlog}`);
       }
+      // this part is important to define auto created containers bindpoint related to user's computer path
+      // here relative path does not work since epad_lite relative path will be different than auto created containers
+      // this means /home/node/app does not exist in the created containrs by the plugin
+      const dock = new DockerService(fs, fastify, path);
+      const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
+      const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
+      let epadLitePwd = '';
+      fastify.log.info('getting epad_lite bind points to reflect : ', epadLiteBindPoints);
+      for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
+        if (epadLiteBindPoints[cntPoints].includes('pluginData')) {
+          epadLitePwd = epadLiteBindPoints[cntPoints];
+          break;
+        }
+      }
+      const tmpLocalServerBindPoint = epadLitePwd.split(':')[0];
+      // this part is important
+      const localServerBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${queueObject.id}/`;
       fastify.log.info('getting epad_lite bind points and pwd local : ', localServerBindPoint);
       if (parametertype === 'default') {
         try {
