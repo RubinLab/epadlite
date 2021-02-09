@@ -5328,7 +5328,7 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('getReportFromDB', async (params, report, bestResponseType) => {
+  fastify.decorate('getReportFromDB', async (params, report, epadAuth, bestResponseType) => {
     try {
       const projSubjReport = await models.project_subject_report.findOne({
         where: {
@@ -5349,7 +5349,14 @@ async function epaddb(fastify, options, done) {
           return null;
         }
         if (projSubjReport.dataValues.report) {
-          return JSON.parse(projSubjReport.dataValues.report);
+          const reportJson = JSON.parse(projSubjReport.dataValues.report);
+          // if the user is a collaborator (s)he should only see his/her report
+          if (fastify.isCollaborator(params.project, epadAuth)) {
+            if (reportJson[epadAuth.username])
+              return { [epadAuth.username]: reportJson[epadAuth.username] };
+            return null;
+          }
+          return reportJson;
         }
       }
       return null;
@@ -5374,7 +5381,11 @@ async function epaddb(fastify, options, done) {
           case 'RECIST':
             // should be one patient
             if (request.params.subject) {
-              result = await fastify.getReportFromDB(request.params, request.query.report);
+              result = await fastify.getReportFromDB(
+                request.params,
+                request.query.report,
+                request.epadAuth
+              );
               if (result) {
                 reply.code(200).send(result);
                 return;
@@ -6004,11 +6015,12 @@ async function epaddb(fastify, options, done) {
             resolve('No DICOMS, skipping report generation');
           } else {
             // just RECIST for now
+            // get the RECIST as admin all the time so that we have everyone's data in db and filter when returning
             const result = await fastify.getAimsInternal(
               'json',
               { project: projectUid, subject: subjectUid },
               undefined,
-              epadAuth,
+              { admin: true },
               undefined,
               undefined,
               true
@@ -6418,19 +6430,6 @@ async function epaddb(fastify, options, done) {
         const numDeleted = await models.project_aim.destroy({
           where: { project_id: project.id, aim_uid: request.params.aimuid },
         });
-
-        if (args) {
-          await fastify.aimUpdateGateway(
-            args.project_id,
-            args.subject_uid,
-            args.study_uid,
-            args.user,
-            request.epadAuth,
-            undefined,
-            request.params.project
-          );
-        }
-
         // if delete from all or it doesn't exist in any other project, delete from system
         try {
           if (request.query.all && request.query.all === 'true') {
@@ -6438,6 +6437,17 @@ async function epaddb(fastify, options, done) {
               where: { aim_uid: request.params.aimuid },
             });
             await fastify.deleteAimInternal(request.params.aimuid);
+            if (args) {
+              await fastify.aimUpdateGateway(
+                args.project_id,
+                args.subject_uid,
+                args.study_uid,
+                args.user,
+                request.epadAuth,
+                undefined,
+                request.params.project
+              );
+            }
             reply
               .code(200)
               .send(`Aim deleted from system and removed from ${deletednum + numDeleted} projects`);
@@ -6447,11 +6457,33 @@ async function epaddb(fastify, options, done) {
             });
             if (count === 0) {
               await fastify.deleteAimInternal(request.params.aimuid);
+              if (args) {
+                await fastify.aimUpdateGateway(
+                  args.project_id,
+                  args.subject_uid,
+                  args.study_uid,
+                  args.user,
+                  request.epadAuth,
+                  undefined,
+                  request.params.project
+                );
+              }
               reply
                 .code(200)
                 .send(`Aim deleted from system as it didn't exist in any other project`);
             } else {
               await fastify.saveAimInternal(request.params.aimuid, request.params.project, true);
+              if (args) {
+                await fastify.aimUpdateGateway(
+                  args.project_id,
+                  args.subject_uid,
+                  args.study_uid,
+                  args.user,
+                  request.epadAuth,
+                  undefined,
+                  request.params.project
+                );
+              }
               reply.code(200).send(`Aim not deleted from system as it exists in other project`);
             }
           }
