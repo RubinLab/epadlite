@@ -6429,19 +6429,6 @@ async function epaddb(fastify, options, done) {
         const numDeleted = await models.project_aim.destroy({
           where: { project_id: project.id, aim_uid: request.params.aimuid },
         });
-
-        if (args) {
-          await fastify.aimUpdateGateway(
-            args.project_id,
-            args.subject_uid,
-            args.study_uid,
-            args.user,
-            request.epadAuth,
-            undefined,
-            request.params.project
-          );
-        }
-
         // if delete from all or it doesn't exist in any other project, delete from system
         try {
           if (request.query.all && request.query.all === 'true') {
@@ -6449,6 +6436,17 @@ async function epaddb(fastify, options, done) {
               where: { aim_uid: request.params.aimuid },
             });
             await fastify.deleteAimInternal(request.params.aimuid);
+            if (args) {
+              await fastify.aimUpdateGateway(
+                args.project_id,
+                args.subject_uid,
+                args.study_uid,
+                args.user,
+                request.epadAuth,
+                undefined,
+                request.params.project
+              );
+            }
             reply
               .code(200)
               .send(`Aim deleted from system and removed from ${deletednum + numDeleted} projects`);
@@ -6458,11 +6456,33 @@ async function epaddb(fastify, options, done) {
             });
             if (count === 0) {
               await fastify.deleteAimInternal(request.params.aimuid);
+              if (args) {
+                await fastify.aimUpdateGateway(
+                  args.project_id,
+                  args.subject_uid,
+                  args.study_uid,
+                  args.user,
+                  request.epadAuth,
+                  undefined,
+                  request.params.project
+                );
+              }
               reply
                 .code(200)
                 .send(`Aim deleted from system as it didn't exist in any other project`);
             } else {
               await fastify.saveAimInternal(request.params.aimuid, request.params.project, true);
+              if (args) {
+                await fastify.aimUpdateGateway(
+                  args.project_id,
+                  args.subject_uid,
+                  args.study_uid,
+                  args.user,
+                  request.epadAuth,
+                  undefined,
+                  request.params.project
+                );
+              }
               reply.code(200).send(`Aim not deleted from system as it exists in other project`);
             }
           }
