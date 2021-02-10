@@ -4370,6 +4370,7 @@ async function epaddb(fastify, options, done) {
           new UnauthorizedError('User is not the assignee or the creator of the worklist')
         );
       } else {
+        // TODO if there are no requirements, the worklist completeness is not filled and adding progress to join makes the query to return nothing
         list = await models.worklist_study.findAll({
           where: { worklist_id: worklistIdKey, '$progress.assignee$': request.epadAuth.username },
           include: ['progress', models.subject, models.study],
@@ -6100,6 +6101,7 @@ async function epaddb(fastify, options, done) {
                 },
                 transaction ? { transaction } : {}
               );
+              // TODO if there are no requirements, the worklist completeness is not filled
               for (let j = 0; j < requirements.length; j += 1) {
                 //  compute worklist completeness
                 // eslint-disable-next-line no-await-in-loop
@@ -6347,53 +6349,59 @@ async function epaddb(fastify, options, done) {
         const manualProgressMap = await fastify.getManualProgressMap(worklist.id);
         for (let i = 0; i < worklistStudies.length; i += 1) {
           for (let j = 0; j < worklistStudies[i].dataValues.progress.length; j += 1) {
-            const { numOfAims, template, level } = requirements[
-              worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id
-            ];
-            const { firstname, lastname, id } = users[
-              worklistStudies[i].dataValues.progress[j].dataValues.assignee
-            ];
-            if (
-              manualProgressMap[
-                `${worklistStudies[i].dataValues.worklist_id}-${worklistStudies[i].dataValues.project_id}-${worklistStudies[i].dataValues.subject_id}-${worklistStudies[i].dataValues.study_id}-${id}`
-              ]
-            ) {
-              const completeness = fastify.getManualProgressForUser(
-                manualProgressMap,
-                worklistStudies[i].dataValues.worklist_id,
-                worklistStudies[i].dataValues.project_id,
-                worklistStudies[i].dataValues.subject_id,
-                worklistStudies[i].dataValues.study_id,
-                id
-              );
-              progressList.push({
-                worklist_id: worklistStudies[i].dataValues.worklist_id,
-                project_id: worklistStudies[i].dataValues.project_id,
-                subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
-                subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
-                study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
-                study_desc: worklistStudies[i].dataValues.study.dataValues.description,
-                assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
-                assignee_name: `${firstname} ${lastname}`,
-                completeness,
-                type: 'MANUAL',
-              });
+            if (users[worklistStudies[i].dataValues.progress[j].dataValues.assignee]) {
+              const { numOfAims, template, level } = requirements[
+                worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id
+              ];
+              const { firstname, lastname, id } = users[
+                worklistStudies[i].dataValues.progress[j].dataValues.assignee
+              ];
+              if (
+                manualProgressMap[
+                  `${worklistStudies[i].dataValues.worklist_id}-${worklistStudies[i].dataValues.project_id}-${worklistStudies[i].dataValues.subject_id}-${worklistStudies[i].dataValues.study_id}-${id}`
+                ]
+              ) {
+                const completeness = fastify.getManualProgressForUser(
+                  manualProgressMap,
+                  worklistStudies[i].dataValues.worklist_id,
+                  worklistStudies[i].dataValues.project_id,
+                  worklistStudies[i].dataValues.subject_id,
+                  worklistStudies[i].dataValues.study_id,
+                  id
+                );
+                progressList.push({
+                  worklist_id: worklistStudies[i].dataValues.worklist_id,
+                  project_id: worklistStudies[i].dataValues.project_id,
+                  subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
+                  subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
+                  study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
+                  study_desc: worklistStudies[i].dataValues.study.dataValues.description,
+                  assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
+                  assignee_name: `${firstname} ${lastname}`,
+                  completeness,
+                  type: 'MANUAL',
+                });
+              } else {
+                progressList.push({
+                  worklist_id: worklistStudies[i].dataValues.worklist_id,
+                  project_id: worklistStudies[i].dataValues.project_id,
+                  subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
+                  subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
+                  study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
+                  study_desc: worklistStudies[i].dataValues.study.dataValues.description,
+                  assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
+                  assignee_name: `${firstname} ${lastname}`,
+                  worklist_requirement_id:
+                    worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id,
+                  worklist_requirement_desc: `${numOfAims}:${template}:${level}`,
+                  completeness: worklistStudies[i].dataValues.progress[j].dataValues.completeness,
+                  type: 'AUTO',
+                });
+              }
             } else {
-              progressList.push({
-                worklist_id: worklistStudies[i].dataValues.worklist_id,
-                project_id: worklistStudies[i].dataValues.project_id,
-                subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
-                subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
-                study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
-                study_desc: worklistStudies[i].dataValues.study.dataValues.description,
-                assignee: worklistStudies[i].dataValues.progress[j].dataValues.assignee,
-                assignee_name: `${firstname} ${lastname}`,
-                worklist_requirement_id:
-                  worklistStudies[i].dataValues.progress[j].dataValues.worklist_requirement_id,
-                worklist_requirement_desc: `${numOfAims}:${template}:${level}`,
-                completeness: worklistStudies[i].dataValues.progress[j].dataValues.completeness,
-                type: 'AUTO',
-              });
+              fastify.log.error(
+                `Worklist ${worklistStudies[i].dataValues.worklist_id} has completeness records for unassigned user ${worklistStudies[i].dataValues.progress[j].dataValues.assignee}`
+              );
             }
           }
         }
