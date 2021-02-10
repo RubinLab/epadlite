@@ -4741,6 +4741,18 @@ async function epaddb(fastify, options, done) {
 
           // if it is a dicom subject sent via put add studies to project
           if (!request.body && request.params.subject) {
+            // if the studies are empty try using getStudiesInternal to see if there are manual studies
+            if (studies.length === 0) {
+              studies = await fastify.getStudiesInternal(
+                {
+                  subject_id: subject.id,
+                },
+                request.params,
+                request.epadAuth,
+                false,
+                request.query
+              );
+            }
             for (let i = 0; i < studies.length; i += 1) {
               // eslint-disable-next-line no-await-in-loop
               await fastify.addPatientStudyToProjectDBInternal(
@@ -7082,7 +7094,8 @@ async function epaddb(fastify, options, done) {
                 let aimsCountMap = {};
                 if (
                   params.project !== config.XNATUploadProjectID &&
-                  params.project !== config.unassignedProjectID
+                  params.project !== config.unassignedProjectID &&
+                  whereJSON.project_id
                 ) {
                   const projectAims = await models.project_aim.findAll({
                     where: {
