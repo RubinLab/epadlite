@@ -3904,10 +3904,14 @@ async function epaddb(fastify, options, done) {
         try {
           // TODO get it from db instead
           // get studyDescriptions
-          const studyDetails = await fastify.getPatientStudiesInternal(
+          const studyDetails = await fastify.getStudiesInternal(
+            {
+              project_id: ids[1],
+              subject_id: ids[2],
+            },
             request.params,
-            studyUIDs,
             request.epadAuth,
+            false,
             request.query
           );
           studyDetails.forEach((el) => {
