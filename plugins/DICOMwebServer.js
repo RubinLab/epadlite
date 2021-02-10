@@ -982,7 +982,7 @@ async function dicomwebserver(fastify) {
         `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${
           request.params.series
         }/instances/${request.params.instance}`,
-        { headers: request.headers, responseType: 'stream' }
+        { responseType: 'stream' } //removed headers: request.headers, it was getting 401 from pacs
       );
 
       const res = await fastify.getMultipartBuffer(result.data);
