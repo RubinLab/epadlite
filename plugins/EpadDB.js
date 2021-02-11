@@ -2276,7 +2276,7 @@ async function epaddb(fastify, options, done) {
           // output folder
           if (tempPluginparams[i].format === 'OutputFolder') {
             try {
-              const outputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
+              const outputfolder = `${userfolder}/${tempPluginparams[i].paramid}/`;
               fastify.log.info(outputfolder);
               if (!fs.existsSync(outputfolder)) {
                 fs.mkdirSync(outputfolder, { recursive: true });
@@ -2301,7 +2301,7 @@ async function epaddb(fastify, options, done) {
                   { aims: Object.keys(aims) },
                   request.epadAuth
                 );
-                const inputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
+                const inputfolder = `${userfolder}/${tempPluginparams[i].paramid}/`;
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                 }
@@ -2347,7 +2347,7 @@ async function epaddb(fastify, options, done) {
             }
             // get dicoms
             if (tempPluginparams[i].paramid === 'dicoms') {
-              const inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
+              const inputfolder = `${userfolder}/${pluginparams[i].paramid}/`;
               fastify.log.info('creating dicoms in this folder', inputfolder);
               try {
                 if (!fs.existsSync(inputfolder)) {
