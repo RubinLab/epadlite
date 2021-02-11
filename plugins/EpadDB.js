@@ -4107,6 +4107,7 @@ async function epaddb(fastify, options, done) {
             (memo, series) => memo + series.numberOfImages,
             0
           );
+          // check if all assignees have right to the project, return proper error
           const projectUsers = await models.project_user.findAll({
             where: { project_id: ids[1], user_id: ids[4] },
             raw: true,
@@ -4840,6 +4841,38 @@ async function epaddb(fastify, options, done) {
           resolve(dbStudyUIDs);
         } catch (err) {
           reject(new InternalError(`Getting DB StudyUIDs`, err));
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getAccessibleProjects',
+    (epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const collaboratorProjIds = epadAuth.projectToRole
+            .filter((role) => role.endsWith('Collaborator'))
+            .map((item) => item.split(':')[0]);
+          const aimAccessProjIds = epadAuth.projectToRole
+            .filter((role) => !role.endsWith('Collaborator'))
+            .map((item) => item.split(':')[0]);
+          const projects = await models.project.findAll({
+            where: { type: 'Public' },
+            attributes: ['projectid'],
+            raw: true,
+          });
+          if (projects) {
+            for (let i = 0; i < projects.length; i += 1) {
+              if (
+                !aimAccessProjIds.includes(projects[i].projectid) &&
+                !collaboratorProjIds.includes(projects[i].projectid)
+              )
+                aimAccessProjIds.push(projects[i].projectid);
+            }
+          }
+          resolve({ collaboratorProjIds, aimAccessProjIds });
+        } catch (err) {
+          reject(err);
         }
       })
   );
