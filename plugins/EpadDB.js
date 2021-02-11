@@ -2540,6 +2540,7 @@ async function epaddb(fastify, options, done) {
       //  const localServerBindPoint = pluginsDataFolder;
       // comment out above command and uncomment below line before pushing to git
       const localFullPathBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${queueObject.id}`;
+      //  pluginsDataFolder = localFullPathBindPoint;
       fastify.log.info('getting epad_lite bind points and pwd local : ', localFullPathBindPoint);
       if (parametertype === 'default') {
         try {
@@ -3312,10 +3313,11 @@ async function epaddb(fastify, options, done) {
                   {},
                   request.epadAuth
                 );
-                fastify.log.info('project id :', pluginParameters.projectid);
-                fastify.log.info('projectdb id :', pluginParameters.projectdbid);
-                fastify.log.info('dcm upload dir back error: ', errors);
-                fastify.log.info('dcm pload dir back success: ', success);
+
+                fastify.log.info(`project id :${pluginParameters.projectid}`);
+                fastify.log.info(`projectdb id : ${pluginParameters.projectdbid}`);
+                fastify.log.info(`dcm upload dir back error: ${errors}`);
+                fastify.log.info(`dcm pload dir back success: ${success}`);
               } else {
                 fastify.log.info('no dcm file found in output folder for the plugin');
               }
