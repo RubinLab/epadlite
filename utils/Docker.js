@@ -152,8 +152,8 @@ class DockerService {
               return err;
             }
             if (data) {
-              tempFastify.log.info('inspect result for plugin container: ', data.Name);
-              return data.Name;
+              tempFastify.log.info('inspect result for plugin container: ', data);
+              return data;
             }
             // return 'container took too long to create';
             return 0;
@@ -274,7 +274,7 @@ class DockerService {
                 // eslint-disable-next-line operator-assignment
                 showInfo = `${showInfo}.`;
                 // eslint-disable-next-line prefer-template
-                tempFastify.log.info(infoWord + showInfo + '\r');
+                process.stdout.write(infoWord + showInfo + '\r');
                 //  process.stdout.write('\r');
                 counter += 1;
               } else {
@@ -317,19 +317,25 @@ class DockerService {
       // query API for container info
       // eslint-disable-next-line prefer-arrow-callback
       return container.inspect(function (err, data) {
-        console.log('step 2 err- checkContainerExistance ', err);
-        console.log('step 2 data- checkContainerExistance ', data);
         if (err) {
           //  this.fastify.log.info(err);
           // tempFastify.log.error('error happened while checking container presence : ', err);
+          console.log('step 2 data- reject err :', err);
           reject(new Error(404));
         }
         if (data) {
           tempFastify.log.info('checking container presence succeed: ', containerName);
+          console.log('step 2 err- checkContainerExistance err : ', err);
+          console.log('step 2 data- checkContainerExistance Name :', data.Name);
+          console.log('step 2 data- checkContainerExistance Cmd :', data.Config.Cmd);
+          console.log('step 2 data- checkContainerExistance Status :', data.State.Status);
           resolve(data);
         }
       });
-    }).catch((err) => err);
+    }).catch((err) => {
+      console.log('checkContainerExistance : proimse error', err);
+      return err;
+    });
   }
 
   deleteContainer(containerName) {
