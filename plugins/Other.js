@@ -1892,7 +1892,7 @@ async function other(fastify) {
                     reqInfo.objectId,
                     request.epadAuth.username
                   )) &&
-                  request.query.annotationStatus
+                  (request.query.annotationStatus || request.query.annotationStatus === 0)
                 )
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
