@@ -105,9 +105,6 @@ class DockerService {
     }).catch((err) => err);
 
     // query API for container info
-    // eslint-disable-next-line prefer-arrow-callback
-
-    // return _this.dataObject;
   }
 
   createContainer(imageId, containerNameToGive, params, containerInfo) {
@@ -118,11 +115,6 @@ class DockerService {
     const tempContainerInfo = containerInfo;
     const paramsDocker = [...params.paramsDocker];
     const dockerFoldersToBind = [...params.dockerFoldersToBind];
-    console.log('****************************');
-    console.log('****************************');
-    console.log('***************dockerFoldersToBind*************', dockerFoldersToBind);
-    console.log('***********************paramsDocker*****', paramsDocker);
-    console.log('****************************');
 
     return (
       this.docker
@@ -184,8 +176,8 @@ class DockerService {
             `${errcode} plugin container is done processing. Removing the container ${containerNameToGive}`
           );
           // // eslint-disable-next-line prefer-arrow-callback
-          const waitRes = 'true'; // await tmpContainer.remove();
-          tempFastify.log.info(`wait response status ${waitRes}`);
+          const waitRes = await tmpContainer.remove();
+          tempFastify.log.info(`plugin is removing the container : ${waitRes}`);
 
           return waitRes;
         })

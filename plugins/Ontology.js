@@ -27,6 +27,7 @@ async function Ontology(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           let configApiKey = null;
+
           if (Object.prototype.hasOwnProperty.call(request.raw, 'headers')) {
             if (Object.prototype.hasOwnProperty.call(request.raw.headers, 'authorization')) {
               // eslint-disable-next-line prefer-destructuring

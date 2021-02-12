@@ -3276,13 +3276,10 @@ async function epaddb(fastify, options, done) {
             //  upload the result from container to the series
             const fileArray = [];
 
-            console.log(
-              'plugin finished processing need to check if there a re dicoms to upload back'
+            fastify.log.info(
+              'plugin finished processing checking if there are dicoms or csv file for calculations'
             );
             if (fs.existsSync(`${pluginParameters.relativeServerFolder}/output`)) {
-              console.log(
-                `^^^^^^^^^^^^^^^^^^^^^^^^^ output folder location :${pluginParameters.relativeServerFolder}/output`
-              );
               const dcmFilesWithoutPath = [];
 
               fastify.findFilesAndSubfilesInternal(
@@ -3295,10 +3292,12 @@ async function epaddb(fastify, options, done) {
                 dcmFilesWithoutPath.push(fileArray[cnt].file);
               }
 
-              fastify.log.info('file array : ', fileArray);
-              console.log('****************dcm files', dcmFilesWithoutPath);
-              console.log(
-                `*******************************upload back from :${pluginParameters.relativeServerFolder}/output`
+              fastify.log.info(`dcm files in the plugin output folder : ${fileArray}`);
+              fastify.log.info(
+                `dcm files without path in the plugin output folder :${dcmFilesWithoutPath}`
+              );
+              fastify.log.info(
+                `source path for files to upload back to epad :${pluginParameters.relativeServerFolder}/output`
               );
 
               if (fileArray.length > 0) {
@@ -3314,10 +3313,9 @@ async function epaddb(fastify, options, done) {
                   request.epadAuth
                 );
 
-                fastify.log.info(`project id :${pluginParameters.projectid}`);
-                fastify.log.info(`projectdb id : ${pluginParameters.projectdbid}`);
-                fastify.log.info(`dcm upload dir back error: ${errors}`);
-                fastify.log.info(`dcm pload dir back success: ${success}`);
+                fastify.log.info(`dcm upload process project id :${pluginParameters.projectid}`);
+                fastify.log.info(`dcm upload process error: ${errors}`);
+                fastify.log.info(`dcm upload process success: ${success}`);
               } else {
                 fastify.log.info('no dcm file found in output folder for the plugin');
               }
@@ -3330,7 +3328,7 @@ async function epaddb(fastify, options, done) {
                 csvArray,
                 'csv'
               );
-              console.log('cvs array :', csvArray);
+              fastify.log.info(`csv files in the plugin output folder : ${csvArray}`);
               if (csvArray.length > 0) {
                 fastify.log.info(
                   `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
