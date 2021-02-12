@@ -764,57 +764,76 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('getContainerLog', async (request, reply) => {
+  fastify.decorate('getContainerLog', (request, reply) => {
     const { containerid } = request.params;
     fastify
       .getUserPluginDataPathInternal()
-      .then(async (pluginDataRootPath) => {
+      .then((pluginDataRootPath) => {
         // eslint-disable-next-line no-param-reassign
         pluginDataRootPath = path.join(__dirname, `../pluginsDataFolder`);
         // const { creator } = request.body;
-        const creator = await fastify.getObjectCreator('pluginqueue', containerid, '');
-        // need to get the creator internally
-        const dock = new DockerService(fs, fastify, path);
+        fastify
+          .getObjectCreator('pluginqueue', containerid, '')
+          .then((creator) => {
+            const dock = new DockerService(fs, fastify, path);
 
-        dock
-          .inspectContainer(`epadplugin_${containerid}`)
-          .then((inspectResultObject) => {
-            fastify.log.info('inspect result object', inspectResultObject);
-            // fastify.log.info('status : ', inspectResultObject.State.Status);
-            fastify.log.info(
-              `trying to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-            );
-            if (fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)) {
-              fastify.log.info('slog file found sending to frontend');
-              reply.raw.setHeader('Content-type', 'application/octet-stream');
-              reply.raw.setHeader('Access-Control-Allow-Origin', '*');
-              reply.raw.setHeader('connection', 'keep-alive');
-              const rdsrtm = fs.createReadStream(
-                `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-              );
-              reply.send(rdsrtm);
-              fastify.log.info(
-                `container not running but trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
-              );
-            } else {
-              reply.code(404).send('log file not found');
-            }
+            dock
+              .inspectContainer(`epadplugin_${containerid}`)
+              .then((inspectResultObject) => {
+                fastify.log.info('inspect result object', inspectResultObject);
+                // fastify.log.info('status : ', inspectResultObject.State.Status);
+                fastify.log.info(
+                  `trying to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+                );
+                if (
+                  fs.existsSync(`${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`)
+                ) {
+                  fastify.log.info('log file found sending to frontend');
+                  reply.raw.setHeader('Content-type', 'application/octet-stream');
+                  reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+                  reply.raw.setHeader('connection', 'keep-alive');
+                  const rdsrtm = fs.createReadStream(
+                    `${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+                  );
+                  reply.send(rdsrtm);
+                  fastify.log.info(
+                    `container not running but trying to find log file : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
+                  );
+                } else {
+                  reply.code(404).send('log file not found');
+                }
+              })
+              .catch((err) => {
+                fastify.log.info('err', err);
+                reply.code(500).send(err);
+              });
           })
           .catch((err) => {
-            reply.code(500).send(err);
-            fastify.log.info('err', err);
+            fastify.log.info(
+              `error on getting creator for the plugin container epadplugin_${containerid}`,
+              err
+            );
+            reply
+              .code(500)
+              .send(
+                new InternalError(
+                  `error on getting creator for the plugin container epadplugin_${containerid}`,
+                  err
+                )
+              );
           });
+        // need to get the creator internally
       })
       .catch((err) => {
+        fastify.log.info('error on getting plugin data path for log file ', err);
         reply
           .code(500)
           .send(
             new InternalError(
-              `Error happened while trying ot get the log file for container: epadplugin_${containerid}`,
+              `Error happened while trying to get the log file for container: epadplugin_${containerid}`,
               err
             )
           );
-        fastify.log.info('error on getting plugin fata path for log file ', err);
       });
   });
 
@@ -2233,6 +2252,11 @@ async function epaddb(fastify, options, done) {
     'createPluginfoldersInternal',
     (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) =>
       new Promise(async (resolve, reject) => {
+        console.log('createPluginfoldersInternal user folder ; ');
+        console.log('user folder ; ');
+        console.log('user folder ; ');
+        console.log('user folder ; ');
+        console.log('user folder ; ', userfolder);
         //  let aimsParamsProcessed = false;
         //  let dicomsParamsProcessed = false;
         let tempPluginparams = null;
@@ -2252,7 +2276,7 @@ async function epaddb(fastify, options, done) {
           // output folder
           if (tempPluginparams[i].format === 'OutputFolder') {
             try {
-              const outputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
+              const outputfolder = `${userfolder}/${tempPluginparams[i].paramid}/`;
               fastify.log.info(outputfolder);
               if (!fs.existsSync(outputfolder)) {
                 fs.mkdirSync(outputfolder, { recursive: true });
@@ -2277,7 +2301,7 @@ async function epaddb(fastify, options, done) {
                   { aims: Object.keys(aims) },
                   request.epadAuth
                 );
-                const inputfolder = `${userfolder}${tempPluginparams[i].paramid}/`;
+                const inputfolder = `${userfolder}/${tempPluginparams[i].paramid}/`;
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                 }
@@ -2323,7 +2347,7 @@ async function epaddb(fastify, options, done) {
             }
             // get dicoms
             if (tempPluginparams[i].paramid === 'dicoms') {
-              const inputfolder = `${userfolder}${pluginparams[i].paramid}/`;
+              const inputfolder = `${userfolder}/${pluginparams[i].paramid}/`;
               fastify.log.info('creating dicoms in this folder', inputfolder);
               try {
                 if (!fs.existsSync(inputfolder)) {
@@ -2464,13 +2488,6 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('extractPluginParamtersInternal', (queueObject, request) =>
     new Promise(async (resolve, reject) => {
-      console.log('ccccc vvvvvvvvv');
-      console.log('ccccc vvvvvvvvv');
-      console.log('ccccc queue obj', queueObject);
-      console.log('ccccc vvvvvvvvv');
-      console.log('ccccc vvvvvvvvv');
-      console.log('ccccc vvvvvvvvv');
-
       const parametertype = queueObject.plugin_parametertype;
       const pluginid = queueObject.plugin_id;
       const projectdbid = queueObject.project_id;
@@ -2485,16 +2502,16 @@ async function epaddb(fastify, options, done) {
 
       const pluginsDataFolder = path.join(
         __dirname,
-        `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}/`
+        `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}`
       );
       if (!fs.existsSync(pluginsDataFolder)) {
         fs.mkdirSync(pluginsDataFolder, { recursive: true });
       }
 
-      const localServerBindPoint = path.join(
-        __dirname,
-        `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}`
-      );
+      // const localServerBindPoint = path.join(
+      //   __dirname,
+      //   `../pluginsDataFolder/${queueObject.creator}/${queueObject.id}`
+      // );
 
       const pluginsDataFolderlog = path.join(
         __dirname,
@@ -2503,7 +2520,28 @@ async function epaddb(fastify, options, done) {
       if (!fs.existsSync(`${pluginsDataFolderlog}`)) {
         fs.mkdirSync(`${pluginsDataFolderlog}`);
       }
-      fastify.log.info('getting epad_lite bind points and pwd local : ', localServerBindPoint);
+      // this part is important to define auto created containers bindpoint related to user's computer path
+      // here relative path does not work since epad_lite relative path will be different than auto created containers
+      // this means /home/node/app does not exist in the created containrs by the plugin
+      const dock = new DockerService(fs, fastify, path);
+      const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
+      const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
+      let epadLitePwd = '';
+      fastify.log.info('getting epad_lite bind points to reflect : ', epadLiteBindPoints);
+      for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
+        if (epadLiteBindPoints[cntPoints].includes('pluginData')) {
+          epadLitePwd = epadLiteBindPoints[cntPoints];
+          break;
+        }
+      }
+      const tmpLocalServerBindPoint = epadLitePwd.split(':')[0];
+      // this part is important
+      // below part is necessary for local development out of the container
+      //  const localServerBindPoint = pluginsDataFolder;
+      // comment out above command and uncomment below line before pushing to git
+      const localFullPathBindPoint = `${tmpLocalServerBindPoint}/${queueObject.creator}/${queueObject.id}`;
+      //  pluginsDataFolder = localFullPathBindPoint;
+      fastify.log.info('getting epad_lite bind points and pwd local : ', localFullPathBindPoint);
       if (parametertype === 'default') {
         try {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
@@ -2518,7 +2556,8 @@ async function epaddb(fastify, options, done) {
           );
           const returnObject = {
             params: paramsToSendToContainer,
-            serverfolder: localServerBindPoint,
+            serverfolder: localFullPathBindPoint,
+            relativeServerFolder: pluginsDataFolder,
             projectid,
             projectdbid,
             pluginnameid,
@@ -2548,7 +2587,8 @@ async function epaddb(fastify, options, done) {
           );
           const returnObject = {
             params: paramsToSendToContainer,
-            serverfolder: localServerBindPoint,
+            serverfolder: localFullPathBindPoint,
+            relativeServerFolder: pluginsDataFolder,
             projectid,
             projectdbid,
             pluginnameid,
@@ -2578,7 +2618,8 @@ async function epaddb(fastify, options, done) {
           );
           const returnObject = {
             params: paramsToSendToContainer,
-            serverfolder: localServerBindPoint,
+            serverfolder: localFullPathBindPoint,
+            relativeServerFolder: pluginsDataFolder,
             projectid,
             projectdbid,
             pluginnameid,
@@ -2728,7 +2769,15 @@ async function epaddb(fastify, options, done) {
             ) {
               if (tempPluginParams[i].default_value !== '') {
                 foldersToBind.push(
-                  `${tempLocalFolder}${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
+                  `${tempLocalFolder}/${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
+                );
+                console.log('******************* cheking folder mapping ');
+                console.log('******************* cheking folder mapping ');
+                console.log('******************* cheking folder mapping ');
+                console.log('******************* cheking folder mapping ');
+                console.log('******************* cheking folder mapping ');
+                console.log(
+                  `${tempLocalFolder}/${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
                 );
               }
             }
@@ -2786,7 +2835,7 @@ async function epaddb(fastify, options, done) {
     }
 
     for (let i = 0; i < infuncfileArray.length; i += 1) {
-      console.log('file name : ', `${dirParam}/${infuncfileArray[i]}`);
+      //  console.log('file name : ', `${dirParam}/${infuncfileArray[i]}`);
       if (fs.statSync(`${dirParam}/${infuncfileArray[i]}`).isDirectory()) {
         cumfileArrayParam = fastify.findFilesAndSubfilesInternal(
           `${dirParam}/${infuncfileArray[i]}`,
@@ -2794,12 +2843,12 @@ async function epaddb(fastify, options, done) {
           extensionParam
         );
       } else {
-        console.log('not a dir :', `${dirParam}/${infuncfileArray[i]}`);
+        //  console.log('not a dir :', `${dirParam}/${infuncfileArray[i]}`);
         const ext = infuncfileArray[i].split('.');
-        console.log('ext :', ext[ext.length - 1]);
+        //  console.log('ext :', ext[ext.length - 1]);
 
         if (extensionParam === ext[ext.length - 1] || extensionParam === '') {
-          console.log(`pushing,....${dirParam}/${infuncfileArray[i]}`);
+          //  console.log(`pushing,....${dirParam}/${infuncfileArray[i]}`);
           cumfileArrayParam.push({ path: dirParam, file: infuncfileArray[i] });
         }
       }
@@ -3113,6 +3162,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
+    //  console.log('runPluginsQueueInternal called : queue list :  ', pluginQueueList);
     try {
       for (let i = 0; i < pluginQueueList.length; i += 1) {
         const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${pluginQueueList[i].plugin.image_tag}`;
@@ -3132,7 +3182,7 @@ async function epaddb(fastify, options, done) {
           pluginQueueList[i],
           request
         );
-        fastify.log.info('pluginParameters :', pluginParameters);
+
         // eslint-disable-next-line no-prototype-builtins
         if (pluginParameters.hasOwnProperty('message')) {
           if (pluginParameters.message.includes('Error')) {
@@ -3226,11 +3276,14 @@ async function epaddb(fastify, options, done) {
             //  upload the result from container to the series
             const fileArray = [];
 
-            if (fs.existsSync(`${pluginParameters.serverfolder}/output`)) {
+            fastify.log.info(
+              'plugin finished processing checking if there are dicoms or csv file for calculations'
+            );
+            if (fs.existsSync(`${pluginParameters.relativeServerFolder}/output`)) {
               const dcmFilesWithoutPath = [];
 
               fastify.findFilesAndSubfilesInternal(
-                `${pluginParameters.serverfolder}/output`,
+                `${pluginParameters.relativeServerFolder}/output`,
                 fileArray,
                 'dcm'
               );
@@ -3238,67 +3291,75 @@ async function epaddb(fastify, options, done) {
               for (let cnt = 0; cnt < fileArray.length; cnt += 1) {
                 dcmFilesWithoutPath.push(fileArray[cnt].file);
               }
-              console.log('*******************************');
-              console.log('*******************************');
-              console.log('*******************************');
-              console.log('*******************************');
-              console.log('*******************************');
-              console.log('*******************************');
 
-              fastify.log.info('file array : ', fileArray);
-              console.log('****************dcm files', dcmFilesWithoutPath);
-              console.log('*******************************');
-              console.log('*******************************');
-              console.log('*******************************');
-              console.log('*******************************');
-              console.log('*******************************');
-              //  eslint-disable-next-line no-await-in-loop
-              const { success, errors } = await fastify.saveFiles(
-                `${pluginParameters.serverfolder}/output`,
-                dcmFilesWithoutPath,
-                { project: pluginParameters.projectid },
-                {},
-                request.epadAuth
+              fastify.log.info(`dcm files in the plugin output folder : ${fileArray}`);
+              fastify.log.info(
+                `dcm files without path in the plugin output folder :${dcmFilesWithoutPath}`
               );
-              fastify.log.info('project id :', pluginParameters.projectid);
-              fastify.log.info('projectdb id :', pluginParameters.projectdbid);
-              fastify.log.info('upload dir back error: ', errors);
-              fastify.log.info('upload dir back success: ', success);
+              fastify.log.info(
+                `source path for files to upload back to epad :${pluginParameters.relativeServerFolder}/output`
+              );
 
+              if (fileArray.length > 0) {
+                fastify.log.info(
+                  `plugin is uploading dcm files from output folder ${pluginParameters.relativeServerFolder}/output`
+                );
+                //  eslint-disable-next-line no-await-in-loop
+                const { success, errors } = await fastify.saveFiles(
+                  `${pluginParameters.relativeServerFolder}/output`,
+                  dcmFilesWithoutPath,
+                  { project: pluginParameters.projectid },
+                  {},
+                  request.epadAuth
+                );
+
+                fastify.log.info(`dcm upload process project id :${pluginParameters.projectid}`);
+                fastify.log.info(`dcm upload process error: ${errors}`);
+                fastify.log.info(`dcm upload process success: ${success}`);
+              } else {
+                fastify.log.info('no dcm file found in output folder for the plugin');
+              }
               //  end
 
               // write plugin calculations to aim
               const csvArray = [];
               fastify.findFilesAndSubfilesInternal(
-                `${pluginParameters.serverfolder}/output`,
+                `${pluginParameters.relativeServerFolder}/output`,
                 csvArray,
                 'csv'
               );
-              console.log('cvs array :', csvArray);
-              // eslint-disable-next-line no-await-in-loop
-              const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
-              console.log('calc obj : ', calcObj);
-              const pluginInfoFromParams = {
-                pluginnameid: pluginParameters.pluginnameid,
-                pluginname: pluginParameters.pluginname,
-              };
+              fastify.log.info(`csv files in the plugin output folder : ${csvArray}`);
+              if (csvArray.length > 0) {
+                fastify.log.info(
+                  `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
+                );
+                // eslint-disable-next-line no-await-in-loop
+                const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
+                console.log('calc obj : ', calcObj);
+                const pluginInfoFromParams = {
+                  pluginnameid: pluginParameters.pluginnameid,
+                  pluginname: pluginParameters.pluginname,
+                };
 
-              // eslint-disable-next-line no-await-in-loop
-              const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
-                calcObj,
-                pluginInfoFromParams
-              );
-              // eslint-disable-next-line no-await-in-loop
-              const mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
-                returnPartialPluginCalcAim,
-                'userAim:Param',
-                `${pluginParameters.serverfolder}/aims`
-              );
-              // eslint-disable-next-line no-await-in-loop
-              await fastify.uploadMergedAimPluginCalcInternal(
-                mergedaimFileLocation,
-                pluginParameters.projectid
-              );
+                // eslint-disable-next-line no-await-in-loop
+                const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
+                  calcObj,
+                  pluginInfoFromParams
+                );
+                // eslint-disable-next-line no-await-in-loop
+                const mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
+                  returnPartialPluginCalcAim,
+                  'userAim:Param',
+                  `${pluginParameters.relativeServerFolder}/aims`
+                );
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.uploadMergedAimPluginCalcInternal(
+                  mergedaimFileLocation,
+                  pluginParameters.projectid
+                );
+              } else {
+                fastify.log.info('no csv file found in output folder for the plugin');
+              }
             }
 
             return 'completed';
