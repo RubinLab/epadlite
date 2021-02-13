@@ -302,7 +302,7 @@ class DockerService {
         tempFastify.log.error('var/run/docker.sock not found. Check your docker installation');
         tempFastify.log.error(err);
       }
-      console.log('step 1 - checkContainerExistance ', containerName);
+
       const container = this.docker.getContainer(containerName);
 
       // eslint-disable-next-line prefer-destructuring
@@ -310,24 +310,15 @@ class DockerService {
       // eslint-disable-next-line prefer-arrow-callback
       return container.inspect(function (err, data) {
         if (err) {
-          //  this.fastify.log.info(err);
-          // tempFastify.log.error('error happened while checking container presence : ', err);
-          console.log('step 2 data- reject err :', err);
+          tempFastify.log.error('error happened while checking container presence : ', err);
           reject(new Error(404));
         }
         if (data) {
           tempFastify.log.info('checking container presence succeed: ', containerName);
-          console.log('step 2 err- checkContainerExistance err : ', err);
-          console.log('step 2 data- checkContainerExistance Name :', data.Name);
-          console.log('step 2 data- checkContainerExistance Cmd :', data.Config.Cmd);
-          console.log('step 2 data- checkContainerExistance Status :', data.State.Status);
           resolve(data);
         }
       });
-    }).catch((err) => {
-      console.log('checkContainerExistance : proimse error', err);
-      return err;
-    });
+    }).catch((err) => err);
   }
 
   deleteContainer(containerName) {
