@@ -10670,6 +10670,14 @@ async function epaddb(fastify, options, done) {
                   transaction: t,
                 }
               );
+              // create project_file entries for the files that are not templates
+              // set uid as
+              await fastify.orm.query(
+                `INSERT IGNORE INTO project_file (project_id, file_uid, creator, createdtime, updatetime, updated_by)
+                  SELECT project_id, CONCAT(id,'_',name), creator, createdtime, updatetime, updated_by FROM epad_file 
+                  WHERE filetype <> 'Template';`,
+                { transaction: t }
+              );
             } catch (err) {
               fastify.log.warn(`file_id column is already deleted. that's ok. nothing to do`);
             }
@@ -10707,21 +10715,11 @@ async function epaddb(fastify, options, done) {
             // just put values so that we can define unique (I needed to run a query outside the transaction as the model prevents me to see the column)
             try {
               await fastify.orm.query(`SELECT template_id from project_template;`);
-              // TODO
-              // should be something like this but the backupsql has no templates
-              // await fastify.orm.query(
-              //   `UPDATE project_template
-              //     SET template_uid = (SELECT templateUID from template
-              //     WHERE id = ${fastify.orm.literal('template_id')} );`,
-              //   { transaction: t }
-              // );
-
-              await models.project_template.update(
-                { template_uid: fastify.orm.literal('template_id') },
-                {
-                  where: {},
-                  transaction: t,
-                }
+              await fastify.orm.query(
+                `UPDATE project_template
+                  SET template_uid = (SELECT templateUID from template
+                  WHERE id = ${fastify.orm.literal('template_id')} );`,
+                { transaction: t }
               );
             } catch (err) {
               fastify.log.warn(`template_id column is already deleted. that's ok. nothing to do`);
