@@ -2,7 +2,7 @@
 
 module.exports = function (sequelize, DataTypes) {
   return sequelize.define(
-    'reviewer',
+    'registeredapps',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -10,21 +10,22 @@ module.exports = function (sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
-      reviewer: {
+      apikey: {
         type: DataTypes.STRING(128),
-        allowNull: true,
-        references: {
-          model: 'user',
-          key: 'username',
-        },
+        allowNull: false,
+        unique: true,
       },
-      reviewee: {
+      ontologyname: {
         type: DataTypes.STRING(128),
         allowNull: true,
-        references: {
-          model: 'user',
-          key: 'username',
-        },
+      },
+      hostname: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      epadtype: {
+        type: DataTypes.STRING(1),
+        allowNull: true,
       },
       creator: {
         type: DataTypes.STRING(128),
@@ -46,7 +47,7 @@ module.exports = function (sequelize, DataTypes) {
       },
     },
     {
-      tableName: 'reviewer',
+      tableName: 'registeredapps',
     }
   );
 };

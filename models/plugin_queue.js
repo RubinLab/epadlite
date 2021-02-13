@@ -1,6 +1,6 @@
 /* jshint indent: 2 */
 //  status values: waiting, running, ended,error, added, stopping
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define(
     'plugin_queue',
     {

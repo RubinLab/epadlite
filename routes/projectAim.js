@@ -262,6 +262,26 @@ async function routes(fastify) {
   });
 
   fastify.route({
+    method: 'DELETE',
+    url: '/projects/:project/aims',
+    querystring: {
+      all: { type: 'string' },
+    },
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteAimsFromProject,
+  });
+
+  fastify.route({
     method: 'GET',
     url: '/projects/:project/aims/:aimuid',
     schema: {

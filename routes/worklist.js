@@ -58,7 +58,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/worklists/:worklist/users/:user/subjects',
+    url: '/worklists/:worklist/users/:user/studies',
     schema: {
       tags: ['worklist', 'user'],
       params: {
@@ -73,7 +73,7 @@ async function routes(fastify) {
         },
       },
     },
-    handler: fastify.getWorklistSubjects,
+    handler: fastify.getWorklistStudies,
   });
 
   fastify.route({
@@ -120,6 +120,14 @@ async function routes(fastify) {
             type: 'string',
           },
           study: { type: 'string' },
+        },
+      },
+      query: {
+        type: 'object',
+        properties: {
+          annotationStatus: {
+            type: 'integer',
+          },
         },
       },
     },

@@ -1,6 +1,5 @@
 {
   "$id": "epadlite_series_schema",
-
   "type": "array",
   "items": {
     "type": "object",
