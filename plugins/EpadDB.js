@@ -2252,11 +2252,6 @@ async function epaddb(fastify, options, done) {
     'createPluginfoldersInternal',
     (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) =>
       new Promise(async (resolve, reject) => {
-        console.log('createPluginfoldersInternal user folder ; ');
-        console.log('user folder ; ');
-        console.log('user folder ; ');
-        console.log('user folder ; ');
-        console.log('user folder ; ', userfolder);
         //  let aimsParamsProcessed = false;
         //  let dicomsParamsProcessed = false;
         let tempPluginparams = null;
@@ -2771,14 +2766,6 @@ async function epaddb(fastify, options, done) {
                 foldersToBind.push(
                   `${tempLocalFolder}/${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
                 );
-                console.log('******************* cheking folder mapping ');
-                console.log('******************* cheking folder mapping ');
-                console.log('******************* cheking folder mapping ');
-                console.log('******************* cheking folder mapping ');
-                console.log('******************* cheking folder mapping ');
-                console.log(
-                  `${tempLocalFolder}/${tempPluginParams[i].paramid}:${tempPluginParams[i].default_value}`
-                );
               }
             }
             if (tempPluginParams[i].paramid === 'parameters') {
@@ -2835,7 +2822,6 @@ async function epaddb(fastify, options, done) {
     }
 
     for (let i = 0; i < infuncfileArray.length; i += 1) {
-      //  console.log('file name : ', `${dirParam}/${infuncfileArray[i]}`);
       if (fs.statSync(`${dirParam}/${infuncfileArray[i]}`).isDirectory()) {
         cumfileArrayParam = fastify.findFilesAndSubfilesInternal(
           `${dirParam}/${infuncfileArray[i]}`,
@@ -2843,12 +2829,9 @@ async function epaddb(fastify, options, done) {
           extensionParam
         );
       } else {
-        //  console.log('not a dir :', `${dirParam}/${infuncfileArray[i]}`);
         const ext = infuncfileArray[i].split('.');
-        //  console.log('ext :', ext[ext.length - 1]);
 
         if (extensionParam === ext[ext.length - 1] || extensionParam === '') {
-          //  console.log(`pushing,....${dirParam}/${infuncfileArray[i]}`);
           cumfileArrayParam.push({ path: dirParam, file: infuncfileArray[i] });
         }
       }
@@ -2857,13 +2840,7 @@ async function epaddb(fastify, options, done) {
   });
   //  plugin calculations verify codemaning existance in ontology and add calculations to the user aim part
   fastify.decorate('parseCsvForPluginCalculationsInternal', (csvFileParam) => {
-    console.log('parsing csv file', csvFileParam);
-    console.log('parsing csv file', csvFileParam.path);
-    console.log('parsing csv file', csvFileParam.file);
     const result = [];
-    // const necessaryPath = csvFileParam.split('pluginsDataFolder');
-    // const uselast = necessaryPath[necessaryPath.length - 1];
-    console.log('reding cvs : ', `${csvFileParam.path}/${csvFileParam.file}`);
     return new Promise((resolve, reject) => {
       fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
         .pipe(csv({ skipLines: 6, headers: ['key', 'value'] }))
@@ -2881,90 +2858,91 @@ async function epaddb(fastify, options, done) {
         });
     });
   });
-  fastify.decorate('createCalcEntityforPluginCalcInternal', (lexiconObjParam, calcValueParam) => {
-    console.log('creating aim for plugin calc', lexiconObjParam);
-    return new Promise((resolve, reject) => {
-      try {
-        const partCalcEntity = {
-          uniqueIdentifier: {
-            root: fastify.generateUidInternal(),
-          },
-          typeCode: [
-            {
-              code: lexiconObjParam.codevalue,
-              codeSystemName: '99EPAD',
-              'iso:displayName': {
-                'xmlns:iso': 'uri:iso.org:21090',
-                value: lexiconObjParam.codemeaning,
-              },
+  fastify.decorate(
+    'createCalcEntityforPluginCalcInternal',
+    (lexiconObjParam, calcValueParam) =>
+      new Promise((resolve, reject) => {
+        try {
+          const partCalcEntity = {
+            uniqueIdentifier: {
+              root: fastify.generateUidInternal(),
             },
-          ],
-          description: {
-            value: lexiconObjParam.codemeaning,
-          },
-          calculationResultCollection: {
-            CalculationResult: [
+            typeCode: [
               {
-                type: 'Scalar',
-                'xsi:type': 'CompactCalculationResult',
-                unitOfMeasure: {
-                  value: '{ratio}',
-                },
-                dataType: {
-                  code: 'C48870',
-                  codeSystemName: 'NCI',
-                  'iso:displayName': {
-                    'xmlns:iso': 'uri:iso.org:21090',
-                    value: 'Double',
-                  },
-                },
-                dimensionCollection: {
-                  Dimension: [
-                    {
-                      index: {
-                        value: 0,
-                      },
-                      size: {
-                        value: 1,
-                      },
-                      label: {
-                        value: lexiconObjParam.codemeaning,
-                      },
-                    },
-                  ],
-                },
-                value: {
-                  value: calcValueParam,
-                },
-              },
-            ],
-          },
-          algorithm: {
-            name: {
-              value: lexiconObjParam.referencename,
-            },
-            type: [
-              {
-                code: lexiconObjParam.referenceuid,
+                code: lexiconObjParam.codevalue,
                 codeSystemName: '99EPAD',
-                codeSystemVersion: '1',
                 'iso:displayName': {
                   'xmlns:iso': 'uri:iso.org:21090',
-                  value: lexiconObjParam.referencename,
+                  value: lexiconObjParam.codemeaning,
                 },
               },
             ],
-            version: {
-              value: 1,
+            description: {
+              value: lexiconObjParam.codemeaning,
             },
-          },
-        };
-        resolve(partCalcEntity);
-      } catch (err) {
-        reject(new InternalError('error happened while creating plugin calculation entity', err));
-      }
-    });
-  });
+            calculationResultCollection: {
+              CalculationResult: [
+                {
+                  type: 'Scalar',
+                  'xsi:type': 'CompactCalculationResult',
+                  unitOfMeasure: {
+                    value: '{ratio}',
+                  },
+                  dataType: {
+                    code: 'C48870',
+                    codeSystemName: 'NCI',
+                    'iso:displayName': {
+                      'xmlns:iso': 'uri:iso.org:21090',
+                      value: 'Double',
+                    },
+                  },
+                  dimensionCollection: {
+                    Dimension: [
+                      {
+                        index: {
+                          value: 0,
+                        },
+                        size: {
+                          value: 1,
+                        },
+                        label: {
+                          value: lexiconObjParam.codemeaning,
+                        },
+                      },
+                    ],
+                  },
+                  value: {
+                    value: calcValueParam,
+                  },
+                },
+              ],
+            },
+            algorithm: {
+              name: {
+                value: lexiconObjParam.referencename,
+              },
+              type: [
+                {
+                  code: lexiconObjParam.referenceuid,
+                  codeSystemName: '99EPAD',
+                  codeSystemVersion: '1',
+                  'iso:displayName': {
+                    'xmlns:iso': 'uri:iso.org:21090',
+                    value: lexiconObjParam.referencename,
+                  },
+                },
+              ],
+              version: {
+                value: 1,
+              },
+            },
+          };
+          resolve(partCalcEntity);
+        } catch (err) {
+          reject(new InternalError('error happened while creating plugin calculation entity', err));
+        }
+      })
+  );
   fastify.decorate('createPartialAimForPluginCalcInternal', (csvFileParam, pluginInfoParam) => {
     const partCalcEntityArray = [];
     let willCallRemoteOntology = false;
@@ -2990,15 +2968,6 @@ async function epaddb(fastify, options, done) {
           try {
             // this part needs to call remote ontology server
             if (willCallRemoteOntology === true) {
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log(
-                'calling remote ontology server to insert codevalue or get codevalue for plugin calculation entites'
-              );
-              // Axios.get(`epadbuildlite.stanford.edu/ontology/`, {
-              //   headers: { Authorization: `apikey token=${config.API_KEY}` },
-              // });
               // eslint-disable-next-line no-await-in-loop
               newLexiconObj = await Axios.post(`${config.statsEpad}/ontology`, {
                 headers: {
@@ -3008,23 +2977,9 @@ async function epaddb(fastify, options, done) {
                 },
                 lexiconObj,
               });
-              // need to add header ontologyName, ontologyApiKey
-              // eslint-disable-next-line no-await-in-loop
-              // newLexiconObj = await fastify.insertOntologyItemInternal(lexiconObj);
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
             } else {
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-
               // eslint-disable-next-line no-await-in-loop
               newLexiconObj = await fastify.insertOntologyItemInternal(lexiconObj);
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
-              console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$');
             }
             // eslint-disable-next-line no-await-in-loop
             const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
@@ -3069,13 +3024,6 @@ async function epaddb(fastify, options, done) {
       return new Promise((resolve, reject) => {
         try {
           fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
-          console.log('###############mergePartialCalcAimWithUserAimPluginCalcInternal');
-          console.log('###############aimFileLocation', aimFileLocation);
-          console.log('###############');
-          console.log('mergin partial calc aim to user aim', partialAimParam);
-          console.log('###############', __dirname);
-          console.log('###############');
-          console.log('###############');
 
           fs.readFile(`${fileArray[0].path}/${fileArray[0].file}`, 'utf8', (err, jsonString) => {
             if (err) {
@@ -3128,7 +3076,6 @@ async function epaddb(fastify, options, done) {
         fileArray.push(aimFileLocation.file);
 
         try {
-          console.log('uploadig the merged aim file back to epad', aimFileLocation);
           const { success, errors } = await fastify.saveFiles(
             aimFileLocation.path,
             fileArray,
@@ -3137,8 +3084,8 @@ async function epaddb(fastify, options, done) {
             'admin'
             //  request.epadAuth
           );
-          fastify.log.info('upload dir back error: ', errors);
-          fastify.log.info('upload dir back success: ', success);
+          fastify.log.info(`upload dir back error: ${errors}`);
+          fastify.log.info(`upload dir back success: ${success}`);
           resolve(200);
         } catch (err) {
           reject(
@@ -3162,7 +3109,6 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
-    //  console.log('runPluginsQueueInternal called : queue list :  ', pluginQueueList);
     try {
       for (let i = 0; i < pluginQueueList.length; i += 1) {
         const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${pluginQueueList[i].plugin.image_tag}`;
@@ -3335,7 +3281,6 @@ async function epaddb(fastify, options, done) {
                 );
                 // eslint-disable-next-line no-await-in-loop
                 const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
-                console.log('calc obj : ', calcObj);
                 const pluginInfoFromParams = {
                   pluginnameid: pluginParameters.pluginnameid,
                   pluginname: pluginParameters.pluginname,
