@@ -5498,8 +5498,35 @@ async function epaddb(fastify, options, done) {
                 request.epadAuth
               );
               if (result) {
-                reply.code(200).send(result);
-                return;
+                if (!result.tLesionNames) {
+                  // new format should have usernames
+                  reply.code(200).send(result);
+                  return;
+                }
+                // if it is the old format in db. update reports and try one more time
+                try {
+                  fastify.log.info('Found a patient with old recist report. Trying to update');
+                  const projectId = await fastify.findProjectIdInternal(request.params.project);
+                  await fastify.updateReports(
+                    projectId,
+                    request.params.project,
+                    request.params.subject,
+                    request.epadAuth
+                  );
+                  result = await fastify.getReportFromDB(
+                    request.params,
+                    request.query.report,
+                    request.epadAuth
+                  );
+                  if (result && !result.tLesionNames) {
+                    reply.code(200).send(result);
+                    return;
+                  }
+                } catch (reportErr) {
+                  fastify.log.warn(
+                    `Could not update the report for patient ${request.params.subject} Error: ${reportErr.message}`
+                  );
+                }
               }
             } else {
               reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
