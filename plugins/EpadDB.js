@@ -7163,6 +7163,22 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'getOldFileInfosFromDB',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const projectFiles = await models.epad_file.findAll({
+            raw: true,
+          });
+
+          resolve(projectFiles);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
     'getReportFromDB',
     async (params, report, epadAuth, bestResponseType, metric, template, shapes) => {
       try {
@@ -10192,6 +10208,40 @@ async function epaddb(fastify, options, done) {
             where: { projectid: projectId },
           });
           resolve(project);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getUidsInternal',
+    (projectId, subjectId, studyId) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const uids = { projectUid: 'NA', subjectUid: 'NA', studyUid: 'NA' };
+          if (projectId) {
+            const project = await models.project.findOne({
+              where: { id: projectId },
+              raw: true,
+            });
+            if (project) uids.projectUid = project.projectid;
+          }
+          if (subjectId) {
+            const subject = await models.subject.findOne({
+              where: { id: subjectId },
+              raw: true,
+            });
+            if (subject) uids.subjectUid = subject.subjectuid;
+          }
+          if (studyId) {
+            const study = await models.study.findOne({
+              where: { id: studyId },
+              raw: true,
+            });
+            if (study) uids.studyUid = study.studyuid;
+          }
+          resolve(uids);
         } catch (err) {
           reject(err);
         }

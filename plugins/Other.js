@@ -531,6 +531,218 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate('migrateFiles', async (request, reply) => {
+    fastify.log.info(`Started scanning folder ${request.params.path} for files `);
+
+    if (!request.raw.hostname.startsWith('localhost')) {
+      reply.send(
+        new BadRequestError(
+          'Not supported',
+          new Error('Files migrate functionality is only supported for localhost')
+        )
+      );
+    } else if (!fs.existsSync(request.params.path)) {
+      reply.send(
+        new InternalError(
+          'Scanning files folder',
+          new Error(`${request.params.path} does not exist`)
+        )
+      );
+    } else {
+      const promises = [];
+      // read db and get the paths
+      // then read and migrate those files only
+      const oldFiles = await fastify.getOldFileInfosFromDB();
+      reply.send(`Started scanning ${request.params.path} for files`);
+      const result = {};
+      for (let i = 0; i < oldFiles.length; i += 1) {
+        const { id, name, filepath } = oldFiles[i];
+        const ext = fastify.getExtension(name);
+        // get the file buffer
+        // eslint-disable-next-line no-await-in-loop
+        const buffer = await fastify.getFileBuffer(
+          filepath.replace('/home/epad/DicomProxy/resources/files', request.params.path),
+          `${id}.${ext}`
+        );
+        if (oldFiles[i].filetype === 'Template') {
+          const jsonBuffer = JSON.parse(buffer.toString());
+          promises.push(() =>
+            fastify.saveTemplateInternal(jsonBuffer).catch((error) => {
+              result.errors.push(error);
+            })
+          );
+        } else {
+          const filename = `${id}_${name}`;
+          // eslint-disable-next-line no-await-in-loop
+          const uids = await fastify.getUidsInternal(
+            oldFiles[i].project_id,
+            oldFiles[i].subject_id,
+            oldFiles[i].study_id
+          );
+          const fileinfo = {
+            project_uid: uids.projectUid,
+            subject_uid: uids.subjectUid,
+            study_uid: uids.studyUid,
+            series_uid: oldFiles[i].series_uid ? oldFiles[i].series_uid : 'NA',
+            name: filename,
+            filepath: 'couchdb',
+            filetype: oldFiles[i].filetype,
+            length: Buffer.byteLength(buffer),
+          };
+          promises.push(() =>
+            fastify.saveOtherFileInternal(filename, fileinfo, buffer).catch((error) => {
+              result.errors.push(error);
+            })
+          );
+        }
+      }
+
+      pq.addAll(promises).then(async (values) => {
+        try {
+          for (let i = 0; i < values.length; i += 1) {
+            if (values[i] && values[i].success) {
+              // one success is enough
+              result.success = true;
+              // I cannot break because of errors accumulation, I am not sure about performance
+              // break;
+            }
+            if (values[i] && values[i].errors && values[i].errors.length > 0)
+              result.errors = result.errors.concat(values[i].errors);
+          }
+          fastify.log.info(
+            `Finished scanning files directory with result: ${JSON.stringify(result)}`
+          );
+          fastify.log.info(`Finished migrating files in ${request.params.path}`);
+        } catch (cumulateErrors) {
+          fastify.log.error(
+            `Cumulating errors from migrating files. Error: ${cumulateErrors.message}`
+          );
+        }
+      });
+    }
+  });
+
+  fastify.decorate(
+    'getFileBuffer',
+    (dir, filename) =>
+      new Promise((resolve, reject) => {
+        try {
+          let buffer = [];
+          const readableStream = fs.createReadStream(
+            `${dir}${dir.endsWith('/') ? '' : '/'}${filename}`
+          );
+          readableStream.on('data', (chunk) => {
+            buffer.push(chunk);
+          });
+          readableStream.on('error', (readErr) => {
+            fastify.log.error(`Error in reading file ${dir}/${filename}: ${readErr}`);
+            reject(new InternalError(`Reading file ${dir}/${filename}`, readErr));
+          });
+          readableStream.on('close', () => {
+            readableStream.destroy();
+          });
+          readableStream.on('end', async () => {
+            buffer = Buffer.concat(buffer);
+            resolve({ filename, buffer });
+          });
+        } catch (err) {
+          reject(new InternalError(`Read ${filename}`));
+        }
+      })
+  );
+
+  fastify.decorate(
+    'saveAimFileFromMigrate',
+    (dir, filename) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const buffer = await fastify.getFileBuffer(dir, filename);
+          const jsonBuffer = JSON.parse(buffer.toString());
+          if (jsonBuffer.ImageAnnotationCollection) {
+            // sanity check
+            await fastify.saveAimInternal(jsonBuffer);
+            resolve(`Aim file ${filename} save successful`);
+          } else reject(new Error(`File ${filename} is not an aim file`));
+        } catch (err) {
+          reject(new InternalError(`Saving aim file  ${filename}`));
+        }
+      })
+  );
+
+  fastify.decorate('migrateAnnotations', async (request, reply) => {
+    fastify.log.info(`Started scanning folder ${request.params.path} for annotations `);
+
+    if (!request.raw.hostname.startsWith('localhost')) {
+      reply.send(
+        new BadRequestError(
+          'Not supported',
+          new Error('Annotation migrate functionality is only supported for localhost')
+        )
+      );
+    } else if (!fs.existsSync(request.params.path)) {
+      reply.send(
+        new InternalError(
+          'Scanning annotations folder',
+          new Error(`${request.params.path} does not exist`)
+        )
+      );
+    } else {
+      const dir = request.params.path.endsWith('/')
+        ? request.params.path.substring(0, request.params.path.length - 1)
+        : request.params.path;
+      fs.readdir(dir, async (err, files) => {
+        if (err) {
+          reply.send(new InternalError(`Reading directory ${dir}`, err));
+        } else {
+          try {
+            reply.send(`Started scanning ${dir} for annotations`);
+            const result = {};
+            const promisses = [];
+            for (let i = 0; i < files.length; i += 1) {
+              if (files[i] !== '__MACOSX')
+                if (fs.statSync(`${dir}/${files[i]}`).isDirectory() === true)
+                  fastify.log.info(`Skipping directory ${dir}/${files[i]}`);
+                else {
+                  promisses.push(() =>
+                    fastify.saveAimFileFromMigrate(dir, files[i]).catch((error) => {
+                      result.errors.push(error);
+                    })
+                  );
+                }
+            }
+            pq.addAll(promisses).then(async (values) => {
+              try {
+                for (let i = 0; i < values.length; i += 1) {
+                  if (values[i] && values[i].success) {
+                    // one success is enough
+                    result.success = true;
+                    // I cannot break because of errors accumulation, I am not sure about performance
+                    // break;
+                  }
+                  if (values[i] && values[i].errors && values[i].errors.length > 0)
+                    result.errors = result.errors.concat(values[i].errors);
+                }
+
+                fastify.log.info(
+                  `Finished scanning annotations directory with result: ${JSON.stringify(result)}`
+                );
+                fastify.log.info('Triggering project info filling');
+                fastify.addProjectIDToAims();
+                fastify.log.info(`Finished migrating aims in ${request.params.path}`);
+              } catch (cumulateErrors) {
+                fastify.log.error(
+                  `Cumulating errors from migrating aims. Error: ${cumulateErrors.message}`
+                );
+              }
+            });
+          } catch (errDir) {
+            fastify.log.error(`Scanning annotations directory for migration. Error: ${errDir}`);
+          }
+        }
+      });
+    }
+  });
+
   fastify.decorate('scanFolder', (request, reply) => {
     const scanTimestamp = new Date().getTime();
     const dataFolder = path.join(__dirname, '../data');
