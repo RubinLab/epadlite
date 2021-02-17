@@ -281,6 +281,40 @@ async function otherRoutes(fastify) {
   });
 
   fastify.route({
+    method: 'POST',
+    url: '/migratefiles',
+    schema: {
+      tags: ['migrate'],
+      query: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.migrateFiles,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/migrateannotations',
+    schema: {
+      tags: ['migrate'],
+      query: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.migrateAnnotations,
+  });
+
+  fastify.route({
     method: 'GET',
     url: '/userinfo',
     schema: {
