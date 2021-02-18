@@ -647,7 +647,7 @@ async function other(fastify) {
   );
 
   fastify.decorate(
-    'saveAimFile',
+    'saveAimFileFromMigrate',
     (dir, filename) =>
       new Promise(async (resolve, reject) => {
         try {
@@ -699,7 +699,7 @@ async function other(fastify) {
                   fastify.log.info(`Skipping directory ${dir}/${files[i]}`);
                 else {
                   promisses.push(() =>
-                    fastify.saveAimFile(dir, files[i]).catch((error) => {
+                    fastify.saveAimFileFromMigrate(dir, files[i]).catch((error) => {
                       result.errors.push(error);
                     })
                   );
