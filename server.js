@@ -92,6 +92,7 @@ fastify.register(
         { name: 'images', description: 'Image related end-points' },
         { name: 'ontology', description: 'lexicon related end-points' },
         { name: 'register', description: 'server registration related end-points' },
+        { name: 'migrate', description: 'migration related end-points' },
       ],
       externalDocs: {
         url: 'https://swagger.io',
