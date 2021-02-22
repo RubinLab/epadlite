@@ -13485,7 +13485,6 @@ async function epaddb(fastify, options, done) {
                 DROP KEY IF EXISTS uk_project_template_ind,
                 DROP FOREIGN KEY IF EXISTS FK_project_template_tid,
                 DROP KEY IF EXISTS FK_project_template_tid,
-                // DROP COLUMN IF EXISTS template_id,
                 DROP CONSTRAINT IF EXISTS uk_project_template_uid_ind, 
                 ADD CONSTRAINT uk_project_template_uid_ind UNIQUE (project_id, template_uid, template_id);`,
               { transaction: t }
