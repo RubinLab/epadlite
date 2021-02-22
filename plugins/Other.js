@@ -548,18 +548,21 @@ async function other(fastify) {
       // read db and get the paths
       // then read and migrate those files only
       const oldFiles = await fastify.getOldFileInfosFromDB();
-      reply.send(`Started scanning ${request.params.path} for files`);
+      reply.send(
+        `Started scanning ${request.params.filespath} and ${request.params.jsonspath} for files`
+      );
       const result = {};
       for (let i = 0; i < oldFiles.length; i += 1) {
         const { id, name, filepath } = oldFiles[i];
         const ext = fastify.getExtension(name);
-        // get the file buffer
-        // eslint-disable-next-line no-await-in-loop
-        const buffer = await fastify.getFileBuffer(
-          filepath.replace('/home/epad/DicomProxy/resources/files', request.params.path),
-          `${id}.${ext}`
-        );
+
         if (oldFiles[i].filetype === 'Template') {
+          // get the json template buffer
+          // eslint-disable-next-line no-await-in-loop
+          const buffer = await fastify.getFileBuffer(
+            filepath.replace('/home/epad/DicomProxy/resources/files', request.params.jsonspath),
+            `${id}.json`
+          );
           const jsonBuffer = JSON.parse(buffer.toString());
           // update the uid in database for old templates
           promises.push(() =>
@@ -573,6 +576,12 @@ async function other(fastify) {
             })
           );
         } else {
+          // get the file buffer
+          // eslint-disable-next-line no-await-in-loop
+          const buffer = await fastify.getFileBuffer(
+            filepath.replace('/home/epad/DicomProxy/resources/files', request.params.filespath),
+            `${id}.${ext}`
+          );
           const filename = `${id}_${name}`;
           // eslint-disable-next-line no-await-in-loop
           const uids = await fastify.getUidsInternal(
