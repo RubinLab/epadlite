@@ -585,10 +585,11 @@ async function other(fastify) {
           );
         } else {
           // get the file buffer
+          const extToAdd = ext ? `.${ext}` : ext;
           // eslint-disable-next-line no-await-in-loop
           const buffer = await fastify.getFileBuffer(
             filepath.replace('/home/epad/DicomProxy/resources/files', filespath),
-            `${id}.${ext}`
+            `${id}${extToAdd}`
           );
           const filename = `${id}_${name}`;
           // eslint-disable-next-line no-await-in-loop
