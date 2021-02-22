@@ -527,10 +527,13 @@ async function other(fastify) {
   );
 
   fastify.decorate('migrateFiles', async (request, reply) => {
-    fastify.log.info(
-      `Started scanning folder ${request.params.filespath} and ${request.params.jsonspath} for files `
-    );
-
+    const filespath = request.query.filespath.endsWith('/')
+      ? request.query.filespath.substring(0, request.query.filespath.length - 1)
+      : request.query.filespath;
+    const jsonspath = request.query.jsonspath.endsWith('/')
+      ? request.query.jsonspath.substring(0, request.query.jsonspath.length - 1)
+      : request.query.jsonspath;
+    fastify.log.info(`Started scanning folder ${filespath} and ${jsonspath} for files `);
     if (!request.hostname.startsWith('localhost')) {
       reply.send(
         new BadRequestError(
@@ -538,14 +541,11 @@ async function other(fastify) {
           new Error('Files migrate functionality is only supported for localhost')
         )
       );
-    } else if (
-      !fs.existsSync(request.params.filespath) ||
-      !fs.existsSync(request.params.filejsonspathspath)
-    ) {
+    } else if (!fs.existsSync(filespath) || !fs.existsSync(jsonspath)) {
       reply.send(
         new InternalError(
           'Scanning files folder',
-          new Error(`${request.params.filespath} and/or ${request.params.jsonspath} does not exist`)
+          new Error(`${filespath} and/or ${jsonspath} does not exist`)
         )
       );
     } else {
@@ -553,9 +553,7 @@ async function other(fastify) {
       // read db and get the paths
       // then read and migrate those files only
       const oldFiles = await fastify.getOldFileInfosFromDB();
-      reply.send(
-        `Started scanning ${request.params.filespath} and ${request.params.jsonspath} for files`
-      );
+      reply.send(`Started scanning ${filespath} and ${jsonspath} for files`);
       const result = {};
       for (let i = 0; i < oldFiles.length; i += 1) {
         const { id, name, filepath } = oldFiles[i];
@@ -565,7 +563,7 @@ async function other(fastify) {
           // get the json template buffer
           // eslint-disable-next-line no-await-in-loop
           const buffer = await fastify.getFileBuffer(
-            filepath.replace('/home/epad/DicomProxy/resources/files', request.params.jsonspath),
+            filepath.replace('/home/epad/DicomProxy/resources/files', jsonspath),
             `${id}.json`
           );
           const jsonBuffer = JSON.parse(buffer.toString());
@@ -584,7 +582,7 @@ async function other(fastify) {
           // get the file buffer
           // eslint-disable-next-line no-await-in-loop
           const buffer = await fastify.getFileBuffer(
-            filepath.replace('/home/epad/DicomProxy/resources/files', request.params.filespath),
+            filepath.replace('/home/epad/DicomProxy/resources/files', filespath),
             `${id}.${ext}`
           );
           const filename = `${id}_${name}`;
@@ -627,7 +625,7 @@ async function other(fastify) {
           fastify.log.info(
             `Finished scanning files directory with result: ${JSON.stringify(result)}`
           );
-          fastify.log.info(`Finished migrating files in ${request.params.path}`);
+          fastify.log.info(`Finished migrating files in ${filespath} and ${jsonspath}`);
         } catch (cumulateErrors) {
           fastify.log.error(
             `Cumulating errors from migrating files. Error: ${cumulateErrors.message}`
@@ -685,7 +683,7 @@ async function other(fastify) {
   );
 
   fastify.decorate('migrateAnnotations', async (request, reply) => {
-    fastify.log.info(`Started scanning folder ${request.params.path} for annotations `);
+    fastify.log.info(`Started scanning folder ${request.query.path} for annotations `);
 
     if (!request.hostname.startsWith('localhost')) {
       reply.send(
@@ -694,17 +692,17 @@ async function other(fastify) {
           new Error('Annotation migrate functionality is only supported for localhost')
         )
       );
-    } else if (!fs.existsSync(request.params.path)) {
+    } else if (!fs.existsSync(request.query.path)) {
       reply.send(
         new InternalError(
           'Scanning annotations folder',
-          new Error(`${request.params.path} does not exist`)
+          new Error(`${request.query.path} does not exist`)
         )
       );
     } else {
-      const dir = request.params.path.endsWith('/')
-        ? request.params.path.substring(0, request.params.path.length - 1)
-        : request.params.path;
+      const dir = request.query.path.endsWith('/')
+        ? request.query.path.substring(0, request.query.path.length - 1)
+        : request.query.path;
       fs.readdir(dir, async (err, files) => {
         if (err) {
           reply.send(new InternalError(`Reading directory ${dir}`, err));
@@ -743,7 +741,7 @@ async function other(fastify) {
                 );
                 fastify.log.info('Triggering project info filling');
                 fastify.addProjectIDToAims();
-                fastify.log.info(`Finished migrating aims in ${request.params.path}`);
+                fastify.log.info(`Finished migrating aims in ${request.query.path}`);
               } catch (cumulateErrors) {
                 fastify.log.error(
                   `Cumulating errors from migrating aims. Error: ${cumulateErrors.message}`
