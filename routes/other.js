@@ -288,7 +288,10 @@ async function otherRoutes(fastify) {
       query: {
         type: 'object',
         properties: {
-          path: {
+          filespath: {
+            type: 'string',
+          },
+          jsonspath: {
             type: 'string',
           },
         },
