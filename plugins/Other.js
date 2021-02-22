@@ -527,20 +527,25 @@ async function other(fastify) {
   );
 
   fastify.decorate('migrateFiles', async (request, reply) => {
-    fastify.log.info(`Started scanning folder ${request.params.path} for files `);
+    fastify.log.info(
+      `Started scanning folder ${request.params.filespath} and ${request.params.jsonspath} for files `
+    );
 
-    if (!request.raw.hostname.startsWith('localhost')) {
+    if (!request.hostname.startsWith('localhost')) {
       reply.send(
         new BadRequestError(
           'Not supported',
           new Error('Files migrate functionality is only supported for localhost')
         )
       );
-    } else if (!fs.existsSync(request.params.path)) {
+    } else if (
+      !fs.existsSync(request.params.filespath) ||
+      !fs.existsSync(request.params.filejsonspathspath)
+    ) {
       reply.send(
         new InternalError(
           'Scanning files folder',
-          new Error(`${request.params.path} does not exist`)
+          new Error(`${request.params.filespath} and/or ${request.params.jsonspath} does not exist`)
         )
       );
     } else {
@@ -682,7 +687,7 @@ async function other(fastify) {
   fastify.decorate('migrateAnnotations', async (request, reply) => {
     fastify.log.info(`Started scanning folder ${request.params.path} for annotations `);
 
-    if (!request.raw.hostname.startsWith('localhost')) {
+    if (!request.hostname.startsWith('localhost')) {
       reply.send(
         new BadRequestError(
           'Not supported',
