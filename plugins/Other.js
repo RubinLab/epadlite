@@ -566,6 +566,12 @@ async function other(fastify) {
         );
         if (oldFiles[i].filetype === 'Template') {
           const jsonBuffer = JSON.parse(buffer.toString());
+          // update the uid in database for old templates
+          promises.push(() =>
+            fastify.fixTemplateUid(id, jsonBuffer.TemplateContainer.uid).catch((error) => {
+              result.errors.push(error);
+            })
+          );
           promises.push(() =>
             fastify.saveTemplateInternal(jsonBuffer).catch((error) => {
               result.errors.push(error);
