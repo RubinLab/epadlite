@@ -11072,6 +11072,24 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'fixTemplateUid',
+    (fileId, templateUid, t) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await fastify.orm.query(
+            `UPDATE project_template 
+            SET template_uid = '${templateUid}'
+            WHERE template_id = ( SELECT id FROM template WHERE file_id = ${fileId} )`,
+            { transaction: t }
+          );
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
     'migrateSubject',
     (study, project, epadAuth, t) =>
       new Promise(async (resolve, reject) => {
