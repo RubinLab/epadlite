@@ -13461,32 +13461,33 @@ async function epaddb(fastify, options, done) {
             // change template_id (fk template) to template_uid
             // needs to get template_uid from template table first
             // add the column
-            await fastify.orm.query(
-              `ALTER TABLE project_template 
-                ADD COLUMN IF NOT EXISTS template_uid varchar(128) NOT NULL AFTER project_id;`,
-              { transaction: t }
-            );
-            // just put values so that we can define unique (I needed to run a query outside the transaction as the model prevents me to see the column)
+            // if we did not add template_uid yet, we need to add and copy values (I needed to run a query outside the transaction as the model prevents me to see the column)
             try {
-              await fastify.orm.query(`SELECT template_id from project_template;`);
+              await fastify.orm.query(`SELECT template_uid from project_template;`);
+              fastify.log.warn(`template_uid column is already added. that's ok. nothing to do`);
+            } catch (err) {
+              await fastify.orm.query(
+                `ALTER TABLE project_template 
+                  ADD COLUMN IF NOT EXISTS template_uid varchar(128) NOT NULL AFTER project_id;`,
+                { transaction: t }
+              );
               await fastify.orm.query(
                 `UPDATE project_template
                   SET template_uid = (SELECT templateUID from template
-                  WHERE id = ${fastify.orm.literal('template_id')} );`,
+                  WHERE id = project_template.template_id);`,
                 { transaction: t }
               );
-            } catch (err) {
-              fastify.log.warn(`template_id column is already deleted. that's ok. nothing to do`);
             }
             // remove the column and indexes
+            // keep template_id column and use that in the unique. Old data is WRONG! it has the template's uis not the template container's and is NOT unique in old templates!
             await fastify.orm.query(
               `ALTER TABLE project_template 
                 DROP KEY IF EXISTS uk_project_template_ind,
                 DROP FOREIGN KEY IF EXISTS FK_project_template_tid,
                 DROP KEY IF EXISTS FK_project_template_tid,
-                DROP COLUMN IF EXISTS template_id,
+                // DROP COLUMN IF EXISTS template_id,
                 DROP CONSTRAINT IF EXISTS uk_project_template_uid_ind, 
-                ADD CONSTRAINT uk_project_template_uid_ind UNIQUE (project_id, template_uid);`,
+                ADD CONSTRAINT uk_project_template_uid_ind UNIQUE (project_id, template_uid, template_id);`,
               { transaction: t }
             );
             fastify.log.warn('Migrated project_template');
@@ -13823,6 +13824,7 @@ async function epaddb(fastify, options, done) {
 
           resolve('Database tables altered successfully');
         } catch (err) {
+          console.log(err);
           reject(new InternalError('Migrating database schema', err));
         }
       })
