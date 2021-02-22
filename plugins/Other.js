@@ -1930,6 +1930,8 @@ async function other(fastify) {
       !(
         req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/appVersion`) && req.method === 'POST'
       ) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/migratefiles`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/migrateannotations`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
