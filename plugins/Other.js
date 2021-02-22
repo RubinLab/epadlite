@@ -559,7 +559,7 @@ async function other(fastify) {
         const { id, name, filepath } = oldFiles[i];
         const ext = fastify.getExtension(name);
 
-        if (oldFiles[i].filetype === 'Template') {
+        if (oldFiles[i].filetype === 'Template' && ext === 'xml') {
           // get the json template buffer
           // eslint-disable-next-line no-await-in-loop
           const buffer = await fastify.getFileBuffer(
