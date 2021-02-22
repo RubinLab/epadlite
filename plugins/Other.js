@@ -562,9 +562,9 @@ async function other(fastify) {
       const result = {};
       for (let i = 0; i < oldFiles.length; i += 1) {
         const { id, name, filepath } = oldFiles[i];
-        const ext = fastify.getExtension(name);
+        const ext = fastify.getExtension(name, true);
 
-        if (oldFiles[i].filetype === 'Template' && ext === 'xml') {
+        if (oldFiles[i].filetype === 'Template' && ext.toLowerCase() === 'xml') {
           // get the json template buffer
           // eslint-disable-next-line no-await-in-loop
           const buffer = await fastify.getFileBuffer(
@@ -661,7 +661,7 @@ async function other(fastify) {
           });
           readableStream.on('end', async () => {
             buffer = Buffer.concat(buffer);
-            resolve({ filename, buffer });
+            resolve(buffer);
           });
         } catch (err) {
           reject(new InternalError(`Read ${filename}`));
@@ -1410,10 +1410,10 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate('getExtension', (filename) => {
+  fastify.decorate('getExtension', (filename, keepCase) => {
     const ext = path.extname(filename).replace('.', '');
     if (ext === '') return '';
-    return ext.toLowerCase();
+    return !keepCase ? ext.toLowerCase() : ext;
   });
 
   fastify.decorate('checkFileType', (filename) => {
