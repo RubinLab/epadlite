@@ -11073,13 +11073,34 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'fixTemplateUid',
-    (fileId, templateUid, t) =>
+    (fileId, templateUid, projectId, allProjectId, unassignedProjectId, t) =>
       new Promise(async (resolve, reject) => {
         try {
           await fastify.orm.query(
             `UPDATE project_template 
             SET template_uid = '${templateUid}'
             WHERE template_id = ( SELECT id FROM template WHERE file_id = ${fileId} )`,
+            { transaction: t }
+          );
+          if (projectId === allProjectId)
+            await fastify.addTemplateProjectRels(allProjectId, unassignedProjectId, templateUid);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+
+  fastify.decorate(
+    'addTemplateProjectRels',
+    (allProjectId, unassignedProjectId, templateUid, t) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          await fastify.orm.query(
+            `INSERT IGNORE INTO project_template (project_id, template_uid, enabled) 
+            SELECT (id,'${templateUid}',true) FROM project
+            WHERE id <> ${allProjectId} and id <> ${unassignedProjectId}`,
             { transaction: t }
           );
           resolve();
