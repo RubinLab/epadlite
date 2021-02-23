@@ -695,7 +695,7 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate('migrateAnnotations', async (request, reply) => {
+  fastify.decorate('migrateAnnotations', (request, reply) => {
     fastify.log.info(`Started scanning folder ${request.query.path} for annotations `);
 
     if (!request.hostname.startsWith('localhost')) {
@@ -716,7 +716,7 @@ async function other(fastify) {
       const dir = request.query.path.endsWith('/')
         ? request.query.path.substring(0, request.query.path.length - 1)
         : request.query.path;
-      fs.readdir(dir, async (err, files) => {
+      fs.readdir(dir, (err, files) => {
         if (err) {
           reply.send(new InternalError(`Reading directory ${dir}`, err));
         } else {
@@ -736,7 +736,7 @@ async function other(fastify) {
                   );
                 }
             }
-            pq.addAll(promisses).then(async (values) => {
+            pq.addAll(promisses).then((values) => {
               try {
                 for (let i = 0; i < values.length; i += 1) {
                   if (values[i] && values[i].success) {
