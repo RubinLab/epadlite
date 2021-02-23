@@ -562,7 +562,7 @@ async function other(fastify) {
       // then read and migrate those files only
       const oldFiles = await fastify.getOldFileInfosFromDB();
       reply.send(`Started scanning ${filespath} and ${jsonspath} for files`);
-      const result = {};
+      const result = { errors: [] };
       for (let i = 0; i < oldFiles.length; i += 1) {
         const { id, name, filepath } = oldFiles[i];
         const ext = fastify.getExtension(name, true);
