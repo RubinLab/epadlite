@@ -2352,6 +2352,7 @@ async function epaddb(fastify, options, done) {
 
                 if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
                   // aim level dicoms
+                  fastify.log.warn(`getting aim level dicoms`);
                   const aimsKeysLength = Object.keys(aims).length;
                   const aimsKeys = Object.keys(aims);
                   for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
@@ -2410,7 +2411,7 @@ async function epaddb(fastify, options, done) {
                   }
                 } else {
                   // project level dicoms
-                  fastify.log.info(`getting projects dicoms........in.${inputfolder}/`);
+                  fastify.log.info(`getting projects levels dicoms........in.${inputfolder}/`);
                   const writeStream = fs
                     .createWriteStream(`${inputfolder}/dicoms.zip`)
                     // eslint-disable-next-line prefer-arrow-callback
@@ -8688,6 +8689,7 @@ async function epaddb(fastify, options, done) {
                 { subject: 'NA', study: 'NA', series: 'NA' },
                 dataDir
               );
+              console.log('cavit : files result internally received : ', files);
               isThereDataToWrite = isThereDataToWrite || files;
               archive.directory(`${dataDir}/files`, 'files');
             }
