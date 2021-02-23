@@ -2447,6 +2447,9 @@ async function epaddb(fastify, options, done) {
                         });
                       // un zip part over
                     });
+                  fastify.log.info(
+                    `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
+                  );
                   // eslint-disable-next-line no-await-in-loop
                   await fastify.prepDownload(
                     request.headers.origin,
@@ -2455,7 +2458,7 @@ async function epaddb(fastify, options, done) {
                     request.epadAuth,
                     writeStream,
                     {
-                      project_id: projectid,
+                      project_id: projectdbid,
                     }
                   );
                 }
