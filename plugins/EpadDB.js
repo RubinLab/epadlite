@@ -3276,32 +3276,38 @@ async function epaddb(fastify, options, done) {
               );
               fastify.log.info(`csv files in the plugin output folder : ${csvArray}`);
               if (csvArray.length > 0) {
-                fastify.log.info(
-                  `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
-                );
-                // eslint-disable-next-line no-await-in-loop
-                const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
-                const pluginInfoFromParams = {
-                  pluginnameid: pluginParameters.pluginnameid,
-                  pluginname: pluginParameters.pluginname,
-                };
+                if (csvArray.indexOf('epadPlubinCalculations') > -1) {
+                  fastify.log.info(
+                    `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
+                  const pluginInfoFromParams = {
+                    pluginnameid: pluginParameters.pluginnameid,
+                    pluginname: pluginParameters.pluginname,
+                  };
 
-                // eslint-disable-next-line no-await-in-loop
-                const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
-                  calcObj,
-                  pluginInfoFromParams
-                );
-                // eslint-disable-next-line no-await-in-loop
-                const mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
-                  returnPartialPluginCalcAim,
-                  'userAim:Param',
-                  `${pluginParameters.relativeServerFolder}/aims`
-                );
-                // eslint-disable-next-line no-await-in-loop
-                await fastify.uploadMergedAimPluginCalcInternal(
-                  mergedaimFileLocation,
-                  pluginParameters.projectid
-                );
+                  // eslint-disable-next-line no-await-in-loop
+                  const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
+                    calcObj,
+                    pluginInfoFromParams
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  const mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
+                    returnPartialPluginCalcAim,
+                    'userAim:Param',
+                    `${pluginParameters.relativeServerFolder}/aims`
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.uploadMergedAimPluginCalcInternal(
+                    mergedaimFileLocation,
+                    pluginParameters.projectid
+                  );
+                } else {
+                  fastify.log.info(
+                    'no epadPlubinCalculations.csv file found in output folder for the plugin'
+                  );
+                }
               } else {
                 fastify.log.info('no csv file found in output folder for the plugin');
               }
