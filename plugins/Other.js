@@ -554,6 +554,9 @@ async function other(fastify) {
         )
       );
     } else {
+      // get the db id of the all project
+      const allProjectId = await fastify.findProjectIdInternal(config.XNATUploadProjectID);
+      const unassignedProjectId = await fastify.findProjectIdInternal(config.unassignedProjectID);
       const promises = [];
       // read db and get the paths
       // then read and migrate those files only
@@ -574,10 +577,19 @@ async function other(fastify) {
           const jsonBuffer = JSON.parse(buffer.toString());
           // update the uid in database for old templates
           promises.push(() =>
-            fastify.fixTemplateUid(id, jsonBuffer.TemplateContainer.uid).catch((error) => {
-              result.errors.push(error);
-            })
+            fastify
+              .fixTemplateUid(
+                id,
+                jsonBuffer.TemplateContainer.uid,
+                oldFiles[i].project_id,
+                allProjectId,
+                unassignedProjectId
+              )
+              .catch((error) => {
+                result.errors.push(error);
+              })
           );
+
           promises.push(() =>
             fastify.saveTemplateInternal(jsonBuffer).catch((error) => {
               result.errors.push(error);
