@@ -2453,10 +2453,10 @@ async function epaddb(fastify, options, done) {
                     { project: projectid },
                     { format: 'stream', includeAims: 'false' },
                     request.epadAuth,
-                    writeStream
-                    // {
-                    //   project_id: projectdbid,
-                    // }
+                    writeStream,
+                    {
+                      project_id: projectid,
+                    }
                   );
                 }
               } catch (err) {
