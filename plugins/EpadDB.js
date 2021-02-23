@@ -2410,12 +2410,19 @@ async function epaddb(fastify, options, done) {
                   }
                 } else {
                   // project level dicoms
-                  fastify.log.info('getting projects dicoms.........');
+                  fastify.log.info(`getting projects dicoms........in.${inputfolder}/`);
                   const writeStream = fs
                     .createWriteStream(`${inputfolder}/dicoms.zip`)
                     // eslint-disable-next-line prefer-arrow-callback
                     .on('finish', function () {
-                      fastify.log.info('dicom copy finished');
+                      fs.copyFile(
+                        `${inputfolder}/dicoms.zip`,
+                        `${inputfolder}/dicoms_backup.zip`,
+                        (err) => {
+                          console.log('error happened while duplicating project level files', err);
+                        }
+                      );
+                      fastify.log.info(`dicom copy finished ${inputfolder}/dicoms.zip`);
                       // unzip part
                       fs.createReadStream(`${inputfolder}/dicoms.zip`)
                         .pipe(unzip.Extract({ path: `${inputfolder}` }))
@@ -3276,7 +3283,7 @@ async function epaddb(fastify, options, done) {
               );
               fastify.log.info(`csv files in the plugin output folder : ${csvArray}`);
               if (csvArray.length > 0) {
-                if (csvArray.indexOf('epadPlubinCalculations') > -1) {
+                if (csvArray.indexOf('epadPluginCalculations') > -1) {
                   fastify.log.info(
                     `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
                   );
@@ -3305,7 +3312,7 @@ async function epaddb(fastify, options, done) {
                   );
                 } else {
                   fastify.log.info(
-                    'no epadPlubinCalculations.csv file found in output folder for the plugin'
+                    'no epadPluginCalculations.csv file found in output folder for the plugin'
                   );
                 }
               } else {
