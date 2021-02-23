@@ -11091,7 +11091,6 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-
   fastify.decorate(
     'addTemplateProjectRels',
     (allProjectId, unassignedProjectId, templateUid, t) =>
@@ -11099,7 +11098,7 @@ async function epaddb(fastify, options, done) {
         try {
           await fastify.orm.query(
             `INSERT IGNORE INTO project_template (project_id, template_uid, enabled) 
-            SELECT (id,'${templateUid}',true) FROM project
+            SELECT id,'${templateUid}',true FROM project
             WHERE id <> ${allProjectId} and id <> ${unassignedProjectId}`,
             { transaction: t }
           );
