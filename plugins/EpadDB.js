@@ -2428,16 +2428,17 @@ async function epaddb(fastify, options, done) {
                         .pipe(unzip.Extract({ path: `${inputfolder}` }))
                         .on('close', () => {
                           fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
-                          fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
-                            if (error) {
-                              fastify.log.info(
-                                `${inputfolder}/dicoms.zip file deletion error ${error.message}`
-                              );
-                              reject(error);
-                            } else {
-                              fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
-                            }
-                          });
+                          // temporarly commented
+                          // fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
+                          //   if (error) {
+                          //     fastify.log.info(
+                          //       `${inputfolder}/dicoms.zip file deletion error ${error.message}`
+                          //     );
+                          //     reject(error);
+                          //   } else {
+                          //     fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
+                          //   }
+                          // });
                         })
                         .on('error', (error) => {
                           reject(
