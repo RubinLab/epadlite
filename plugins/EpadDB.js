@@ -13,7 +13,7 @@ const unzip = require('unzip-stream');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
 const csv = require('csv-parser');
-
+const fstream = require('fstream');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -2412,7 +2412,7 @@ async function epaddb(fastify, options, done) {
                 } else {
                   // project level dicoms
                   fastify.log.info(`getting projects levels dicoms........in.${inputfolder}/`);
-                  const writeStream = fs
+                  const writeStreamProjectLevel = fs
                     .createWriteStream(`${inputfolder}/dicoms.zip`)
                     // eslint-disable-next-line prefer-arrow-callback
                     .on('close', function () {
@@ -2457,13 +2457,33 @@ async function epaddb(fastify, options, done) {
                     { project: projectid },
                     { format: 'stream', includeAims: 'false' },
                     request.epadAuth,
-                    writeStream,
+                    writeStreamProjectLevel,
                     {
                       project_id: projectdbid,
                     }
                   );
+                  // fs.createReadStream(`${inputfolder}/dicoms.zip`)
+                  //   .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                  //   .on('close', () => {
+                  //     fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
+                  //     // temporarly commented
+                  //     // fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
+                  //     //   if (error) {
+                  //     //     fastify.log.info(
+                  //     //       `${inputfolder}/dicoms.zip file deletion error ${error.message}`
+                  //     //     );
+                  //     //     reject(error);
+                  //     //   } else {
+                  //     //     fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
+                  //     //   }
+                  //     // });
+                  //   })
+                  //   .on('error', (error) => {
+                  //     reject(new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error));
+                  //   });
                   fs.createReadStream(`${inputfolder}/dicoms.zip`)
-                    .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                    .pipe(unzip.Parse())
+                    .pipe(fstream.Writer(`${inputfolder}`))
                     .on('close', () => {
                       fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
                       // temporarly commented
