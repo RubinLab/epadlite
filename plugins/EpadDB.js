@@ -2415,7 +2415,7 @@ async function epaddb(fastify, options, done) {
                   const writeStream = fs
                     .createWriteStream(`${inputfolder}/dicoms.zip`)
                     // eslint-disable-next-line prefer-arrow-callback
-                    .on('finish', function () {
+                    .on('close', function () {
                       fs.copyFile(
                         `${inputfolder}/dicoms.zip`,
                         `${inputfolder}/dicoms_backup.zip`,
