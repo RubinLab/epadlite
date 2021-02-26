@@ -2416,36 +2416,36 @@ async function epaddb(fastify, options, done) {
                     .createWriteStream(`${inputfolder}/dicoms.zip`)
                     // eslint-disable-next-line prefer-arrow-callback
                     .on('close', function () {
-                      fs.copyFile(
-                        `${inputfolder}/dicoms.zip`,
-                        `${inputfolder}/dicoms_backup.zip`,
-                        (err) => {
-                          console.log('error happened while duplicating project level files', err);
-                        }
-                      );
+                      // fs.copyFile(
+                      //   `${inputfolder}/dicoms.zip`,
+                      //   `${inputfolder}/dicoms_backup.zip`,
+                      //   (err) => {
+                      //     console.log('error happened while duplicating project level files', err);
+                      //   }
+                      // );
                       fastify.log.info(`dicom copy finished ${inputfolder}/dicoms.zip`);
                       // unzip part
-                      fs.createReadStream(`${inputfolder}/dicoms.zip`)
-                        .pipe(unzip.Extract({ path: `${inputfolder}` }))
-                        .on('close', () => {
-                          fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
-                          // temporarly commented
-                          // fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
-                          //   if (error) {
-                          //     fastify.log.info(
-                          //       `${inputfolder}/dicoms.zip file deletion error ${error.message}`
-                          //     );
-                          //     reject(error);
-                          //   } else {
-                          //     fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
-                          //   }
-                          // });
-                        })
-                        .on('error', (error) => {
-                          reject(
-                            new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
-                          );
-                        });
+                      // fs.createReadStream(`${inputfolder}/dicoms.zip`)
+                      //   .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                      //   .on('close', () => {
+                      //     fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
+                      //     // temporarly commented
+                      //     // fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
+                      //     //   if (error) {
+                      //     //     fastify.log.info(
+                      //     //       `${inputfolder}/dicoms.zip file deletion error ${error.message}`
+                      //     //     );
+                      //     //     reject(error);
+                      //     //   } else {
+                      //     //     fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
+                      //     //   }
+                      //     // });
+                      //   })
+                      //   .on('error', (error) => {
+                      //     reject(
+                      //       new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
+                      //     );
+                      //   });
                       // un zip part over
                     });
                   fastify.log.info(
@@ -2462,6 +2462,25 @@ async function epaddb(fastify, options, done) {
                       project_id: projectdbid,
                     }
                   );
+                  fs.createReadStream(`${inputfolder}/dicoms.zip`)
+                    .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                    .on('close', () => {
+                      fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
+                      // temporarly commented
+                      // fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
+                      //   if (error) {
+                      //     fastify.log.info(
+                      //       `${inputfolder}/dicoms.zip file deletion error ${error.message}`
+                      //     );
+                      //     reject(error);
+                      //   } else {
+                      //     fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
+                      //   }
+                      // });
+                    })
+                    .on('error', (error) => {
+                      reject(new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error));
+                    });
                 }
               } catch (err) {
                 reject(err);
