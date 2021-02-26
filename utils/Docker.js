@@ -260,7 +260,8 @@ class DockerService {
             let showInfo = '';
             stream.on('data', () => {
               if (counter === 0) {
-                process.stdout.write(`${infoWord}\r`);
+                // eslint-disable-next-line prefer-template
+                process.stdout.write(infoWord + '\r');
                 counter += 1;
               } else if (counter >= 1 && counter < 10) {
                 // eslint-disable-next-line operator-assignment

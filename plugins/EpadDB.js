@@ -8703,10 +8703,11 @@ async function epaddb(fastify, options, done) {
                   .pipe(res);
               }
               res.on('finish', () => {
-                fs.remove(dir, (error) => {
-                  if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                  else fastify.log.info(`${dir} deleted`);
-                });
+                console.log('cavit : files result internally received tmp dir : ', dir);
+                // fs.remove(dir, (error) => {
+                //   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                //   else fastify.log.info(`${dir} deleted`);
+                // });
               });
 
               archive.on('end', () => {
