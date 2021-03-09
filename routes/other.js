@@ -321,5 +321,11 @@ async function otherRoutes(fastify) {
     url: '/search',
     handler: fastify.search,
   });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/dicomsr',
+    handler: fastify.aim2sr,
+  });
 }
 module.exports = otherRoutes;

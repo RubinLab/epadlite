@@ -109,6 +109,8 @@ fastify.register(
 // register epaddb plugin we created
 // eslint-disable-next-line global-require
 fastify.register(require('./plugins/EpadDB'));
+
+fastify.register(require('./plugins/AimConvert'));
 // register routes
 // this should be done after CouchDB plugin to be able to use the accessor methods
 // for both thick and lite
