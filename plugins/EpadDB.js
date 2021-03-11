@@ -8578,6 +8578,7 @@ async function epaddb(fastify, options, done) {
               if (!isThereData) fs.rmdirSync(dataDir);
               isThereDataToWrite = isThereDataToWrite || isThereData;
             } else if (studiesInfo) {
+              const patientsFolders = [];
               // download all studies under subject
               for (let i = 0; i < studiesInfo.length; i += 1) {
                 const studyUid = studiesInfo[i].study;
@@ -8635,11 +8636,16 @@ async function epaddb(fastify, options, done) {
                       (!whereJSON.subject_id ||
                         (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
                   )
-                    archive.directory(`${dataDir}/Patient-${subjectUid}`, `Patient-${subjectUid}`);
-                  else archive.directory(`${studyDir}`, studySubDir);
+                    if (!patientsFolders.includes(`Patient-${subjectUid}`))
+                      patientsFolders.push(`Patient-${subjectUid}`);
+                    // archive.directory(`${dataDir}/Patient-${subjectUid}`, `Patient-${subjectUid}`);
+                    else archive.directory(`${studyDir}`, studySubDir);
                 }
                 isThereDataToWrite = isThereDataToWrite || isThereData;
               }
+              patientsFolders.forEach((folder) =>
+                archive.directory(`${dataDir}/${folder}`, `${folder}`)
+              );
             } else if (seriesInfos) {
               for (let i = 0; i < seriesInfos.length; i += 1) {
                 const seriesDir = `${dataDir}/Series-${seriesInfos[i].series}`;
