@@ -8523,7 +8523,17 @@ async function epaddb(fastify, options, done) {
   // it needs the node response object
   fastify.decorate(
     'prepDownload',
-    async (reqOrigin, params, query, epadAuth, output, whereJSON, studyInfos, seriesInfos) =>
+    async (
+      reqOrigin,
+      params,
+      query,
+      epadAuth,
+      output,
+      whereJSON,
+      studyInfos,
+      seriesInfos,
+      returnFolder
+    ) =>
       new Promise(async (resolve, reject) => {
         try {
           // not handling all project intentionally. only download files for that project
@@ -8536,12 +8546,16 @@ async function epaddb(fastify, options, done) {
             : studyInfos;
 
           const timestamp = new Date().getTime();
-          const dir = `tmp_${timestamp}`;
+          // create tmp parent directory if it does not exist
+          if (!fs.existsSync('tmp')) fs.mkdirSync('tmp');
+          const dir = `tmp/tmp_${timestamp}`;
           let headWritten = false;
           if (!fs.existsSync(dir)) {
-            const archive = archiver('zip', {
-              zlib: { level: 9 }, // Sets the compression level.
-            });
+            let archive;
+            if (!returnFolder)
+              archive = archiver('zip', {
+                zlib: { level: 9 }, // Sets the compression level.
+              });
 
             fs.mkdirSync(dir);
             let dirName = params.series ? params.series : params.study;
@@ -8578,6 +8592,7 @@ async function epaddb(fastify, options, done) {
               if (!isThereData) fs.rmdirSync(dataDir);
               isThereDataToWrite = isThereDataToWrite || isThereData;
             } else if (studiesInfo) {
+              const patientsFolders = [];
               // download all studies under subject
               for (let i = 0; i < studiesInfo.length; i += 1) {
                 const studyUid = studiesInfo[i].study;
@@ -8624,9 +8639,10 @@ async function epaddb(fastify, options, done) {
                       fastify.writeHead(dirName, res, reqOrigin);
                     }
                     // create the archive
-                    archive
-                      .on('error', (err) => reject(new InternalError('Archiving ', err)))
-                      .pipe(res);
+                    if (!returnFolder)
+                      archive
+                        .on('error', (err) => reject(new InternalError('Archiving ', err)))
+                        .pipe(res);
                     headWritten = true;
                   }
                   if (
@@ -8635,11 +8651,16 @@ async function epaddb(fastify, options, done) {
                       (!whereJSON.subject_id ||
                         (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
                   )
-                    archive.directory(`${dataDir}/Patient-${subjectUid}`, `Patient-${subjectUid}`);
-                  else archive.directory(`${studyDir}`, studySubDir);
+                    if (!patientsFolders.includes(`Patient-${subjectUid}`))
+                      patientsFolders.push(`Patient-${subjectUid}`);
+                    else if (!returnFolder) archive.directory(`${studyDir}`, studySubDir);
                 }
                 isThereDataToWrite = isThereDataToWrite || isThereData;
               }
+              if (!returnFolder)
+                patientsFolders.forEach((folder) =>
+                  archive.directory(`${dataDir}/${folder}`, `${folder}`)
+                );
             } else if (seriesInfos) {
               for (let i = 0; i < seriesInfos.length; i += 1) {
                 const seriesDir = `${dataDir}/Series-${seriesInfos[i].series}`;
@@ -8672,16 +8693,17 @@ async function epaddb(fastify, options, done) {
                 dataDir
               );
               isThereDataToWrite = isThereDataToWrite || files;
-              archive.directory(`${dataDir}/files`, 'files');
+              if (!returnFolder) archive.directory(`${dataDir}/files`, 'files');
             }
 
             if (isThereDataToWrite) {
               if (!headWritten) {
                 if (!isResponseJustStream) fastify.writeHead(dirName, res, reqOrigin);
                 // create the archive
-                archive
-                  .on('error', (err) => reject(new InternalError('Archiving ', err)))
-                  .pipe(res);
+                if (!returnFolder)
+                  archive
+                    .on('error', (err) => reject(new InternalError('Archiving ', err)))
+                    .pipe(res);
               }
               res.on('finish', () => {
                 fs.remove(dir, (error) => {
@@ -8690,22 +8712,23 @@ async function epaddb(fastify, options, done) {
                 });
               });
 
-              archive.on('end', () => {
-                if (!isResponseJustStream) {
-                  // eslint-disable-next-line no-param-reassign
-                  output.sent = true;
-                }
-                resolve();
-              });
+              if (!returnFolder)
+                archive.on('end', () => {
+                  if (!isResponseJustStream) {
+                    // eslint-disable-next-line no-param-reassign
+                    output.sent = true;
+                  }
+                  resolve();
+                });
 
-              if (!headWritten) {
+              if (!headWritten && !returnFolder) {
                 archive.directory(`${dataDir}`, false);
               }
-
-              archive.finalize();
+              if (!returnFolder) archive.finalize();
+              else resolve(dir);
             } else {
               // finalize even if no files?
-              archive.finalize();
+              if (!returnFolder) archive.finalize();
               fs.remove(dir, (error) => {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 else fastify.log.info(`${dir} deleted`);
