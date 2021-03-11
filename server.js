@@ -7,6 +7,7 @@ const config = require('./config/index');
 // eslint-disable-next-line import/order
 const fastify = require('fastify')({
   logger: config.logger || false,
+  pluginTimeout: 30000,
   https:
     config.https === true &&
     fs.existsSync(path.join(__dirname, 'tls.key')) &&
