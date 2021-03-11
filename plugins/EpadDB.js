@@ -2415,30 +2415,22 @@ async function epaddb(fastify, options, done) {
                     .createWriteStream(`${inputfolder}/dicoms.zip`)
                     // eslint-disable-next-line prefer-arrow-callback
                     .on('finish', function () {
-                      fs.copyFile(
-                        `${inputfolder}/dicoms.zip`,
-                        `${inputfolder}/dicoms_backup.zip`,
-                        (err) => {
-                          console.log('error happened while duplicating project level files', err);
-                        }
-                      );
                       fastify.log.info(`dicom copy finished ${inputfolder}/dicoms.zip`);
                       // unzip part
                       fs.createReadStream(`${inputfolder}/dicoms.zip`)
                         .pipe(unzip.Extract({ path: `${inputfolder}` }))
                         .on('close', () => {
                           fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
-                          // temporarly commented
-                          // fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
-                          //   if (error) {
-                          //     fastify.log.info(
-                          //       `${inputfolder}/dicoms.zip file deletion error ${error.message}`
-                          //     );
-                          //     reject(error);
-                          //   } else {
-                          //     fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
-                          //   }
-                          // });
+                          fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
+                            if (error) {
+                              fastify.log.info(
+                                `${inputfolder}/dicoms.zip file deletion error ${error.message}`
+                              );
+                              reject(error);
+                            } else {
+                              fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
+                            }
+                          });
                         })
                         .on('error', (error) => {
                           reject(
