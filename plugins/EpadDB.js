@@ -2343,7 +2343,7 @@ async function epaddb(fastify, options, done) {
             // get dicoms
             if (tempPluginparams[i].paramid === 'dicoms') {
               const inputfolder = `${userfolder}/${pluginparams[i].paramid}/`;
-              fastify.log.info('creating dicoms in this folder', inputfolder);
+              fastify.log.info(`creating dicoms in this folder : ${inputfolder}`);
               try {
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
@@ -2410,12 +2410,12 @@ async function epaddb(fastify, options, done) {
                   }
                 } else {
                   // project level dicoms
-                  fastify.log.info('getting projects dicoms.........');
+                  fastify.log.info(`getting projects dicoms........in.${inputfolder}/`);
                   const writeStream = fs
                     .createWriteStream(`${inputfolder}/dicoms.zip`)
                     // eslint-disable-next-line prefer-arrow-callback
                     .on('finish', function () {
-                      fastify.log.info('dicom copy finished');
+                      fastify.log.info(`dicom copy finished ${inputfolder}/dicoms.zip`);
                       // unzip part
                       fs.createReadStream(`${inputfolder}/dicoms.zip`)
                         .pipe(unzip.Extract({ path: `${inputfolder}` }))
@@ -2439,11 +2439,14 @@ async function epaddb(fastify, options, done) {
                         });
                       // un zip part over
                     });
+                  fastify.log.info(
+                    `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
+                  );
                   // eslint-disable-next-line no-await-in-loop
                   await fastify.prepDownload(
                     request.headers.origin,
                     { project: projectid },
-                    { format: 'stream', includeAims: 'true' },
+                    { format: 'stream', includeAims: 'false' },
                     request.epadAuth,
                     writeStream,
                     {
@@ -3276,32 +3279,38 @@ async function epaddb(fastify, options, done) {
               );
               fastify.log.info(`csv files in the plugin output folder : ${csvArray}`);
               if (csvArray.length > 0) {
-                fastify.log.info(
-                  `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
-                );
-                // eslint-disable-next-line no-await-in-loop
-                const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
-                const pluginInfoFromParams = {
-                  pluginnameid: pluginParameters.pluginnameid,
-                  pluginname: pluginParameters.pluginname,
-                };
+                if (csvArray.indexOf('epadPluginCalculations') > -1) {
+                  fastify.log.info(
+                    `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
+                  const pluginInfoFromParams = {
+                    pluginnameid: pluginParameters.pluginnameid,
+                    pluginname: pluginParameters.pluginname,
+                  };
 
-                // eslint-disable-next-line no-await-in-loop
-                const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
-                  calcObj,
-                  pluginInfoFromParams
-                );
-                // eslint-disable-next-line no-await-in-loop
-                const mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
-                  returnPartialPluginCalcAim,
-                  'userAim:Param',
-                  `${pluginParameters.relativeServerFolder}/aims`
-                );
-                // eslint-disable-next-line no-await-in-loop
-                await fastify.uploadMergedAimPluginCalcInternal(
-                  mergedaimFileLocation,
-                  pluginParameters.projectid
-                );
+                  // eslint-disable-next-line no-await-in-loop
+                  const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
+                    calcObj,
+                    pluginInfoFromParams
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  const mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
+                    returnPartialPluginCalcAim,
+                    'userAim:Param',
+                    `${pluginParameters.relativeServerFolder}/aims`
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.uploadMergedAimPluginCalcInternal(
+                    mergedaimFileLocation,
+                    pluginParameters.projectid
+                  );
+                } else {
+                  fastify.log.info(
+                    'no epadPluginCalculations.csv file found in output folder for the plugin'
+                  );
+                }
               } else {
                 fastify.log.info('no csv file found in output folder for the plugin');
               }
