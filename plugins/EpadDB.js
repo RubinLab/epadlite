@@ -2357,7 +2357,7 @@ async function epaddb(fastify, options, done) {
                   for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
                     const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
                     const writeStream = fs
-                      .createWriteStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
+                      .createWriteStream(`${inputfolder}dicoms${aimsCnt}.zip`)
                       // eslint-disable-next-line prefer-arrow-callback
                       .on('finish', function () {
                         fastify.log.info('dicom copy finished');
@@ -2370,22 +2370,22 @@ async function epaddb(fastify, options, done) {
                             })
                           )
                           .on('close', () => {
-                            fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip extracted`);
-                            fs.remove(`${inputfolder}/dicoms${aimsCnt}.zip`, (error) => {
+                            fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip extracted`);
+                            fs.remove(`${inputfolder}dicoms${aimsCnt}.zip`, (error) => {
                               if (error) {
                                 fastify.log.info(
-                                  `${inputfolder}/dicoms${aimsCnt}.zip file deletion error ${error.message}`
+                                  `${inputfolder}dicoms${aimsCnt}.zip file deletion error ${error.message}`
                                 );
                                 reject(error);
                               } else {
-                                fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip deleted`);
+                                fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip deleted`);
                               }
                             });
                           })
                           .on('error', (error) => {
                             reject(
                               new InternalError(
-                                `Extracting zip ${inputfolder}/dicoms${aimsCnt}.zip`,
+                                `Extracting zip ${inputfolder}dicoms${aimsCnt}.zip`,
                                 error
                               )
                             );
@@ -2410,40 +2410,40 @@ async function epaddb(fastify, options, done) {
                   }
                 } else {
                   // project level dicoms
-                  fastify.log.info(`getting projects dicoms........in.${inputfolder}/`);
+                  fastify.log.info(`getting projects dicoms........in.${inputfolder}`);
                   const writeStream = fs
-                    .createWriteStream(`${inputfolder}/dicoms.zip`)
+                    .createWriteStream(`${inputfolder}dicoms.zip`)
                     // eslint-disable-next-line prefer-arrow-callback
                     .on('finish', function () {
-                      fastify.log.info(`dicom copy finished ${inputfolder}/dicoms.zip`);
+                      fastify.log.info(`dicom copy finished ${inputfolder}dicoms.zip`);
                       // unzip part
-                      fs.createReadStream(`${inputfolder}/dicoms.zip`)
-                        .pipe(unzip.Extract({ path: `${inputfolder}` }))
-                        .on('close', () => {
-                          fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
-                          fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
-                            if (error) {
-                              fastify.log.info(
-                                `${inputfolder}/dicoms.zip file deletion error ${error.message}`
-                              );
-                              reject(error);
-                            } else {
-                              fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
-                            }
-                          });
-                        })
-                        .on('error', (error) => {
-                          reject(
-                            new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
-                          );
-                        });
+                      // fs.createReadStream(`${inputfolder}/dicoms.zip`)
+                      //   .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                      //   .on('close', () => {
+                      //     fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
+                      //     fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
+                      //       if (error) {
+                      //         fastify.log.info(
+                      //           `${inputfolder}/dicoms.zip file deletion error ${error.message}`
+                      //         );
+                      //         reject(error);
+                      //       } else {
+                      //         fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
+                      //       }
+                      //     });
+                      //   })
+                      //   .on('error', (error) => {
+                      //     reject(
+                      //       new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
+                      //     );
+                      //   });
                       // un zip part over
                     });
                   fastify.log.info(
                     `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
                   );
                   // eslint-disable-next-line no-await-in-loop
-                  await fastify.prepDownload(
+                  const dicomPath = await fastify.prepDownload(
                     request.headers.origin,
                     { project: projectid },
                     { format: 'stream', includeAims: 'false' },
@@ -2451,8 +2451,27 @@ async function epaddb(fastify, options, done) {
                     writeStream,
                     {
                       project_id: projectdbid,
-                    }
+                    },
+                    undefined,
+                    undefined,
+                    true
                   );
+                  const pathFrom = path.join(__dirname, `../${dicomPath}`);
+                  // eslint-disable-next-line no-await-in-loop
+                  await fs.move(`${pathFrom}`, `${inputfolder}`, { overwrite: true }, (err) => {
+                    if (err) {
+                      console.error(`file copy -> ${err}`);
+                    } else {
+                      console.log('file copy success!');
+                    }
+                  });
+                  console.log('*************************');
+                  console.log('*************************');
+                  console.log('*************************');
+                  console.log('*************************');
+                  console.log(`************************* full path tmp ${__dirname}/${dicomPath}`);
+                  console.log(`************************* copy tmp to ${inputfolder}`);
+                  console.log('************************* dicom tmp path', dicomPath);
                 }
               } catch (err) {
                 reject(err);
