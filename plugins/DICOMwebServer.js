@@ -361,7 +361,7 @@ async function dicomwebserver(fastify) {
     (studyUid, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const studySeries = await fastify.getStudySeriesInternal(
+          const studySeries = await fastify.getSeriesDicomOrNotInternal(
             { study: studyUid },
             { format: 'summary', filterDSO: 'true' },
             epadAuth,
@@ -645,7 +645,7 @@ async function dicomwebserver(fastify) {
           let result = [];
           for (let j = 0; j < studyUids.length; j += 1) {
             // eslint-disable-next-line no-await-in-loop
-            const studySeries = await fastify.getStudySeriesInternal(
+            const studySeries = await fastify.getSeriesDicomOrNotInternal(
               { study: studyUids[j] },
               query,
               epadAuth,
@@ -663,7 +663,7 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getStudySeries', (request, reply) => {
     fastify
-      .getStudySeriesInternal(request.params, request.query, request.epadAuth)
+      .getSeriesDicomOrNotInternal(request.params, request.query, request.epadAuth)
       .then((result) => reply.code(200).send(result))
       .catch((err) => reply.send(err));
   });

@@ -193,6 +193,10 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'subject_id',
           });
 
+          models.nondicom_series.belongsTo(models.study, {
+            foreignKey: 'study_id',
+          });
+
           models.project_subject.belongsTo(models.subject, {
             foreignKey: 'subject_id',
           });
@@ -4103,7 +4107,7 @@ async function epaddb(fastify, options, done) {
               .catch((err) => reply.send(new InternalError('Updating annotation status', err)));
           }
         } else {
-          const seriesArr = await fastify.getStudySeriesInternal(
+          const seriesArr = await fastify.getSeriesDicomOrNotInternal(
             request.params,
             { filterDSO: 'true' },
             request.epadAuth
@@ -7582,6 +7586,45 @@ async function epaddb(fastify, options, done) {
       );
     }
   });
+
+  fastify.decorate(
+    'getSeriesDicomOrNotInternal',
+    (params, query, epadAuth, noStats) =>
+      new Promise((resolveMain, rejectMain) => {
+        const dicomPromise = new Promise(async (resolve) => {
+          try {
+            const result = await fastify.getStudySeriesInternal(params, query, epadAuth, noStats);
+            resolve({ result, error: undefined });
+          } catch (err) {
+            fastify.log.info(`Retrieving series Failed from dicomweb with ${err.message}`);
+            resolve({ result: [], error: `${err.message}` });
+          }
+        });
+        const nondicomPromise = new Promise(async (resolve) => {
+          try {
+            const result = await fastify.getNondicomStudySeriesFromProjectInternal(params);
+            resolve({ result, error: undefined });
+          } catch (err) {
+            fastify.log.info(`Retrieving series Failed from nondicom with ${err.message}`);
+            resolve({ result: [], error: `${err.message}` });
+          }
+        });
+        Promise.all([dicomPromise, nondicomPromise]).then((results) => {
+          const combinedResult = results[0].result.concat(results[1].result);
+          if (results[0].error && results[1].error)
+            rejectMain(
+              new InternalError(
+                'Retrieving series',
+                new Error(
+                  `Failed from dicomweb with ${results[0].error} and from nondicom with ${results[1].error}`
+                )
+              )
+            );
+          resolveMain(combinedResult);
+        });
+      })
+  );
+
   fastify.decorate('getStudySeriesFromProject', (request, reply) => {
     // TODO project filtering
     if (request.query.format === 'stream' && request.params.series) {
@@ -7596,43 +7639,14 @@ async function epaddb(fastify, options, done) {
         .then(() => fastify.log.info(`Series ${request.params.series} download completed`))
         .catch((downloadErr) => reply.send(new InternalError('Downloading series', downloadErr)));
     } else {
-      // TODO this part should be the series retrieval and should be used everywhere
-      const dicomPromise = new Promise(async (resolve) => {
-        try {
-          const result = await fastify.getStudySeriesInternal(
-            request.params,
-            request.query,
-            request.epadAuth
-          );
-          resolve({ result, error: undefined });
-        } catch (err) {
-          fastify.log.info(`Retrieving series Failed from dicomweb with ${err.message}`);
-          resolve({ result: [], error: `${err.message}` });
-        }
-      });
-      const nondicomPromise = new Promise(async (resolve) => {
-        try {
-          const result = await fastify.getNondicomStudySeriesFromProjectInternal(request.params);
-          resolve({ result, error: undefined });
-        } catch (err) {
-          fastify.log.info(`Retrieving series Failed from nondicom with ${err.message}`);
-          resolve({ result: [], error: `${err.message}` });
-        }
-      });
-      Promise.all([dicomPromise, nondicomPromise]).then((results) => {
-        const combinedResult = results[0].result.concat(results[1].result);
-        if (results[0].error && results[1].error)
-          reply.send(
-            new InternalError(
-              'Retrieving series',
-              new Error(
-                `Failed from dicomweb with ${results[0].error} and from nondicom with ${results[1].error}`
-              )
-            )
-          );
-        else reply.code(200).send(combinedResult);
-      });
-      // TODO till here
+      fastify
+        .getSeriesDicomOrNotInternal(request.params, request.query, request.epadAuth)
+        .then((combinedResult) => {
+          reply.code(200).send(combinedResult);
+        })
+        .catch((err) => {
+          reply.send(err);
+        });
     }
   });
   fastify.decorate(
@@ -7656,34 +7670,19 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           const result = [];
-          const promisses = [];
-          promisses.push(
-            models.subject.findOne({
-              where: { subjectuid: params.subject },
-              raw: true,
-            })
-          );
-          promisses.push(
-            models.study.findOne({
-              where: { studyuid: params.study },
-              raw: true,
-            })
-          );
-          const [subject, study] = await Promise.all(promisses);
           const series = await models.nondicom_series.findAll({
-            where: { study_id: study.id },
-            raw: true,
+            where: { '$study.studyuid$': params.study },
+            include: [{ model: models.study, include: ['subject'] }],
           });
-
           for (let i = 0; i < series.length; i += 1) {
             result.push({
               projectID: params.project,
-              patientID: params.subject,
-              patientName: subject.name,
+              patientID: series[i].dataValues.study.dataValues.subject.dataValues.subjectuid,
+              patientName: series[i].dataValues.study.dataValues.subject.dataValues.name,
               studyUID: params.study,
-              seriesUID: series[i].seriesuid,
-              seriesDate: series[i].seriesdate,
-              seriesDescription: series[i].description,
+              seriesUID: series[i].dataValues.seriesuid,
+              seriesDate: series[i].dataValues.seriesdate,
+              seriesDescription: series[i].dataValues.description,
               examType: '',
               bodyPart: '',
               accessionNumber: '',
@@ -8466,7 +8465,7 @@ async function epaddb(fastify, options, done) {
         try {
           let isThereDataToWrite = false;
           // get study series
-          const studySeries = await fastify.getStudySeriesInternal(
+          const studySeries = await fastify.getSeriesDicomOrNotInternal(
             { study: params.study },
             { format: 'summary' },
             epadAuth,
@@ -8607,6 +8606,7 @@ async function epaddb(fastify, options, done) {
                 const studyUid = studiesInfo[i].study;
                 let studySubDir = `Study-${studyUid}`;
                 const subjectUid = studiesInfo[i].subject;
+                let isThereData = false;
                 if (subjectUid) {
                   if (!fs.existsSync(`${dataDir}/Patient-${subjectUid}`))
                     fs.mkdirSync(`${dataDir}/Patient-${subjectUid}`);
@@ -8618,28 +8618,33 @@ async function epaddb(fastify, options, done) {
                       (!whereJSON.subject_id ||
                         (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
                   ) {
-                    // eslint-disable-next-line no-await-in-loop
-                    const files = await fastify.getFilesFromUIDsInternal(
-                      { format: 'stream' },
-                      fileUids,
-                      { subject: subjectUid, study: 'NA', series: 'NA' },
-                      `${dataDir}/Patient-${subjectUid}`
-                    );
-
-                    isThereDataToWrite = isThereDataToWrite || files;
+                    // only get the files if they weren't retrieved before
+                    if (!patientsFolders.includes(`Patient-${subjectUid}`)) {
+                      patientsFolders.push(`Patient-${subjectUid}`);
+                      // eslint-disable-next-line no-await-in-loop
+                      const files = await fastify.getFilesFromUIDsInternal(
+                        { format: 'stream' },
+                        fileUids,
+                        { subject: subjectUid, study: 'NA', series: 'NA' },
+                        `${dataDir}/Patient-${subjectUid}`
+                      );
+                      isThereData = isThereData || files;
+                    }
                   }
                   studySubDir = `Patient-${subjectUid}/Study-${studyUid}`;
                 }
                 const studyDir = `${dataDir}/${studySubDir}`;
                 fs.mkdirSync(studyDir);
-                // eslint-disable-next-line no-await-in-loop
-                const isThereData = await fastify.prepStudyDownloadDir(
-                  studyDir,
-                  { ...params, subject: subjectUid, study: studyUid },
-                  query,
-                  epadAuth,
-                  fileUids
-                );
+                isThereData =
+                  isThereData ||
+                  // eslint-disable-next-line no-await-in-loop
+                  (await fastify.prepStudyDownloadDir(
+                    studyDir,
+                    { ...params, subject: subjectUid, study: studyUid },
+                    query,
+                    epadAuth,
+                    fileUids
+                  ));
                 if (!isThereData) fs.rmdirSync(studyDir);
                 else {
                   if (!headWritten) {
@@ -8659,10 +8664,10 @@ async function epaddb(fastify, options, done) {
                     (whereJSON &&
                       (!whereJSON.subject_id ||
                         (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
-                  )
+                  ) {
                     if (!patientsFolders.includes(`Patient-${subjectUid}`))
                       patientsFolders.push(`Patient-${subjectUid}`);
-                    else if (!returnFolder) archive.directory(`${studyDir}`, studySubDir);
+                  } else if (!returnFolder) archive.directory(`${studyDir}`, studySubDir);
                 }
                 isThereDataToWrite = isThereDataToWrite || isThereData;
               }
@@ -8731,7 +8736,8 @@ async function epaddb(fastify, options, done) {
                     { subject: subjectuid, study: 'NA', series: 'NA' },
                     `${dataDir}/Patient-${subjectuid}`
                   );
-                  isThereDataToWrite = isThereDataToWrite || files;                }
+                  isThereDataToWrite = isThereDataToWrite || files;
+                }
               }
             }
             // check files
@@ -9561,6 +9567,7 @@ async function epaddb(fastify, options, done) {
           let result = [];
           for (let j = 0; j < studyUids.length; j += 1) {
             try {
+              // TODO see if we can use getSeriesDicomOrNotInternal instead. leaving like this as we get nondicoms below
               // eslint-disable-next-line no-await-in-loop
               const studySeries = await fastify.getStudySeriesInternal(
                 { study: studyUids[j] },
@@ -9715,7 +9722,7 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           // get study series
-          const studySeries = await fastify.getStudySeriesInternal(
+          const studySeries = await fastify.getSeriesDicomOrNotInternal(
             { study: studyUid },
             { format: 'summary' },
             epadAuth,
