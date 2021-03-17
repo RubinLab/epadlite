@@ -8606,7 +8606,7 @@ async function epaddb(fastify, options, done) {
                 const studyUid = studiesInfo[i].study;
                 let studySubDir = `Study-${studyUid}`;
                 const subjectUid = studiesInfo[i].subject;
-                let isThereData = false;
+                let isTherePatientData = false;
                 if (subjectUid) {
                   if (!fs.existsSync(`${dataDir}/Patient-${subjectUid}`))
                     fs.mkdirSync(`${dataDir}/Patient-${subjectUid}`);
@@ -8621,30 +8621,29 @@ async function epaddb(fastify, options, done) {
                     // only get the files if they weren't retrieved before
                     if (!patientsFolders.includes(`Patient-${subjectUid}`)) {
                       patientsFolders.push(`Patient-${subjectUid}`);
-                      // eslint-disable-next-line no-await-in-loop
-                      const files = await fastify.getFilesFromUIDsInternal(
-                        { format: 'stream' },
-                        fileUids,
-                        { subject: subjectUid, study: 'NA', series: 'NA' },
-                        `${dataDir}/Patient-${subjectUid}`
-                      );
-                      isThereData = isThereData || files;
+                      isTherePatientData =
+                        isTherePatientData ||
+                        // eslint-disable-next-line no-await-in-loop
+                        (await fastify.getFilesFromUIDsInternal(
+                          { format: 'stream' },
+                          fileUids,
+                          { subject: subjectUid, study: 'NA', series: 'NA' },
+                          `${dataDir}/Patient-${subjectUid}`
+                        ));
                     }
                   }
                   studySubDir = `Patient-${subjectUid}/Study-${studyUid}`;
                 }
                 const studyDir = `${dataDir}/${studySubDir}`;
                 fs.mkdirSync(studyDir);
-                isThereData =
-                  isThereData ||
-                  // eslint-disable-next-line no-await-in-loop
-                  (await fastify.prepStudyDownloadDir(
-                    studyDir,
-                    { ...params, subject: subjectUid, study: studyUid },
-                    query,
-                    epadAuth,
-                    fileUids
-                  ));
+                // eslint-disable-next-line no-await-in-loop
+                const isThereData = await fastify.prepStudyDownloadDir(
+                  studyDir,
+                  { ...params, subject: subjectUid, study: studyUid },
+                  query,
+                  epadAuth,
+                  fileUids
+                );
                 if (!isThereData) fs.rmdirSync(studyDir);
                 else {
                   if (!headWritten) {
@@ -8669,7 +8668,7 @@ async function epaddb(fastify, options, done) {
                       patientsFolders.push(`Patient-${subjectUid}`);
                   } else if (!returnFolder) archive.directory(`${studyDir}`, studySubDir);
                 }
-                isThereDataToWrite = isThereDataToWrite || isThereData;
+                isThereDataToWrite = isThereDataToWrite || isThereData || isTherePatientData;
               }
               if (!returnFolder)
                 patientsFolders.forEach((folder) =>
