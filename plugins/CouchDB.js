@@ -1600,48 +1600,59 @@ async function couchdb(fastify, options) {
           if (!fs.existsSync(`${dir}/files`)) fs.mkdirSync(`${dir}/files`);
 
           const db = fastify.couch.db.use(config.db);
+          let doneCount = 0;
           for (let i = 0; i < ids.length; i += 1) {
             const filename = ids[i].split('__ePad__')[0];
-            db.attachment
+            const stream = db.attachment
               .getAsStream(ids[i], filename)
               .pipe(fs.createWriteStream(`${dir}/files/${filename}`));
-            isThereDataToWrite = true;
-          }
-          if (subDir) {
-            if (!isThereDataToWrite) fs.rmdirSync(`${dir}/files`);
-            resolve(isThereDataToWrite);
-          } else if (isThereDataToWrite) {
-            // create a file to stream archive data to.
-            const output = fs.createWriteStream(`${dir}/files.zip`);
-            const archive = archiver('zip', {
-              zlib: { level: 9 }, // Sets the compression level.
-            });
-            // create the archive
-            archive
-              .directory(`${dir}/files`, false)
-              .on('error', (err) => reject(new InternalError('Archiving files', err)))
-              .pipe(output);
 
-            output.on('close', () => {
-              fastify.log.info(`Created zip in ${dir}`);
-              const readStream = fs.createReadStream(`${dir}/files.zip`);
-              // delete tmp folder after the file is sent
-              readStream.once('end', () => {
-                readStream.destroy(); // make sure stream closed, not close if download aborted.
-                fs.remove(dir, (error) => {
-                  if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
-                  else fastify.log.info(`${dir} deleted`);
-                });
-              });
-              resolve(readStream);
+            // sloppy way to check if all files are done
+            // eslint-disable-next-line no-loop-func
+            stream.on('finish', () => {
+              doneCount += 1;
+              if (doneCount === ids.length) {
+                // all files done
+                if (subDir) {
+                  if (!isThereDataToWrite) fs.rmdirSync(`${dir}/files`);
+                  resolve(isThereDataToWrite);
+                } else if (isThereDataToWrite) {
+                  // create a file to stream archive data to.
+                  const output = fs.createWriteStream(`${dir}/files.zip`);
+                  const archive = archiver('zip', {
+                    zlib: { level: 9 }, // Sets the compression level.
+                  });
+                  // create the archive
+                  archive
+                    .directory(`${dir}/files`, false)
+                    .on('error', (err) => reject(new InternalError('Archiving files', err)))
+                    .pipe(output);
+
+                  output.on('close', () => {
+                    fastify.log.info(`Created zip in ${dir}`);
+                    const readStream = fs.createReadStream(`${dir}/files.zip`);
+                    // delete tmp folder after the file is sent
+                    readStream.once('end', () => {
+                      readStream.destroy(); // make sure stream closed, not close if download aborted.
+                      fs.remove(dir, (error) => {
+                        if (error)
+                          fastify.log.info(`Temp directory deletion error ${error.message}`);
+                        else fastify.log.info(`${dir} deleted`);
+                      });
+                    });
+                    resolve(readStream);
+                  });
+                  archive.finalize();
+                } else {
+                  fs.remove(dir, (error) => {
+                    if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+                    else fastify.log.info(`${dir} deleted`);
+                  });
+                  reject(new InternalError('Downloading files', new Error('No file in download')));
+                }
+              }
             });
-            archive.finalize();
-          } else {
-            fs.remove(dir, (error) => {
-              if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
-              else fastify.log.info(`${dir} deleted`);
-            });
-            reject(new InternalError('Downloading files', new Error('No file in download')));
+            isThereDataToWrite = true;
           }
         } catch (err) {
           reject(new InternalError('Downloading files', err));
