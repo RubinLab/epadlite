@@ -7596,6 +7596,7 @@ async function epaddb(fastify, options, done) {
         .then(() => fastify.log.info(`Series ${request.params.series} download completed`))
         .catch((downloadErr) => reply.send(new InternalError('Downloading series', downloadErr)));
     } else {
+      // TODO this part should be the series retrieval and should be used everywhere
       const dicomPromise = new Promise(async (resolve) => {
         try {
           const result = await fastify.getStudySeriesInternal(
@@ -7631,6 +7632,7 @@ async function epaddb(fastify, options, done) {
           );
         else reply.code(200).send(combinedResult);
       });
+      // TODO till here
     }
   });
   fastify.decorate(
@@ -8411,20 +8413,27 @@ async function epaddb(fastify, options, done) {
         try {
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
-          const parts = await fastify.getSeriesWadoMultipart(params);
-          // get dicoms
-          const dcmPromises = [];
-          for (let i = 0; i < parts.length; i += 1) {
-            const arrayBuffer = parts[i];
-            const ds = dcmjs.data.DicomMessage.readFile(arrayBuffer);
-            const dicomUid =
-              ds.dict['00080018'] && ds.dict['00080018'].Value ? ds.dict['00080018'].Value[0] : i;
-            dcmPromises.push(() =>
-              fs.writeFile(`${dataDir}/${dicomUid}.dcm`, Buffer.from(arrayBuffer))
+          try {
+            const parts = await fastify.getSeriesWadoMultipart(params);
+            // get dicoms
+            const dcmPromises = [];
+            for (let i = 0; i < parts.length; i += 1) {
+              const arrayBuffer = parts[i];
+              const ds = dcmjs.data.DicomMessage.readFile(arrayBuffer);
+              const dicomUid =
+                ds.dict['00080018'] && ds.dict['00080018'].Value ? ds.dict['00080018'].Value[0] : i;
+              dcmPromises.push(() =>
+                fs.writeFile(`${dataDir}/${dicomUid}.dcm`, Buffer.from(arrayBuffer))
+              );
+              isThereDataToWrite = true;
+            }
+            await fastify.pq.addAll(dcmPromises);
+          } catch (errDicom) {
+            // TODO make a stricter check. dicomweb-server is returning 500 now. should it return 404
+            fastify.log.error(
+              `Could not retrive DICOMs, can be a nondicom series. Ignoring. Error: ${errDicom.message}`
             );
-            isThereDataToWrite = true;
           }
-          await fastify.pq.addAll(dcmPromises);
           if (query.includeAims && query.includeAims === 'true') {
             const aimsResult = await fastify.getAimsInternal('json', params, undefined, epadAuth);
             const isThereAimToWrite = await fastify.prepAimDownload(
@@ -8591,7 +8600,7 @@ async function epaddb(fastify, options, done) {
               );
               if (!isThereData) fs.rmdirSync(dataDir);
               isThereDataToWrite = isThereDataToWrite || isThereData;
-            } else if (studiesInfo) {
+            } else if (studiesInfo && studiesInfo.length > 0) {
               const patientsFolders = [];
               // download all studies under subject
               for (let i = 0; i < studiesInfo.length; i += 1) {
@@ -8680,6 +8689,49 @@ async function epaddb(fastify, options, done) {
                   fileUids
                 );
                 isThereDataToWrite = isThereDataToWrite || isThereData;
+              }
+            } else if (
+              params.subject ||
+              (whereJSON &&
+                (!whereJSON.subject_id ||
+                  (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
+            ) {
+              // no studies under the patient, see if the patient has files
+
+              // if there is wherejson, it can be project or subject(s) download
+              // if it is project download, one subject or multiple subjects I need to get files for that subjects
+              let files;
+              if (params.subject) {
+                if (!fs.existsSync(`${dataDir}/Patient-${params.subject}`))
+                  fs.mkdirSync(`${dataDir}/Patient-${params.subject}`);
+                // eslint-disable-next-line no-await-in-loop
+                files = await fastify.getFilesFromUIDsInternal(
+                  { format: 'stream' },
+                  fileUids,
+                  { subject: params.subject, study: 'NA', series: 'NA' },
+                  `${dataDir}/Patient-${params.subject}`
+                );
+                isThereDataToWrite = isThereDataToWrite || files;
+              } else if (whereJSON && whereJSON.subject_id && Array.isArray(whereJSON.subject_id)) {
+                // TODO what to do if it is project download
+                for (let i = 0; i < whereJSON.subject_id.length; i += 1) {
+                  // we need to get subject_uid
+                  // eslint-disable-next-line no-await-in-loop
+                  const { subjectuid } = await models.subject.findOne({
+                    where: { id: whereJSON.subject_id[i] },
+                    attributes: ['subjectuid'],
+                    raw: true,
+                  });
+                  if (!fs.existsSync(`${dataDir}/Patient-${subjectuid}`))
+                    fs.mkdirSync(`${dataDir}/Patient-${subjectuid}`);
+                  // eslint-disable-next-line no-await-in-loop
+                  files = await fastify.getFilesFromUIDsInternal(
+                    { format: 'stream' },
+                    fileUids,
+                    { subject: subjectuid, study: 'NA', series: 'NA' },
+                    `${dataDir}/Patient-${subjectuid}`
+                  );
+                  isThereDataToWrite = isThereDataToWrite || files;                }
               }
             }
             // check files
