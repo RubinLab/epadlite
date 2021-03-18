@@ -74,6 +74,8 @@ async function aimconvert(fastify) {
       const { MeasurementReport } = dcmjs.adapters.Cornerstone;
 
       const report = MeasurementReport.generateReport(toolstate, metaDataProvider);
+      // remove ImageComments throwing warnings in dciodvfy
+      delete report.dataset.ImageComments;
       // console.log(report);
       // const reportBlob = dcmjs.data.datasetToBlob(report.dataset);
       const reportBuffer = dcmjs.data.datasetToBuffer(report.dataset);
