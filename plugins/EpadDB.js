@@ -7629,7 +7629,7 @@ async function epaddb(fastify, options, done) {
     // TODO project filtering
     if (request.query.format === 'stream' && request.params.series) {
       fastify
-        .prepDownload(
+        .prepSeriesDownload(
           request.headers.origin,
           request.params,
           request.query,
@@ -7826,7 +7826,7 @@ async function epaddb(fastify, options, done) {
       if (project === null)
         reply.send(new ResourceNotFoundError('Project', request.params.project));
       else if (request.query.format === 'stream') {
-        await fastify.prepDownload(
+        await fastify.prepProjectDownload(
           request.headers.origin,
           request.params,
           request.query,
@@ -8528,6 +8528,592 @@ async function epaddb(fastify, options, done) {
     });
   });
 
+  fastify.decorate('setUpDownload', async (projectId, dirName, output, returnFolder) => {
+    // not handling all project intentionally. only download files for that project
+    const fileUids = await fastify.getFileUidsForProject({ project: projectId });
+    // if it has res, it is fastify reply
+    const isResponseJustStream = !output.raw;
+    const res = isResponseJustStream ? output : output.raw;
+    const timestamp = new Date().getTime();
+    // create tmp parent directory if it does not exist
+    if (!fs.existsSync('tmp')) fs.mkdirSync('tmp');
+    const dir = `tmp/tmp_${timestamp}`;
+    const headWritten = false;
+    if (!fs.existsSync(dir)) {
+      let archive;
+      if (!returnFolder)
+        archive = archiver('zip', {
+          zlib: { level: 9 }, // Sets the compression level.
+        });
+
+      fs.mkdirSync(dir);
+      const dataDir = `${dir}/${dirName}`;
+      fs.mkdirSync(dataDir);
+      const isThereDataToWrite = false;
+      return {
+        fileUids,
+        isResponseJustStream,
+        res,
+        headWritten,
+        archive,
+        dir,
+        dataDir,
+        isThereDataToWrite,
+      };
+    }
+    console.error('temp file exists');
+    return {};
+  });
+
+  fastify.decorate(
+    'wrapUpDownload',
+    (
+      isThereDataToWrite,
+      headWritten,
+      isResponseJustStream,
+      dirName,
+      res,
+      reqOrigin,
+      returnFolder,
+      archive,
+      dataDir,
+      dir,
+      output,
+      callback
+      // eslint-disable-next-line consistent-return
+    ) => {
+      if (isThereDataToWrite) {
+        if (!headWritten) {
+          if (!isResponseJustStream) fastify.writeHead(dirName, res, reqOrigin);
+          // create the archive
+          if (!returnFolder)
+            archive
+              .on('error', (err) => {
+                throw new InternalError('Archiving ', err);
+              })
+              .pipe(res);
+        }
+        res.on('finish', () => {
+          fs.remove(dir, (error) => {
+            if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+            else fastify.log.info(`${dir} deleted`);
+          });
+        });
+
+        if (!returnFolder) archive.on('end', callback);
+
+        if (!headWritten && !returnFolder) {
+          archive.directory(`${dataDir}`, false);
+        }
+        if (!returnFolder) archive.finalize();
+        else return dir;
+      } else {
+        // finalize even if no files?
+        if (!returnFolder) archive.finalize();
+        fs.remove(dir, (error) => {
+          if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+          else fastify.log.info(`${dir} deleted`);
+        });
+        throw new InternalError('Downloading', new Error('No file in download'));
+      }
+    }
+  );
+
+  // downloads subject(s)
+  // either params.subject is full or whereJSON has {project_id} or {project_id, subject_id} and subject_id is array
+  fastify.decorate(
+    'prepSubjectsDownload',
+    (reqOrigin, params, query, epadAuth, output, whereJSON, returnFolder) =>
+      new Promise(async (resolve, reject) => {
+        if (
+          !params.subject &&
+          !(whereJSON && whereJSON.project_id && Array.isArray(whereJSON.subject_id))
+        ) {
+          fastify.log.error(
+            'Either params.subject should be full or whereJSON should have {project_id} or {project_id, subject_id} and subject_id is array'
+          );
+          reject(
+            new BadRequestError(
+              'Improper download inputs',
+              new InternalError('Subject, Subjects or Project required')
+            )
+          );
+        } else {
+          try {
+            const dirName = params.subject ? params.subject : 'Patients';
+            const {
+              fileUids,
+              isResponseJustStream,
+              res,
+              headWritten,
+              archive,
+              dir,
+              dataDir,
+              isThereDataToWrite,
+            } = await fastify.setUpDownload(params.project, dirName, output, returnFolder);
+            const studiesInfo = await fastify.getStudiesInternal(
+              whereJSON,
+              params,
+              epadAuth,
+              true,
+              query
+            );
+            const prepReturn = await fastify.prepMultipleStudies(
+              studiesInfo,
+              dataDir,
+              true,
+              fileUids,
+              params,
+              query,
+              epadAuth,
+              headWritten,
+              returnFolder,
+              dirName,
+              res,
+              reqOrigin,
+              isResponseJustStream,
+              archive,
+              isThereDataToWrite
+            );
+            // see if there are files
+            if (params.subject) {
+              if (!fs.existsSync(`${dataDir}/Patient-${params.subject}`))
+                fs.mkdirSync(`${dataDir}/Patient-${params.subject}`);
+              // eslint-disable-next-line no-await-in-loop
+              const files = await fastify.getFilesFromUIDsInternal(
+                { format: 'stream' },
+                fileUids,
+                { subject: params.subject, study: 'NA', series: 'NA' },
+                `${dataDir}/Patient-${params.subject}`
+              );
+              prepReturn.isThereDataToWrite = prepReturn.isThereDataToWrite || files;
+              if (
+                prepReturn.headWritten &&
+                !returnFolder &&
+                files &&
+                !prepReturn.patientsFolders.includes(`Patient-${params.subject}`)
+              )
+                archive.directory(
+                  `${dataDir}/Patient-${params.subject}`,
+                  `Patient-${params.subject}`
+                );
+            } else {
+              // TODO what to do if it is project download
+              for (let i = 0; i < whereJSON.subject_id.length; i += 1) {
+                // we need to get subject_uid
+                // eslint-disable-next-line no-await-in-loop
+                const { subjectuid } = await models.subject.findOne({
+                  where: { id: whereJSON.subject_id[i] },
+                  attributes: ['subjectuid'],
+                  raw: true,
+                });
+                if (!fs.existsSync(`${dataDir}/Patient-${subjectuid}`))
+                  fs.mkdirSync(`${dataDir}/Patient-${subjectuid}`);
+                // eslint-disable-next-line no-await-in-loop
+                const files = await fastify.getFilesFromUIDsInternal(
+                  { format: 'stream' },
+                  fileUids,
+                  { subject: subjectuid, study: 'NA', series: 'NA' },
+                  `${dataDir}/Patient-${subjectuid}`
+                );
+                prepReturn.isThereDataToWrite = prepReturn.isThereDataToWrite || files;
+                if (
+                  prepReturn.headWritten &&
+                  !returnFolder &&
+                  files &&
+                  !prepReturn.patientsFolders.includes(`Patient-${subjectuid}`)
+                )
+                  archive.directory(`${dataDir}/Patient-${subjectuid}`, `Patient-${subjectuid}`);
+              }
+            }
+
+            fastify.wrapUpDownload(
+              prepReturn.isThereDataToWrite,
+              prepReturn.headWritten,
+              isResponseJustStream,
+              dirName,
+              res,
+              reqOrigin,
+              returnFolder,
+              archive,
+              dataDir,
+              dir,
+              output,
+              () => {
+                if (!isResponseJustStream) {
+                  // eslint-disable-next-line no-param-reassign
+                  output.sent = true;
+                  resolve();
+                }
+              }
+            );
+          } catch (err) {
+            console.log(err);
+            reject(err);
+          }
+        }
+      })
+  );
+
+  // downloads study(s)
+  // either params.study is full or studyinfos
+  fastify.decorate(
+    'prepStudiesDownload',
+    (reqOrigin, params, query, epadAuth, output, studyInfos, returnFolder) =>
+      new Promise(async (resolve, reject) => {
+        if (!params.study && !studyInfos) {
+          fastify.log.error('Either params.study should be full or studyinfos');
+          reject(
+            new BadRequestError(
+              'Improper download inputs',
+              new InternalError('Study, Studies required')
+            )
+          );
+        } else {
+          try {
+            const dirName = params.study ? params.study : 'Studies';
+            const {
+              fileUids,
+              isResponseJustStream,
+              res,
+              headWritten,
+              archive,
+              dir,
+              dataDir,
+              isThereDataToWrite,
+            } = await fastify.setUpDownload(params.project, dirName, output, returnFolder);
+            let prepReturn = { headWritten };
+            prepReturn = await fastify.prepMultipleStudies(
+              studyInfos,
+              dataDir,
+              false,
+              fileUids,
+              params,
+              query,
+              epadAuth,
+              headWritten,
+              returnFolder,
+              dirName,
+              res,
+              reqOrigin,
+              isResponseJustStream,
+              archive,
+              isThereDataToWrite
+            );
+
+            fastify.wrapUpDownload(
+              prepReturn.isThereDataToWrite,
+              prepReturn.headWritten,
+              isResponseJustStream,
+              dirName,
+              res,
+              reqOrigin,
+              returnFolder,
+              archive,
+              dataDir,
+              dir,
+              output,
+              () => {
+                if (!isResponseJustStream) {
+                  // eslint-disable-next-line no-param-reassign
+                  output.sent = true;
+                  resolve();
+                }
+              }
+            );
+          } catch (err) {
+            console.log(err);
+            reject(err);
+          }
+        }
+      })
+  );
+
+  // downloads series(s)
+  // either params.series is full or seriesinfos
+  fastify.decorate(
+    'prepSeriesDownload',
+    (reqOrigin, params, query, epadAuth, output, seriesInfos, returnFolder) =>
+      new Promise(async (resolve, reject) => {
+        if (!params.series && !seriesInfos) {
+          fastify.log.error('Either params.series should be full or seriesInfos');
+          reject(
+            new BadRequestError(
+              'Improper download inputs',
+              new InternalError('Series or multiple series required')
+            )
+          );
+        } else {
+          try {
+            const dirName = params.series ? params.series : 'Series';
+            const {
+              fileUids,
+              isResponseJustStream,
+              res,
+              headWritten,
+              archive,
+              dir,
+              dataDir,
+              isThereDataToWrite,
+            } = await fastify.setUpDownload(params.project, dirName, output, returnFolder);
+            const prepReturn = { headWritten, isThereDataToWrite };
+            for (let i = 0; i < seriesInfos.length; i += 1) {
+              const seriesDir = `${dataDir}/Series-${seriesInfos[i].series}`;
+              fs.mkdirSync(seriesDir);
+              // eslint-disable-next-line no-await-in-loop
+              const isThereData = await fastify.prepSeriesDownloadDir(
+                seriesDir,
+                {
+                  ...params,
+                  subject: seriesInfos[i].subject,
+                  study: seriesInfos[i].study,
+                  series: seriesInfos[i].series,
+                },
+                query,
+                epadAuth,
+                true,
+                fileUids
+              );
+              prepReturn.isThereDataToWrite = prepReturn.isThereDataToWrite || isThereData;
+            }
+
+            fastify.wrapUpDownload(
+              prepReturn.isThereDataToWrite,
+              prepReturn.headWritten,
+              isResponseJustStream,
+              dirName,
+              res,
+              reqOrigin,
+              returnFolder,
+              archive,
+              dataDir,
+              dir,
+              output,
+              () => {
+                if (!isResponseJustStream) {
+                  // eslint-disable-next-line no-param-reassign
+                  output.sent = true;
+                  resolve();
+                }
+              }
+            );
+          } catch (err) {
+            console.log(err);
+            reject(err);
+          }
+        }
+      })
+  );
+
+  // downloads project
+  // requires params.project and whereJSON.project_id
+  fastify.decorate(
+    'prepProjectDownload',
+    (reqOrigin, params, query, epadAuth, output, whereJSON, returnFolder) =>
+      new Promise(async (resolve, reject) => {
+        if (!params.project || !whereJSON.project_id) {
+          fastify.log.error('params.project and whereJSON.project_id should be full');
+          reject(
+            new BadRequestError('Improper download inputs', new InternalError('projectId required'))
+          );
+        } else {
+          try {
+            const dirName = params.project;
+            const {
+              fileUids,
+              isResponseJustStream,
+              res,
+              headWritten,
+              archive,
+              dir,
+              dataDir,
+              isThereDataToWrite,
+            } = await fastify.setUpDownload(params.project, dirName, output, returnFolder);
+            const studiesInfo = await fastify.getStudiesInternal(
+              whereJSON,
+              params,
+              epadAuth,
+              true,
+              query
+            );
+
+            const prepReturn = await fastify.prepMultipleStudies(
+              studiesInfo,
+              dataDir,
+              true,
+              fileUids,
+              params,
+              query,
+              epadAuth,
+              headWritten,
+              returnFolder,
+              dirName,
+              res,
+              reqOrigin,
+              isResponseJustStream,
+              archive,
+              isThereDataToWrite
+            );
+            const files = await fastify.getFilesFromUIDsInternal(
+              { format: 'stream' },
+              fileUids,
+              { subject: 'NA', study: 'NA', series: 'NA' },
+              dataDir
+            );
+            prepReturn.isThereDataToWrite = prepReturn.isThereDataToWrite || files;
+            if (prepReturn.headWritten && !returnFolder && files)
+              archive.directory(`${dataDir}/files`, 'files');
+            // see if there are files
+            const subjects = await models.subject.findAll({
+              where: { '$project_subject.project_id$': whereJSON.project_id },
+              include: [models.project_subject],
+            });
+            console.log(subjects);
+            if (subjects !== null) {
+              for (let i = 0; i < subjects.length; i += 1) {
+                if (!fs.existsSync(`${dataDir}/Patient-${subjects[i].dataValues.subjectuid}`))
+                  fs.mkdirSync(`${dataDir}/Patient-${subjects[i].dataValues.subjectuid}`);
+                // eslint-disable-next-line no-await-in-loop
+                const patientFiles = await fastify.getFilesFromUIDsInternal(
+                  { format: 'stream' },
+                  fileUids,
+                  {
+                    subject: subjects[i].dataValues.subjectuid,
+                    study: 'NA',
+                    series: 'NA',
+                  },
+                  `${dataDir}/Patient-${subjects[i].dataValues.subjectuid}`
+                );
+                prepReturn.isThereDataToWrite = prepReturn.isThereDataToWrite || patientFiles;
+                if (
+                  prepReturn.headWritten &&
+                  !returnFolder &&
+                  patientFiles &&
+                  !prepReturn.patientsFolders.includes(
+                    `Patient-${subjects[i].dataValues.subjectuid}`
+                  )
+                )
+                  archive.directory(
+                    `${dataDir}/Patient-${subjects[i].dataValues.subjectuid}`,
+                    `Patient-${subjects[i].dataValues.subjectuid}`
+                  );
+              }
+            }
+
+            fastify.wrapUpDownload(
+              prepReturn.isThereDataToWrite,
+              prepReturn.headWritten,
+              isResponseJustStream,
+              dirName,
+              res,
+              reqOrigin,
+              returnFolder,
+              archive,
+              dataDir,
+              dir,
+              output,
+              () => {
+                if (!isResponseJustStream) {
+                  // eslint-disable-next-line no-param-reassign
+                  output.sent = true;
+                  resolve();
+                }
+              }
+            );
+          } catch (err) {
+            console.log(err);
+            reject(err);
+          }
+        }
+      })
+  );
+
+  fastify.decorate(
+    'prepMultipleStudies',
+    async (
+      studiesInfo,
+      dataDir,
+      downloadPatientFiles,
+      fileUids,
+      params,
+      query,
+      epadAuth,
+      headWritten,
+      returnFolder,
+      dirName,
+      res,
+      reqOrigin,
+      isResponseJustStream,
+      archive,
+      isThereDataToWrite
+    ) => {
+      const patientsFolders = [];
+      // download all studies under subject
+      for (let i = 0; i < studiesInfo.length; i += 1) {
+        const studyUid = studiesInfo[i].study;
+        let studySubDir = `Study-${studyUid}`;
+        const subjectUid = studiesInfo[i].subject;
+        let isTherePatientData = false;
+        if (subjectUid) {
+          if (!fs.existsSync(`${dataDir}/Patient-${subjectUid}`))
+            fs.mkdirSync(`${dataDir}/Patient-${subjectUid}`);
+          // if there is wherejson, it can be project or subject(s) download
+          // if it is project download, one subject or multiple subjects I need to get files for that subjects
+          if (downloadPatientFiles && !patientsFolders.includes(`Patient-${subjectUid}`)) {
+            patientsFolders.push(`Patient-${subjectUid}`);
+            isTherePatientData =
+              isTherePatientData ||
+              // eslint-disable-next-line no-await-in-loop
+              (await fastify.getFilesFromUIDsInternal(
+                { format: 'stream' },
+                fileUids,
+                { subject: subjectUid, study: 'NA', series: 'NA' },
+                `${dataDir}/Patient-${subjectUid}`
+              ));
+          }
+          studySubDir = `Patient-${subjectUid}/Study-${studyUid}`;
+        }
+        const studyDir = `${dataDir}/${studySubDir}`;
+        fs.mkdirSync(studyDir);
+        // eslint-disable-next-line no-await-in-loop
+        const isThereData = await fastify.prepStudyDownloadDir(
+          studyDir,
+          { ...params, subject: subjectUid, study: studyUid },
+          query,
+          epadAuth,
+          fileUids
+        );
+        if (!isThereData) fs.rmdirSync(studyDir);
+        else {
+          if (!headWritten) {
+            if (!isResponseJustStream) {
+              // start writing the head so that long requests do not fail
+              fastify.writeHead(dirName, res, reqOrigin);
+            }
+            // create the archive
+            if (!returnFolder)
+              archive
+                .on('error', (err) => {
+                  throw new InternalError('Archiving ', err);
+                })
+                .pipe(res);
+            // eslint-disable-next-line no-param-reassign
+            headWritten = true;
+          }
+          if (downloadPatientFiles) {
+            if (!patientsFolders.includes(`Patient-${subjectUid}`))
+              patientsFolders.push(`Patient-${subjectUid}`);
+          } else if (!returnFolder) archive.directory(`${studyDir}`, studySubDir);
+        }
+        // eslint-disable-next-line no-param-reassign
+        isThereDataToWrite = isThereDataToWrite || isThereData || isTherePatientData;
+      }
+      if (!returnFolder)
+        patientsFolders.forEach((folder) => archive.directory(`${dataDir}/${folder}`, `${folder}`));
+      return { headWritten, isThereDataToWrite, patientsFolders };
+    }
+  );
+
   // it needs the node response object
   fastify.decorate(
     'prepDownload',
@@ -8804,7 +9390,7 @@ async function epaddb(fastify, options, done) {
       // TODO check if it is in the project
 
       if (request.query.format === 'stream') {
-        await fastify.prepDownload(
+        await fastify.prepStudiesDownload(
           request.headers.origin,
           request.params,
           request.query,
@@ -8882,7 +9468,7 @@ async function epaddb(fastify, options, done) {
         };
         if (request.params.project !== config.XNATUploadProjectID)
           whereJSON = { ...whereJSON, project_id: project.id };
-        await fastify.prepDownload(
+        await fastify.prepSubjectsDownload(
           request.headers.origin,
           request.params,
           request.query,
@@ -8945,7 +9531,7 @@ async function epaddb(fastify, options, done) {
         if (request.params.project !== config.XNATUploadProjectID)
           whereJSON = { ...whereJSON, project_id: project.id };
 
-        await fastify.prepDownload(
+        await fastify.prepSubjectsDownload(
           request.headers.origin,
           request.params,
           request.query,
@@ -8974,13 +9560,12 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        await fastify.prepDownload(
+        await fastify.prepStudiesDownload(
           request.headers.origin,
           request.params,
           request.query,
           request.epadAuth,
           reply,
-          undefined,
           request.body
         );
       }
@@ -9004,14 +9589,12 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        await fastify.prepDownload(
+        await fastify.prepSeriesDownload(
           request.headers.origin,
           request.params,
           request.query,
           request.epadAuth,
           reply,
-          undefined,
-          undefined,
           request.body
         );
       }
