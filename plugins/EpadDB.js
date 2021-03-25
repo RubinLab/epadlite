@@ -2399,7 +2399,7 @@ async function epaddb(fastify, options, done) {
                     const eacAimhObj = aims[aimsKeys[aimsCnt]];
                     fastify.log.info('getting dicoms for aim ', eacAimhObj);
                     // eslint-disable-next-line no-await-in-loop
-                    await fastify.prepDownload(
+                    await fastify.prepSeriesDownload(
                       request.headers.origin,
                       {
                         project: projectid,
@@ -2444,7 +2444,7 @@ async function epaddb(fastify, options, done) {
                       // un zip part over
                     });
                   // eslint-disable-next-line no-await-in-loop
-                  await fastify.prepDownload(
+                  await fastify.prepProjectDownload(
                     request.headers.origin,
                     { project: projectid },
                     { format: 'stream', includeAims: 'true' },
@@ -8857,18 +8857,33 @@ async function epaddb(fastify, options, done) {
               isThereDataToWrite,
             } = await fastify.setUpDownload(params.project, dirName, output, returnFolder);
             const prepReturn = { headWritten, isThereDataToWrite };
-            for (let i = 0; i < seriesInfos.length; i += 1) {
-              const seriesDir = `${dataDir}/Series-${seriesInfos[i].series}`;
+            if (seriesInfos) {
+              for (let i = 0; i < seriesInfos.length; i += 1) {
+                const seriesDir = `${dataDir}/Series-${seriesInfos[i].series}`;
+                fs.mkdirSync(seriesDir);
+                // eslint-disable-next-line no-await-in-loop
+                const isThereData = await fastify.prepSeriesDownloadDir(
+                  seriesDir,
+                  {
+                    ...params,
+                    subject: seriesInfos[i].subject,
+                    study: seriesInfos[i].study,
+                    series: seriesInfos[i].series,
+                  },
+                  query,
+                  epadAuth,
+                  true,
+                  fileUids
+                );
+                prepReturn.isThereDataToWrite = prepReturn.isThereDataToWrite || isThereData;
+              }
+            } else if (params.series) {
+              const seriesDir = `${dataDir}/Series-${params.series}`;
               fs.mkdirSync(seriesDir);
               // eslint-disable-next-line no-await-in-loop
               const isThereData = await fastify.prepSeriesDownloadDir(
                 seriesDir,
-                {
-                  ...params,
-                  subject: seriesInfos[i].subject,
-                  study: seriesInfos[i].study,
-                  series: seriesInfos[i].series,
-                },
+                params,
                 query,
                 epadAuth,
                 true,
@@ -8876,7 +8891,6 @@ async function epaddb(fastify, options, done) {
               );
               prepReturn.isThereDataToWrite = prepReturn.isThereDataToWrite || isThereData;
             }
-
             fastify.wrapUpDownload(
               prepReturn.isThereDataToWrite,
               prepReturn.headWritten,
@@ -9112,277 +9126,6 @@ async function epaddb(fastify, options, done) {
         patientsFolders.forEach((folder) => archive.directory(`${dataDir}/${folder}`, `${folder}`));
       return { headWritten, isThereDataToWrite, patientsFolders };
     }
-  );
-
-  // it needs the node response object
-  fastify.decorate(
-    'prepDownload',
-    async (
-      reqOrigin,
-      params,
-      query,
-      epadAuth,
-      output,
-      whereJSON,
-      studyInfos,
-      seriesInfos,
-      returnFolder
-    ) =>
-      new Promise(async (resolve, reject) => {
-        try {
-          // not handling all project intentionally. only download files for that project
-          const fileUids = await fastify.getFileUidsForProject({ project: params.project });
-          // if it has res, it is fastify reply
-          const isResponseJustStream = !output.raw;
-          const res = isResponseJustStream ? output : output.raw;
-          const studiesInfo = whereJSON
-            ? await fastify.getStudiesInternal(whereJSON, params, epadAuth, true, query)
-            : studyInfos;
-
-          const timestamp = new Date().getTime();
-          // create tmp parent directory if it does not exist
-          if (!fs.existsSync('tmp')) fs.mkdirSync('tmp');
-          const dir = `tmp/tmp_${timestamp}`;
-          let headWritten = false;
-          if (!fs.existsSync(dir)) {
-            let archive;
-            if (!returnFolder)
-              archive = archiver('zip', {
-                zlib: { level: 9 }, // Sets the compression level.
-              });
-
-            fs.mkdirSync(dir);
-            let dirName = params.series ? params.series : params.study;
-            if (studyInfos) dirName = 'Studies';
-            else if (whereJSON) {
-              if (!whereJSON.subject_id) dirName = params.project;
-              else if (Array.isArray(whereJSON.subject_id)) dirName = 'Patients';
-              else dirName = params.subject;
-            }
-            const dataDir = `${dir}/${dirName}`;
-            fs.mkdirSync(dataDir);
-            let isThereDataToWrite = false;
-            if (params.series) {
-              // just download one series
-              const isThereData = await fastify.prepSeriesDownloadDir(
-                dataDir,
-                params,
-                query,
-                epadAuth,
-                true,
-                fileUids
-              );
-              if (!isThereData) fs.rmdirSync(dataDir);
-              isThereDataToWrite = isThereDataToWrite || isThereData;
-            } else if (params.study) {
-              // download all series under study
-              const isThereData = await fastify.prepStudyDownloadDir(
-                dataDir,
-                params,
-                query,
-                epadAuth,
-                fileUids
-              );
-              if (!isThereData) fs.rmdirSync(dataDir);
-              isThereDataToWrite = isThereDataToWrite || isThereData;
-            } else if (studiesInfo && studiesInfo.length > 0) {
-              const patientsFolders = [];
-              // download all studies under subject
-              for (let i = 0; i < studiesInfo.length; i += 1) {
-                const studyUid = studiesInfo[i].study;
-                let studySubDir = `Study-${studyUid}`;
-                const subjectUid = studiesInfo[i].subject;
-                let isTherePatientData = false;
-                if (subjectUid) {
-                  if (!fs.existsSync(`${dataDir}/Patient-${subjectUid}`))
-                    fs.mkdirSync(`${dataDir}/Patient-${subjectUid}`);
-                  // if there is wherejson, it can be project or subject(s) download
-                  // if it is project download, one subject or multiple subjects I need to get files for that subjects
-                  if (
-                    params.subject ||
-                    (whereJSON &&
-                      (!whereJSON.subject_id ||
-                        (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
-                  ) {
-                    // only get the files if they weren't retrieved before
-                    if (!patientsFolders.includes(`Patient-${subjectUid}`)) {
-                      patientsFolders.push(`Patient-${subjectUid}`);
-                      isTherePatientData =
-                        isTherePatientData ||
-                        // eslint-disable-next-line no-await-in-loop
-                        (await fastify.getFilesFromUIDsInternal(
-                          { format: 'stream' },
-                          fileUids,
-                          { subject: subjectUid, study: 'NA', series: 'NA' },
-                          `${dataDir}/Patient-${subjectUid}`
-                        ));
-                    }
-                  }
-                  studySubDir = `Patient-${subjectUid}/Study-${studyUid}`;
-                }
-                const studyDir = `${dataDir}/${studySubDir}`;
-                fs.mkdirSync(studyDir);
-                // eslint-disable-next-line no-await-in-loop
-                const isThereData = await fastify.prepStudyDownloadDir(
-                  studyDir,
-                  { ...params, subject: subjectUid, study: studyUid },
-                  query,
-                  epadAuth,
-                  fileUids
-                );
-                if (!isThereData) fs.rmdirSync(studyDir);
-                else {
-                  if (!headWritten) {
-                    if (!isResponseJustStream) {
-                      // start writing the head so that long requests do not fail
-                      fastify.writeHead(dirName, res, reqOrigin);
-                    }
-                    // create the archive
-                    if (!returnFolder)
-                      archive
-                        .on('error', (err) => reject(new InternalError('Archiving ', err)))
-                        .pipe(res);
-                    headWritten = true;
-                  }
-                  if (
-                    params.subject ||
-                    (whereJSON &&
-                      (!whereJSON.subject_id ||
-                        (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
-                  ) {
-                    if (!patientsFolders.includes(`Patient-${subjectUid}`))
-                      patientsFolders.push(`Patient-${subjectUid}`);
-                  } else if (!returnFolder) archive.directory(`${studyDir}`, studySubDir);
-                }
-                isThereDataToWrite = isThereDataToWrite || isThereData || isTherePatientData;
-              }
-              if (!returnFolder)
-                patientsFolders.forEach((folder) =>
-                  archive.directory(`${dataDir}/${folder}`, `${folder}`)
-                );
-            } else if (seriesInfos) {
-              for (let i = 0; i < seriesInfos.length; i += 1) {
-                const seriesDir = `${dataDir}/Series-${seriesInfos[i].series}`;
-                fs.mkdirSync(seriesDir);
-                // eslint-disable-next-line no-await-in-loop
-                const isThereData = await fastify.prepSeriesDownloadDir(
-                  seriesDir,
-                  {
-                    ...params,
-                    subject: seriesInfos[i].subject,
-                    study: seriesInfos[i].study,
-                    series: seriesInfos[i].series,
-                  },
-                  query,
-                  epadAuth,
-                  true,
-                  fileUids
-                );
-                isThereDataToWrite = isThereDataToWrite || isThereData;
-              }
-            } else if (
-              params.subject ||
-              (whereJSON &&
-                (!whereJSON.subject_id ||
-                  (whereJSON.subject_id && Array.isArray(whereJSON.subject_id))))
-            ) {
-              // no studies under the patient, see if the patient has files
-
-              // if there is wherejson, it can be project or subject(s) download
-              // if it is project download, one subject or multiple subjects I need to get files for that subjects
-              let files;
-              if (params.subject) {
-                if (!fs.existsSync(`${dataDir}/Patient-${params.subject}`))
-                  fs.mkdirSync(`${dataDir}/Patient-${params.subject}`);
-                // eslint-disable-next-line no-await-in-loop
-                files = await fastify.getFilesFromUIDsInternal(
-                  { format: 'stream' },
-                  fileUids,
-                  { subject: params.subject, study: 'NA', series: 'NA' },
-                  `${dataDir}/Patient-${params.subject}`
-                );
-                isThereDataToWrite = isThereDataToWrite || files;
-              } else if (whereJSON && whereJSON.subject_id && Array.isArray(whereJSON.subject_id)) {
-                // TODO what to do if it is project download
-                for (let i = 0; i < whereJSON.subject_id.length; i += 1) {
-                  // we need to get subject_uid
-                  // eslint-disable-next-line no-await-in-loop
-                  const { subjectuid } = await models.subject.findOne({
-                    where: { id: whereJSON.subject_id[i] },
-                    attributes: ['subjectuid'],
-                    raw: true,
-                  });
-                  if (!fs.existsSync(`${dataDir}/Patient-${subjectuid}`))
-                    fs.mkdirSync(`${dataDir}/Patient-${subjectuid}`);
-                  // eslint-disable-next-line no-await-in-loop
-                  files = await fastify.getFilesFromUIDsInternal(
-                    { format: 'stream' },
-                    fileUids,
-                    { subject: subjectuid, study: 'NA', series: 'NA' },
-                    `${dataDir}/Patient-${subjectuid}`
-                  );
-                  isThereDataToWrite = isThereDataToWrite || files;
-                }
-              }
-            }
-            // check files
-            // if it is study or series level it is already handled
-            // only project files
-            if (!params.study && !params.series && whereJSON && !whereJSON.subject_id) {
-              const files = await fastify.getFilesFromUIDsInternal(
-                { format: 'stream' },
-                fileUids,
-                { subject: 'NA', study: 'NA', series: 'NA' },
-                dataDir
-              );
-              isThereDataToWrite = isThereDataToWrite || files;
-              if (!returnFolder) archive.directory(`${dataDir}/files`, 'files');
-            }
-
-            if (isThereDataToWrite) {
-              if (!headWritten) {
-                if (!isResponseJustStream) fastify.writeHead(dirName, res, reqOrigin);
-                // create the archive
-                if (!returnFolder)
-                  archive
-                    .on('error', (err) => reject(new InternalError('Archiving ', err)))
-                    .pipe(res);
-              }
-              res.on('finish', () => {
-                fs.remove(dir, (error) => {
-                  if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                  else fastify.log.info(`${dir} deleted`);
-                });
-              });
-
-              if (!returnFolder)
-                archive.on('end', () => {
-                  if (!isResponseJustStream) {
-                    // eslint-disable-next-line no-param-reassign
-                    output.sent = true;
-                  }
-                  resolve();
-                });
-
-              if (!headWritten && !returnFolder) {
-                archive.directory(`${dataDir}`, false);
-              }
-              if (!returnFolder) archive.finalize();
-              else resolve(dir);
-            } else {
-              // finalize even if no files?
-              if (!returnFolder) archive.finalize();
-              fs.remove(dir, (error) => {
-                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                else fastify.log.info(`${dir} deleted`);
-              });
-              reject(new InternalError('Downloading', new Error('No file in download')));
-            }
-          }
-        } catch (err) {
-          reject(err);
-        }
-      })
   );
 
   fastify.decorate('getPatientStudyFromProject', async (request, reply) => {
