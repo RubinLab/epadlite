@@ -694,6 +694,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
     models.project
       .findAll({
+        order: [['id', 'ASC']],
         include: ['users'],
       })
       .then((projects) => {
@@ -2468,7 +2469,7 @@ async function epaddb(fastify, options, done) {
                   console.log('*************************');
                   console.log('*************************');
                   console.log('*************************');
-                  console.log('*************************');
+                  console.log('************************* :pluginParams:', pluginparams);
                   console.log(`************************* full path tmp ${__dirname}/${dicomPath}`);
                   console.log(`************************* copy tmp to ${inputfolder}`);
                   console.log('************************* dicom tmp path', dicomPath);
