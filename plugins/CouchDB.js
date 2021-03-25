@@ -1583,6 +1583,15 @@ async function couchdb(fastify, options) {
   // );
 
   fastify.decorate(
+    'streamToFile',
+    (inputStream, filePath) =>
+      new Promise((resolve, reject) => {
+        const fileWriteStream = fs.createWriteStream(filePath);
+        inputStream.pipe(fileWriteStream).on('finish', resolve).on('error', reject);
+      })
+  );
+
+  fastify.decorate(
     'downloadFiles',
     (ids, subDir) =>
       new Promise((resolve, reject) => {
@@ -1600,26 +1609,23 @@ async function couchdb(fastify, options) {
           if (!fs.existsSync(`${dir}/files`)) fs.mkdirSync(`${dir}/files`);
 
           const db = fastify.couch.db.use(config.db);
-          let doneCount = 0;
-          if (ids.length === 0)
-            fastify.resolveFiles(subDir, isThereDataToWrite, dir, resolve, reject);
+          const fileSavePromises = [];
           for (let i = 0; i < ids.length; i += 1) {
             const filename = ids[i].split('__ePad__')[0];
-            const stream = db.attachment
-              .getAsStream(ids[i], filename)
-              .pipe(fs.createWriteStream(`${dir}/files/${filename}`));
-
-            // sloppy way to check if all files are done
-            // eslint-disable-next-line no-loop-func
-            stream.on('finish', () => {
-              isThereDataToWrite = true;
-              doneCount += 1;
-              if (doneCount === ids.length) {
-                // all files done
-                fastify.resolveFiles(subDir, isThereDataToWrite, dir, resolve, reject);
-              }
-            });
+            isThereDataToWrite = true;
+            fileSavePromises.push(() =>
+              fastify.streamToFile(
+                db.attachment.getAsStream(ids[i], filename),
+                `${dir}/files/${filename}`
+              )
+            );
           }
+          fastify.pq
+            .addAll(fileSavePromises)
+            .then(() => {
+              fastify.resolveFiles(subDir, isThereDataToWrite, dir, resolve, reject);
+            })
+            .catch((err) => reject(err));
         } catch (err) {
           reject(new InternalError('Downloading files', err));
         }
