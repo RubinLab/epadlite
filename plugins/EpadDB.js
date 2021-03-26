@@ -252,6 +252,7 @@ async function epaddb(fastify, options, done) {
             }
           }
           fastify.log.info('Connected to mariadb server');
+          fastify.decorate('models', models);
           resolve();
         } catch (err) {
           reject(new InternalError('Creating models and syncing db', err));
