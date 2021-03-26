@@ -256,6 +256,7 @@ async function epaddb(fastify, options, done) {
             }
           }
           fastify.log.info('Connected to mariadb server');
+          fastify.decorate('models', models);
           resolve();
         } catch (err) {
           reject(new InternalError('Creating models and syncing db', err));
@@ -698,6 +699,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
     models.project
       .findAll({
+        order: [['id', 'ASC']],
         include: ['users'],
       })
       .then((projects) => {
@@ -2347,7 +2349,7 @@ async function epaddb(fastify, options, done) {
             // get dicoms
             if (tempPluginparams[i].paramid === 'dicoms') {
               const inputfolder = `${userfolder}/${pluginparams[i].paramid}/`;
-              fastify.log.info('creating dicoms in this folder', inputfolder);
+              fastify.log.info(`creating dicoms in this folder : ${inputfolder}`);
               try {
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
@@ -2361,7 +2363,7 @@ async function epaddb(fastify, options, done) {
                   for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
                     const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
                     const writeStream = fs
-                      .createWriteStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
+                      .createWriteStream(`${inputfolder}dicoms${aimsCnt}.zip`)
                       // eslint-disable-next-line prefer-arrow-callback
                       .on('finish', function () {
                         fastify.log.info('dicom copy finished');
@@ -2374,22 +2376,22 @@ async function epaddb(fastify, options, done) {
                             })
                           )
                           .on('close', () => {
-                            fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip extracted`);
-                            fs.remove(`${inputfolder}/dicoms${aimsCnt}.zip`, (error) => {
+                            fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip extracted`);
+                            fs.remove(`${inputfolder}dicoms${aimsCnt}.zip`, (error) => {
                               if (error) {
                                 fastify.log.info(
-                                  `${inputfolder}/dicoms${aimsCnt}.zip file deletion error ${error.message}`
+                                  `${inputfolder}dicoms${aimsCnt}.zip file deletion error ${error.message}`
                                 );
                                 reject(error);
                               } else {
-                                fastify.log.info(`${inputfolder}/dicoms${aimsCnt}.zip deleted`);
+                                fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip deleted`);
                               }
                             });
                           })
                           .on('error', (error) => {
                             reject(
                               new InternalError(
-                                `Extracting zip ${inputfolder}/dicoms${aimsCnt}.zip`,
+                                `Extracting zip ${inputfolder}dicoms${aimsCnt}.zip`,
                                 error
                               )
                             );
@@ -2414,46 +2416,66 @@ async function epaddb(fastify, options, done) {
                   }
                 } else {
                   // project level dicoms
-                  fastify.log.info('getting projects dicoms.........');
+                  fastify.log.info(`getting projects dicoms........in.${inputfolder}`);
                   const writeStream = fs
-                    .createWriteStream(`${inputfolder}/dicoms.zip`)
+                    .createWriteStream(`${inputfolder}dicoms.zip`)
                     // eslint-disable-next-line prefer-arrow-callback
                     .on('finish', function () {
-                      fastify.log.info('dicom copy finished');
+                      fastify.log.info(`dicom copy finished ${inputfolder}dicoms.zip`);
                       // unzip part
-                      fs.createReadStream(`${inputfolder}/dicoms.zip`)
-                        .pipe(unzip.Extract({ path: `${inputfolder}` }))
-                        .on('close', () => {
-                          fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
-                          fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
-                            if (error) {
-                              fastify.log.info(
-                                `${inputfolder}/dicoms.zip file deletion error ${error.message}`
-                              );
-                              reject(error);
-                            } else {
-                              fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
-                            }
-                          });
-                        })
-                        .on('error', (error) => {
-                          reject(
-                            new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
-                          );
-                        });
+                      // fs.createReadStream(`${inputfolder}/dicoms.zip`)
+                      //   .pipe(unzip.Extract({ path: `${inputfolder}` }))
+                      //   .on('close', () => {
+                      //     fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
+                      //     fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
+                      //       if (error) {
+                      //         fastify.log.info(
+                      //           `${inputfolder}/dicoms.zip file deletion error ${error.message}`
+                      //         );
+                      //         reject(error);
+                      //       } else {
+                      //         fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
+                      //       }
+                      //     });
+                      //   })
+                      //   .on('error', (error) => {
+                      //     reject(
+                      //       new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
+                      //     );
+                      //   });
                       // un zip part over
                     });
+                  fastify.log.info(
+                    `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
+                  );
                   // eslint-disable-next-line no-await-in-loop
-                  await fastify.prepProjectDownload(
+                  const dicomPath = await fastify.prepProjectDownload(
                     request.headers.origin,
                     { project: projectid },
-                    { format: 'stream', includeAims: 'true' },
+                    { format: 'stream', includeAims: 'false' },
                     request.epadAuth,
                     writeStream,
                     {
                       project_id: projectdbid,
-                    }
+                    },
+                    true
                   );
+                  const pathFrom = path.join(__dirname, `../${dicomPath}`);
+                  // eslint-disable-next-line no-await-in-loop
+                  await fs.move(`${pathFrom}`, `${inputfolder}`, { overwrite: true }, (err) => {
+                    if (err) {
+                      console.error(`file copy -> ${err}`);
+                    } else {
+                      console.log('file copy success!');
+                    }
+                  });
+                  console.log('*************************');
+                  console.log('*************************');
+                  console.log('*************************');
+                  console.log('************************* :pluginParams:', pluginparams);
+                  console.log(`************************* full path tmp ${__dirname}/${dicomPath}`);
+                  console.log(`************************* copy tmp to ${inputfolder}`);
+                  console.log('************************* dicom tmp path', dicomPath);
                 }
               } catch (err) {
                 reject(err);
@@ -3280,32 +3302,38 @@ async function epaddb(fastify, options, done) {
               );
               fastify.log.info(`csv files in the plugin output folder : ${csvArray}`);
               if (csvArray.length > 0) {
-                fastify.log.info(
-                  `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
-                );
-                // eslint-disable-next-line no-await-in-loop
-                const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
-                const pluginInfoFromParams = {
-                  pluginnameid: pluginParameters.pluginnameid,
-                  pluginname: pluginParameters.pluginname,
-                };
+                if (csvArray.indexOf('epadPluginCalculations') > -1) {
+                  fastify.log.info(
+                    `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[0]);
+                  const pluginInfoFromParams = {
+                    pluginnameid: pluginParameters.pluginnameid,
+                    pluginname: pluginParameters.pluginname,
+                  };
 
-                // eslint-disable-next-line no-await-in-loop
-                const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
-                  calcObj,
-                  pluginInfoFromParams
-                );
-                // eslint-disable-next-line no-await-in-loop
-                const mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
-                  returnPartialPluginCalcAim,
-                  'userAim:Param',
-                  `${pluginParameters.relativeServerFolder}/aims`
-                );
-                // eslint-disable-next-line no-await-in-loop
-                await fastify.uploadMergedAimPluginCalcInternal(
-                  mergedaimFileLocation,
-                  pluginParameters.projectid
-                );
+                  // eslint-disable-next-line no-await-in-loop
+                  const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
+                    calcObj,
+                    pluginInfoFromParams
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  const mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
+                    returnPartialPluginCalcAim,
+                    'userAim:Param',
+                    `${pluginParameters.relativeServerFolder}/aims`
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.uploadMergedAimPluginCalcInternal(
+                    mergedaimFileLocation,
+                    pluginParameters.projectid
+                  );
+                } else {
+                  fastify.log.info(
+                    'no epadPluginCalculations.csv file found in output folder for the plugin'
+                  );
+                }
               } else {
                 fastify.log.info('no csv file found in output folder for the plugin');
               }
