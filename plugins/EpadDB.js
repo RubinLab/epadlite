@@ -2458,8 +2458,6 @@ async function epaddb(fastify, options, done) {
                     {
                       project_id: projectdbid,
                     },
-                    undefined,
-                    undefined,
                     true
                   );
                   const pathFrom = path.join(__dirname, `../${dicomPath}`);
