@@ -8445,7 +8445,9 @@ async function epaddb(fastify, options, done) {
           } catch (errDicom) {
             // TODO make a stricter check. dicomweb-server is returning 500 now. should it return 404
             fastify.log.error(
-              `Could not retrive DICOMs, can be a nondicom series. Ignoring. Error: ${errDicom.message}. ${JSON.stringify(params)}`
+              `Could not retrive DICOMs, can be a nondicom series. Ignoring. Error: ${
+                errDicom.message
+              }. ${JSON.stringify(params)}`
             );
           }
           if (query.includeAims && query.includeAims === 'true') {
