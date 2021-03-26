@@ -1,12 +1,16 @@
-FROM keymetrics/pm2:latest-alpine
+FROM node:lts-alpine
+  
+RUN apk update && apk upgrade && \
+    apk add --no-cache bash git openssh
 
-# Bundle APP files
-COPY config config/
-COPY plugins plugins/
-COPY routes routes/
-COPY server.js .
-COPY package.json .
-COPY ecosystem.config.js .
+RUN npm install pm2 -g
+
+USER node
+RUN mkdir -p /home/node/app
+WORKDIR /home/node/app
+
+COPY . /home/node/app/
+
 
 # Install app dependencies
 ENV NPM_CONFIG_LOGLEVEL warn
