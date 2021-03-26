@@ -6275,10 +6275,20 @@ async function epaddb(fastify, options, done) {
       // eslint-disable-next-line no-param-reassign
       // worklistReq = [{ id: 1, level: 'study', numOfAims: 1, template: 'ROI', required: true }];
       // get all aims
-
+      const whereJSON = {
+        project_id: projectId,
+        subject_uid: subjectUid,
+        study_uid: studyUid,
+        user,
+      };
+      // if the requirement is patient level, calculate patient level and update all studies
+      // I need to compute using all aims for that patient
+      if (worklistReq.level.toLowerCase() === 'patient') {
+        delete whereJSON.study_uid;
+      }
       const aims = await models.project_aim.findAll(
         {
-          where: { project_id: projectId, subject_uid: subjectUid, study_uid: studyUid, user },
+          where: whereJSON,
           raw: true,
         },
         transaction ? { transaction } : {}
