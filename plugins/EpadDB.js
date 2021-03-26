@@ -4642,16 +4642,7 @@ async function epaddb(fastify, options, done) {
               `Template deleted from system and removed from ${deletednum + numDeleted} projects`
             );
         } else {
-          const count = await models.project_template.count({
-            where: { template_uid: templateUid },
-          });
-          if (count === 0) {
-            await fastify.deleteTemplateInternal(request.params);
-            reply
-              .code(200)
-              .send(`Template deleted from system as it didn't exist in any other project`);
-          } else
-            reply.code(200).send(`Template not deleted from system as it exists in other project`);
+          reply.code(200).send(`Template deleted from project`);
         }
       }
     } catch (err) {
