@@ -2449,8 +2449,7 @@ async function epaddb(fastify, options, done) {
                     `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
                   );
                   // eslint-disable-next-line no-await-in-loop
-
-                  await fastify.prepProjectDownload(
+                  const dicomPath = await fastify.prepProjectDownload(
                     request.headers.origin,
                     { project: projectid },
                     { format: 'stream', includeAims: 'false' },
