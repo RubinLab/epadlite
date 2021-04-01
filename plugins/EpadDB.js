@@ -8756,10 +8756,9 @@ async function epaddb(fastify, options, done) {
                 if (!isResponseJustStream) {
                   // eslint-disable-next-line no-param-reassign
                   output.sent = true;
-                  if (returnFolder) resolve(returnDir);
-                  else resolve();
                 }
                 if (returnFolder) resolve(returnDir);
+                else resolve();
               }
             );
           } catch (err) {
@@ -8831,10 +8830,9 @@ async function epaddb(fastify, options, done) {
                 if (!isResponseJustStream) {
                   // eslint-disable-next-line no-param-reassign
                   output.sent = true;
-                  if (returnFolder) resolve(returnDir);
-                  else resolve();
                 }
                 if (returnFolder) resolve(returnDir);
+                else resolve();
               }
             );
           } catch (err) {
@@ -8924,10 +8922,9 @@ async function epaddb(fastify, options, done) {
                 if (!isResponseJustStream) {
                   // eslint-disable-next-line no-param-reassign
                   output.sent = true;
-                  if (returnFolder) resolve(returnDir);
-                  else resolve();
                 }
                 if (returnFolder) resolve(returnDir);
+                else resolve();
               }
             );
           } catch (err) {
@@ -9038,10 +9035,9 @@ async function epaddb(fastify, options, done) {
                 if (!isResponseJustStream) {
                   // eslint-disable-next-line no-param-reassign
                   output.sent = true;
-                  if (returnFolder) resolve(returnDir);
-                  else resolve();
                 }
                 if (returnFolder) resolve(returnDir);
+                else resolve();
               }
             );
           } catch (err) {
