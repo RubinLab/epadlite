@@ -8629,40 +8629,20 @@ async function epaddb(fastify, options, done) {
     'wrapUpDownload',
     (
       isThereDataToWrite,
-      headWritten,
-      isResponseJustStream,
-      dirName,
-      res,
-      reqOrigin,
       returnFolder,
       archive,
-      dataDir,
       dir,
-      output,
       callback
       // eslint-disable-next-line consistent-return
     ) => {
       if (isThereDataToWrite) {
-        res.on('finish', () => {
-          if (returnFolder)
-            fs.remove(dir, (error) => {
-              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-              else fastify.log.info(`${dir} deleted`);
-            });
-        });
-
         if (!returnFolder) archive.on('end', callback);
 
         if (!returnFolder) archive.finalize();
-        else return dir;
+        else callback(dir);
       } else {
         // finalize even if no files?
         if (!returnFolder) archive.finalize();
-        if (returnFolder)
-          fs.remove(dir, (error) => {
-            if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-            else fastify.log.info(`${dir} deleted`);
-          });
         throw new InternalError('Downloading', new Error('No file in download'));
       }
     }
@@ -8769,22 +8749,17 @@ async function epaddb(fastify, options, done) {
 
             fastify.wrapUpDownload(
               prepReturn.isThereDataToWrite,
-              prepReturn.headWritten,
-              isResponseJustStream,
-              dirName,
-              res,
-              reqOrigin,
               returnFolder,
               archive,
-              dataDir,
               dir,
-              output,
-              () => {
+              (returnDir) => {
                 if (!isResponseJustStream) {
                   // eslint-disable-next-line no-param-reassign
                   output.sent = true;
-                  resolve();
+                  if (returnFolder) resolve(returnDir);
+                  else resolve();
                 }
+                if (returnFolder) resolve(returnDir);
               }
             );
           } catch (err) {
@@ -8849,22 +8824,17 @@ async function epaddb(fastify, options, done) {
 
             fastify.wrapUpDownload(
               prepReturn.isThereDataToWrite,
-              prepReturn.headWritten,
-              isResponseJustStream,
-              dirName,
-              res,
-              reqOrigin,
               returnFolder,
               archive,
-              dataDir,
               dir,
-              output,
-              () => {
+              (returnDir) => {
                 if (!isResponseJustStream) {
                   // eslint-disable-next-line no-param-reassign
                   output.sent = true;
-                  resolve();
+                  if (returnFolder) resolve(returnDir);
+                  else resolve();
                 }
+                if (returnFolder) resolve(returnDir);
               }
             );
           } catch (err) {
@@ -8947,22 +8917,17 @@ async function epaddb(fastify, options, done) {
             }
             fastify.wrapUpDownload(
               prepReturn.isThereDataToWrite,
-              prepReturn.headWritten,
-              isResponseJustStream,
-              dirName,
-              res,
-              reqOrigin,
               returnFolder,
               archive,
-              dataDir,
               dir,
-              output,
-              () => {
+              (returnDir) => {
                 if (!isResponseJustStream) {
                   // eslint-disable-next-line no-param-reassign
                   output.sent = true;
-                  resolve();
+                  if (returnFolder) resolve(returnDir);
+                  else resolve();
                 }
+                if (returnFolder) resolve(returnDir);
               }
             );
           } catch (err) {
@@ -9038,7 +9003,7 @@ async function epaddb(fastify, options, done) {
             prepReturn.isThereDataToWrite = prepReturn.isThereDataToWrite || files;
             // see if there are files
             const subjects = await models.subject.findAll({
-              where: { '$project_subject.project_id$': whereJSON.project_id },
+              where: { '$project_subjects.project_id$': whereJSON.project_id },
               include: [models.project_subject],
             });
             if (subjects !== null) {
@@ -9066,22 +9031,17 @@ async function epaddb(fastify, options, done) {
 
             fastify.wrapUpDownload(
               prepReturn.isThereDataToWrite,
-              prepReturn.headWritten,
-              isResponseJustStream,
-              dirName,
-              res,
-              reqOrigin,
               returnFolder,
               archive,
-              dataDir,
               dir,
-              output,
-              () => {
+              (returnDir) => {
                 if (!isResponseJustStream) {
                   // eslint-disable-next-line no-param-reassign
                   output.sent = true;
-                  resolve();
+                  if (returnFolder) resolve(returnDir);
+                  else resolve();
                 }
+                if (returnFolder) resolve(returnDir);
               }
             );
           } catch (err) {
