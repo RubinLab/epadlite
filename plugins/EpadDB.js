@@ -5622,7 +5622,7 @@ async function epaddb(fastify, options, done) {
                     aimsByTUID[
                       aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                         .trackingUniqueIdentifier.root
-                    ].aim.ImageAnnotationCollection.imaÎgeAnnotations.ImageAnnotation[0]
+                    ].aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                       .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
                       .value < studyDate
                   )
