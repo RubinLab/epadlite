@@ -402,8 +402,8 @@ async function other(fastify) {
                 `A segmentation is uploaded with series UID ${dataset.SeriesInstanceUID} which doesn't have an aim, generating an aim with name ${dataset.SeriesDescription} `
               );
               const { aim } = createOfflineAimSegmentation(dataset, {
-                loginName: 'admin', // TODO assuming admin user
-                name: 'Admin',
+                loginName: epadAuth.username,
+                name: `${epadAuth.firstname} ${epadAuth.lastname}`,
               });
               const aimJson = aim.getAimJSON();
               await fastify.saveAimJsonWithProjectRef(aimJson, params, epadAuth);
@@ -1594,6 +1594,8 @@ async function other(fastify) {
             // putting the email from db in epadAuth
             // TODO what if they change it just in keycloak
             epadAuth.email = user.email;
+            epadAuth.firstname = userInfo.given_name;
+            epadAuth.lastname = userInfo.family_name;
           }
         } catch (errUser) {
           reject(errUser);
