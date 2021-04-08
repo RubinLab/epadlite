@@ -1,1 +1,568 @@
-{"ImageAnnotationCollection":{"xmlns":"gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM","xmlns:rdf":"http://www.w3.org/1999/02/22-rdf-syntax-ns#","xmlns:xsi":"http://www.w3.org/2001/XMLSchema-instance","aimVersion":"AIMv4_2","xsi:schemaLocation":"gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM AIM_v4.2_rv2_XML.xsd","uniqueIdentifier":{"root":"2.25.588282855208112584081683438493741756942"},"studyInstanceUid":{"root":"1.2.752.24.7.19011385.484010"},"seriesInstanceUid":{"root":"2.25.978392724628257012016085567555322601867"},"accessionNumber":{"value":"0"},"dateTime":{"value":"20210322210520"},"user":{"name":{"value":"admin"},"loginName":{"value":"admin"}},"equipment":{"manufacturerName":{"value":"Philips"},"manufacturerModelName":{"value":"Mx8000 IDT 10"},"softwareVersion":{"value":"3.2.0"}},"person":{"name":{"value":"7^3225^4503"},"id":{"value":"7"},"birthDate":{"value":"19441101"},"sex":{"value":"M"}},"imageAnnotations":{"ImageAnnotation":[{"uniqueIdentifier":{"root":"2.25.547567372213308685990058572838941967853"},"trackingUniqueIdentifier":{"root":"2.25.835852689840580182316252464298011544015"},"typeCode":[{"code":"RECIST_v2","codeSystemName":"99EPAD","iso:displayName":{"xmlns:iso":"uri:iso.org:21090","value":"Tumor assessment"}}],"dateTime":{"value":"20210322210520"},"name":{"value":"Lesion7"},"comment":{"value":"CT / CHEST / 42 / 1621~~comment"},"precedentReferencedAnnotationUid":{"root":""},"imagingPhysicalEntityCollection":{"ImagingPhysicalEntity":[{"typeCode":[{"code":"RID58","codeSystemName":"RadLex","iso:displayName":{"value":"liver","xmlns:iso":"uri:iso.org:21090"}}],"annotatorConfidence":{"value":0},"label":{"value":"Location"},"uniqueIdentifier":{"root":"2.25.947376419554855555679820812578427154680"}}]},"calculationEntityCollection":{"CalculationEntity":[{"uniqueIdentifier":{"root":"2.25.674997717801411728166712587805884706413"},"typeCode":[{"code":"G-A185","codeSystemName":"SRT","iso:displayName":{"xmlns:iso":"uri:iso.org:21090","value":"LongAxis"}}],"description":{"value":"LongAxis"},"calculationResultCollection":{"CalculationResult":[{"unitOfMeasure":{"value":"mm"},"dataType":{"code":"C48870","codeSystem":"NCI","iso:displayName":{"xmlns:iso":"uri:iso.org:21090","value":"Double"}},"xsi:type":"CompactCalculationResult","dimensionCollection":{"Dimension":[{"index":{"value":0},"size":{"value":1},"label":{"value":"LongAxis"}}]},"type":"Scalar","value":{"value":"28.26712703679181"}}]}},{"uniqueIdentifier":{"root":"2.25.476795937266395735535772588494355654769"},"typeCode":[{"code":"G-A186","codeSystemName":"SRT","iso:displayName":{"xmlns:iso":"uri:iso.org:21090","value":"ShortAxis"}}],"description":{"value":"ShortAxis"},"calculationResultCollection":{"CalculationResult":[{"unitOfMeasure":{"value":"mm"},"dataType":{"code":"C48870","codeSystem":"NCI","iso:displayName":{"xmlns:iso":"uri:iso.org:21090","value":"Double"}},"xsi:type":"CompactCalculationResult","dimensionCollection":{"Dimension":[{"index":{"value":0},"size":{"value":1},"label":{"value":"ShortAxis"}}]},"type":"Scalar","value":{"value":"14.133563518395905"}}]}}]},"imageAnnotationStatementCollection":{"ImageAnnotationStatement":[{"xsi:type":"CalculationEntityReferencesMarkupEntityStatement","subjectUniqueIdentifier":{"root":"2.25.674997717801411728166712587805884706413"},"objectUniqueIdentifier":{"root":"2.25.661402858434879785513998566588814303280"}},{"xsi:type":"CalculationEntityReferencesMarkupEntityStatement","subjectUniqueIdentifier":{"root":"2.25.476795937266395735535772588494355654769"},"objectUniqueIdentifier":{"root":"2.25.570003683669946384807118579120205088819"}}]},"imagingObservationEntityCollection":{"ImagingObservationEntity":[{"typeCode":[{"code":"S86","codeSystemName":"99EPAD","codeSystemVersion":"1.0","iso:displayName":{"value":"Evaluable","xmlns:iso":"uri:iso.org:21090"}}],"annotatorConfidence":{"value":0},"label":{"value":"Lesion Quality"},"uniqueIdentifier":{"root":"2.25.264880904763143120039690917412624038449"},"imagingObservationCharacteristicCollection":{"ImagingObservationCharacteristic":[{"typeCode":[{"code":"S90","codeSystemName":"99EPAD","codeSystemVersion":"1.0","iso:displayName":{"value":"FU Number (0=Baseline)","xmlns:iso":"uri:iso.org:21090"}}],"annotatorConfidence":{"value":0},"label":{"value":"Timepoint"},"characteristicQuantificationCollection":{"CharacteristicQuantification":[{"type":"Nominal","xsi:type":"Scale","annotatorConfidence":{"value":0},"label":{"value":"Timepoint"},"valueLabel":{"value":"Baseline"},"value":{"value":"0"}}]}},{"typeCode":[{"code":"S71","codeSystemName":"99EPAD","codeSystemVersion":"1.0","iso:displayName":{"value":"Target Lesion","xmlns:iso":"uri:iso.org:21090"}}],"annotatorConfidence":{"value":0},"label":{"value":"Type"}},{"typeCode":[{"code":"RID28472","codeSystemName":"RadLex","iso:displayName":{"value":"Present Lesion","xmlns:iso":"uri:iso.org:21090"}}],"annotatorConfidence":{"value":0},"label":{"value":"Lesion Status"}},{"typeCode":[{"code":"RID6055","codeSystemName":"RadLex","iso:displayName":{"value":"Enhancing","xmlns:iso":"uri:iso.org:21090"}}],"annotatorConfidence":{"value":0},"label":{"value":"Lesion Enhancement"}}]}}]},"imageReferenceEntityCollection":{"ImageReferenceEntity":[{"xsi:type":"DicomImageReferenceEntity","uniqueIdentifier":{"root":"2.25.644289545033693763486547384241426929716"},"imageStudy":{"instanceUid":{"root":"1.2.752.24.7.19011385.484010"},"startDate":{"value":"20080606"},"startTime":{"value":"121600"},"accessionNumber":{"value":"0"},"imageSeries":{"instanceUid":{"root":"1.2.840.113704.1.111.5068.1212775734.27"},"modality":{"code":"CT","codeSystemName":"DCM","iso:displayName":{"xmlns:iso":"uri:iso.org:21090","value":"Computed Tomography"},"codeSystemVersion":"20121129"},"imageCollection":{"Image":[{"sopClassUid":{"root":"1.2.840.10008.5.1.4.1.1.2"},"sopInstanceUid":{"root":"1.2.840.113704.1.111.3844.1212776142.2716"}}]}}}}]},"markupEntityCollection":{"MarkupEntity":[{"includeFlag":{"value":true},"twoDimensionSpatialCoordinateCollection":{"TwoDimensionSpatialCoordinate":[{"coordinateIndex":{"value":0},"x":{"value":97.90877192982458},"y":{"value":313.4877192982456}},{"coordinateIndex":{"value":1},"x":{"value":123.95789473684209},"y":{"value":294.6245614035088}}]},"xsi:type":"TwoDimensionMultiPoint","uniqueIdentifier":{"root":"2.25.661402858434879785513998566588814303280"},"shapeIdentifier":{"value":1},"imageReferenceUid":{"root":"1.2.840.113704.1.111.3844.1212776142.2716"},"referencedFrameNumber":{"value":1}},{"includeFlag":{"value":true},"twoDimensionSpatialCoordinateCollection":{"TwoDimensionSpatialCoordinate":[{"coordinateIndex":{"value":0},"x":{"value":115.64912280701755},"y":{"value":310.56842105263155}},{"coordinateIndex":{"value":1},"x":{"value":106.21754385964913},"y":{"value":297.5438596491228}}]},"xsi:type":"TwoDimensionMultiPoint","uniqueIdentifier":{"root":"2.25.570003683669946384807118579120205088819"},"shapeIdentifier":{"value":2},"imageReferenceUid":{"root":"1.2.840.113704.1.111.3844.1212776142.2716"},"referencedFrameNumber":{"value":1}}]}}]}}}
+{
+    "ImageAnnotationCollection": {
+        "xmlns": "gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM",
+        "xmlns:rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "aimVersion": "AIMv4_2",
+        "xsi:schemaLocation": "gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM AIM_v4.2_rv2_XML.xsd",
+        "uniqueIdentifier": {
+            "root": "2.25.588282855208112584081683438493741756942"
+        },
+        "studyInstanceUid": {
+            "root": "1.2.752.24.7.19011385.484010"
+        },
+        "seriesInstanceUid": {
+            "root": "2.25.978392724628257012016085567555322601867"
+        },
+        "accessionNumber": {
+            "value": "0"
+        },
+        "dateTime": {
+            "value": "20210322210520"
+        },
+        "user": {
+            "name": {
+                "value": "admin"
+            },
+            "loginName": {
+                "value": "admin"
+            }
+        },
+        "equipment": {
+            "manufacturerName": {
+                "value": "Philips"
+            },
+            "manufacturerModelName": {
+                "value": "Mx8000 IDT 10"
+            },
+            "softwareVersion": {
+                "value": "3.2.0"
+            }
+        },
+        "person": {
+            "name": {
+                "value": "7^3225^4503"
+            },
+            "id": {
+                "value": "7"
+            },
+            "birthDate": {
+                "value": "19441101"
+            },
+            "sex": {
+                "value": "M"
+            }
+        },
+        "imageAnnotations": {
+            "ImageAnnotation": [
+                {
+                    "uniqueIdentifier": {
+                        "root": "2.25.547567372213308685990058572838941967853"
+                    },
+                    "trackingUniqueIdentifier": {
+                        "root": "2.25.835852689840580182316252464298011544015"
+                    },
+                    "typeCode": [
+                        {
+                            "code": "RECIST_v2",
+                            "codeSystemName": "99EPAD",
+                            "iso:displayName": {
+                                "xmlns:iso": "uri:iso.org:21090",
+                                "value": "Tumor assessment"
+                            }
+                        }
+                    ],
+                    "dateTime": {
+                        "value": "20210322210520"
+                    },
+                    "name": {
+                        "value": "Lesion7"
+                    },
+                    "comment": {
+                        "value": "CT / CHEST / 42 / 1621~~comment"
+                    },
+                    "precedentReferencedAnnotationUid": {
+                        "root": ""
+                    },
+                    "imagingPhysicalEntityCollection": {
+                        "ImagingPhysicalEntity": [
+                            {
+                                "typeCode": [
+                                    {
+                                        "code": "RID58",
+                                        "codeSystemName": "RadLex",
+                                        "iso:displayName": {
+                                            "value": "liver",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Location"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.947376419554855555679820812578427154680"
+                                }
+                            }
+                        ]
+                    },
+                    "calculationEntityCollection": {
+                        "CalculationEntity": [
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.674997717801411728166712587805884706413"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "G-A185",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "LongAxis"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "LongAxis"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "unitOfMeasure": {
+                                                "value": "mm"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystem": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "xsi:type": "CompactCalculationResult",
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "LongAxis"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "type": "Scalar",
+                                            "value": {
+                                                "value": "28.26712703679181"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.476795937266395735535772588494355654769"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "G-A186",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "ShortAxis"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "ShortAxis"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "unitOfMeasure": {
+                                                "value": "mm"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystem": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "xsi:type": "CompactCalculationResult",
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "ShortAxis"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "type": "Scalar",
+                                            "value": {
+                                                "value": "14.133563518395905"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "imageAnnotationStatementCollection": {
+                        "ImageAnnotationStatement": [
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.674997717801411728166712587805884706413"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.661402858434879785513998566588814303280"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.476795937266395735535772588494355654769"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.570003683669946384807118579120205088819"
+                                }
+                            }
+                        ]
+                    },
+                    "imagingObservationEntityCollection": {
+                        "ImagingObservationEntity": [
+                            {
+                                "questionTypeCode": [
+                                    {
+                                        "code": "RDETBD1",
+                                        "codeSystemName": "Radelement",
+                                        "iso:displayName": {
+                                            "value": "Lesion Quality",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "typeCode": [
+                                    {
+                                        "code": "S86",
+                                        "codeSystemName": "99EPAD",
+                                        "codeSystemVersion": "1.0",
+                                        "iso:displayName": {
+                                            "value": "Evaluable",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Lesion Quality"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.264880904763143120039690917412624038449"
+                                },
+                                "imagingObservationCharacteristicCollection": {
+                                    "ImagingObservationCharacteristic": [
+                                        {
+                                            "questionTypeCode": [
+                                                {
+                                                    "code": "RDETBD2",
+                                                    "codeSystemName": "Radelement",
+                                                    "iso:displayName": {
+                                                        "value": "Timepoint",
+                                                        "xmlns:iso": "uri:iso.org:21090"
+                                                    }
+                                                }
+                                            ],
+                                            "typeCode": [
+                                                {
+                                                    "code": "S90",
+                                                    "codeSystemName": "99EPAD",
+                                                    "codeSystemVersion": "1.0",
+                                                    "iso:displayName": {
+                                                        "value": "FU Number (0=Baseline)",
+                                                        "xmlns:iso": "uri:iso.org:21090"
+                                                    }
+                                                }
+                                            ],
+                                            "annotatorConfidence": {
+                                                "value": 0
+                                            },
+                                            "label": {
+                                                "value": "Timepoint"
+                                            },
+                                            "characteristicQuantificationCollection": {
+                                                "CharacteristicQuantification": [
+                                                    {
+                                                        "type": "Nominal",
+                                                        "xsi:type": "Scale",
+                                                        "annotatorConfidence": {
+                                                            "value": 0
+                                                        },
+                                                        "label": {
+                                                            "value": "Timepoint"
+                                                        },
+                                                        "valueLabel": {
+                                                            "value": "Baseline"
+                                                        },
+                                                        "value": {
+                                                            "value": "0"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "questionTypeCode": [
+                                                {
+                                                    "code": "RDETBD3",
+                                                    "codeSystemName": "Radelement",
+                                                    "iso:displayName": {
+                                                        "value": "Lesion Type",
+                                                        "xmlns:iso": "uri:iso.org:21090"
+                                                    }
+                                                }
+                                            ],
+                                            "typeCode": [
+                                                {
+                                                    "code": "S71",
+                                                    "codeSystemName": "99EPAD",
+                                                    "codeSystemVersion": "1.0",
+                                                    "iso:displayName": {
+                                                        "value": "Target Lesion",
+                                                        "xmlns:iso": "uri:iso.org:21090"
+                                                    }
+                                                }
+                                            ],
+                                            "annotatorConfidence": {
+                                                "value": 0
+                                            },
+                                            "label": {
+                                                "value": "Type"
+                                            }
+                                        },
+                                        {
+                                            "questionTypeCode": [
+                                                {
+                                                    "code": "RDE54",
+                                                    "codeSystemName": "Radelement",
+                                                    "iso:displayName": {
+                                                        "value": "Lesion Status",
+                                                        "xmlns:iso": "uri:iso.org:21090"
+                                                    }
+                                                }
+                                            ],
+                                            "typeCode": [
+                                                {
+                                                    "code": "RID28472",
+                                                    "codeSystemName": "RadLex",
+                                                    "iso:displayName": {
+                                                        "value": "Present Lesion",
+                                                        "xmlns:iso": "uri:iso.org:21090"
+                                                    }
+                                                }
+                                            ],
+                                            "annotatorConfidence": {
+                                                "value": 0
+                                            },
+                                            "label": {
+                                                "value": "Lesion Status"
+                                            }
+                                        },
+                                        {
+                                            "questionTypeCode": [
+                                                {
+                                                    "code": "RDETBD4",
+                                                    "codeSystemName": "Radelement",
+                                                    "iso:displayName": {
+                                                        "value": "Lesion Enhancement",
+                                                        "xmlns:iso": "uri:iso.org:21090"
+                                                    }
+                                                }
+                                            ],
+                                            "typeCode": [
+                                                {
+                                                    "code": "RID6055",
+                                                    "codeSystemName": "RadLex",
+                                                    "iso:displayName": {
+                                                        "value": "Enhancing",
+                                                        "xmlns:iso": "uri:iso.org:21090"
+                                                    }
+                                                }
+                                            ],
+                                            "annotatorConfidence": {
+                                                "value": 0
+                                            },
+                                            "label": {
+                                                "value": "Lesion Enhancement"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    "imageReferenceEntityCollection": {
+                        "ImageReferenceEntity": [
+                            {
+                                "xsi:type": "DicomImageReferenceEntity",
+                                "uniqueIdentifier": {
+                                    "root": "2.25.644289545033693763486547384241426929716"
+                                },
+                                "imageStudy": {
+                                    "instanceUid": {
+                                        "root": "1.2.752.24.7.19011385.484010"
+                                    },
+                                    "startDate": {
+                                        "value": "20080606"
+                                    },
+                                    "startTime": {
+                                        "value": "121600"
+                                    },
+                                    "accessionNumber": {
+                                        "value": "0"
+                                    },
+                                    "imageSeries": {
+                                        "instanceUid": {
+                                            "root": "1.2.840.113704.1.111.5068.1212775734.27"
+                                        },
+                                        "modality": {
+                                            "code": "CT",
+                                            "codeSystemName": "DCM",
+                                            "iso:displayName": {
+                                                "xmlns:iso": "uri:iso.org:21090",
+                                                "value": "Computed Tomography"
+                                            },
+                                            "codeSystemVersion": "20121129"
+                                        },
+                                        "imageCollection": {
+                                            "Image": [
+                                                {
+                                                    "sopClassUid": {
+                                                        "root": "1.2.840.10008.5.1.4.1.1.2"
+                                                    },
+                                                    "sopInstanceUid": {
+                                                        "root": "1.2.840.113704.1.111.3844.1212776142.2716"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "markupEntityCollection": {
+                        "MarkupEntity": [
+                            {
+                                "includeFlag": {
+                                    "value": true
+                                },
+                                "twoDimensionSpatialCoordinateCollection": {
+                                    "TwoDimensionSpatialCoordinate": [
+                                        {
+                                            "coordinateIndex": {
+                                                "value": 0
+                                            },
+                                            "x": {
+                                                "value": 97.90877192982458
+                                            },
+                                            "y": {
+                                                "value": 313.4877192982456
+                                            }
+                                        },
+                                        {
+                                            "coordinateIndex": {
+                                                "value": 1
+                                            },
+                                            "x": {
+                                                "value": 123.95789473684209
+                                            },
+                                            "y": {
+                                                "value": 294.6245614035088
+                                            }
+                                        }
+                                    ]
+                                },
+                                "xsi:type": "TwoDimensionMultiPoint",
+                                "uniqueIdentifier": {
+                                    "root": "2.25.661402858434879785513998566588814303280"
+                                },
+                                "shapeIdentifier": {
+                                    "value": 1
+                                },
+                                "imageReferenceUid": {
+                                    "root": "1.2.840.113704.1.111.3844.1212776142.2716"
+                                },
+                                "referencedFrameNumber": {
+                                    "value": 1
+                                }
+                            },
+                            {
+                                "includeFlag": {
+                                    "value": true
+                                },
+                                "twoDimensionSpatialCoordinateCollection": {
+                                    "TwoDimensionSpatialCoordinate": [
+                                        {
+                                            "coordinateIndex": {
+                                                "value": 0
+                                            },
+                                            "x": {
+                                                "value": 115.64912280701755
+                                            },
+                                            "y": {
+                                                "value": 310.56842105263155
+                                            }
+                                        },
+                                        {
+                                            "coordinateIndex": {
+                                                "value": 1
+                                            },
+                                            "x": {
+                                                "value": 106.21754385964913
+                                            },
+                                            "y": {
+                                                "value": 297.5438596491228
+                                            }
+                                        }
+                                    ]
+                                },
+                                "xsi:type": "TwoDimensionMultiPoint",
+                                "uniqueIdentifier": {
+                                    "root": "2.25.570003683669946384807118579120205088819"
+                                },
+                                "shapeIdentifier": {
+                                    "value": 2
+                                },
+                                "imageReferenceUid": {
+                                    "root": "1.2.840.113704.1.111.3844.1212776142.2716"
+                                },
+                                "referencedFrameNumber": {
+                                    "value": 1
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
