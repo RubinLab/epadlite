@@ -8680,7 +8680,6 @@ async function epaddb(fastify, options, done) {
     return {
       fileUids,
       isResponseJustStream,
-      res,
       headWritten,
       archive,
       dir,
@@ -8737,7 +8736,6 @@ async function epaddb(fastify, options, done) {
             const {
               fileUids,
               isResponseJustStream,
-              res,
               headWritten,
               archive,
               dir,
@@ -8767,10 +8765,6 @@ async function epaddb(fastify, options, done) {
               epadAuth,
               headWritten,
               returnFolder,
-              dirName,
-              res,
-              reqOrigin,
-              isResponseJustStream,
               archive,
               isThereDataToWrite
             );
@@ -8853,7 +8847,6 @@ async function epaddb(fastify, options, done) {
             const {
               fileUids,
               isResponseJustStream,
-              res,
               headWritten,
               archive,
               dir,
@@ -8877,10 +8870,6 @@ async function epaddb(fastify, options, done) {
               epadAuth,
               headWritten,
               returnFolder,
-              dirName,
-              res,
-              reqOrigin,
-              isResponseJustStream,
               archive,
               isThereDataToWrite
             );
@@ -8927,7 +8916,6 @@ async function epaddb(fastify, options, done) {
             const {
               fileUids,
               isResponseJustStream,
-              res,
               headWritten,
               archive,
               dir,
@@ -9016,7 +9004,6 @@ async function epaddb(fastify, options, done) {
             const {
               fileUids,
               isResponseJustStream,
-              res,
               headWritten,
               archive,
               dir,
@@ -9047,10 +9034,6 @@ async function epaddb(fastify, options, done) {
               epadAuth,
               headWritten,
               returnFolder,
-              dirName,
-              res,
-              reqOrigin,
-              isResponseJustStream,
               archive,
               isThereDataToWrite
             );
@@ -9124,10 +9107,6 @@ async function epaddb(fastify, options, done) {
       epadAuth,
       headWritten,
       returnFolder,
-      dirName,
-      res,
-      reqOrigin,
-      isResponseJustStream,
       archive,
       isThereDataToWrite
     ) => {
