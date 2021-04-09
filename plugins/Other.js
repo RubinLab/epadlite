@@ -347,6 +347,8 @@ async function other(fastify) {
               subject: studyJSON.subject,
               study: studyJSON.study,
             };
+            // does not send query to check for segmentation dicoms (AIM)
+            // this is called from upload and it already handles segmentation dicoms
             // eslint-disable-next-line no-await-in-loop
             await fastify.addPatientStudyToProjectInternal(combinedParams, epadAuth, studyJSON);
           }
