@@ -1596,8 +1596,8 @@ async function other(fastify) {
             // putting the email from db in epadAuth
             // TODO what if they change it just in keycloak
             epadAuth.email = user.email;
-            epadAuth.firstname = userInfo.given_name;
-            epadAuth.lastname = userInfo.family_name;
+            epadAuth.firstname = userInfo ? userInfo.given_name : '';
+            epadAuth.lastname = userInfo ? userInfo.family_name : '';
           }
         } catch (errUser) {
           reject(errUser);
