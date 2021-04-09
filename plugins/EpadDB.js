@@ -6948,6 +6948,7 @@ async function epaddb(fastify, options, done) {
 
           // if study have segmentations we should check if there is an annotation for it
           if (
+            studyInfo.examTypes &&
             studyInfo.examTypes.includes('SEG') &&
             query &&
             query.from &&
