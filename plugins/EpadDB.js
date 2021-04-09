@@ -13,6 +13,7 @@ const unzip = require('unzip-stream');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
 const csv = require('csv-parser');
+const { createOfflineAimSegmentation } = require('aimapi');
 
 // eslint-disable-next-line no-global-assign
 window = {};
@@ -4830,7 +4831,8 @@ async function epaddb(fastify, options, done) {
               await fastify.addPatientStudyToProjectDBInternal(
                 studies[i],
                 projectSubject,
-                request.epadAuth
+                request.epadAuth,
+                request.query
               );
             }
           }
@@ -6872,7 +6874,12 @@ async function epaddb(fastify, options, done) {
   // });
   fastify.decorate('addPatientStudyToProject', (request, reply) => {
     fastify
-      .addPatientStudyToProjectInternal(request.params, request.epadAuth, request.body)
+      .addPatientStudyToProjectInternal(
+        request.params,
+        request.epadAuth,
+        request.body,
+        request.query
+      )
       .then((result) => reply.code(200).send(result))
       .catch((err) => reply.send(err));
   });
@@ -6930,7 +6937,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'addPatientStudyToProjectDBInternal',
-    (studyInfo, projectSubject, epadAuth, transaction) =>
+    (studyInfo, projectSubject, epadAuth, query, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
           // update with latest value
@@ -6975,6 +6982,63 @@ async function epaddb(fastify, options, done) {
             epadAuth.username,
             transaction
           );
+
+          // if study have segmentations we should check if there is an annotation for it
+          if (
+            studyInfo.examTypes &&
+            studyInfo.examTypes.includes('SEG') &&
+            query &&
+            query.from &&
+            query.from === config.unassignedProjectID
+          ) {
+            fastify.log.info('There are SEGs coming from unassigned checking for AIMs');
+            // get series
+            // for each seg see if it has an annotation, generate if not
+            const seriesList = await fastify.getStudySeriesInternal(
+              { study: studyInfo.studyUID },
+              {},
+              epadAuth,
+              true
+            );
+            for (let i = 0; i < seriesList.length; i += 1) {
+              if (seriesList[i].examType === 'SEG') {
+                // eslint-disable-next-line no-await-in-loop
+                const aimExists = await fastify.checkProjectSegAimExistence(
+                  seriesList[i].seriesUID,
+                  studyInfo.projectID
+                );
+                if (!aimExists) {
+                  const params = {
+                    project: studyInfo.projectID,
+                    subject: studyInfo.patientID,
+                    study: studyInfo.studyUID,
+                    series: seriesList[i].seriesUID,
+                  };
+                  // We need to pull dicom seg and create an aim file
+                  // eslint-disable-next-line no-await-in-loop
+                  const [segPart] = await fastify.getSeriesWadoMultipart(params);
+                  if (segPart) {
+                    const segTags = dcmjs.data.DicomMessage.readFile(segPart);
+                    const segDS = dcmjs.data.DicomMetaDictionary.naturalizeDataset(segTags.dict);
+                    // eslint-disable-next-line no-underscore-dangle
+                    segDS._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(segTags.meta);
+                    fastify.log.info(
+                      `A segmentation is uploaded with series UID ${segDS.SeriesInstanceUID} which doesn't have an aim, generating an aim with name ${segDS.SeriesDescription} `
+                    );
+                    const { aim } = createOfflineAimSegmentation(segDS, {
+                      loginName: epadAuth.username,
+                      name: `${epadAuth.firstname} ${epadAuth.lastname}`,
+                    });
+                    const aimJson = aim.getAimJSON();
+                    // eslint-disable-next-line no-await-in-loop
+                    await fastify.saveAimJsonWithProjectRef(aimJson, params, epadAuth);
+                  }
+                }
+              }
+            }
+          } else {
+            fastify.log.info('No need to check for segmentation AIMs');
+          }
           resolve();
         } catch (err) {
           reject(new InternalError(`Adding study ${studyInfo.studyUID} DB`, err));
@@ -6984,7 +7048,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'addPatientStudyToProjectInternal',
-    (params, epadAuth, body) =>
+    (params, epadAuth, body, query) =>
       new Promise(async (resolve, reject) => {
         try {
           let studyUid = params.study;
@@ -7093,9 +7157,10 @@ async function epaddb(fastify, options, done) {
                 } else {
                   if (studies.length === 1) [studyInfo] = studies;
                   await fastify.addPatientStudyToProjectDBInternal(
-                    studyInfo,
+                    { ...studyInfo, projectID: params.project },
                     projectSubject,
-                    epadAuth
+                    epadAuth,
+                    query
                   );
                   resolve();
                 }
@@ -8653,7 +8718,6 @@ async function epaddb(fastify, options, done) {
     return {
       fileUids,
       isResponseJustStream,
-      res,
       headWritten,
       archive,
       dir,
@@ -8710,7 +8774,6 @@ async function epaddb(fastify, options, done) {
             const {
               fileUids,
               isResponseJustStream,
-              res,
               headWritten,
               archive,
               dir,
@@ -8740,10 +8803,6 @@ async function epaddb(fastify, options, done) {
               epadAuth,
               headWritten,
               returnFolder,
-              dirName,
-              res,
-              reqOrigin,
-              isResponseJustStream,
               archive,
               isThereDataToWrite
             );
@@ -8826,7 +8885,6 @@ async function epaddb(fastify, options, done) {
             const {
               fileUids,
               isResponseJustStream,
-              res,
               headWritten,
               archive,
               dir,
@@ -8850,10 +8908,6 @@ async function epaddb(fastify, options, done) {
               epadAuth,
               headWritten,
               returnFolder,
-              dirName,
-              res,
-              reqOrigin,
-              isResponseJustStream,
               archive,
               isThereDataToWrite
             );
@@ -8900,7 +8954,6 @@ async function epaddb(fastify, options, done) {
             const {
               fileUids,
               isResponseJustStream,
-              res,
               headWritten,
               archive,
               dir,
@@ -8989,7 +9042,6 @@ async function epaddb(fastify, options, done) {
             const {
               fileUids,
               isResponseJustStream,
-              res,
               headWritten,
               archive,
               dir,
@@ -9020,10 +9072,6 @@ async function epaddb(fastify, options, done) {
               epadAuth,
               headWritten,
               returnFolder,
-              dirName,
-              res,
-              reqOrigin,
-              isResponseJustStream,
               archive,
               isThereDataToWrite
             );
@@ -9097,10 +9145,6 @@ async function epaddb(fastify, options, done) {
       epadAuth,
       headWritten,
       returnFolder,
-      dirName,
-      res,
-      reqOrigin,
-      isResponseJustStream,
       archive,
       isThereDataToWrite
     ) => {
@@ -11551,6 +11595,7 @@ async function epaddb(fastify, options, done) {
                   subjects[values[i].subjectUID].studies[j],
                   values[i].projectSubject,
                   epadAuth,
+                  {},
                   t
                 );
               }
