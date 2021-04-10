@@ -7022,8 +7022,16 @@ async function epaddb(fastify, options, done) {
                     const segDS = dcmjs.data.DicomMetaDictionary.naturalizeDataset(segTags.dict);
                     // eslint-disable-next-line no-underscore-dangle
                     segDS._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(segTags.meta);
+                    let segmentSeq = segDS.SegmentSequence;
+                    if (segmentSeq.constructor.name !== 'Array') {
+                      segmentSeq = [segmentSeq];
+                    }
                     fastify.log.info(
-                      `A segmentation is uploaded with series UID ${segDS.SeriesInstanceUID} which doesn't have an aim, generating an aim with name ${segDS.SeriesDescription} `
+                      `A segmentation is uploaded with series UID ${
+                        segDS.SeriesInstanceUID
+                      } which doesn't have an aim, generating an aim with name ${
+                        segDS.SeriesDescription || segmentSeq[0].SegmentLabel
+                      } `
                     );
                     const { aim } = createOfflineAimSegmentation(segDS, {
                       loginName: epadAuth.username,
