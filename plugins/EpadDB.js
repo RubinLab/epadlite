@@ -2461,7 +2461,7 @@ async function epaddb(fastify, options, done) {
                     },
                     true
                   );
-                  const pathFrom = path.join(__dirname, `../${dicomPath}`);
+                  const pathFrom = path.join(__dirname, `../${dicomPath}/${projectid}`);
                   // eslint-disable-next-line no-await-in-loop
                   await fs.move(`${pathFrom}`, `${inputfolder}`, { overwrite: true }, (err) => {
                     if (err) {
