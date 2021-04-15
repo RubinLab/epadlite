@@ -4,7 +4,7 @@
   "description": "Lightweight ePad Backend",
   "main": "server.js",
   "dependencies": {
-    "aimapi": "^0.1.8",
+    "aimapi": "^0.1.11",
     "archiver": "^5.1.0",
     "atob": "^2.1.2",
     "axios": "^0.21.1",
@@ -41,15 +41,15 @@
     "xmlhttprequest": "^1.8.0"
   },
   "devDependencies": {
-    "chai": "*",
+    "chai": "^4.3.4",
     "chai-http": "*",
-    "eslint": "^7.15.0",
+    "eslint": "^7.24.0",
     "eslint-config-airbnb-base": "^14.2.1",
-    "eslint-config-prettier": "^7.0.0",
+    "eslint-config-prettier": "^7.2.0",
     "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-mocha": "^8.0.0",
-    "eslint-plugin-prettier": "^3.2.0",
-    "mocha": "*",
+    "eslint-plugin-mocha": "^8.1.0",
+    "eslint-plugin-prettier": "^3.4.0",
+    "mocha": "^8.3.2",
     "prettier": "^2.2.1"
   },
   "scripts": {
