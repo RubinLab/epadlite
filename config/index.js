@@ -71,4 +71,21 @@ if (process.env.CORS_ORIGIN) {
 config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
 config.secret = process.env.SECRET || config.secret || undefined;
 
+if (
+  config.rabbitmq ||
+  process.env.RABBITMQ_PORT ||
+  process.env.RABBITMQ_HOSTNAME ||
+  process.env.RABBITMQ_PROTOCOL ||
+  process.env.RABBITMQ_USERNAME
+) {
+  config.rabbitmq = config.rabbitmq ? config.rabbitmq : {};
+  config.rabbitmq.protocol = process.env.RABBITMQ_PROTOCOL || config.rabbitmq.protocol || 'amqp';
+  config.rabbitmq.hostname =
+    process.env.RABBITMQ_HOSTNAME || config.rabbitmq.hostname || 'localhost';
+  config.rabbitmq.port = process.env.RABBITMQ_PORT || config.rabbitmq.port || '5672';
+  config.rabbitmq.username = process.env.RABBITMQ_USERNAME || config.rabbitmq.username || 'guest';
+  config.rabbitmq.password = process.env.RABBITMQ_PASSWORD || config.rabbitmq.password || 'guest';
+  config.rabbitmq.vhost = process.env.RABBITMQ_VHOST || config.rabbitmq.vhost || '';
+}
+
 module.exports = config;

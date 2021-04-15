@@ -1992,6 +1992,75 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('consumeRabbitMQ', () => {
+    try {
+      const { channel } = this.amqp;
+      const exchange = 'AcrConnect.DataManager.Abstractions.EventMessages:IDataSetEvent';
+      channel.assertExchange(exchange, 'fanout', {
+        durable: false,
+      });
+
+      channel.assertQueue(
+        '',
+        {
+          exclusive: true,
+        },
+        (error2, q) => {
+          if (error2) {
+            throw error2;
+          }
+          console.log(' [*] Waiting for messages in %s. To exit press CTRL+C', q.queue);
+          channel.bindQueue(q.queue, exchange, '');
+
+          channel.consume(
+            q.queue,
+            (msg) => {
+              if (msg.content) {
+                console.log(' [x] %s', msg.content.toString());
+              }
+            },
+            {
+              noAck: true,
+            }
+          );
+        }
+      );
+
+      const exchange2 = 'AcrConnect.DataManager.Abstractions.EventMessages:IDataSetCreated';
+      channel.assertExchange(exchange2, 'fanout', {
+        durable: false,
+      });
+
+      channel.assertQueue(
+        '',
+        {
+          exclusive: true,
+        },
+        (error2, q) => {
+          if (error2) {
+            throw error2;
+          }
+          console.log(' [*] Waiting for messages in %s. To exit press CTRL+C', q.queue);
+          channel.bindQueue(q.queue, exchange2, '');
+
+          channel.consume(
+            q.queue,
+            (msg) => {
+              if (msg.content) {
+                console.log(' [x] %s created', msg.content.toString());
+              }
+            },
+            {
+              noAck: true,
+            }
+          );
+        }
+      );
+    } catch (err) {
+      console.log(err);
+    }
+  });
+
   fastify.addHook('onError', (request, reply, error, done) => {
     if (error instanceof ResourceNotFoundError) reply.code(404);
     else if (error instanceof InternalError) reply.code(500);

@@ -140,6 +140,17 @@ if (config.notificationEmail) {
   });
 }
 
+if (config.rabbitmq) {
+  fastify.register(require('fastify-amqp'), {
+    protocol: config.rabbitmq.protocol,
+    hostname: config.rabbitmq.hostname,
+    port: config.rabbitmq.port,
+    username: config.rabbitmq.username,
+    password: config.rabbitmq.password,
+    vhost: config.rabbitmq.vhost,
+  });
+}
+
 // download folder required for static
 const downloadFolder = path.join(__dirname, '/download');
 if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
