@@ -2438,22 +2438,19 @@ async function epaddb(fastify, options, done) {
                     fastify.log.info(`copying folder ${pathFrom} succeed`);
                   } catch (err) {
                     fastify.log.error(`file copy from ${pathFrom} encountered error: -> ${err}`);
-                    reject(err);
+                    reject(new InternalError(`file copy from ${pathFrom} encountered error`, err));
                   }
                   try {
                     fs.removeSync(`${pathFrom}`);
                     fastify.log.info(`removing folder ${pathFrom} succeed`);
                   } catch (err) {
                     fastify.log.error(`removing folder ${pathFrom} encountered error -> ${err}`);
-                    reject(err);
+                    reject(new InternalError(`removing folder ${pathFrom} encountered error`, err));
                   }
-                  console.log('************************* tmp folder location : ', pathFrom);
-                  console.log('*************************');
-                  console.log('*************************');
-                  console.log('************************* :pluginParams:', pluginparams);
-                  console.log(`************************* full path tmp ${__dirname}/${dicomPath}`);
-                  console.log(`************************* copy tmp to ${inputfolder}`);
-                  console.log('************************* dicom tmp path', dicomPath);
+                  fastify.log.info(`tmp folder location to move to the container : ${pathFrom}`);
+                  fastify.log.info(`full path for tmp folder location : ${__dirname}/${dicomPath}`);
+                  fastify.log.info(`plugin Params used for the plugin process : ${pluginparams}`);
+                  fastify.log.info(`moving tmp folder content to the destination : ${inputfolder}`);
                 }
               } catch (err) {
                 reject(err);
