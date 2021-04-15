@@ -2417,35 +2417,6 @@ async function epaddb(fastify, options, done) {
                   }
                 } else {
                   // project level dicoms
-                  fastify.log.info(`getting projects dicoms........in.${inputfolder}`);
-                  const writeStream = fs
-                    .createWriteStream(`${inputfolder}dicoms.zip`)
-                    // eslint-disable-next-line prefer-arrow-callback
-                    .on('finish', function () {
-                      fastify.log.info(`dicom copy finished ${inputfolder}dicoms.zip`);
-                      // unzip part
-                      // fs.createReadStream(`${inputfolder}/dicoms.zip`)
-                      //   .pipe(unzip.Extract({ path: `${inputfolder}` }))
-                      //   .on('close', () => {
-                      //     fastify.log.info(`${inputfolder}/dicoms.zip extracted`);
-                      //     fs.remove(`${inputfolder}/dicoms.zip`, (error) => {
-                      //       if (error) {
-                      //         fastify.log.info(
-                      //           `${inputfolder}/dicoms.zip file deletion error ${error.message}`
-                      //         );
-                      //         reject(error);
-                      //       } else {
-                      //         fastify.log.info(`${inputfolder}/dicoms.zip deleted`);
-                      //       }
-                      //     });
-                      //   })
-                      //   .on('error', (error) => {
-                      //     reject(
-                      //       new InternalError(`Extracting zip ${inputfolder}dicoms.zip`, error)
-                      //     );
-                      //   });
-                      // un zip part over
-                    });
                   fastify.log.info(
                     `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
                   );
@@ -2455,28 +2426,31 @@ async function epaddb(fastify, options, done) {
                     { project: projectid },
                     { format: 'stream', includeAims: 'false' },
                     request.epadAuth,
-                    writeStream,
+                    'undefined',
                     {
                       project_id: projectdbid,
                     },
                     true
                   );
                   const pathFrom = path.join(__dirname, `../${dicomPath}/${projectid}`);
-                  // eslint-disable-next-line no-await-in-loop
-                  await fs.move(`${pathFrom}`, `${inputfolder}`, { overwrite: true }, (err) => {
-                    if (err) {
-                      console.error(`file copy -> ${err}`);
-                    } else {
-                      console.log('file copy success!');
-                    }
-                  });
-                  console.log('*************************');
-                  console.log('*************************');
-                  console.log('*************************');
-                  console.log('************************* :pluginParams:', pluginparams);
-                  console.log(`************************* full path tmp ${__dirname}/${dicomPath}`);
-                  console.log(`************************* copy tmp to ${inputfolder}`);
-                  console.log('************************* dicom tmp path', dicomPath);
+                  try {
+                    fs.moveSync(`${pathFrom}`, `${inputfolder}`, { overwrite: true });
+                    fastify.log.info(`copying folder ${pathFrom} succeed`);
+                  } catch (err) {
+                    fastify.log.error(`file copy from ${pathFrom} encountered error: -> ${err}`);
+                    reject(new InternalError(`file copy from ${pathFrom} encountered error`, err));
+                  }
+                  try {
+                    fs.removeSync(`${pathFrom}`);
+                    fastify.log.info(`removing folder ${pathFrom} succeed`);
+                  } catch (err) {
+                    fastify.log.error(`removing folder ${pathFrom} encountered error -> ${err}`);
+                    reject(new InternalError(`removing folder ${pathFrom} encountered error`, err));
+                  }
+                  fastify.log.info(`tmp folder location to move to the container : ${pathFrom}`);
+                  fastify.log.info(`full path for tmp folder location : ${__dirname}/${dicomPath}`);
+                  fastify.log.info(`plugin Params used for the plugin process : ${pluginparams}`);
+                  fastify.log.info(`moving tmp folder content to the destination : ${inputfolder}`);
                 }
               } catch (err) {
                 reject(err);
