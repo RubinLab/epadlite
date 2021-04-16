@@ -62,8 +62,6 @@ fastify.register(require('./plugins/Other'));
 
 fastify.register(require('./plugins/Reporting'));
 
-fastify.register(require('./plugins/Ontology'));
-
 const port = process.env.port || '8080';
 const host = process.env.host || '0.0.0.0';
 
@@ -109,6 +107,8 @@ fastify.register(
 // register epaddb plugin we created
 // eslint-disable-next-line global-require
 fastify.register(require('./plugins/EpadDB'));
+// test by commenting plugins
+fastify.register(require('./plugins/Ontology'));
 // register routes
 // this should be done after CouchDB plugin to be able to use the accessor methods
 // for both thick and lite

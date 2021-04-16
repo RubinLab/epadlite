@@ -6,8 +6,9 @@ const path = require('path');
 
 const { InternalError } = require('../utils/EpadErrors');
 
-async function Ontology(fastify) {
-  const models = {};
+async function Ontology(fastify, options, done) {
+  // const models = {};
+  const { models } = fastify;
 
   fastify.decorate('initOntologyModels', async () => {
     const filenames = fs.readdirSync(`${__dirname}/../models`);
@@ -471,9 +472,10 @@ async function Ontology(fastify) {
     }
   });
 
-  fastify.ready(async () => {
+  fastify.after(async () => {
     try {
-      fastify.initOntologyModels();
+      // await fastify.initOntologyModels();
+      done();
     } catch (err) {
       fastify.log.error('error happened while initiating ontology models', err);
     }
