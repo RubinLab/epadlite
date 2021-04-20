@@ -1994,7 +1994,7 @@ async function other(fastify) {
 
   fastify.decorate('consumeRabbitMQ', () => {
     try {
-      const { channel } = this.amqp;
+      const { channel } = fastify.amqp;
       const exchange = 'AcrConnect.DataManager.Abstractions.EventMessages:IDataSetEvent';
       channel.assertExchange(exchange, 'fanout', {
         durable: false,
@@ -2030,7 +2030,6 @@ async function other(fastify) {
       channel.assertExchange(exchange2, 'fanout', {
         durable: false,
       });
-
       channel.assertQueue(
         '',
         {
