@@ -163,7 +163,7 @@ fastify.listen(port, host);
 
 fastify.ready((err) => {
   if (err) throw err;
-
+  fastify.consumeRabbitMQ();
   fastify.swagger();
 
   fastify.addHook('onClose', async (instance) => {
