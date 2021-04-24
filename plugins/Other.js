@@ -1995,65 +1995,24 @@ async function other(fastify) {
   fastify.decorate('consumeRabbitMQ', () => {
     try {
       const { channel } = fastify.amqp;
-      const exchange = 'AcrConnect.DataManager.Abstractions.EventMessages:IDataSetEvent';
-      channel.assertExchange(exchange, 'fanout', {
-        durable: false,
-      });
-
-      channel.assertQueue(
-        '',
-        {
-          exclusive: true,
-        },
-        (error2, q) => {
-          if (error2) {
-            throw error2;
-          }
-          console.log(' [*] Waiting for messages in %s. To exit press CTRL+C', q.queue);
-          channel.bindQueue(q.queue, exchange, '');
-
-          channel.consume(
-            q.queue,
-            (msg) => {
-              if (msg.content) {
-                console.log(' [x] %s', msg.content.toString());
-              }
-            },
-            {
-              noAck: true,
-            }
-          );
-        }
-      );
-
       const exchange2 = 'AcrConnect.DataManager.Abstractions.EventMessages:IDataSetCreated';
       channel.assertExchange(exchange2, 'fanout', {
-        durable: false,
+        durable: true,
       });
-      channel.assertQueue(
-        '',
-        {
-          exclusive: true,
+      const queue = 'QDataSetCreated';
+      const qq = channel.assertQueue(queue, { durable: true });
+      channel.prefetch(10);
+      channel.bindQueue(qq.queue, exchange2, '');
+      channel.consume(
+        queue,
+        (msg) => {
+          console.log(' [x] Received %s', msg.content.toString());
+          setTimeout(() => {
+            console.log(' [x] Done');
+            channel.ack(msg);
+          }, 7000);
         },
-        (error2, q) => {
-          if (error2) {
-            throw error2;
-          }
-          console.log(' [*] Waiting for messages in %s. To exit press CTRL+C', q.queue);
-          channel.bindQueue(q.queue, exchange2, '');
-
-          channel.consume(
-            q.queue,
-            (msg) => {
-              if (msg.content) {
-                console.log(' [x] %s created', msg.content.toString());
-              }
-            },
-            {
-              noAck: true,
-            }
-          );
-        }
+        { noAck: false }
       );
     } catch (err) {
       console.log(err);
