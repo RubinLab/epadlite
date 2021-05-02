@@ -711,9 +711,10 @@ async function reporting(fastify) {
    * @param sums
    * @return
    */
-  fastify.decorate('calcRRBaseline', (sums, timepoints) => {
+  fastify.decorate('calcRRBaseline', (sums, timepoints, abs = false) => {
     let baseline = sums[0];
     const rrBaseline = [];
+    const rrBaselineAbs = [];
     for (let i = 0; i < timepoints.length; i += 1) rrBaseline.push(0.0);
     for (let i = 0; i < sums.length; i += 1) {
       if (sums[i] != null) {
@@ -724,9 +725,14 @@ async function reporting(fastify) {
         if (baseline === 0) {
           fastify.log.debug('baseline is 0. returning 999999.9 for rr');
           rrBaseline[i] = 999999.9;
-        } else rrBaseline[i] = ((sums[i] - baseline) * 100.0) / baseline;
+          rrBaselineAbs[i] = 0;
+        } else {
+          rrBaseline[i] = ((sums[i] - baseline) * 100.0) / baseline;
+          rrBaselineAbs[i] = sums[i] - baseline;
+        }
       }
     }
+    if (abs) return { rrBaseline, rrBaselineAbs };
     return rrBaseline;
   });
 
@@ -741,10 +747,11 @@ async function reporting(fastify) {
    * @param timepoints
    * @return
    */
-  fastify.decorate('calcRRMin', (sums, timepoints) => {
+  fastify.decorate('calcRRMin', (sums, timepoints, abs = false) => {
     let min = sums[0];
     fastify.log.debug(`Min is ${min}`);
     const rr = [];
+    const rrAbs = [];
     for (let i = 0; i < timepoints.length; i += 1) rr.push(0.0);
     for (let i = 0; i < sums.length; i += 1) {
       if (sums[i] != null) {
@@ -755,7 +762,11 @@ async function reporting(fastify) {
         if (min === 0) {
           fastify.log.debug('min is 0. returning 999999.9 for rr');
           rr[i] = 999999.9;
-        } else rr[i] = ((sums[i] - min) * 100.0) / min;
+          rrAbs[i] = 0;
+        } else {
+          rr[i] = ((sums[i] - min) * 100.0) / min;
+          rrAbs[i] = sums[i] - min;
+        }
         if (sums[i] < min) {
           let j = 1;
           // skip nulls
@@ -769,6 +780,7 @@ async function reporting(fastify) {
         }
       }
     }
+    if (abs) return { rr, rrAbs };
     return rr;
   });
 
@@ -840,6 +852,7 @@ async function reporting(fastify) {
           'Location',
           'Template',
           'Shapes',
+          'TrackingUniqueIdentifier',
           'Username',
         ],
         shapes
@@ -856,14 +869,24 @@ async function reporting(fastify) {
             tLesionNames: [],
             studyDates: [],
             lesions: [],
+            tTrackingUIDs: [],
+            lesionWTrackingUIDCount: 0,
           };
         }
         const lesionName = lesions[i].name.value.toLowerCase();
         const studyDate = lesions[i].studydate.value;
+        const trackingUID = lesions[i].trackinguniqueidentifier
+          ? lesions[i].trackinguniqueidentifier.value
+          : undefined;
         if (!users[username].studyDates.includes(studyDate))
           users[username].studyDates.push(studyDate);
         if (!users[username].tLesionNames.includes(lesionName))
           users[username].tLesionNames.push(lesionName);
+        if (trackingUID && !users[username].tTrackingUIDs.includes(trackingUID))
+          users[username].tTrackingUIDs.push(trackingUID);
+        if (trackingUID) {
+          users[username].lesionWTrackingUIDCount += 1;
+        }
         users[username].lesions.push(lesions[i]);
       }
       const rrUsers = {};
@@ -873,24 +896,34 @@ async function reporting(fastify) {
         users[usernames[u]].tLesionNames.sort();
         users[usernames[u]].studyDates.sort();
 
+        let mode = 'name';
+        let tIndex = users[usernames[u]].tLesionNames;
+        if (
+          users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
+          users[usernames[u]].lesions.length > 0
+        ) {
+          fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
+          mode = 'trackingUID';
+          tIndex = users[usernames[u]].tTrackingUIDs;
+        }
         if (
           users[usernames[u]].tLesionNames.length > 0 &&
           users[usernames[u]].studyDates.length > 0
         ) {
           // fill in the table for target lesions
           const { table, UIDs, timepoints } = fastify.fillReportTable(
-            users[usernames[u]].tLesionNames,
+            tIndex,
             users[usernames[u]].studyDates,
             users[usernames[u]].lesions,
             undefined, // no type filtering
-            'name', // no tracking UID for now
+            mode,
             fastify.numOfLongitudinalHeaderCols,
             true,
             false
           );
 
           const rr = {
-            tLesionNames: users[usernames[u]].tLesionNames,
+            tLesionNames: tIndex,
             studyDates: users[usernames[u]].studyDates,
             tTable: table,
             tUIDs: UIDs,
@@ -1140,19 +1173,38 @@ async function reporting(fastify) {
   );
 
   // ----  waterfall --------
-  fastify.decorate('getWaterfallProject', async (projectID, type, epadAuth, metric) => {
-    try {
-      // const subjects = await fastify.getSubjectUIDsFromProject(projectID);
-      const subjects = await fastify.getSubjectUIDsFromAimsInProject(projectID);
-      return await fastify.getWaterfall(subjects, projectID, undefined, type, epadAuth, metric);
-    } catch (err) {
-      fastify.log.error(
-        `Error generating waterfall report for project ${projectID} Error: ${err.message}`
-      );
+  fastify.decorate(
+    'getWaterfallProject',
+    async (projectID, type, epadAuth, metric, exportCalcs) => {
+      try {
+        // const subjects = await fastify.getSubjectUIDsFromProject(projectID);
+        const subjects = await fastify.getSubjectUIDsFromAimsInProject(projectID);
+        return await fastify.getWaterfall(
+          subjects,
+          projectID,
+          undefined,
+          type,
+          epadAuth,
+          metric,
+          undefined,
+          undefined,
+          exportCalcs
+        );
+      } catch (err) {
+        fastify.log.error(
+          `Error generating waterfall report for project ${projectID} Error: ${err.message}`
+        );
+      }
+      return [];
     }
-    return [];
-  });
+  );
 
+  fastify.decorate('addHeader', (headers, headerKeys, key, label) => {
+    if (!headerKeys.includes(key)) {
+      headers.push({ label, key });
+      headerKeys.push(key);
+    }
+  });
   /**
    * get the waterfall report filtering with template, metric and shapes
    * @param subjectsIn comma separated string of subject uids or subjectuids array
@@ -1167,7 +1219,17 @@ async function reporting(fastify) {
    */
   fastify.decorate(
     'getWaterfall',
-    (subjectsIn, projectID, subjProjPairsIn, type, epadAuth, metric = 'RECIST', template, shapes) =>
+    (
+      subjectsIn,
+      projectID,
+      subjProjPairsIn,
+      type,
+      epadAuth,
+      metric = 'RECIST',
+      template,
+      shapes,
+      exportCalcs
+    ) =>
       new Promise(async (resolve, reject) => {
         try {
           // special report cases
@@ -1179,6 +1241,11 @@ async function reporting(fastify) {
           }
           const waterfallData = [];
           const subjProjPairs = subjProjPairsIn || [];
+
+          const waterfallExport = [];
+          const mainHeaders = [];
+          const lesionHeaders = [];
+          const headerKeys = []; // so that we don't have to go through object arrays
           if (subjProjPairs.length === 0 && subjectsIn && projectID) {
             const subjects = subjectsIn || [];
             for (let i = 0; i < subjects.length; i += 1) {
@@ -1190,8 +1257,12 @@ async function reporting(fastify) {
               project: subjProjPairs[i].projectID,
               subject: subjProjPairs[i].subjectID,
             };
-            // eslint-disable-next-line no-await-in-loop
-            const bestResponse = await fastify.getReportFromDB(params, metric, epadAuth, type);
+            // disable db read for export
+
+            const bestResponse = exportCalcs
+              ? // eslint-disable-next-line no-await-in-loop
+                await fastify.getReportFromDB(params, metric, epadAuth, type)
+              : null;
             if (bestResponse !== null) {
               waterfallData.push({
                 name: subjProjPairs[i].subjectID,
@@ -1212,26 +1283,240 @@ async function reporting(fastify) {
               fastify.log.info(
                 `${aimsRes.rows.length} aims found for ${subjProjPairs[i].subjectID}`
               );
+              if (!exportCalcs) {
+                const report =
+                  metric === 'RECIST'
+                    ? fastify.getRecist(aimsRes.rows)
+                    : fastify.getLongitudinal(aimsRes.rows, template, shapes);
+                if (report == null) {
+                  fastify.log.warn(
+                    `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`
+                  );
+                  // eslint-disable-next-line no-continue
+                  continue;
+                }
+                waterfallData.push({
+                  name: subjProjPairs[i].subjectID,
+                  y: fastify.getBestResponse(report, type, metric),
+                  project: subjProjPairs[i].projectID,
+                });
+              } else {
+                let recistRequired = false;
+                let longitudinalRequired = false;
+                for (let valNum = 0; valNum < exportCalcs.length; valNum += 1) {
+                  if (exportCalcs[valNum].field === 'recist') recistRequired = true;
+                  else longitudinalRequired = true;
+                }
+                const recistReport = recistRequired ? fastify.getRecist(aimsRes.rows) : undefined;
+                const longitudinalReport = longitudinalRequired
+                  ? fastify.getLongitudinal(aimsRes.rows, template, shapes)
+                  : undefined;
+                const report = longitudinalReport || recistReport;
+                // if both merge
+                if (recistRequired || longitudinalRequired) {
+                  // eslint-disable-next-line no-restricted-syntax
+                  for (const [reader, readerReport] of Object.entries(longitudinalReport)) {
+                    for (
+                      let lesionNum = 0;
+                      lesionNum < readerReport.tTable.length;
+                      lesionNum += 1
+                    ) {
+                      for (
+                        let timepoint = 0;
+                        timepoint < readerReport.studyDates.length;
+                        timepoint += 1
+                      ) {
+                        if (
+                          readerReport.tTable[lesionNum][0] ===
+                          recistReport[reader].tTable[lesionNum][0]
+                        )
+                          readerReport.tTable[lesionNum][timepoint + 2].recist = {
+                            value: recistReport[reader].tTable[lesionNum][timepoint + 3],
+                          };
+                        else
+                          fastify.log.warn(
+                            'different lesions',
+                            readerReport.tTable[lesionNum][0],
+                            recistReport[reader].tTable[lesionNum][0]
+                          );
+                      }
+                    }
+                  }
+                }
+                // eslint-disable-next-line no-restricted-syntax
+                for (const [reader, readerReport] of Object.entries(report)) {
+                  const sums = {};
+                  const rrs = {};
+                  const rrAbss = {};
+                  const responseCats = {};
+                  const row = { patId: subjProjPairs[i].subjectID, reader };
+                  fastify.addHeader(mainHeaders, headerKeys, 'patId', 'Patient ID');
+                  fastify.addHeader(mainHeaders, headerKeys, 'reader', 'Reader Name');
+                  // dates
+                  for (
+                    let timepoint = 0;
+                    timepoint < readerReport.studyDates.length;
+                    timepoint += 1
+                  ) {
+                    if (readerReport.stTimepoints[timepoint] === 0) {
+                      row[`${timepoint}BDate`] = readerReport.studyDates[timepoint];
 
-              const report =
-                metric === 'RECIST'
-                  ? fastify.getRecist(aimsRes.rows)
-                  : fastify.getLongitudinal(aimsRes.rows, template, shapes);
-              if (report == null) {
-                fastify.log.warn(
-                  `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`
-                );
-                // eslint-disable-next-line no-continue
-                continue;
+                      fastify.addHeader(
+                        mainHeaders,
+                        headerKeys,
+                        `${timepoint}BDate`,
+                        `${timepoint ? 'New ' : ''}Baseline Date`
+                      );
+                    } else {
+                      row[`${timepoint}FDate`] = readerReport.studyDates[timepoint];
+                      fastify.addHeader(
+                        mainHeaders,
+                        headerKeys,
+                        `${timepoint}FDate`,
+                        `Follow-up ${readerReport.stTimepoints[timepoint]} Date`
+                      );
+                    }
+                  }
+                  // lesion values
+                  for (
+                    let lesionNum = 0;
+                    lesionNum < readerReport.tLesionNames.length;
+                    lesionNum += 1
+                  ) {
+                    // eslint-disable-next-line prefer-destructuring
+                    row[`${lesionNum + 1}Name`] = readerReport.tTable[lesionNum][0];
+                    fastify.addHeader(
+                      lesionHeaders,
+                      headerKeys,
+                      `${lesionNum + 1}Name`,
+                      `Lesion ${lesionNum + 1} Name`
+                    );
+                    // eslint-disable-next-line prefer-destructuring
+                    row[`${lesionNum + 1}Location`] = readerReport.tTable[lesionNum][1];
+                    fastify.addHeader(
+                      lesionHeaders,
+                      headerKeys,
+                      `${lesionNum + 1}Location`,
+                      `Lesion ${lesionNum + 1} Location`
+                    );
+                    for (
+                      let timepoint = 0;
+                      timepoint < readerReport.studyDates.length;
+                      timepoint += 1
+                    ) {
+                      for (let valNum = 0; valNum < exportCalcs.length; valNum += 1) {
+                        if (readerReport.stTimepoints[timepoint] === 0) {
+                          row[`${lesionNum + 1}_${timepoint}B_${exportCalcs[valNum].header}`] =
+                            readerReport.tTable[lesionNum][timepoint + 2][
+                              exportCalcs[valNum].field
+                            ].value;
+
+                          fastify.addHeader(
+                            lesionHeaders,
+                            headerKeys,
+                            `${lesionNum + 1}_${timepoint}B_${exportCalcs[valNum].header}`,
+                            `Lesion ${lesionNum + 1} ${timepoint ? 'New ' : ''}Baseline ${
+                              exportCalcs[valNum].header
+                            }`
+                          );
+                        } else {
+                          row[`${lesionNum + 1}_${timepoint}F_${exportCalcs[valNum].header}`] =
+                            readerReport.tTable[lesionNum][timepoint + 2][
+                              exportCalcs[valNum].field
+                            ].value;
+                          fastify.addHeader(
+                            lesionHeaders,
+                            headerKeys,
+                            `${lesionNum + 1}_${timepoint}F_${exportCalcs[valNum].header}`,
+                            `Lesion ${lesionNum + 1} Follow-up ${timepoint} ${
+                              exportCalcs[valNum].header
+                            }`
+                          );
+                        }
+                        if (!sums[exportCalcs[valNum].field]) sums[exportCalcs[valNum].field] = {};
+                        if (!sums[exportCalcs[valNum].field][timepoint])
+                          sums[exportCalcs[valNum].field][timepoint] = 0;
+                        sums[exportCalcs[valNum].field][timepoint] += parseFloat(
+                          readerReport.tTable[lesionNum][timepoint + 2][exportCalcs[valNum].field]
+                            .value
+                        );
+                      }
+                    }
+                  }
+                  // sums
+                  // eslint-disable-next-line no-restricted-syntax
+                  for (const [exportCalc, sumMap] of Object.entries(sums)) {
+                    const sumsArray = [];
+                    for (
+                      let timepoint = 0;
+                      timepoint < readerReport.studyDates.length;
+                      timepoint += 1
+                    )
+                      sumsArray.push(sumMap[timepoint]);
+                    const { rr, rrAbs } = fastify.calcRRMin(
+                      sumsArray,
+                      readerReport.stTimepoints,
+                      true
+                    );
+                    rrs[exportCalc] = rr;
+                    rrAbss[exportCalc] = rrAbs;
+                    // use rrmin not baseline
+                    const responseCat = fastify.calcResponseCat(
+                      rr,
+                      readerReport.stTimepoints,
+                      [], // TODO isThereNewLesion,
+                      sumsArray
+                    );
+                    responseCats[exportCalc] = responseCat;
+                  }
+                  for (let valNum = 0; valNum < exportCalcs.length; valNum += 1) {
+                    for (
+                      let timepoint = 1;
+                      timepoint < readerReport.studyDates.length;
+                      timepoint += 1
+                    ) {
+                      row[`Sum${timepoint}_${exportCalcs[valNum].field}`] =
+                        sums[exportCalcs[valNum].field][timepoint];
+                      fastify.addHeader(
+                        mainHeaders,
+                        headerKeys,
+                        `Sum${timepoint}_${exportCalcs[valNum].field}`,
+                        `Sum ${timepoint} ${exportCalcs[valNum].field}`
+                      );
+                      row[`AC_${timepoint}_${exportCalcs[valNum].field}`] =
+                        rrAbss[exportCalcs[valNum].field][timepoint];
+                      fastify.addHeader(
+                        mainHeaders,
+                        headerKeys,
+                        `AC_${timepoint}_${exportCalcs[valNum].field}`,
+                        `Absolute value Change ${timepoint} ${exportCalcs[valNum].header} from baseline`
+                      );
+                      row[`PC_${timepoint}_${exportCalcs[valNum].field}`] =
+                        rrs[exportCalcs[valNum].field][timepoint];
+                      fastify.addHeader(
+                        mainHeaders,
+                        headerKeys,
+                        `PC_${timepoint}_${exportCalcs[valNum].field}`,
+                        `Percent Change ${timepoint} ${exportCalcs[valNum].header} from baseline`
+                      );
+                      row[`RC_${timepoint}_${exportCalcs[valNum].field}`] =
+                        responseCats[exportCalcs[valNum].field][timepoint];
+                      fastify.addHeader(
+                        mainHeaders,
+                        headerKeys,
+                        `RC_${timepoint}_${exportCalcs[valNum].field}`,
+                        `RECIST 1.1 ${timepoint} ${exportCalcs[valNum].header}`
+                      );
+                    }
+                  }
+                  waterfallExport.push(row);
+                }
               }
-              waterfallData.push({
-                name: subjProjPairs[i].subjectID,
-                y: fastify.getBestResponse(report, type, metric),
-                project: subjProjPairs[i].projectID,
-              });
             }
           }
-          resolve({ series: _.sortBy(waterfallData, 'y').reverse() });
+          const waterfallHeaders = mainHeaders.concat(lesionHeaders);
+          if (!exportCalcs) resolve({ series: _.sortBy(waterfallData, 'y').reverse() });
+          else resolve({ waterfallExport, waterfallHeaders });
         } catch (err) {
           fastify.log.error(
             `Error generating waterfall report for subjectUIDs ${JSON.stringify(
@@ -1240,6 +1525,7 @@ async function reporting(fastify) {
               err.message
             }`
           );
+          console.log(err);
           reject(err);
         }
       })
@@ -1294,14 +1580,17 @@ async function reporting(fastify) {
           request.query.type,
           request.epadAuth,
           request.query.metric,
-          request.query.shapes
+          request.query.templates,
+          request.query.shapes,
+          request.query.exportCalcs ? JSON.parse(request.query.exportCalcs) : undefined
         );
       else if (request.body.projectID) {
         result = await fastify.getWaterfallProject(
           request.body.projectID,
           request.query.type,
           request.epadAuth,
-          request.query.metric
+          request.query.metric,
+          request.query.exportCalcs ? JSON.parse(request.query.exportCalcs) : undefined
         );
       }
       reply.send(result);
