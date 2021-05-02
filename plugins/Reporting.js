@@ -1460,14 +1460,18 @@ async function reporting(fastify) {
                     );
                     rrs[exportCalc] = rr;
                     rrAbss[exportCalc] = rrAbs;
-                    // use rrmin not baseline
-                    const responseCat = fastify.calcResponseCat(
-                      rr,
-                      readerReport.stTimepoints,
-                      [], // TODO isThereNewLesion,
-                      sumsArray
-                    );
-                    responseCats[exportCalc] = responseCat;
+                    if (recistReport[reader]) {
+                      responseCats[exportCalc] = recistReport[reader].tResponseCats;
+                    } else {
+                      // use rrmin not baseline
+                      const responseCat = fastify.calcResponseCat(
+                        rr,
+                        readerReport.stTimepoints,
+                        [], // TODO isThereNewLesion,
+                        sumsArray
+                      );
+                      responseCats[exportCalc] = responseCat;
+                    }
                   }
                   for (let valNum = 0; valNum < exportCalcs.length; valNum += 1) {
                     for (
