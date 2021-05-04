@@ -1327,8 +1327,10 @@ async function reporting(fastify) {
                         timepoint += 1
                       ) {
                         if (
+                          readerReport.tTable[lesionNum] &&
+                          recistReport[reader].tTable[lesionNum] &&
                           readerReport.tTable[lesionNum][0] ===
-                          recistReport[reader].tTable[lesionNum][0]
+                            recistReport[reader].tTable[lesionNum][0]
                         )
                           readerReport.tTable[lesionNum][timepoint + 2].recist = {
                             value: recistReport[reader].tTable[lesionNum][timepoint + 3],
@@ -1406,10 +1408,15 @@ async function reporting(fastify) {
                     ) {
                       for (let valNum = 0; valNum < exportCalcs.length; valNum += 1) {
                         if (readerReport.stTimepoints[timepoint] === 0) {
-                          row[`${lesionNum + 1}_${timepoint}B_${exportCalcs[valNum].header}`] =
-                            readerReport.tTable[lesionNum][timepoint + 2][
-                              exportCalcs[valNum].field
-                            ].value;
+                          row[
+                            `${lesionNum + 1}_${timepoint}B_${exportCalcs[valNum].header}`
+                          ] = readerReport.tTable[lesionNum][timepoint + 2][
+                            exportCalcs[valNum].field
+                          ]
+                            ? readerReport.tTable[lesionNum][timepoint + 2][
+                                exportCalcs[valNum].field
+                              ].value
+                            : undefined;
 
                           fastify.addHeader(
                             lesionHeaders,
@@ -1420,10 +1427,15 @@ async function reporting(fastify) {
                             }`
                           );
                         } else {
-                          row[`${lesionNum + 1}_${timepoint}F_${exportCalcs[valNum].header}`] =
-                            readerReport.tTable[lesionNum][timepoint + 2][
-                              exportCalcs[valNum].field
-                            ].value;
+                          row[
+                            `${lesionNum + 1}_${timepoint}F_${exportCalcs[valNum].header}`
+                          ] = readerReport.tTable[lesionNum][timepoint + 2][
+                            exportCalcs[valNum].field
+                          ]
+                            ? readerReport.tTable[lesionNum][timepoint + 2][
+                                exportCalcs[valNum].field
+                              ].value
+                            : undefined;
                           fastify.addHeader(
                             lesionHeaders,
                             headerKeys,
@@ -1436,10 +1448,15 @@ async function reporting(fastify) {
                         if (!sums[exportCalcs[valNum].field]) sums[exportCalcs[valNum].field] = {};
                         if (!sums[exportCalcs[valNum].field][timepoint])
                           sums[exportCalcs[valNum].field][timepoint] = 0;
-                        sums[exportCalcs[valNum].field][timepoint] += parseFloat(
-                          readerReport.tTable[lesionNum][timepoint + 2][exportCalcs[valNum].field]
-                            .value
-                        );
+                        sums[exportCalcs[valNum].field][timepoint] += readerReport.tTable[
+                          lesionNum
+                        ][timepoint + 2][exportCalcs[valNum].field]
+                          ? parseFloat(
+                              readerReport.tTable[lesionNum][timepoint + 2][
+                                exportCalcs[valNum].field
+                              ].value
+                            )
+                          : 0;
                       }
                     }
                   }
@@ -1460,7 +1477,7 @@ async function reporting(fastify) {
                     );
                     rrs[exportCalc] = rr;
                     rrAbss[exportCalc] = rrAbs;
-                    if (recistReport[reader]) {
+                    if (recistReport[reader] && exportCalc === 'recist') {
                       responseCats[exportCalc] = recistReport[reader].tResponseCats;
                     } else {
                       // use rrmin not baseline
