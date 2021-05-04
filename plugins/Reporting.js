@@ -1328,6 +1328,8 @@ async function reporting(fastify) {
                       ) {
                         if (
                           readerReport.tTable[lesionNum] &&
+                          recistReport &&
+                          recistReport[reader] &&
                           recistReport[reader].tTable[lesionNum] &&
                           readerReport.tTable[lesionNum][0] ===
                             recistReport[reader].tTable[lesionNum][0]
@@ -1339,7 +1341,7 @@ async function reporting(fastify) {
                           fastify.log.warn(
                             'different lesions',
                             readerReport.tTable[lesionNum][0],
-                            recistReport[reader].tTable[lesionNum][0]
+                            recistReport && recistReport[reader].tTable[lesionNum][0]
                           );
                       }
                     }
@@ -1477,7 +1479,7 @@ async function reporting(fastify) {
                     );
                     rrs[exportCalc] = rr;
                     rrAbss[exportCalc] = rrAbs;
-                    if (recistReport[reader] && exportCalc === 'recist') {
+                    if (recistReport && recistReport[reader] && exportCalc === 'recist') {
                       responseCats[exportCalc] = recistReport[reader].tResponseCats;
                     } else {
                       // use rrmin not baseline
