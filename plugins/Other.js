@@ -1992,28 +1992,58 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('dataCreated', () => {
+    const { channel, queue } = fastify.setupChannelAndQueue(
+      'AcrConnect.DataManager.Abstractions.EventMessages:IDataCreated',
+      'DataCreated'
+    );
+    channel.consume(
+      queue,
+      (msg) => {
+        console.log(' [x] Received data created %s', msg.content.toString());
+        setTimeout(() => {
+          console.log(' [x] Done');
+          channel.ack(msg);
+        }, 7000);
+      },
+      { noAck: false }
+    );
+  });
+
+  fastify.decorate('dataSetCreated', () => {
+    const { channel, queue } = fastify.setupChannelAndQueue(
+      'AcrConnect.DataManager.Abstractions.EventMessages:IDataSetCreated',
+      'DataSetCreated'
+    );
+    channel.consume(
+      queue,
+      (msg) => {
+        console.log(' [x] Received dataset created %s', msg.content.toString());
+        setTimeout(() => {
+          console.log(' [x] Done');
+          channel.ack(msg);
+        }, 7000);
+      },
+      { noAck: false }
+    );
+  });
+  fastify.decorate('setupChannelAndQueue', (message, queueId) => {
+    const { channel } = fastify.amqp;
+    channel.assertExchange(message, 'fanout', {
+      durable: true,
+    });
+    const queue = `Queue${queueId}`;
+    const qq = channel.assertQueue(queue, { durable: true });
+    channel.prefetch(10);
+    channel.bindQueue(qq.queue, message, '');
+
+    return { channel, queue };
+  });
+
   fastify.decorate('consumeRabbitMQ', () => {
     try {
-      const { channel } = fastify.amqp;
-      const exchange2 = 'AcrConnect.DataManager.Abstractions.EventMessages:IDataSetCreated';
-      channel.assertExchange(exchange2, 'fanout', {
-        durable: true,
-      });
-      const queue = 'QDataSetCreated';
-      const qq = channel.assertQueue(queue, { durable: true });
-      channel.prefetch(10);
-      channel.bindQueue(qq.queue, exchange2, '');
-      channel.consume(
-        queue,
-        (msg) => {
-          console.log(' [x] Received %s', msg.content.toString());
-          setTimeout(() => {
-            console.log(' [x] Done');
-            channel.ack(msg);
-          }, 7000);
-        },
-        { noAck: false }
-      );
+      fastify.dataCreated();
+      fastify.dataSetCreated();
     } catch (err) {
       console.log(err);
     }
