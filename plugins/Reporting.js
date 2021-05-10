@@ -1333,11 +1333,13 @@ async function reporting(fastify) {
                           recistReport[reader].tTable[lesionNum] &&
                           readerReport.tTable[lesionNum][0] ===
                             recistReport[reader].tTable[lesionNum][0]
-                        )
+                        ) {
+                          if (!readerReport.tTable[lesionNum][timepoint + 2])
+                            readerReport.tTable[lesionNum][timepoint + 2] = {};
                           readerReport.tTable[lesionNum][timepoint + 2].recist = {
                             value: recistReport[reader].tTable[lesionNum][timepoint + 3],
                           };
-                        else
+                        } else
                           fastify.log.warn(
                             'different lesions',
                             readerReport.tTable[lesionNum][0],
@@ -1455,15 +1457,18 @@ async function reporting(fastify) {
                         if (!sums[exportCalcs[valNum].field]) sums[exportCalcs[valNum].field] = {};
                         if (!sums[exportCalcs[valNum].field][timepoint])
                           sums[exportCalcs[valNum].field][timepoint] = 0;
-                        sums[exportCalcs[valNum].field][timepoint] += readerReport.tTable[
-                          lesionNum
-                        ][timepoint + 2][exportCalcs[valNum].field]
-                          ? parseFloat(
-                              readerReport.tTable[lesionNum][timepoint + 2][
-                                exportCalcs[valNum].field
-                              ].value
-                            )
-                          : 0;
+                        sums[exportCalcs[valNum].field][timepoint] +=
+                          readerReport.tTable[lesionNum][timepoint + 2][
+                            exportCalcs[valNum].field
+                          ] &&
+                          readerReport.tTable[lesionNum][timepoint + 2][exportCalcs[valNum].field]
+                            .value != null
+                            ? parseFloat(
+                                readerReport.tTable[lesionNum][timepoint + 2][
+                                  exportCalcs[valNum].field
+                                ].value
+                              )
+                            : 0;
                       }
                     }
                   }
