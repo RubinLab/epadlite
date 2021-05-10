@@ -1341,7 +1341,12 @@ async function reporting(fastify) {
                           fastify.log.warn(
                             'different lesions',
                             readerReport.tTable[lesionNum][0],
-                            recistReport && recistReport[reader].tTable[lesionNum][0]
+                            recistReport &&
+                              recistReport[reader] &&
+                              recistReport[reader].tTable[lesionNum] &&
+                              recistReport[reader].tTable[lesionNum][0]
+                              ? recistReport[reader].tTable[lesionNum][0]
+                              : 'not found'
                           );
                       }
                     }
