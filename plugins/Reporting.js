@@ -3,6 +3,7 @@ const fp = require('fastify-plugin');
 const _ = require('lodash');
 
 const { InternalError } = require('../utils/EpadErrors');
+const EpadNotification = require('../utils/EpadNotification');
 
 async function reporting(fastify) {
   fastify.decorate('numOfLongitudinalHeaderCols', 2);
@@ -425,7 +426,7 @@ async function reporting(fastify) {
     return [];
   });
 
-  fastify.decorate('getRecist', (aimJSONs) => {
+  fastify.decorate('getRecist', (aimJSONs, request) => {
     try {
       const table = fastify.fillTable(aimJSONs, 'RECIST', [
         'Name',
@@ -552,6 +553,14 @@ async function reporting(fastify) {
             nonTargetTypes,
             mode
           );
+
+          if ((target.errors.length > 0 || nonTarget.errors.length > 0) && request)
+            new EpadNotification(
+              request,
+              'Report generated with errors',
+              new Error(target.errors.concat(nonTarget.errors).join('.')),
+              false
+            ).notify(fastify);
           for (let i = 0; i < nonTarget.table.length; i += 1) {
             for (let j = 0; j < users[usernames[u]].studyDates.length; j += 1) {
               if (
@@ -627,11 +636,13 @@ async function reporting(fastify) {
               tRRMin: fastify.cleanArray(tRRMin),
               tResponseCats: fastify.cleanArray(responseCats),
               tUIDs: target.UIDs,
+              tErrors: target.errors,
               stTimepoints: target.timepoints,
               tTimepoints: fastify.cleanConsecutives(target.timepoints),
               ntLesionNames: users[usernames[u]].ntLesionNames,
               ntTable: nonTarget.table,
               ntUIDs: nonTarget.UIDs,
+              ntErrors: nonTarget.errors,
             };
             rrUsers[usernames[u]] = rr;
           } else {
@@ -644,6 +655,7 @@ async function reporting(fastify) {
               tRRMin: fastify.cleanArray(tRRMin),
               tResponseCats: fastify.cleanArray(responseCats),
               tUIDs: target.UIDs,
+              tErrors: target.errors,
               stTimepoints: target.timepoints,
               tTimepoints: fastify.cleanConsecutives(target.timepoints),
             };
@@ -834,7 +846,7 @@ async function reporting(fastify) {
     return out;
   });
 
-  fastify.decorate('getLongitudinal', (aims, template, shapes) => {
+  fastify.decorate('getLongitudinal', (aims, template, shapes, request) => {
     try {
       const lesions = fastify.fillTable(
         aims,
@@ -911,7 +923,7 @@ async function reporting(fastify) {
           users[usernames[u]].studyDates.length > 0
         ) {
           // fill in the table for target lesions
-          const { table, UIDs, timepoints } = fastify.fillReportTable(
+          const { table, UIDs, timepoints, errors } = fastify.fillReportTable(
             tIndex,
             users[usernames[u]].studyDates,
             users[usernames[u]].lesions,
@@ -922,6 +934,14 @@ async function reporting(fastify) {
             false
           );
 
+          if (errors.length > 0 && request)
+            new EpadNotification(
+              request,
+              'Report generated with errors',
+              new Error(errors.join('.')),
+              false
+            ).notify(fastify);
+
           const rr = {
             tLesionNames: tIndex,
             studyDates: users[usernames[u]].studyDates,
@@ -929,6 +949,7 @@ async function reporting(fastify) {
             tUIDs: UIDs,
             stTimepoints: timepoints,
             tTimepoints: fastify.cleanConsecutives(timepoints),
+            tErrors: errors,
           };
           rrUsers[usernames[u]] = rr;
         }
@@ -981,9 +1002,8 @@ async function reporting(fastify) {
         index.forEach(() => UIDs.push([...uidRow]));
         const timepoints = [];
         for (let i = 0; i < studyDates.length; i += 1) timepoints.push(null);
-
+        const errors = [];
         let baselineIndex = 0;
-
         // get the values to the table
         for (let i = 0; i < lesions.length; i += 1) {
           const lesionName = lesions[i].name.value.toLowerCase();
@@ -1000,10 +1020,14 @@ async function reporting(fastify) {
             continue;
           }
           const lesionIndex = fastify.getLesionIndex(index, mode, lesions[i]);
-          if (table[lesionIndex][0] !== null && table[lesionIndex][0] !== lesionName)
+          if (table[lesionIndex][0] !== null && table[lesionIndex][0] !== lesionName) {
             fastify.log.warn(
               `Lesion name at ${studyDate} is different from the same lesion on a different date. The existing one is: ${table[lesionIndex][0]} whereas this is: ${lesionName}`
             );
+            errors.push(
+              `Lesion name at ${studyDate} is different from the same lesion on a different date. The existing one is: ${table[lesionIndex][0]} whereas this is: ${lesionName}`
+            );
+          }
           table[lesionIndex][0] = lesionName;
 
           // check if exists and if different and put warnings.
@@ -1014,10 +1038,14 @@ async function reporting(fastify) {
             if (
               table[lesionIndex][nextCol] != null &&
               table[lesionIndex][nextCol].toLowerCase() !== aimType
-            )
+            ) {
               fastify.log.warn(
                 `Type at date ${studyDate} is different from the same lesion on a different date. The existing one is: ${table[lesionIndex][nextCol]} whereas this is: ${aimType}`
               );
+              errors.push(
+                `Type at date ${studyDate} is different from the same lesion on a different date. The existing one is: ${table[lesionIndex][nextCol]} whereas this is: ${aimType}`
+              );
+            }
             table[lesionIndex][nextCol] = aimType;
             nextCol += 1;
           }
@@ -1025,10 +1053,14 @@ async function reporting(fastify) {
           if (
             table[lesionIndex][nextCol] != null &&
             table[lesionIndex][nextCol].toLowerCase() !== location
-          )
+          ) {
             fastify.log.warn(
               `Location at date ${studyDate} is different from the same lesion on a different date. The existing one is:${table[lesionIndex][nextCol]} whereas this is:${location}`
             );
+            errors.push(
+              `Location at date ${studyDate} is different from the same lesion on a different date. The existing one is:${table[lesionIndex][nextCol]} whereas this is:${location}`
+            );
+          }
           table[lesionIndex][nextCol] = location;
           // get the lesion and get the timepoint. if it is integer put that otherwise calculate using study dates
           const tpObj = lesions[i].timepoint ? lesions[i].timepoint : lesions[i].lesion;
@@ -1055,9 +1087,19 @@ async function reporting(fastify) {
                 timepoints
               )} studydates = ${JSON.stringify(studyDates)}`
             );
+            errors.push(
+              `${lesionName} timepoint conflict on ${studyDate}. found ${timepoint} but was ${
+                timepoints[studyDates.indexOf(studyDate)]
+              } before`
+            );
           }
           // eslint-disable-next-line no-param-reassign
           timepoints[studyDates.indexOf(studyDate)] = timepoint;
+
+          if (table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols])
+            errors.push(
+              `${lesionName} at T${studyDates.indexOf(studyDate)} on ${studyDate} preexists`
+            );
           // check if it is the nontarget table and fill in with text instead of values
           if (allCalc) {
             if (lesions[i].allcalc)
@@ -1161,8 +1203,7 @@ async function reporting(fastify) {
             }
           }
         }
-
-        return { table, UIDs, timepoints };
+        return { table, UIDs, timepoints, errors };
       } catch (err) {
         fastify.log.error(
           `Error during filling report table for ${index} and ${studyDates} Error: ${err.message}`
@@ -1245,6 +1286,7 @@ async function reporting(fastify) {
           const waterfallExport = [];
           const mainHeaders = [];
           const lesionHeaders = [];
+          const errorHeaders = [];
           const headerKeys = []; // so that we don't have to go through object arrays
           if (subjProjPairs.length === 0 && subjectsIn && projectID) {
             const subjects = subjectsIn || [];
@@ -1333,11 +1375,13 @@ async function reporting(fastify) {
                           recistReport[reader].tTable[lesionNum] &&
                           readerReport.tTable[lesionNum][0] ===
                             recistReport[reader].tTable[lesionNum][0]
-                        )
+                        ) {
+                          if (!readerReport.tTable[lesionNum][timepoint + 2])
+                            readerReport.tTable[lesionNum][timepoint + 2] = {};
                           readerReport.tTable[lesionNum][timepoint + 2].recist = {
                             value: recistReport[reader].tTable[lesionNum][timepoint + 3],
                           };
-                        else
+                        } else
                           fastify.log.warn(
                             'different lesions',
                             readerReport.tTable[lesionNum][0],
@@ -1455,15 +1499,18 @@ async function reporting(fastify) {
                         if (!sums[exportCalcs[valNum].field]) sums[exportCalcs[valNum].field] = {};
                         if (!sums[exportCalcs[valNum].field][timepoint])
                           sums[exportCalcs[valNum].field][timepoint] = 0;
-                        sums[exportCalcs[valNum].field][timepoint] += readerReport.tTable[
-                          lesionNum
-                        ][timepoint + 2][exportCalcs[valNum].field]
-                          ? parseFloat(
-                              readerReport.tTable[lesionNum][timepoint + 2][
-                                exportCalcs[valNum].field
-                              ].value
-                            )
-                          : 0;
+                        sums[exportCalcs[valNum].field][timepoint] +=
+                          readerReport.tTable[lesionNum][timepoint + 2][
+                            exportCalcs[valNum].field
+                          ] &&
+                          readerReport.tTable[lesionNum][timepoint + 2][exportCalcs[valNum].field]
+                            .value != null
+                            ? parseFloat(
+                                readerReport.tTable[lesionNum][timepoint + 2][
+                                  exportCalcs[valNum].field
+                                ].value
+                              )
+                            : 0;
                       }
                     }
                   }
@@ -1537,12 +1584,16 @@ async function reporting(fastify) {
                       );
                     }
                   }
+                  row.recistErrors = recistReport[reader].tErrors.join('.');
+                  fastify.addHeader(errorHeaders, headerKeys, `recistErrors`, `Recist Errors`);
+                  row.otherErrors = readerReport.tErrors.join('.');
+                  fastify.addHeader(errorHeaders, headerKeys, `otherErrors`, `Other Errors`);
                   waterfallExport.push(row);
                 }
               }
             }
           }
-          const waterfallHeaders = mainHeaders.concat(lesionHeaders);
+          const waterfallHeaders = mainHeaders.concat(lesionHeaders).concat(errorHeaders);
           if (!exportCalcs) resolve({ series: _.sortBy(waterfallData, 'y').reverse() });
           else resolve({ waterfallExport, waterfallHeaders });
         } catch (err) {
@@ -1553,7 +1604,6 @@ async function reporting(fastify) {
               err.message
             }`
           );
-          console.log(err);
           reject(err);
         }
       })

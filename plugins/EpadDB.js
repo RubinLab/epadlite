@@ -5530,14 +5530,15 @@ async function epaddb(fastify, options, done) {
         switch (request.query.report) {
           case 'RECIST':
             // should be one patient
-            if (request.params.subject) result = fastify.getRecist(result.rows);
+            if (request.params.subject) result = fastify.getRecist(result.rows, request);
             else {
               reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
               return;
             }
             break;
           case 'Longitudinal':
-            if (request.params.subject) result = fastify.getLongitudinal(result.rows);
+            if (request.params.subject)
+              result = fastify.getLongitudinal(result.rows, undefined, undefined, request);
             else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
               return;
