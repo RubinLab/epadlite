@@ -1088,7 +1088,7 @@ async function reporting(fastify) {
               )} studydates = ${JSON.stringify(studyDates)}`
             );
             errors.push(
-              `${lesionName} timepoint conflict on ${studyDate}. found ${timepoint} but was ${
+              `${lesionName} timepoint conflict on ${studyDate}, found ${timepoint} but was ${
                 timepoints[studyDates.indexOf(studyDate)]
               } before`
             );
@@ -1584,9 +1584,9 @@ async function reporting(fastify) {
                       );
                     }
                   }
-                  row.recistErrors = recistReport[reader].tErrors.join('.');
+                  row.recistErrors = recistReport[reader].tErrors.join('. ');
                   fastify.addHeader(errorHeaders, headerKeys, `recistErrors`, `Recist Errors`);
-                  row.otherErrors = readerReport.tErrors.join('.');
+                  row.otherErrors = readerReport.tErrors.join('. ');
                   fastify.addHeader(errorHeaders, headerKeys, `otherErrors`, `Other Errors`);
                   waterfallExport.push(row);
                 }
