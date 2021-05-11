@@ -1098,9 +1098,7 @@ async function reporting(fastify) {
 
           if (table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols])
             errors.push(
-              `${lesionName} at timepoint ${studyDates.indexOf(
-                studyDate
-              )} on ${studyDate} already exists`
+              `${lesionName} at T${studyDates.indexOf(studyDate)} on ${studyDate} preexists`
             );
           // check if it is the nontarget table and fill in with text instead of values
           if (allCalc) {
