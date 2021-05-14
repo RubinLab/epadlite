@@ -5130,6 +5130,39 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should return return correct output for search with project and template query using manual query', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_proj_temp.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?query=(project:reporting AND template_code:RECIST)')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(12);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with project and template query using manual query in body', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_proj_temp.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({ query: 'project:reporting AND template_code:RECIST' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(12);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('should return return correct output for search with anatomy query', (done) => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_liver.json`));
       chai
