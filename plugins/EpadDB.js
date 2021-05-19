@@ -3357,8 +3357,8 @@ async function epaddb(fastify, options, done) {
                 secure: false, // true for 465, false for other ports
                 service: 'gmail',
                 auth: {
-                  user: 'epadstanford@gmail.com',
-                  pass: 'ad$min12',
+                  user: '',
+                  pass: '',
                 },
             */
             host: config.notificationEmail.host,
