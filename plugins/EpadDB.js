@@ -161,7 +161,7 @@ async function epaddb(fastify, options, done) {
           });
 
           models.plugin.hasMany(models.plugin_parameters, {
-            as: 'serverExistance[serverExistance.length - 1] === undefined',
+            as: 'defaultparameters',
             foreignKey: 'plugin_id',
           });
           models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'plugin_id' });
