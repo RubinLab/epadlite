@@ -1567,7 +1567,7 @@ async function other(fastify) {
             user = await fastify.getUserInternal({
               user: username,
             });
-            if (!user.firstname) throw Error('not filled');
+            if (!user.firstname && !user.email) throw Error('not filled');
           } catch (err) {
             // fallback get by email
             if ((!user || err.message === 'not filled') && userInfo) {
@@ -1578,9 +1578,7 @@ async function other(fastify) {
               const rowsUpdated = {
                 username,
                 firstname: userInfo.given_name || userInfo.givenName,
-                lastname:
-                  userInfo.family_name ||
-                  userInfo.surname,
+                lastname: userInfo.family_name || userInfo.surname,
                 email: userInfo.email,
                 updated_by: 'admin',
                 updatetime: Date.now(),
