@@ -6709,7 +6709,7 @@ async function epaddb(fastify, options, done) {
             raw: true,
             include: [{ model: models.project }],
           });
-          const aimUids = [];
+          let aimUids = [];
           let segDeletePromises = []; // an array for deleting all segs
 
           for (let i = 0; i < dbAims.length; i += 1) {
@@ -6722,7 +6722,10 @@ async function epaddb(fastify, options, done) {
                 })
               );
           }
-
+          // if the aim records are deleted from db but there are leftovers in the couchdb
+          if (aimUids.length === 0 && body && Array.isArray(body)) {
+            aimUids = body;
+          }
           const numDeleted = await models.project_aim.destroy({
             where: { aim_uid: aimUids },
           });
