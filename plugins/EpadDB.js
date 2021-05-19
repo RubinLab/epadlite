@@ -3384,7 +3384,6 @@ async function epaddb(fastify, options, done) {
       // eslint-disable-next-line no-bitwise
       return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
     });
-    console.log('email validation code : ', uuid);
     return uuid;
   });
 
@@ -3404,7 +3403,6 @@ async function epaddb(fastify, options, done) {
       // eslint-disable-next-line no-bitwise
       return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
     });
-    console.log('uid : ', uuid);
     return uuid;
   });
   fastify.decorate(
@@ -3475,8 +3473,8 @@ async function epaddb(fastify, options, done) {
     );
 
     if (tempUserEmailvalidationcode === '' && lastRecordOfRegisteredServer === undefined) {
-      console.log(
-        'registering new server for  api key but apikey will be inserted after email validation'
+      fastify.log.info(
+        'registering new server for api key but apikey will be inserted after email validation'
       );
       const tempGeneratedEmailValidationCode = fastify.generateEmailValidationCodeInternal();
       const registeredObject = await models.registeredapps.create({
@@ -3497,7 +3495,7 @@ async function epaddb(fastify, options, done) {
           'ePad register api key email verification code',
           tempGeneratedEmailValidationCode
         );
-        fastify.log.info(`sent email result : ${emailSentResult}`);
+        fastify.log.info(`sent email succeed, result : ${emailSentResult}`);
       } catch (error) {
         reply.send(new InternalError('email sending issue', error));
         return;
@@ -3532,7 +3530,7 @@ async function epaddb(fastify, options, done) {
           'ePad register api key email verification code',
           tempGeneratedEmailValidationCode
         );
-        fastify.log.info(`sent email result : ${emailSentResult}`);
+        fastify.log.info(`sent email succeed, result : ${emailSentResult}`);
       } catch (error) {
         reply.send(new InternalError('email sending issue', error));
         return;
@@ -3562,7 +3560,7 @@ async function epaddb(fastify, options, done) {
             'ePad api key',
             tempGenerateAppKey
           );
-          fastify.log.info(`sent email result : ${emailSentResult}`);
+          fastify.log.info(`sent email succeed, result : ${emailSentResult}`);
         } catch (error) {
           reply.send(new InternalError('email sending issue', error));
           return;
