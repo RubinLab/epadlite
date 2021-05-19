@@ -1501,13 +1501,13 @@ async function other(fastify) {
             if (verifyToken.isExpired()) {
               res.send(new UnauthenticatedError('Token is expired'));
             } else {
-              username = verifyToken.content.preferred_username;
+              username = verifyToken.content.preferred_username || verifyToken.content.email;
               userInfo = verifyToken.content;
             }
           } else {
             // try getting userinfo from external auth server with userinfo endpoint
             const userinfo = await fastify.getUserInfoInternal(token);
-            username = userinfo.preferred_username;
+            username = userinfo.preferred_username || userinfo.email;
             userInfo = userinfo;
           }
           if (username !== '' || userInfo !== '')
@@ -1567,17 +1567,18 @@ async function other(fastify) {
             user = await fastify.getUserInternal({
               user: username,
             });
+            if (!user.firstname && !user.email) throw Error('not filled');
           } catch (err) {
             // fallback get by email
-            if (!user && userInfo) {
+            if ((!user || err.message === 'not filled') && userInfo) {
               user = await fastify.getUserInternal({
                 user: userInfo.email,
               });
               // update user db record here
               const rowsUpdated = {
                 username,
-                firstname: userInfo.given_name,
-                lastname: userInfo.family_name,
+                firstname: userInfo.given_name || userInfo.givenName,
+                lastname: userInfo.family_name || userInfo.surname,
                 email: userInfo.email,
                 updated_by: 'admin',
                 updatetime: Date.now(),
