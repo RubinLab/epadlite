@@ -31,6 +31,7 @@
     "mariadb": "^2.5.2",
     "nock": "^13.0.5",
     "node-schedule-tz": "^1.2.1-4",
+    "nodemailer": "^6.6.0",
     "p-queue": "^6.6.2",
     "plist": "^3.0.1",
     "sequelize": "^6.3.5",
