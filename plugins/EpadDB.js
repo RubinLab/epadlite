@@ -4970,7 +4970,7 @@ async function epaddb(fastify, options, done) {
               request.params,
               undefined,
               request.epadAuth,
-              request.query
+              { ...request.query, filterDSO: 'true' }
             );
           }
           if (!subject) {
@@ -5029,7 +5029,7 @@ async function epaddb(fastify, options, done) {
                 request.params,
                 request.epadAuth,
                 false,
-                request.query
+                { ...request.query, filterDSO: 'true' }
               );
             }
             for (let i = 0; i < studies.length; i += 1) {
@@ -5038,7 +5038,7 @@ async function epaddb(fastify, options, done) {
                 studies[i],
                 projectSubject,
                 request.epadAuth,
-                request.query
+                { ...request.query, filterDSO: 'true' }
               );
             }
           }
