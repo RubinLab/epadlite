@@ -10,9 +10,29 @@ module.exports = function (sequelize, DataTypes) {
         primaryKey: true,
         autoIncrement: true,
       },
-      apikey: {
+      name: {
         type: DataTypes.STRING(128),
         allowNull: false,
+        unique: true,
+      },
+      organization: {
+        type: DataTypes.STRING(128),
+        allowNull: false,
+        unique: true,
+      },
+      email: {
+        type: DataTypes.STRING(128),
+        allowNull: false,
+        unique: true,
+      },
+      emailvalidationcode: {
+        type: DataTypes.STRING(128),
+        allowNull: false,
+        unique: true,
+      },
+      apikey: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
         unique: true,
       },
       ontologyname: {
@@ -34,15 +54,17 @@ module.exports = function (sequelize, DataTypes) {
       createdtime: {
         type: DataTypes.DATE,
         allowNull: false,
-        defaultValue: sequelize.fn('current_timestamp'),
       },
       updatetime: {
         type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: '0000-00-00 00:00:00',
+        allowNull: true,
       },
       updated_by: {
         type: DataTypes.STRING(64),
+        allowNull: true,
+      },
+      emailvalidationsent: {
+        type: DataTypes.DATE,
         allowNull: true,
       },
     },
