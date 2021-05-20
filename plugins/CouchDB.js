@@ -466,6 +466,7 @@ async function couchdb(fastify, options) {
                     isDicomSR: 'NA',
                     originalSubjectID: body.rows[i].fields.patient_id,
                     userName: body.rows[i].fields.user,
+                    projectID: body.rows[i].fields.project,
                   });
                 }
                 resObj.rows = res;
