@@ -1459,15 +1459,13 @@ async function reporting(fastify) {
                     ) {
                       for (let valNum = 0; valNum < exportCalcs.length; valNum += 1) {
                         if (readerReport.stTimepoints[timepoint] === 0) {
-                          row[
-                            `${lesionNum + 1}_${timepoint}B_${exportCalcs[valNum].header}`
-                          ] = readerReport.tTable[lesionNum][timepoint + 2][
-                            exportCalcs[valNum].field
-                          ]
-                            ? readerReport.tTable[lesionNum][timepoint + 2][
-                                exportCalcs[valNum].field
-                              ].value
-                            : undefined;
+                          row[`${lesionNum + 1}_${timepoint}B_${exportCalcs[valNum].header}`] =
+                            readerReport.tTable[lesionNum][timepoint + 2] &&
+                            readerReport.tTable[lesionNum][timepoint + 2][exportCalcs[valNum].field]
+                              ? readerReport.tTable[lesionNum][timepoint + 2][
+                                  exportCalcs[valNum].field
+                                ].value
+                              : undefined;
 
                           fastify.addHeader(
                             lesionHeaders,
@@ -1500,6 +1498,7 @@ async function reporting(fastify) {
                         if (!sums[exportCalcs[valNum].field][timepoint])
                           sums[exportCalcs[valNum].field][timepoint] = 0;
                         sums[exportCalcs[valNum].field][timepoint] +=
+                          readerReport.tTable[lesionNum][timepoint + 2] &&
                           readerReport.tTable[lesionNum][timepoint + 2][
                             exportCalcs[valNum].field
                           ] &&
