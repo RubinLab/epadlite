@@ -324,8 +324,14 @@ async function otherRoutes(fastify) {
 
   fastify.route({
     method: 'PUT',
-    url: '/dicomsr',
+    url: '/aim2dicomsr',
     handler: fastify.aim2sr,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/dicomsr2aim',
+    handler: fastify.sr2aim,
   });
 }
 module.exports = otherRoutes;
