@@ -91,6 +91,7 @@ fastify.register(
         { name: 'user', description: 'User related end-points' },
         { name: 'images', description: 'Image related end-points' },
         { name: 'ontology', description: 'lexicon related end-points' },
+        { name: 'register', description: 'server registration related end-points' },
       ],
       externalDocs: {
         url: 'https://swagger.io',
@@ -126,6 +127,7 @@ fastify.register(require('./routes/projectTemplate'), { prefix: config.prefix })
 fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/ontology'), { prefix: config.prefix }); // eslint-disable-line global-require
+fastify.register(require('./routes/register'), { prefix: config.prefix }); // eslint-disable-line global-require
 
 if (config.mode === 'thick') {
   fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require

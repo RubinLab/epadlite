@@ -14,7 +14,6 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
 const csv = require('csv-parser');
 const { createOfflineAimSegmentation } = require('aimapi');
-
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -3341,6 +3340,239 @@ async function epaddb(fastify, options, done) {
   //  internal functions end
   //  plugins section end
 
+  // regiter host for app section
+
+  fastify.decorate(
+    'sendEmailInternal',
+    (paramFrom, paramTo, paramSubject, paramText) =>
+      // eslint-disable-next-line no-new
+      new Promise((resolve, reject) => {
+        if (config.notificationEmail) {
+          const mailOptions = {
+            from: paramFrom,
+            to: paramTo,
+            subject: paramSubject,
+            text: paramText,
+          };
+
+          fastify.nodemailer.sendMail(mailOptions, (err, info) => {
+            if (err) {
+              fastify.log.error(`could not send email to ${paramTo}. Error: ${err.message}`);
+              reject(new InternalError('Error Happened while senfing an email', err));
+            } else {
+              fastify.log.info(`Email accepted for ${JSON.stringify(info.accepted)}`);
+              resolve(info);
+            }
+          });
+        }
+        reject(new InternalError('Mail relay settings are not found', new Error('334')));
+        //  Error : 334 means –> Provide SMTP authentication credentials.
+      })
+  );
+
+  fastify.decorate('generateEmailValidationCodeInternal', () => {
+    //  key generation copied from the link https://codepen.io/corenominal/pen/rxOmMJ
+    let d = new Date().getTime();
+    if (window.performance && typeof window.performance.now === 'function') {
+      d += performance.now();
+    }
+
+    const uuid = 'xxxxxxxxxxxx4xxxyxxx'.replace(/[xy]/g, (c) => {
+      // eslint-disable-next-line no-bitwise
+      const r = (d + Math.random() * 16) % 16 | 0;
+      d = Math.floor(d / 16);
+      // eslint-disable-next-line no-bitwise
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
+    return uuid;
+  });
+
+  fastify.decorate('generateAppKeyInternal', () => {
+    //  key generation copied from the link https://codepen.io/corenominal/pen/rxOmMJ
+
+    let d = new Date().getTime();
+
+    if (window.performance && typeof window.performance.now === 'function') {
+      d += performance.now();
+    }
+
+    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      // eslint-disable-next-line no-bitwise
+      const r = (d + Math.random() * 16) % 16 | 0;
+      d = Math.floor(d / 16);
+      // eslint-disable-next-line no-bitwise
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
+    return uuid;
+  });
+  fastify.decorate(
+    'getRegisteredServerInternal',
+    async (paramHostname, paramEmail, paramEmailValKey) => {
+      fastify.log.info(
+        `looking for email:${paramEmail} and hostname: ${paramHostname} to check existance for registered server `
+      );
+      const whereParams = { hostname: paramHostname, email: paramEmail };
+      if (paramEmailValKey !== '') {
+        whereParams.emailvalidationcode = paramEmailValKey;
+      }
+      const registeredServers = await models.registeredapps.findAll({
+        where: whereParams,
+        order: [['updatetime', 'DESC']],
+      });
+      return registeredServers;
+    }
+  );
+
+  fastify.decorate('registerServerForAppKey', async (request, reply) => {
+    const requestSenderServerName = request.raw.headers.host.split(':')[0];
+    const tempBody = request.body;
+    let tempEpadStatServer = config.statsEpad.split('//')[1];
+    if (
+      tempEpadStatServer === '' ||
+      tempEpadStatServer === undefined ||
+      tempEpadStatServer === 'undefined'
+    ) {
+      tempEpadStatServer = config.statsEpad;
+    }
+    if (!requestSenderServerName.includes(tempEpadStatServer)) {
+      const resultRemoteRegister = await Axios.post(`${config.statsEpad}/register`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        tempBody,
+      });
+
+      fastify.log.info(
+        'remote server rsponse for register server for the apikey',
+        resultRemoteRegister
+      );
+      reply.code(resultRemoteRegister.code).send(resultRemoteRegister.data);
+      return;
+    }
+
+    const tempName = request.body.name;
+    const tempEmail = request.body.email;
+    const tempOrganization = request.body.organization;
+    const tempUserEmailvalidationcode = request.body.emailvalidationcode;
+    const tempHostname = requestSenderServerName;
+    let emailSentResult = null;
+
+    fastify.log.info(
+      `registering requested with the info-> email : ${tempEmail} , hostname: ${tempHostname}, ,server(requestSender): ${requestSenderServerName} , url: ${request}`
+    );
+
+    const serverExistance = await fastify.getRegisteredServerInternal(
+      tempHostname,
+      tempEmail,
+      tempUserEmailvalidationcode
+    );
+    const lastRecordOfRegisteredServer = serverExistance[serverExistance.length - 1];
+    fastify.log.info(
+      'we are checking if the server exist : getting last inserted data : ',
+      lastRecordOfRegisteredServer
+    );
+
+    if (tempUserEmailvalidationcode === '' && lastRecordOfRegisteredServer === undefined) {
+      fastify.log.info(
+        'registering new server for api key but apikey will be inserted after email validation'
+      );
+      const tempGeneratedEmailValidationCode = fastify.generateEmailValidationCodeInternal();
+      const registeredObject = await models.registeredapps.create({
+        name: tempName,
+        organization: tempOrganization,
+        hostname: tempHostname,
+        email: tempEmail,
+        emailvalidationcode: tempGeneratedEmailValidationCode,
+        creator: request.epadAuth.username,
+        createdtime: Date.now(),
+        emailvalidationsent: Date.now(),
+      });
+      // send an email tempGeneratedEmailValidationCode
+      try {
+        emailSentResult = await fastify.sendEmailInternal(
+          config.notificationEmail.auth.user,
+          tempEmail,
+          'ePad register api key email verification code',
+          tempGeneratedEmailValidationCode
+        );
+        fastify.log.info(`sent email succeed, result : ${emailSentResult}`);
+      } catch (error) {
+        reply.send(new InternalError('email sending issue', error));
+        return;
+      }
+
+      fastify.log.info('new server registered for the apikey: ', registeredObject);
+      reply.code(200).send('validationsent');
+    } else if (tempUserEmailvalidationcode === '' && lastRecordOfRegisteredServer !== undefined) {
+      fastify.log.info(
+        ' server exist already updating email verification code : ',
+        lastRecordOfRegisteredServer
+      );
+      const tempGeneratedEmailValidationCode = fastify.generateEmailValidationCodeInternal();
+      await models.registeredapps.update(
+        {
+          emailvalidationcode: tempGeneratedEmailValidationCode,
+          updatetime: Date.now(),
+          emailvalidationsent: Date.now(),
+          updated_by: request.epadAuth.username,
+        },
+        {
+          where: {
+            id: lastRecordOfRegisteredServer.dataValues.id,
+          },
+        }
+      );
+      // send an email tempGeneratedEmailValidationCode
+      try {
+        emailSentResult = await fastify.sendEmailInternal(
+          config.notificationEmail.auth.user,
+          tempEmail,
+          'ePad register api key email verification code',
+          tempGeneratedEmailValidationCode
+        );
+        fastify.log.info(`sent email succeed, result : ${emailSentResult}`);
+      } catch (error) {
+        reply.send(new InternalError('email sending issue', error));
+        return;
+      }
+      reply.code(200).send('validationsent');
+    } else {
+      fastify.log.info('user sent validation code we are verifiying and will return apikey');
+      if (lastRecordOfRegisteredServer !== undefined) {
+        const tempGenerateAppKey = fastify.generateAppKeyInternal();
+        await models.registeredapps.update(
+          {
+            apikey: tempGenerateAppKey,
+            updatetime: Date.now(),
+            updated_by: request.epadAuth.username,
+          },
+          {
+            where: {
+              id: lastRecordOfRegisteredServer.dataValues.id,
+            },
+          }
+        );
+        // send an email for api key tempGenerateAppKey
+        try {
+          emailSentResult = await fastify.sendEmailInternal(
+            config.notificationEmail.auth.user,
+            tempEmail,
+            'ePad api key',
+            tempGenerateAppKey
+          );
+          fastify.log.info(`sent email succeed, result : ${emailSentResult}`);
+        } catch (error) {
+          reply.send(new InternalError('email sending issue', error));
+          return;
+        }
+        reply.code(200).send('validated');
+      } else {
+        reply.code(200).send('invalid');
+      }
+    }
+  });
+  // register host for app section ends
+
   fastify.decorate('validateRequestBodyFields', (name, id) => {
     if (!name || !id) {
       return EpadError.messages.requiredField;
@@ -4738,7 +4970,7 @@ async function epaddb(fastify, options, done) {
               request.params,
               undefined,
               request.epadAuth,
-              request.query
+              { ...request.query, filterDSO: 'true' }
             );
           }
           if (!subject) {
@@ -4797,7 +5029,7 @@ async function epaddb(fastify, options, done) {
                 request.params,
                 request.epadAuth,
                 false,
-                request.query
+                { ...request.query, filterDSO: 'true' }
               );
             }
             for (let i = 0; i < studies.length; i += 1) {
@@ -4806,7 +5038,7 @@ async function epaddb(fastify, options, done) {
                 studies[i],
                 projectSubject,
                 request.epadAuth,
-                request.query
+                { ...request.query, filterDSO: 'true' }
               );
             }
           }
@@ -5530,14 +5762,15 @@ async function epaddb(fastify, options, done) {
         switch (request.query.report) {
           case 'RECIST':
             // should be one patient
-            if (request.params.subject) result = fastify.getRecist(result.rows);
+            if (request.params.subject) result = fastify.getRecist(result.rows, request);
             else {
               reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
               return;
             }
             break;
           case 'Longitudinal':
-            if (request.params.subject) result = fastify.getLongitudinal(result.rows);
+            if (request.params.subject)
+              result = fastify.getLongitudinal(result.rows, undefined, undefined, request);
             else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
               return;
@@ -6708,7 +6941,7 @@ async function epaddb(fastify, options, done) {
             raw: true,
             include: [{ model: models.project }],
           });
-          const aimUids = [];
+          let aimUids = [];
           let segDeletePromises = []; // an array for deleting all segs
 
           for (let i = 0; i < dbAims.length; i += 1) {
@@ -6721,7 +6954,10 @@ async function epaddb(fastify, options, done) {
                 })
               );
           }
-
+          // if the aim records are deleted from db but there are leftovers in the couchdb
+          if (aimUids.length === 0 && body && Array.isArray(body)) {
+            aimUids = body;
+          }
           const numDeleted = await models.project_aim.destroy({
             where: { aim_uid: aimUids },
           });
@@ -11304,6 +11540,18 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
             // cavit
+
+            await fastify.orm.query(
+              `ALTER TABLE registeredapps
+                ADD COLUMN IF NOT EXISTS name varchar(128) AFTER id,
+                ADD COLUMN IF NOT EXISTS organization varchar(128) AFTER name,
+                ADD COLUMN IF NOT EXISTS email varchar(128) AFTER organization,
+                ADD COLUMN IF NOT EXISTS emailvalidationcode varchar(128) AFTER email,
+                ADD COLUMN IF NOT EXISTS emailvalidationsent timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                MODIFY COLUMN apikey varchar(128) null;`,
+              { transaction: t }
+            );
+            fastify.log.warn('Altered registerapp table');
             // 15. plugin
             // new columns below added to support dockerized plugins
 
@@ -11319,6 +11567,7 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS maxruntime int(10) AFTER memory;`,
               { transaction: t }
             );
+            fastify.log.warn('Altered plugin table');
 
             await fastify.orm.query(
               `ALTER TABLE plugin_queue
@@ -11333,6 +11582,7 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS indexno int(11) DEFAULT 0 AFTER referencetype;`,
               { transaction: t }
             );
+            fastify.log.warn('Altered lexicon table');
             // cavit
             // set the orphaned project_user entities to the first admin
             await fastify.orm.query(
