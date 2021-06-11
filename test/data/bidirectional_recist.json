@@ -248,16 +248,6 @@
                     "imagingObservationEntityCollection": {
                         "ImagingObservationEntity": [
                             {
-                                "questionTypeCode": [
-                                    {
-                                        "code": "RDETBD1",
-                                        "codeSystemName": "Radelement",
-                                        "iso:displayName": {
-                                            "value": "Lesion Quality",
-                                            "xmlns:iso": "uri:iso.org:21090"
-                                        }
-                                    }
-                                ],
                                 "typeCode": [
                                     {
                                         "code": "S86",
@@ -281,16 +271,6 @@
                                 "imagingObservationCharacteristicCollection": {
                                     "ImagingObservationCharacteristic": [
                                         {
-                                            "questionTypeCode": [
-                                                {
-                                                    "code": "RDETBD2",
-                                                    "codeSystemName": "Radelement",
-                                                    "iso:displayName": {
-                                                        "value": "Timepoint",
-                                                        "xmlns:iso": "uri:iso.org:21090"
-                                                    }
-                                                }
-                                            ],
                                             "typeCode": [
                                                 {
                                                     "code": "S90",
@@ -330,16 +310,6 @@
                                             }
                                         },
                                         {
-                                            "questionTypeCode": [
-                                                {
-                                                    "code": "RDETBD3",
-                                                    "codeSystemName": "Radelement",
-                                                    "iso:displayName": {
-                                                        "value": "Lesion Type",
-                                                        "xmlns:iso": "uri:iso.org:21090"
-                                                    }
-                                                }
-                                            ],
                                             "typeCode": [
                                                 {
                                                     "code": "S71",
@@ -359,17 +329,7 @@
                                             }
                                         },
                                         {
-                                            "questionTypeCode": [
-                                                {
-                                                    "code": "RDE54",
-                                                    "codeSystemName": "Radelement",
-                                                    "iso:displayName": {
-                                                        "value": "Lesion Status",
-                                                        "xmlns:iso": "uri:iso.org:21090"
-                                                    }
-                                                }
-                                            ],
-                                            "typeCode": [
+                                             "typeCode": [
                                                 {
                                                     "code": "RID28472",
                                                     "codeSystemName": "RadLex",
@@ -387,16 +347,6 @@
                                             }
                                         },
                                         {
-                                            "questionTypeCode": [
-                                                {
-                                                    "code": "RDETBD4",
-                                                    "codeSystemName": "Radelement",
-                                                    "iso:displayName": {
-                                                        "value": "Lesion Enhancement",
-                                                        "xmlns:iso": "uri:iso.org:21090"
-                                                    }
-                                                }
-                                            ],
                                             "typeCode": [
                                                 {
                                                     "code": "RID6055",
