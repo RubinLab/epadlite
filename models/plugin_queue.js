@@ -1,6 +1,6 @@
 /* jshint indent: 2 */
-//  status values: waiting, running, ended,error, added
-module.exports = function(sequelize, DataTypes) {
+//  status values: waiting, running, ended,error, added, stopping
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define(
     'plugin_queue',
     {
@@ -14,7 +14,7 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'plugin_docker',
+          model: 'plugin',
           key: 'id',
         },
       },
@@ -45,7 +45,7 @@ module.exports = function(sequelize, DataTypes) {
         defaultValue: null,
       },
       status: {
-        type: DataTypes.STRING(7),
+        type: DataTypes.STRING(8),
         allowNull: true,
         defaultValue: null,
       },

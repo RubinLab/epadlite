@@ -1,6 +1,6 @@
 /* jshint indent: 2 */
 
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define(
     'plugin_templateparameters',
     {
@@ -14,7 +14,7 @@ module.exports = function(sequelize, DataTypes) {
         type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
         references: {
-          model: 'plugin_docker',
+          model: 'plugin',
           key: 'id',
         },
       },

@@ -338,5 +338,20 @@ async function otherRoutes(fastify) {
     url: '/decryptandadd',
     handler: fastify.decryptAdd,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/reports/waterfall',
+    schema: {
+      tags: ['report'],
+    },
+    handler: fastify.getWaterfallReport,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/search',
+    handler: fastify.search,
+  });
 }
 module.exports = otherRoutes;

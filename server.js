@@ -18,12 +18,12 @@ const fastify = require('fastify')({
       : '',
 });
 
-fastify.addContentTypeParser('*', (req, done) => {
+fastify.addContentTypeParser('*', (_, payload, done) => {
   let data = [];
-  req.on('data', chunk => {
+  payload.on('data', (chunk) => {
     data.push(chunk);
   });
-  req.on('end', () => {
+  payload.on('end', () => {
     data = Buffer.concat(data);
     done(null, data);
   });
@@ -60,14 +60,19 @@ fastify.register(require('./plugins/DICOMwebServer'), {
 // register Other plugin we created
 fastify.register(require('./plugins/Other'));
 
+fastify.register(require('./plugins/Reporting'));
+
 const port = process.env.port || '8080';
 const host = process.env.host || '0.0.0.0';
+
+const documentationPath =
+  config.prefix && config.prefix !== '' ? `/${config.prefix}/documentation` : '/documentation';
 
 fastify.register(
   // eslint-disable-next-line import/no-dynamic-require
   require('fastify-swagger'),
   {
-    routePrefix: '/documentation',
+    routePrefix: documentationPath,
     exposeRoute: true,
     swagger: {
       info: {
@@ -85,6 +90,8 @@ fastify.register(
         { name: 'worklist', description: 'Worklist related end-points' },
         { name: 'user', description: 'User related end-points' },
         { name: 'images', description: 'Image related end-points' },
+        { name: 'ontology', description: 'lexicon related end-points' },
+        { name: 'register', description: 'server registration related end-points' },
       ],
       externalDocs: {
         url: 'https://swagger.io',
@@ -101,6 +108,8 @@ fastify.register(
 // register epaddb plugin we created
 // eslint-disable-next-line global-require
 fastify.register(require('./plugins/EpadDB'));
+// test by commenting plugins
+fastify.register(require('./plugins/Ontology'));
 // register routes
 // this should be done after CouchDB plugin to be able to use the accessor methods
 // for both thick and lite
@@ -117,17 +126,41 @@ fastify.register(require('./routes/project'), { prefix: config.prefix }); // esl
 fastify.register(require('./routes/projectTemplate'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/projectAim'), { prefix: config.prefix }); // eslint-disable-line global-require
 fastify.register(require('./routes/projectDicomweb'), { prefix: config.prefix }); // eslint-disable-line global-require
+fastify.register(require('./routes/ontology'), { prefix: config.prefix }); // eslint-disable-line global-require
+fastify.register(require('./routes/register'), { prefix: config.prefix }); // eslint-disable-line global-require
 
 if (config.mode === 'thick') {
   fastify.register(require('./routes/plugin'), { prefix: config.prefix }); // eslint-disable-line global-require
 }
+if (config.notificationEmail) {
+  fastify.register(require('fastify-nodemailer'), {
+    pool: true,
+    host: config.notificationEmail.host,
+    port: config.notificationEmail.port,
+    secure: config.notificationEmail.isTls, // use TLS
+    auth: config.notificationEmail.auth,
+  });
+}
+
+// download folder required for static
+const downloadFolder = path.join(__dirname, '/download');
+if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
+fastify.register(require('fastify-static'), {
+  root: path.join(__dirname, 'download'),
+  prefix: '/download/',
+});
 // Run the server!
 fastify.listen(port, host);
 
-fastify.ready(err => {
+fastify.ready((err) => {
   if (err) throw err;
 
   fastify.swagger();
+
+  fastify.addHook('onClose', async (instance) => {
+    await fastify.closeDB(instance);
+    await fastify.closeCouchDB(instance);
+  });
 });
 
 module.exports = fastify;

@@ -389,6 +389,620 @@
                                         }
                                     ]
                                 }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.2286673038662164873180312296215067285131"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "G-D7FE",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Length"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Length"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "cm"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "LineLength"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "4.9128997921943665"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.1492978176128643174602297552932585561611"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "112031",
+                                        "codeSystemName": "DCM",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Attenuation Coefficient"
+                                        }
+                                    },
+                                    {
+                                        "code": "R-00317",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Mean"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Mean"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "[hnsf'U]"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "Mean"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "NaN"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.1097716210120148643489002911656500566591"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "112031",
+                                        "codeSystemName": "DCM",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Attenuation Coefficient"
+                                        }
+                                    },
+                                    {
+                                        "code": "R-10047",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Standard Deviation"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Standard Deviation"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "[hnsf'U]"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "Standard Deviation"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "0"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.2247574070747903434771695613995044752831"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "112031",
+                                        "codeSystemName": "DCM",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Attenuation Coefficient"
+                                        }
+                                    },
+                                    {
+                                        "code": "R-404FB",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Minimum"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Minimum"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "[hnsf'U]"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "Minimum"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "-9999999"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.1419091367757464143904732523938074070991"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "112031",
+                                        "codeSystemName": "DCM",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Attenuation Coefficient"
+                                        }
+                                    },
+                                    {
+                                        "code": "G-A437",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Maximum"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Maximum"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "[hnsf'U]"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "Maximum"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "9999999"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.2286673038662164873180312296215067285132"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "G-D7FE",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Length"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Length"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "cm"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "LineLength"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "4.9128997921943665"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.1492978176128643174602297552932585561612"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "112031",
+                                        "codeSystemName": "DCM",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Attenuation Coefficient"
+                                        }
+                                    },
+                                    {
+                                        "code": "R-00317",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Mean"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Mean"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "[hnsf'U]"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "Mean"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "NaN"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.1097716210120148643489002911656500566592"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "112031",
+                                        "codeSystemName": "DCM",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Attenuation Coefficient"
+                                        }
+                                    },
+                                    {
+                                        "code": "R-10047",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Standard Deviation"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Standard Deviation"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "[hnsf'U]"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "Standard Deviation"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "0"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.2247574070747903434771695613995044752832"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "112031",
+                                        "codeSystemName": "DCM",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Attenuation Coefficient"
+                                        }
+                                    },
+                                    {
+                                        "code": "R-404FB",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Minimum"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Minimum"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "[hnsf'U]"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "Minimum"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "-9999999"
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "uniqueIdentifier": {
+                                    "root": "2.25.1419091367757464143904732523938074070992"
+                                },
+                                "typeCode": [
+                                    {
+                                        "code": "112031",
+                                        "codeSystemName": "DCM",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Attenuation Coefficient"
+                                        }
+                                    },
+                                    {
+                                        "code": "G-A437",
+                                        "codeSystemName": "SRT",
+                                        "iso:displayName": {
+                                            "xmlns:iso": "uri:iso.org:21090",
+                                            "value": "Maximum"
+                                        }
+                                    }
+                                ],
+                                "description": {
+                                    "value": "Maximum"
+                                },
+                                "calculationResultCollection": {
+                                    "CalculationResult": [
+                                        {
+                                            "type": "Scalar",
+                                            "xsi:type": "CompactCalculationResult",
+                                            "unitOfMeasure": {
+                                                "value": "[hnsf'U]"
+                                            },
+                                            "dataType": {
+                                                "code": "C48870",
+                                                "codeSystemName": "NCI",
+                                                "iso:displayName": {
+                                                    "xmlns:iso": "uri:iso.org:21090",
+                                                    "value": "Double"
+                                                }
+                                            },
+                                            "dimensionCollection": {
+                                                "Dimension": [
+                                                    {
+                                                        "index": {
+                                                            "value": 0
+                                                        },
+                                                        "size": {
+                                                            "value": 1
+                                                        },
+                                                        "label": {
+                                                            "value": "Maximum"
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "value": {
+                                                "value": "9999999"
+                                            }
+                                        }
+                                    ]
+                                }
                             }
                         ]
                     },
@@ -398,6 +1012,94 @@
                                 "xsi:type": "TwoDimensionMultiPoint",
                                 "uniqueIdentifier": {
                                     "root": "2.25.32067670198329003534377090010115361273"
+                                },
+                                "shapeIdentifier": {
+                                    "value": 1
+                                },
+                                "includeFlag": {
+                                    "value": true
+                                },
+                                "imageReferenceUid": {
+                                    "root": "1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184625010"
+                                },
+                                "referencedFrameNumber": {
+                                    "value": 1
+                                },
+                                "twoDimensionSpatialCoordinateCollection": {
+                                    "TwoDimensionSpatialCoordinate": [
+                                        {
+                                            "coordinateIndex": {
+                                                "value": 0
+                                            },
+                                            "x": {
+                                                "value": 112.7550561797753
+                                            },
+                                            "y": {
+                                                "value": 222.05842696629216
+                                            }
+                                        },
+                                        {
+                                            "coordinateIndex": {
+                                                "value": 1
+                                            },
+                                            "x": {
+                                                "value": 179.48764044943823
+                                            },
+                                            "y": {
+                                                "value": 201.34831460674158
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "xsi:type": "TwoDimensionMultiPoint",
+                                "uniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361333"
+                                },
+                                "shapeIdentifier": {
+                                    "value": 1
+                                },
+                                "includeFlag": {
+                                    "value": true
+                                },
+                                "imageReferenceUid": {
+                                    "root": "1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184625010"
+                                },
+                                "referencedFrameNumber": {
+                                    "value": 1
+                                },
+                                "twoDimensionSpatialCoordinateCollection": {
+                                    "TwoDimensionSpatialCoordinate": [
+                                        {
+                                            "coordinateIndex": {
+                                                "value": 0
+                                            },
+                                            "x": {
+                                                "value": 112.7550561797753
+                                            },
+                                            "y": {
+                                                "value": 222.05842696629216
+                                            }
+                                        },
+                                        {
+                                            "coordinateIndex": {
+                                                "value": 1
+                                            },
+                                            "x": {
+                                                "value": 179.48764044943823
+                                            },
+                                            "y": {
+                                                "value": 201.34831460674158
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "xsi:type": "TwoDimensionMultiPoint",
+                                "uniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361444"
                                 },
                                 "shapeIdentifier": {
                                     "value": 1
@@ -485,6 +1187,96 @@
                                 },
                                 "objectUniqueIdentifier": {
                                     "root": "2.25.32067670198329003534377090010115361273"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.2286673038662164873180312296215067285131"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361444"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.1492978176128643174602297552932585561611"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361444"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.1097716210120148643489002911656500566591"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361444"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.2247574070747903434771695613995044752831"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361444"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.1419091367757464143904732523938074070991"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361444"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.2286673038662164873180312296215067285132"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361333"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.1492978176128643174602297552932585561612"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361333"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.1097716210120148643489002911656500566592"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361333"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.2247574070747903434771695613995044752832"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361333"
+                                }
+                            },
+                            {
+                                "xsi:type": "CalculationEntityReferencesMarkupEntityStatement",
+                                "subjectUniqueIdentifier": {
+                                    "root": "2.25.1419091367757464143904732523938074070992"
+                                },
+                                "objectUniqueIdentifier": {
+                                    "root": "2.25.32067670198329003534377090010115361333"
                                 }
                             }
                         ]

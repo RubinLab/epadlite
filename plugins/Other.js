@@ -1,3 +1,4 @@
+/* eslint-disable no-async-promise-executor */
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const unzip = require('unzip-stream');
@@ -9,9 +10,10 @@ window = {};
 const dcmjs = require('dcmjs');
 const atob = require('atob');
 const axios = require('axios');
+const plist = require('plist');
+const { createOfflineAimSegmentation, Aim } = require('aimapi');
 const crypto = require('crypto');
 const concat = require('concat-stream');
-const { createOfflineAimSegmentation } = require('aimapi');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -65,7 +67,7 @@ async function other(fastify) {
   // });
   // eslint-disable-next-line global-require
   fastify.register(require('fastify-multipart'));
-  fastify.decorate('getCombinedErrorText', errors => {
+  fastify.decorate('getCombinedErrorText', (errors) => {
     let errMessagesText = null;
     if (errors.length > 0) {
       const errMessages = errors.reduce((all, item) => {
@@ -83,12 +85,12 @@ async function other(fastify) {
         reply.send(new InternalError('Multipart aim file save', err));
       } else {
         Promise.all(fileSavePromises)
-          .then(values => {
+          .then((values) => {
             let numOfSuccess = 0;
-            const errors = [];
+            let errors = [];
             for (let i = 0; i < values.length; i += 1) {
               if (values[i].success) numOfSuccess += 1;
-              errors.concat(values[i].errors);
+              errors = errors.concat(values[i].errors);
             }
             const errMessagesText = fastify.getCombinedErrorText(errors);
 
@@ -103,28 +105,28 @@ async function other(fastify) {
                 new InternalError('None of the aims is saved', new Error(`errMessagesText`))
               );
           })
-          .catch(fileSaveErr => {
+          .catch((fileSaveErr) => {
             reply.send(new InternalError('Aim file(s) save error', fileSaveErr));
           });
       }
     }
     function handler(field, file, filename) {
       fileSavePromises.push(
-        new Promise(resolve => {
+        new Promise((resolve) => {
           file.pipe(
-            concat(buf => {
+            concat((buf) => {
               const jsonBuffer = JSON.parse(buf);
               fastify
                 .saveAimJsonWithProjectRef(jsonBuffer, request.params, request.epadAuth, filename)
-                .then(res => {
+                .then((res) => {
                   resolve(res);
                 })
-                .catch(err => {
+                .catch((err) => {
                   // errors.push(new InternalError(`Saving aim ${filename}`, err));
                   resolve({ success: false, errors: [err] });
                 });
             }),
-            err => {
+            (err) => {
               if (err) {
                 // errors.push(new InternalError(`Getting aim json from upload for ${filename}`, err));
                 resolve({ success: false, errors: [err] });
@@ -161,13 +163,11 @@ async function other(fastify) {
                 request.query,
                 request.epadAuth
               );
-              fs.remove(dir, error => {
+              fs.remove(dir, (error) => {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 fastify.log.info(`${dir} deleted`);
               });
-
               const errMessagesText = fastify.getCombinedErrorText(errors);
-
               if (success) {
                 if (errMessagesText) {
                   if (config.env === 'test')
@@ -207,7 +207,7 @@ async function other(fastify) {
                 ).notify(fastify);
               }
             } catch (filesErr) {
-              fs.remove(dir, error => {
+              fs.remove(dir, (error) => {
                 if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
                 else fastify.log.info(`${dir} deleted`);
               });
@@ -221,8 +221,8 @@ async function other(fastify) {
                 ).notify(fastify);
             }
           })
-          .catch(fileSaveErr => {
-            fs.remove(dir, error => {
+          .catch((fileSaveErr) => {
+            fs.remove(dir, (error) => {
               if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
               else fastify.log.info(`${dir} deleted`);
             });
@@ -239,7 +239,7 @@ async function other(fastify) {
     }
     function addFile(file, filename) {
       fileSavePromisses.push(
-        new Promise(resolve =>
+        new Promise((resolve) =>
           file.pipe(fs.createWriteStream(`${dir}/${filename}`)).on('finish', resolve)
         )
       );
@@ -288,9 +288,9 @@ async function other(fastify) {
           }
           // see if it was a dicom
           if (datasets.length > 0) {
-            await pqDicoms.add(() => {
-              return fastify.sendDicomsInternal(params, epadAuth, studies, datasets);
-            });
+            await pqDicoms.add(() =>
+              fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
+            );
             datasets = [];
             studies = new Set();
           }
@@ -322,6 +322,9 @@ async function other(fastify) {
             if (err.message.includes('socket hang up')) {
               fastify.log.warn('DICOMweb hang up the socker trying again');
               setTimeout(await fastify.saveDicomsInternal(data, boundary), 1000);
+            } else {
+              fastify.log.error(`Could not send to DICOMweb ${err.message}`);
+              reject(err);
             }
           }
           resolve();
@@ -344,6 +347,8 @@ async function other(fastify) {
               subject: studyJSON.subject,
               study: studyJSON.study,
             };
+            // does not send query to check for segmentation dicoms (AIM)
+            // this is called from upload and it already handles segmentation dicoms
             // eslint-disable-next-line no-await-in-loop
             await fastify.addPatientStudyToProjectInternal(combinedParams, epadAuth, studyJSON);
           }
@@ -360,7 +365,7 @@ async function other(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           fastify
-            .saveAimInternal(aimJson)
+            .saveAimInternal(aimJson, params.project)
             .then(async () => {
               try {
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
@@ -370,7 +375,7 @@ async function other(fastify) {
                 reject(errProject);
               }
             })
-            .catch(err => {
+            .catch((err) => {
               reject(err);
             });
         } catch (err) {
@@ -396,20 +401,28 @@ async function other(fastify) {
             // create a segmentation aim if it doesn't exist
             if (!aimExist) {
               fastify.log.info(
-                `A segmentation is uploaded with series UID ${
-                  dataset.SeriesInstanceUID
-                } which doesn't have an aim, generating an aim with name ${
-                  dataset.SeriesDescription
-                } `
+                `A segmentation is uploaded with series UID ${dataset.SeriesInstanceUID} which doesn't have an aim, generating an aim with name ${dataset.SeriesDescription} `
               );
               const { aim } = createOfflineAimSegmentation(dataset, {
-                loginName: 'admin', // TODO assuming admin user
-                name: 'Admin',
+                loginName: epadAuth.username,
+                name: `${epadAuth.firstname} ${epadAuth.lastname}`,
               });
               const aimJson = aim.getAimJSON();
               await fastify.saveAimJsonWithProjectRef(aimJson, params, epadAuth);
             }
           }
+
+          await fastify.purgeWado(
+            dicomTags.dict['0020000D'] && dicomTags.dict['0020000D'].Value
+              ? dicomTags.dict['0020000D'].Value[0]
+              : '',
+            dicomTags.dict['0020000E'] && dicomTags.dict['0020000E'].Value
+              ? dicomTags.dict['0020000E'].Value[0]
+              : '',
+            dicomTags.dict['00080018'] && dicomTags.dict['00080018'].Value
+              ? dicomTags.dict['00080018'].Value[0]
+              : ''
+          );
           resolve(
             JSON.stringify({
               subject:
@@ -491,22 +504,22 @@ async function other(fastify) {
                 .then(() => {
                   fastify
                     .processFolder(`${zipDir}`, params, query, epadAuth)
-                    .then(result => {
+                    .then((result) => {
                       fastify.log.info(
                         `Finished processing ${filename} at ${new Date().getTime()} started at ${zipTimestamp}`
                       );
-                      fs.remove(zipDir, error => {
+                      fs.remove(zipDir, (error) => {
                         if (error)
                           fastify.log.info(`Zip temp directory deletion error ${error.message}`);
                         else fastify.log.info(`${zipDir} deleted`);
                       });
                       resolve(result);
                     })
-                    .catch(err => reject(err));
+                    .catch((err) => reject(err));
                 })
-                .catch(errPrc => reject(errPrc));
+                .catch((errPrc) => reject(errPrc));
             })
-            .on('error', error => {
+            .on('error', (error) => {
               reject(new InternalError(`Extracting zip ${filename}`, error));
             });
         } catch (err) {
@@ -530,7 +543,7 @@ async function other(fastify) {
         .then(() => {
           fastify
             .processFolder(dataFolder, request.params, {}, request.epadAuth)
-            .then(result => {
+            .then((result) => {
               fastify.log.info(
                 `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
                   result.success
@@ -540,12 +553,12 @@ async function other(fastify) {
                 fastify
               );
             })
-            .catch(err => {
+            .catch((err) => {
               fastify.log.warn(`Error processing ${dataFolder} Error: ${err.message}`);
               new EpadNotification(request, 'Folder scan failed', err, true).notify(fastify);
             });
         })
-        .catch(errPrc => {
+        .catch((errPrc) => {
           fastify.log.warn(`Error processing ${dataFolder} Error: ${errPrc.message}`);
           new EpadNotification(request, 'Folder scan failed', errPrc, true).notify(fastify);
         });
@@ -607,9 +620,9 @@ async function other(fastify) {
                     } catch (folderErr) {
                       reject(folderErr);
                     }
-                  else
-                    promisses.push(() => {
-                      return fastify
+                  else {
+                    promisses.push(() =>
+                      fastify
                         .processFile(
                           zipDir,
                           files[i],
@@ -620,22 +633,23 @@ async function other(fastify) {
                           epadAuth,
                           zipFilesToIgnore
                         )
-                        .catch(error => {
+                        .catch((error) => {
                           result.errors.push(error);
-                        });
-                    });
+                        })
+                    );
+                  }
               }
-              pq.addAll(promisses).then(async values => {
+              pq.addAll(promisses).then(async (values) => {
                 try {
-                  for (let i = 0; values.length; i += 1) {
-                    if (
-                      values[i] === undefined ||
-                      (values[i].errors && values[i].errors.length === 0)
-                    ) {
+                  for (let i = 0; i < values.length; i += 1) {
+                    if (values[i] && values[i].success) {
                       // one success is enough
-                      result.success = result.success || true;
-                      break;
+                      result.success = true;
+                      // I cannot break because of errors accumulation, I am not sure about performance
+                      // break;
                     }
+                    if (values[i] && values[i].errors && values[i].errors.length > 0)
+                      result.errors = result.errors.concat(values[i].errors);
                   }
                   if (datasets.length > 0) {
                     pqDicoms
@@ -644,7 +658,7 @@ async function other(fastify) {
                         await fastify.removeProcessing(params, query, zipDir);
                         resolve(result);
                       })
-                      .catch(error => reject(error));
+                      .catch((error) => reject(error));
                   } else {
                     await fastify.removeProcessing(params, query, zipDir);
                     resolve(result);
@@ -668,10 +682,10 @@ async function other(fastify) {
         try {
           let buffer = [];
           const readableStream = fs.createReadStream(`${dir}/${filename}`);
-          readableStream.on('data', chunk => {
+          readableStream.on('data', (chunk) => {
             buffer.push(chunk);
           });
-          readableStream.on('error', readErr => {
+          readableStream.on('error', (readErr) => {
             fastify.log.error(`Error in save when reading file ${dir}/${filename}: ${readErr}`);
             reject(new InternalError(`Reading file ${dir}/${filename}`, readErr));
           });
@@ -721,24 +735,118 @@ async function other(fastify) {
                       reject(errProject);
                     }
                   })
-                  .catch(err => {
+                  .catch((err) => {
                     reject(err);
                   });
-              } else {
+              } else if (
+                jsonBuffer.ImageAnnotationCollection &&
+                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
+                  .code &&
+                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
+                  .code !== 'SEG'
+              ) {
+                // aim saving via upload, ignore SEG Only annotations
                 fastify
                   .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
-                  .then(res => {
+                  .then((res) => {
                     try {
-                      fastify.log.info(`Saving successful for ${filename}`);
                       resolve(res);
                     } catch (errProject) {
                       reject(errProject);
                     }
                   })
-                  .catch(err => {
+                  .catch((err) => {
                     reject(err);
                   });
+              } else {
+                reject(new Error(`SEG Only aim upload not supported (${filename})`));
               }
+            } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
+              fastify
+                .parseOsirix(`${dir}/${filename}`)
+                .then((osirixObj) => {
+                  const { filteredOsirix, nonSupported } = fastify.filterOsirixAnnotations(
+                    osirixObj.Images
+                  );
+                  const keys = Object.keys(filteredOsirix);
+                  const values = Object.values(filteredOsirix);
+                  const { username } = epadAuth;
+                  const promiseArr = [];
+                  const result = { errors: [] };
+                  values.forEach((annotation) => {
+                    promiseArr.push(
+                      fastify.getImageMetaDataforOsirix(annotation, username).catch((error) => {
+                        result.errors.push(error);
+                      })
+                    );
+                  });
+                  Promise.all(promiseArr).then((seedDataArr) => {
+                    if (result.errors.length === promiseArr.length) {
+                      reject(new InternalError(`Can not find the image`, result.errors[0]));
+                    } else {
+                      seedDataArr.forEach((seedData, i) => {
+                        if (seedData) {
+                          filteredOsirix[keys[i]] = { ...values[i], seedData };
+                        }
+                      });
+                      const aimJsons = fastify.createAimJsons(Object.values(filteredOsirix));
+                      const aimsavePromises = [];
+                      aimJsons.forEach((jsonBuffer) => {
+                        aimsavePromises.push(
+                          fastify
+                            .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
+                            .catch((error) => {
+                              result.errors.push(error);
+                            })
+                        );
+                      });
+                      Promise.all(aimsavePromises)
+                        .then(() => {
+                          try {
+                            const uploadMsg = 'Upload Failed as ';
+                            let errMessage = 'none of the files were uploaded successfully';
+                            if (result.errors.length === promiseArr.length) {
+                              reject(new InternalError(uploadMsg, new Error(errMessage)));
+                            } else {
+                              // eslint-disable-next-line no-lonely-if
+                              if (nonSupported.length) {
+                                errMessage = `Not supported shapes in: ${nonSupported.join(', ')}`;
+                                const error = new InternalError(
+                                  'Upload completed with errors',
+                                  new Error(errMessage)
+                                );
+                                if (result.errors.length > 0) {
+                                  fastify.log.info(`Saving successful`);
+                                  resolve({ success: true, errors: [...result.errors, error] });
+                                } else {
+                                  fastify.log.info(`Saving successful`);
+                                  resolve({ success: true, errors: [error] });
+                                }
+                              } else {
+                                fastify.log.info(`Saving successful`);
+                                resolve({ success: true, errors: result.errors });
+                              }
+                            }
+                          } catch (errProject) {
+                            reject(errProject);
+                          }
+                        })
+                        .catch((err) => {
+                          const uploadMsg = 'Upload Failed as ';
+                          const errMessage = 'none of the files were uploaded successfully';
+                          reject(new InternalError(uploadMsg + errMessage, err));
+                        });
+                    }
+                  });
+                })
+                .catch(() => {
+                  reject(
+                    new BadRequestError(
+                      'Uploading files',
+                      new Error(`Unsupported filetype for file ${dir}/${filename}`)
+                    )
+                  );
+                });
             } else if (
               filename.endsWith('zip') &&
               !filename.startsWith('__MACOSX') &&
@@ -746,8 +854,10 @@ async function other(fastify) {
             ) {
               fastify
                 .processZip(dir, filename, params, query, epadAuth)
-                .then(result => resolve(result))
-                .catch(err => reject(err));
+                .then((result) => {
+                  resolve(result);
+                })
+                .catch((err) => reject(err));
             } else if (fastify.checkFileType(filename) && filename !== '.DS_Store')
               // check .DS_Store just in case
               fastify
@@ -759,8 +869,10 @@ async function other(fastify) {
                   Buffer.byteLength(buffer),
                   epadAuth
                 )
-                .then(() => resolve({ success: true, errors: [] }))
-                .catch(err => reject(err));
+                .then(() => {
+                  resolve({ success: true, errors: [] });
+                })
+                .catch((err) => reject(err));
             else {
               // check to see if it is a dicom file with no dcm extension
               const ext = fastify.getExtension(filename);
@@ -804,6 +916,235 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate('createAimJsons', (filteredOsirixArr) => {
+    try {
+      const aimJsons = [];
+      filteredOsirixArr.forEach((el) => {
+        const aim = new Aim(el.seedData, fastify.enumAimType.imageAnnotation);
+        const markupsToSave = el.rois.map((roi) => fastify.formMarupksToSave(roi));
+        fastify.createAimMarkups(aim, markupsToSave);
+        const aimJson = JSON.parse(aim.getAim());
+        aimJsons.push(aimJson);
+      });
+      return aimJsons;
+    } catch (err) {
+      return new InternalError('Creating aim jsons', err);
+    }
+  });
+
+  fastify.decorate('enumAimType', {
+    imageAnnotation: 1,
+    seriesAnnotation: 2,
+    studyAnnotation: 3,
+  });
+
+  fastify.decorate('formMarupksToSave', (roi) => {
+    // eslint-disable-next-line camelcase
+    const { SOPInstanceUID, Type, IndexInImage, Max, Mean, Min, Dev, LengthCm, AreaCm2 } = roi;
+    const points = fastify.createPointsArrForOsirix(roi.Point_px);
+    return {
+      imageReferenceUid: SOPInstanceUID,
+      markup: {
+        max: Max,
+        mean: Mean,
+        min: Min,
+        stdDev: Dev,
+        points,
+        LengthCm,
+        AreaCm2,
+      },
+      shapeIndex: IndexInImage,
+      type: Type,
+    };
+  });
+
+  // if new supported objects are added filterOsirixAnnotations should be updated
+  fastify.decorate('createAimMarkups', (aim, markupsToSave) => {
+    markupsToSave.forEach((value) => {
+      const { type, markup, shapeIndex, imageReferenceUid } = value;
+      switch (type) {
+        case 19:
+          fastify.addPointToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        case 5:
+        case 14:
+          fastify.addLineToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        case 15:
+        case 10:
+        case 9:
+        case 28:
+        case 20:
+        case 11:
+        case 6:
+          fastify.addPolygonToAim(aim, markup, shapeIndex, imageReferenceUid);
+          break;
+        default:
+          break;
+      }
+    });
+  });
+
+  fastify.decorate('addPolygonToAim', (aim, polygon, shapeIndex, imageReferenceUid) => {
+    const { points } = polygon;
+    // eslint-disable-next-line no-unused-vars
+    const markupId = aim.addMarkupEntity(
+      'TwoDimensionPolyline',
+      shapeIndex,
+      points,
+      imageReferenceUid,
+      1
+    );
+    fastify.createCalcEntity(aim, markupId, polygon);
+  });
+
+  fastify.decorate('createCalcEntity', (aim, markupId, shape) => {
+    const { AreaCm2, mean, stdDev, min, max, LengthCm } = shape;
+    const unit = 'linear';
+
+    if (mean) {
+      const meanId = aim.createMeanCalcEntity({ mean, unit });
+      aim.createImageAnnotationStatement(1, markupId, meanId);
+    }
+
+    if (stdDev) {
+      const stdDevId = aim.createStdDevCalcEntity({ stdDev, unit });
+      aim.createImageAnnotationStatement(1, markupId, stdDevId);
+    }
+
+    if (min) {
+      const minId = aim.createMinCalcEntity({ min, unit });
+      aim.createImageAnnotationStatement(1, markupId, minId);
+    }
+
+    if (max) {
+      const maxId = aim.createMaxCalcEntity({ max, unit });
+      aim.createImageAnnotationStatement(1, markupId, maxId);
+    }
+
+    if (LengthCm) {
+      const lengthId = aim.createLengthCalcEntity({
+        value: LengthCm,
+        unit: 'cm',
+      });
+      aim.createImageAnnotationStatement(1, markupId, lengthId);
+    }
+
+    if (AreaCm2) {
+      const areaId = aim.createAreaCalcEntity({ value: AreaCm2, unit: 'cm2' });
+      aim.createImageAnnotationStatement(1, markupId, areaId);
+    }
+  });
+
+  fastify.decorate('addPointToAim', (aim, point, shapeIndex, imageReferenceUid) => {
+    const { points } = point;
+    aim.addMarkupEntity('TwoDimensionPoint', shapeIndex, points, imageReferenceUid, 1);
+  });
+
+  fastify.decorate('addLineToAim', (aim, line, shapeIndex, imageReferenceUid) => {
+    const { points } = line;
+    const markupId = aim.addMarkupEntity(
+      'TwoDimensionMultiPoint',
+      shapeIndex,
+      points,
+      imageReferenceUid,
+      1
+    );
+
+    fastify.createCalcEntity(aim, markupId, line);
+  });
+
+  fastify.decorate('createPointsArrForOsirix', (osirixCoordinates) => {
+    const arr = osirixCoordinates.map((el) => {
+      const coors = el.split(',');
+      const x = coors[0].trim().substr(1);
+      let y = coors[1].trim();
+      y = y.substr(0, y.length - 1);
+      return { x: parseFloat(x), y: parseFloat(y) };
+    });
+    return arr;
+  });
+  fastify.decorate(
+    'parseOsirix',
+    (docPath) =>
+      new Promise((resolve, reject) => {
+        try {
+          const osirixObj = plist.parse(fs.readFileSync(docPath, 'utf8'));
+          resolve(osirixObj);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getImageMetaDataforOsirix',
+    (annotation, username) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const { SOPInstanceUID, SeriesInstanceUID, StudyInstanceUID } = annotation.rois[0];
+          const parameters = {
+            instance: SOPInstanceUID,
+            series: SeriesInstanceUID,
+            study: StudyInstanceUID,
+          };
+          const seedData = await fastify.getImageMetadata(parameters);
+          const answers = fastify.getTemplateAnswers(seedData, annotation.name, '');
+          const merged = { ...seedData.aim, ...answers };
+          seedData.aim = merged;
+          seedData.user = { loginName: username, name: username };
+          resolve(seedData);
+        } catch (err) {
+          reject(new InternalError(`Getting data from image`, err));
+        }
+      })
+  );
+
+  // eslint-disable-next-line consistent-return
+  fastify.decorate('getTemplateAnswers', (metadata, annotationName, tempModality) => {
+    if (metadata.series) {
+      const { number, description, instanceNumber } = metadata.series;
+      const seriesModality = metadata.series.modality;
+      const comment = {
+        value: `${seriesModality} / ${description} / ${instanceNumber} / ${number}`,
+      };
+      const modality = { value: tempModality };
+      const name = { value: annotationName };
+      const typeCode = [
+        {
+          code: 'ROI',
+          codeSystemName: '99EPAD',
+          'iso:displayName': { 'xmlns:iso': 'uri:iso.org:21090', value: 'ROI Only' },
+        },
+      ];
+      return { comment, modality, name, typeCode };
+    }
+  });
+
+  // if new supported objects are added createAimMarkups should be updated
+  fastify.decorate('filterOsirixAnnotations', (imagesArr) => {
+    const filteredOsirix = {};
+    const nonSupported = [];
+    const supportedTypes = [19, 5, 14, 15, 10, 9, 28, 20, 11, 6];
+    imagesArr.forEach((img) => {
+      img.ROIs.reduce((all, item) => {
+        if (supportedTypes.includes(item.Type)) {
+          const key = `${item.Name}${item.SeriesInstanceUID}`;
+          if (all[key]) {
+            all[key].rois.push(item);
+          } else {
+            // eslint-disable-next-line no-param-reassign
+            all[key] = { name: item.Name, rois: [item] };
+          }
+        } else {
+          nonSupported.push(item.Name);
+        }
+        return all;
+      }, filteredOsirix);
+    });
+    return { filteredOsirix, nonSupported };
+  });
+
   fastify.decorate(
     'saveOtherFileToProjectInternal',
     (filename, params, query, buffer, length, epadAuth) =>
@@ -833,14 +1174,15 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate('getExtension', filename => {
+  fastify.decorate('getExtension', (filename) => {
     const ext = path.extname(filename).replace('.', '');
     if (ext === '') return '';
     return ext.toLowerCase();
   });
 
-  fastify.decorate('checkFileType', filename => {
-    return config.validExt.includes(fastify.getExtension(filename));
+  fastify.decorate('checkFileType', (filename) => {
+    const ext = fastify.getExtension(filename);
+    return ext !== '' && config.validExt.includes(fastify.getExtension(filename));
   });
 
   fastify.decorate('deleteSubject', (request, reply) => {
@@ -855,14 +1197,14 @@ async function other(fastify) {
     }
     fastify
       .deleteSubjectInternal(request.params, request.epadAuth)
-      .then(result => {
+      .then((result) => {
         if (config.env !== 'test')
           new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
             fastify
           );
         else reply.code(200).send(result);
       })
-      .catch(err => {
+      .catch((err) => {
         if (config.env !== 'test')
           new EpadNotification(
             request,
@@ -880,28 +1222,26 @@ async function other(fastify) {
         const promisses = [];
         fastify
           .getPatientStudiesInternal(params, undefined, epadAuth, {}, true)
-          .then(result => {
-            result.forEach(study => {
-              promisses.push(() => {
-                return fastify.deleteStudyDicomsInternal({
+          .then((result) => {
+            result.forEach((study) => {
+              promisses.push(() =>
+                fastify.deleteStudyDicomsInternal({
                   subject: params.subject,
                   study: study.studyUID,
-                });
-              });
+                })
+              );
             });
-            promisses.push(() => {
-              return fastify.deleteAimsInternal(params, epadAuth);
-            });
+            promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
             pq.addAll(promisses)
               .then(() => {
                 fastify.log.info(`Subject ${params.subject} deletion is initiated successfully`);
                 resolve(`Subject ${params.subject} deletion is initiated successfully`);
               })
-              .catch(error => {
+              .catch((error) => {
                 reject(new InternalError(`Deleting subject ${params.subject}`, error));
               });
           })
-          .catch(getError => {
+          .catch((getError) => {
             reject(
               new InternalError(`Getting studies of ${params.subject} for deletion`, getError)
             );
@@ -912,22 +1252,20 @@ async function other(fastify) {
   fastify.decorate('deleteStudy', (request, reply) => {
     if (config.env !== 'test') {
       fastify.log.info(
-        `Study ${request.params.study} of Subject ${
-          request.params.subject
-        } deletion request recieved, sending response`
+        `Study ${request.params.study} of Subject ${request.params.subject} deletion request recieved, sending response`
       );
       reply.code(202).send(`Study ${request.params.study} deletion request recieved. deleting..`);
     }
     fastify
       .deleteStudyInternal(request.params, request.epadAuth)
-      .then(result => {
+      .then((result) => {
         if (config.env !== 'test')
           new EpadNotification(request, 'Deleted study', request.params.study, true).notify(
             fastify
           );
         else reply.code(200).send(result);
       })
-      .catch(err => {
+      .catch((err) => {
         if (config.env !== 'test')
           new EpadNotification(
             request,
@@ -938,51 +1276,45 @@ async function other(fastify) {
       });
   });
 
-  fastify.decorate('deleteStudyInternal', (params, epadAuth) => {
-    return new Promise((resolve, reject) => {
-      // delete study in dicomweb and annotations
-      const promisses = [];
-      promisses.push(() => {
-        return fastify.deleteStudyDicomsInternal(params);
-      });
-      promisses.push(() => {
-        return fastify.deleteAimsInternal(params, epadAuth);
-      });
-      pq.addAll(promisses)
-        .then(() => {
-          fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
-          resolve();
-        })
-        .catch(error => {
-          reject(error);
-        });
-    });
-  });
+  fastify.decorate(
+    'deleteStudyInternal',
+    (params, epadAuth) =>
+      new Promise((resolve, reject) => {
+        // delete study in dicomweb and annotations
+        const promisses = [];
+        promisses.push(() => fastify.deleteStudyDicomsInternal(params));
+        promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
+        pq.addAll(promisses)
+          .then(() => {
+            fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
+            resolve();
+          })
+          .catch((error) => {
+            reject(error);
+          });
+      })
+  );
 
   fastify.decorate('deleteSeries', (request, reply) => {
     try {
       // delete study in dicomweb and annotations
       const promisses = [];
-      promisses.push(() => {
-        return fastify.deleteNonDicomSeriesInternal(request.params.series).catch(err => {
+      promisses.push(() =>
+        fastify.deleteNonDicomSeriesInternal(request.params.series).catch((err) => {
           if (err.message !== 'No nondicom entity')
             fastify.log.warn(
               `Could not delete nondicom series. Error: ${err.message}. Trying dicom series delete`
             );
           return fastify.deleteSeriesDicomsInternal(request.params);
-        });
-      });
-      promisses.push(() => {
-        return fastify.deleteSeriesAimProjectRels(request.params);
-      });
-      promisses.push(() => {
-        return fastify.deleteAimsInternal(request.params, request.epadAuth);
-      });
+        })
+      );
+      promisses.push(() => fastify.deleteSeriesAimProjectRels(request.params));
+      promisses.push(() =>
+        fastify.deleteAimsInternal(request.params, request.epadAuth, { all: 'true' })
+      );
       if (config.env !== 'test') {
         fastify.log.info(
-          `Series ${request.params.series} of Subject ${
-            request.params.subject
-          } deletion request recieved, sending response`
+          `Series ${request.params.series} of Subject ${request.params.subject} deletion request recieved, sending response`
         );
         reply.code(202).send(`Study ${request.params.study} deletion request recieved. deleting..`);
       }
@@ -998,7 +1330,7 @@ async function other(fastify) {
               .code(200)
               .send(`Series ${request.params.series} deletion is initiated successfully`);
         })
-        .catch(error => {
+        .catch((error) => {
           reply.send(error);
         });
     } catch (err) {
@@ -1015,7 +1347,7 @@ async function other(fastify) {
   fastify.decorate('getNotifications', (request, reply) => {
     try {
       // if there is corsorigin in config and it is not false then reflect request origin
-      reply.res.writeHead(200, {
+      reply.raw.writeHead(200, {
         ...{
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -1024,16 +1356,16 @@ async function other(fastify) {
         ...(config.corsOrigin ? { 'Access-Control-Allow-Origin': request.headers.origin } : {}),
       });
       const padding = new Array(2049);
-      reply.res.write(`:${padding.join(' ')}\n`); // 2kB padding for IE
-      reply.res.write('retry: 2000\n');
+      reply.raw.write(`:${padding.join(' ')}\n`); // 2kB padding for IE
+      reply.raw.write('retry: 2000\n');
       fastify.addConnectedUser(request, reply);
       const id = setInterval(() => {
         // eslint-disable-next-line no-param-reassign
         fastify.messageId += 1;
-        reply.res.write(`id: ${fastify.messageId}\n`);
-        reply.res.write(`data: heartbeat\n\n`);
+        reply.raw.write(`id: ${fastify.messageId}\n`);
+        reply.raw.write(`data: heartbeat\n\n`);
       }, 1000);
-      request.req.on('close', () => {
+      request.raw.on('close', () => {
         clearInterval(id);
         fastify.deleteDisconnectedUser(request);
       }); // <- Remove this user when he disconnects
@@ -1047,14 +1379,16 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('getInfoFromRequest', request => {
+  fastify.decorate('getInfoFromRequest', (request) => {
     try {
       const reqInfo = {};
-      reqInfo.method = request.req.method;
+      reqInfo.method = request.raw.method;
       const methodText = { GET: 'GET', POST: 'CREATE', PUT: 'UPDATE', DELETE: 'DELETE' };
-      reqInfo.methodText = methodText[request.req.method];
-      const queryStart = request.req.url.indexOf('?');
-      let cleanUrl = request.req.url;
+      reqInfo.methodText = methodText[request.raw.method];
+      let cleanUrl = config.prefix
+        ? request.raw.url.replace(`/${config.prefix}`, '')
+        : request.raw.url;
+      const queryStart = cleanUrl.indexOf('?');
       if (queryStart !== -1) cleanUrl = cleanUrl.substring(0, queryStart);
       const urlParts = cleanUrl.split('/');
       const levels = {
@@ -1068,6 +1402,7 @@ async function other(fastify) {
         templates: 'template',
         users: 'user',
         worklists: 'worklist',
+        ontology: 'ontology',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -1076,7 +1411,7 @@ async function other(fastify) {
       } else if (levels[urlParts[urlParts.length - 2]]) {
         reqInfo.level = levels[urlParts[urlParts.length - 2]];
         reqInfo.objectId = urlParts[urlParts.length - 1];
-      } else reqInfo.level = request.req.url;
+      } else reqInfo.level = request.raw.url;
       // eslint-disable-next-line prefer-destructuring
       if (urlParts[1] === 'projects' && urlParts.length > 1) reqInfo.project = urlParts[2];
       if (urlParts[1] === 'worklists') {
@@ -1109,10 +1444,10 @@ async function other(fastify) {
     } else {
       fastify
         .getUserInfoInternal(token)
-        .then(result => {
+        .then((result) => {
           reply.code(200).send(result);
         })
-        .catch(err => {
+        .catch((err) => {
           reply.send(err);
         });
     }
@@ -1120,7 +1455,7 @@ async function other(fastify) {
 
   fastify.decorate(
     'getUserInfoInternal',
-    token =>
+    (token) =>
       new Promise(async (resolve, reject) => {
         if (!config.authConfig.userinfoUrl)
           reject(
@@ -1166,13 +1501,13 @@ async function other(fastify) {
             if (verifyToken.isExpired()) {
               res.send(new UnauthenticatedError('Token is expired'));
             } else {
-              username = verifyToken.content.preferred_username;
+              username = verifyToken.content.preferred_username || verifyToken.content.email;
               userInfo = verifyToken.content;
             }
           } else {
             // try getting userinfo from external auth server with userinfo endpoint
             const userinfo = await fastify.getUserInfoInternal(token);
-            username = userinfo.preferred_username;
+            username = userinfo.preferred_username || userinfo.email;
             userInfo = userinfo;
           }
           if (username !== '' || userInfo !== '')
@@ -1232,22 +1567,24 @@ async function other(fastify) {
             user = await fastify.getUserInternal({
               user: username,
             });
+            if (!user.firstname && !user.email) throw Error('not filled');
           } catch (err) {
             // fallback get by email
-            if (!user && userInfo) {
+            if ((!user || err.message === 'not filled') && userInfo) {
               user = await fastify.getUserInternal({
                 user: userInfo.email,
               });
               // update user db record here
               const rowsUpdated = {
                 username,
-                firstname: userInfo.given_name,
-                lastname: userInfo.family_name,
+                firstname: userInfo.given_name || userInfo.givenName,
+                lastname: userInfo.family_name || userInfo.surname,
                 email: userInfo.email,
                 updated_by: 'admin',
                 updatetime: Date.now(),
               };
               await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
+              await fastify.updateUserInWorklistCompleteness(userInfo.email, username);
               user = await fastify.getUserInternal({
                 user: username,
               });
@@ -1257,6 +1594,11 @@ async function other(fastify) {
             epadAuth.permissions = user.permissions;
             epadAuth.projectToRole = user.projectToRole;
             epadAuth.admin = user.admin;
+            // putting the email from db in epadAuth
+            // TODO what if they change it just in keycloak
+            epadAuth.email = user.email;
+            epadAuth.firstname = userInfo ? userInfo.given_name : '';
+            epadAuth.lastname = userInfo ? userInfo.family_name : '';
           }
         } catch (errUser) {
           reject(errUser);
@@ -1287,7 +1629,19 @@ async function other(fastify) {
       // eslint-disable-next-line no-param-reassign
       fastify.connectedUsers[
         req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'
-      ] = res.res;
+      ] = res.raw;
+      fastify.saveEventLog(
+        req,
+        {
+          username: req.epadAuth.username ? req.epadAuth.username : 'nouser',
+          function: 'User Logged In',
+          params: req.hostname,
+          createdtime: new Date(),
+          error: false,
+          refresh: false,
+        },
+        true
+      );
       // send unsent notifications
       await fastify.getUnnotifiedEventLogs(req);
     }
@@ -1295,7 +1649,7 @@ async function other(fastify) {
   fastify.decorate(
     'deleteDisconnectedUser',
     // eslint-disable-next-line no-return-assign
-    req => {
+    (req) => {
       fastify.log.info(
         `Deleting ${req.epadAuth && req.epadAuth.username ? req.epadAuth.username : 'nouser'}`
       );
@@ -1305,6 +1659,18 @@ async function other(fastify) {
       ];
       fastify.log.info('Current users');
       fastify.log.info(fastify.connectedUsers);
+      fastify.saveEventLog(
+        req,
+        {
+          username: req.epadAuth.username ? req.epadAuth.username : 'nouser',
+          function: 'User Logged Out',
+          params: req.hostname,
+          createdtime: new Date(),
+          error: false,
+          refresh: false,
+        },
+        true
+      );
     }
   );
 
@@ -1313,9 +1679,12 @@ async function other(fastify) {
     if (
       config.auth &&
       config.auth !== 'none' &&
-      !req.req.url.startsWith('/documentation') &&
-      !req.req.url.startsWith('/epads/stats') &&
-      !req.req.url.startsWith('/epad/statistics') // disabling auth for put is dangerous
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
+      req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
@@ -1335,7 +1704,8 @@ async function other(fastify) {
       }
     }
     try {
-      if (!req.req.url.startsWith('/documentation')) await fastify.epadThickRightsCheck(req, res);
+      if (!req.raw.url.startsWith('/documentation') && req.method !== 'OPTIONS')
+        await fastify.epadThickRightsCheck(req, res);
     } catch (err) {
       res.send(err);
     }
@@ -1344,7 +1714,7 @@ async function other(fastify) {
   fastify.decorate('hasAccessToProject', (request, project) => {
     try {
       fastify.log.info(
-        `Checking hasAccessToProject for url: ${request.req.url} and project ${project}`
+        `Checking hasAccessToProject for url: ${request.raw.url} and project ${project}`
       );
       if (request.epadAuth && request.epadAuth.projectToRole) {
         for (let i = 0; i < request.epadAuth.projectToRole.length; i += 1) {
@@ -1376,7 +1746,7 @@ async function other(fastify) {
 
   fastify.decorate('hasCreatePermission', (request, level) => {
     try {
-      fastify.log.info(`Checking hasCreatePermission for url: ${request.req.url} level:${level}`);
+      fastify.log.info(`Checking hasCreatePermission for url: ${request.raw.url} level:${level}`);
       if (
         ['project', 'user', 'connection', 'query', 'worklist'].includes(level) && // do we need this check
         request.epadAuth &&
@@ -1402,7 +1772,7 @@ async function other(fastify) {
 
   fastify.decorate('isOwnerOfProject', (request, project) => {
     try {
-      fastify.log.info(`Checking isOwnerOfProject for url: ${request.req.url}`);
+      fastify.log.info(`Checking isOwnerOfProject for url: ${request.raw.url}`);
       if (request.epadAuth && request.epadAuth.projectToRole.includes(`${project}:Owner`))
         return true;
       return false;
@@ -1420,9 +1790,7 @@ async function other(fastify) {
   fastify.decorate('isCreatorOfObject', async (request, reqInfo) => {
     try {
       fastify.log.info(
-        `Checking isCreatorOfObject for url: ${request.req.url} level:${reqInfo.level} object:${
-          reqInfo.objectId
-        }`
+        `Checking isCreatorOfObject for url: ${request.raw.url} level:${reqInfo.level} object:${reqInfo.objectId}`
       );
       const creator = await fastify.getObjectCreator(
         reqInfo.level,
@@ -1452,18 +1820,23 @@ async function other(fastify) {
         throw new UnauthenticatedError('No epadauth in request');
       else
         throw new InternalError(
-          `Checking creatorship for ${request.epadAuth.username}, level ${reqInfo.level}, object ${
-            reqInfo.objectId
-          }`,
+          `Checking creatorship for ${request.epadAuth.username}, level ${reqInfo.level}, object ${reqInfo.objectId}`,
           err
         );
     }
   });
 
-  fastify.decorate('isProjectRoute', request => request.req.url.startsWith('/projects/'));
+  fastify.decorate('getPrefixForRoute', () => {
+    if (config.prefix && config.prefix !== '') return `/${config.prefix}`;
+    return '';
+  });
+
+  fastify.decorate('isProjectRoute', (request) =>
+    request.raw.url.startsWith(`${fastify.getPrefixForRoute()}/projects/`)
+  );
 
   // remove null in patient id
-  fastify.decorate('replaceNull', text => text.replace('\u0000', ''));
+  fastify.decorate('replaceNull', (text) => text.replace('\u0000', ''));
 
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
@@ -1472,7 +1845,7 @@ async function other(fastify) {
       if (!(request.epadAuth && request.epadAuth.admin && request.epadAuth.admin === true)) {
         if (fastify.isProjectRoute(request)) {
           // check the method and call specific rights check
-          switch (request.req.method) {
+          switch (request.raw.method) {
             case 'GET': // check project access (projectToRole). filtering should be done in the methods
               if (fastify.hasAccessToProject(request, reqInfo.project) === undefined) {
                 // check if it is a public project
@@ -1511,14 +1884,23 @@ async function other(fastify) {
               break;
           }
         } else {
-          switch (request.req.method) {
+          switch (request.raw.method) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
               if (
                 !request.req.url.startsWith('/decrypt') &&
                 !request.req.url.startsWith(`/${config.prefix}/decrypt`) &&
-                (await fastify.isCreatorOfObject(request, reqInfo)) === false
+                reqInfo.level !== 'ontology' &&
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
+                !(
+                  reqInfo.level === 'worklist' &&
+                  (await fastify.isAssigneeOfWorklist(
+                    reqInfo.objectId,
+                    request.epadAuth.username
+                  )) &&
+                  (request.query.annotationStatus || request.query.annotationStatus === 0)
+                )
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
@@ -1535,7 +1917,10 @@ async function other(fastify) {
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner
-              if ((await fastify.isCreatorOfObject(request, reqInfo)) === false)
+              if (
+                reqInfo.level !== 'ontology' &&
+                (await fastify.isCreatorOfObject(request, reqInfo)) === false
+              )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             default:
@@ -1601,14 +1986,11 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('decryptInternal', encrypted => {
+  fastify.decorate('decryptInternal', (encrypted) => {
     if (!config.secret) {
       throw new Error('No secret defined');
     } else {
-      const encodeKey = crypto
-        .createHash('sha256')
-        .update(config.secret, 'utf-8')
-        .digest();
+      const encodeKey = crypto.createHash('sha256').update(config.secret, 'utf-8').digest();
 
       const binary = Buffer.from(encrypted, 'base64');
       const ivlen = binary.readInt32BE();
@@ -1647,6 +2029,35 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('search', (request, reply) => {
+    try {
+      const params = {};
+      const queryObj = { ...request.query };
+      if (queryObj.project) {
+        params.project = queryObj.project;
+        delete queryObj.project;
+      }
+      if (queryObj.subject) {
+        params.subject = queryObj.subject;
+        delete queryObj.subject;
+      }
+      if (queryObj.study) {
+        params.study = queryObj.study;
+        delete queryObj.study;
+      }
+      if (queryObj.series) {
+        params.series = queryObj.series;
+        delete queryObj.series;
+      }
+      fastify
+        .getAimsInternal('summary', params, queryObj, request.epadAuth, request.query.bookmark)
+        .then((result) => reply.code(200).send(result))
+        .catch((err) => reply.send(err));
+    } catch (err) {
+      reply.send(new InternalError(`Search ${JSON.stringify(request.query)}`, err));
+    }
+  });
+
   fastify.addHook('onError', (request, reply, error, done) => {
     if (error instanceof ResourceNotFoundError) reply.code(404);
     else if (error instanceof InternalError) reply.code(500);
@@ -1661,20 +2072,20 @@ async function other(fastify) {
     }
     done();
   });
-
-  fastify.decorate('responseWrapper', (request, reply, payload, done) => {
+  fastify.decorate('hostname', '');
+  fastify.decorate('responseWrapper', (request, reply, done) => {
     // we have a successful request, lets get the hostname
     // getting the first one, is it better to get the last all the time?
-    // TODO fails in cavit, why?
-    if (!fastify.hasDecorator('hostname')) fastify.decorate('hostname', request.req.hostname);
+    // eslint-disable-next-line no-param-reassign
+    if (fastify.hostname === '') fastify.hostname = request.hostname;
 
-    done(null, payload);
+    done();
   });
 
   // add authentication prehandler, all requests need to be authenticated
   fastify.addHook('preHandler', fastify.auth);
 
-  fastify.addHook('onSend', fastify.responseWrapper);
+  fastify.addHook('onResponse', fastify.responseWrapper);
 }
 
 // expose as plugin so the module using it can access the decorated methods

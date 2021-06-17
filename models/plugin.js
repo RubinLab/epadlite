@@ -1,6 +1,9 @@
 /* jshint indent: 2 */
-
-module.exports = function(sequelize, DataTypes) {
+// type : values(file,directory)
+// processmultipleaims : values(null , 0 ,1 ) null -> no annotation , 0 -> expects 1 annotations , 1 -> expects multiple annotations
+//  if processmultipleaims === 0 then if multiple annotation selected each annotataion will run plugin as seperate process
+// if processmultipleaims === 1 then multiple annotation will be sent to the plugin and there will be only one plugin process
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define(
     'plugin',
     {
@@ -17,6 +20,38 @@ module.exports = function(sequelize, DataTypes) {
       },
       name: {
         type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      image_repo: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      image_tag: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+      },
+      type: {
+        type: DataTypes.STRING(5),
+        allowNull: true,
+      },
+      image_name: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      image_id: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      basecommand: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
+      memory: {
+        type: DataTypes.INTEGER(5).UNSIGNED,
+        allowNull: true,
+      },
+      maxruntime: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
       },
       description: {

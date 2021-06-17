@@ -42,7 +42,7 @@ config.dicomWebConfig.qidoSubPath =
 config.mode = process.env.MODE || config.mode || 'lite'; // default lite
 config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';
 config.reportExt = process.env.REPORT_EXT || config.reportExt || 'txt|pdf';
-config.validExt = `${config.imageExt}|${config.reportExt}`;
+config.validExt = `${config.imageExt}|${config.reportExt}|csv`;
 config.prefix = process.env.PREFIX || config.prefix || '';
 config.thickDb = config.thickDb || {
   name: process.env.SQL_DB_NAME || 'epaddb',
@@ -62,11 +62,13 @@ config.XNATUploadProjectID = config.XNATUploadProjectID || 'all';
 config.pollDW =
   // eslint-disable-next-line no-nested-ternary
   process.env.POLL_DW !== undefined
-    ? Number(process.env.POLL_DW)
+    ? Number.parseInt(process.env.POLL_DW, 10)
     : config.pollDW !== undefined
     ? config.pollDW
     : 3; // in minutes, 0 => no poll
 config.corsOrigin = config.corsOrigin || false;
+config.ontologyName = process.env.ONTOLOGY_NAME || config.ontologyName || 'local';
+config.ontologyApiKey = process.env.ONTOLOGY_APIKEY || config.ontologyApiKey || 'local';
 // env variables comes as string if it is true or false we need to convert to boolean
 if (process.env.CORS_ORIGIN) {
   if (process.env.CORS_ORIGIN === 'true') config.corsOrigin = true;
@@ -75,4 +77,5 @@ if (process.env.CORS_ORIGIN) {
 }
 config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
 config.secret = process.env.SECRET || config.secret || undefined;
+
 module.exports = config;

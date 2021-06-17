@@ -159,6 +159,7 @@ async function routes(fastify) {
       tags: ['project', 'aim'],
       querystring: {
         format: { type: 'string' },
+        longitudinal_ref: { type: 'boolean' },
       },
       params: {
         type: 'object',
@@ -229,6 +230,55 @@ async function routes(fastify) {
       // },
     },
     handler: fastify.getAimsFromUIDs,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/aims/delete',
+    querystring: {
+      all: { type: 'string' },
+    },
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+      // response: {
+      //   200: 'aim_schema#',
+      // },
+    },
+    handler: fastify.deleteAimsFromProject,
+  });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/projects/:project/aims',
+    querystring: {
+      all: { type: 'string' },
+    },
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.deleteAimsFromProject,
   });
 
   fastify.route({
