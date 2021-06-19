@@ -2757,6 +2757,7 @@ async function epaddb(fastify, options, done) {
           });
           const onlyNameValues = [];
           const foldersToBind = [];
+          let dockeroptions = {};
           for (let i = 0; i < tempPluginParams.length; i += 1) {
             if (
               tempPluginParams[i].format === 'InputFolder' ||
@@ -2779,10 +2780,66 @@ async function epaddb(fastify, options, done) {
                 onlyNameValues.push(tempPluginParams[i].default_value);
               }
             }
+
+            if (tempPluginParams[i].paramid === 'dockeroptions') {
+              let tmpArray = [];
+              switch (tempPluginParams[i].format) {
+                case 'sharedram':
+                  dockeroptions.ShmSize = tempPluginParams[i].default_value;
+                  break;
+                case 'driver':
+                  if (!dockeroptions.DeviceRequests) {
+                    dockeroptions = {
+                      ...dockeroptions,
+                      DeviceRequests: [{ Driver: tempPluginParams[i].default_value }],
+                    };
+                  } else {
+                    dockeroptions.DeviceRequests[0].Driver = tempPluginParams[i].default_value;
+                  }
+                  break;
+                case 'deviceids':
+                  // device ids need to be passed to container as array. Expect coma separated strings and convert those to an array before sending
+
+                  if (tempPluginParams[i].default_value.split(',').length >= 1) {
+                    tmpArray = tempPluginParams[i].default_value.split(',');
+                  } else {
+                    tmpArray.push(tempPluginParams[i].default_value);
+                  }
+
+                  if (!dockeroptions.DeviceRequests) {
+                    dockeroptions = {
+                      ...dockeroptions,
+                      DeviceRequests: [{ DeviceIDs: tmpArray }],
+                    };
+                  } else {
+                    dockeroptions.DeviceRequests[0].DeviceIDs = tmpArray;
+                  }
+                  break;
+                case 'capabilities':
+                  // device ids need to be passed to container as array. Expect coma separated strings and convert those to an array before sending
+
+                  if (tempPluginParams[i].default_value.split(',').length >= 1) {
+                    tmpArray = tempPluginParams[i].default_value.split(',');
+                  } else {
+                    tmpArray.push(tempPluginParams[i].default_value);
+                  }
+                  if (!dockeroptions.DeviceRequests) {
+                    dockeroptions = {
+                      ...dockeroptions,
+                      DeviceRequests: [{ Capabilities: [tmpArray] }],
+                    };
+                  } else {
+                    dockeroptions.DeviceRequests[0].Capabilities = [tmpArray];
+                  }
+                  break;
+                default:
+              }
+            }
           }
           const returnObj = {
             paramsDocker: onlyNameValues,
             dockerFoldersToBind: foldersToBind,
+            dockeroptions: { HostConfig: dockeroptions },
           };
 
           return resolve(returnObj);

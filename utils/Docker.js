@@ -130,6 +130,8 @@ class DockerService {
           StdinOnce: false,
           HostConfig: {
             Binds: dockerFoldersToBind,
+            DeviceRequests: [...params.dockeroptions.HostConfig.DeviceRequests],
+            ShmSize: parseInt(params.dockeroptions.HostConfig.ShmSize, 10) || 64000000,
           },
         })
         // eslint-disable-next-line prefer-arrow-callback
