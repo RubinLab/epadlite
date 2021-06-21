@@ -1889,8 +1889,8 @@ async function other(fastify) {
               break;
             case 'PUT': // check permissions
               if (
-                !request.req.url.startsWith('/decrypt') &&
-                !request.req.url.startsWith(`/${config.prefix}/decrypt`) &&
+                !request.raw.url.startsWith('/decrypt') &&
+                !request.raw.url.startsWith(`/${config.prefix}/decrypt`) &&
                 reqInfo.level !== 'ontology' &&
                 (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
                 !(
