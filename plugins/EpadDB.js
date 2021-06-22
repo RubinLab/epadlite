@@ -3484,7 +3484,6 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('registerServerForAppKey', async (request, reply) => {
     const requestSenderServerName = request.raw.headers.host.split(':')[0];
     const tempBody = request.body;
-    console.log('................request body', request.body);
     let tempEpadStatServer = config.statsEpad.split('//')[1];
     if (
       tempEpadStatServer === '' ||
@@ -3495,7 +3494,6 @@ async function epaddb(fastify, options, done) {
     }
     //  if (config.statsEpad) {
     if (!requestSenderServerName.includes(tempEpadStatServer)) {
-      console.log('calling remote server');
       const resultRemoteRegister = await Axios.post(`${config.statsEpad}/api/register`, {
         headers: {
           'Content-Type': 'application/json',
@@ -3511,7 +3509,6 @@ async function epaddb(fastify, options, done) {
       reply.code(resultRemoteRegister.code).send(resultRemoteRegister.data);
       return;
     }
-    console.log('after................request body', request.body);
     const tempName = request.body.name;
     const tempEmail = request.body.email;
     const tempOrganization = request.body.organization;

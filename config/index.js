@@ -73,9 +73,9 @@ config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
 config.secret = process.env.SECRET || config.secret || undefined;
 //  mail relay example. Required to register the app
 //  config.notificationEmail = { host: 'smtp.gmail.com' };
-//  config.notificationEmail = { port: 465 }; // tls 465
+//  config.notificationEmail = { port: 465 }; // ssl: 465 or 587
 //  config.notificationEmail.isTls = true; // use TLS
-// config.notificationEmail.auth = {};
-//  config.notificationEmail.auth = { user: 'example@gmail.com' };
-//  config.notificationEmail.auth = { pass: 'examplepass' };
+//  config.notificationEmail.auth = {};
+//  config.notificationEmail.auth.user: 'example@gmail.com' ;
+//  config.notificationEmail.auth.pass: 'examplepass' ;
 module.exports = config;
