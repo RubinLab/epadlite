@@ -3415,15 +3415,16 @@ async function epaddb(fastify, options, done) {
           fastify.nodemailer.sendMail(mailOptions, (err, info) => {
             if (err) {
               fastify.log.error(`could not send email to ${paramTo}. Error: ${err.message}`);
-              reject(new InternalError('Error Happened while senfing an email', err));
+              reject(new InternalError('Error Happened while sending an email', err));
             } else {
               fastify.log.info(`Email accepted for ${JSON.stringify(info.accepted)}`);
               resolve(info);
             }
           });
+        } else {
+          reject(new InternalError('Mail relay settings are not found', new Error('334')));
+          //  Error : 334 means –> Provide SMTP authentication credentials.
         }
-        reject(new InternalError('Mail relay settings are not found', new Error('334')));
-        //  Error : 334 means –> Provide SMTP authentication credentials.
       })
   );
 
@@ -3483,6 +3484,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('registerServerForAppKey', async (request, reply) => {
     const requestSenderServerName = request.raw.headers.host.split(':')[0];
     const tempBody = request.body;
+    console.log('................request body', request.body);
     let tempEpadStatServer = config.statsEpad.split('//')[1];
     if (
       tempEpadStatServer === '' ||
@@ -3491,12 +3493,15 @@ async function epaddb(fastify, options, done) {
     ) {
       tempEpadStatServer = config.statsEpad;
     }
+    //  if (config.statsEpad) {
     if (!requestSenderServerName.includes(tempEpadStatServer)) {
-      const resultRemoteRegister = await Axios.post(`${config.statsEpad}/register`, {
+      console.log('calling remote server');
+      const resultRemoteRegister = await Axios.post(`${config.statsEpad}/api/register`, {
         headers: {
           'Content-Type': 'application/json',
         },
-        tempBody,
+        ...tempBody,
+        username: 'admin',
       });
 
       fastify.log.info(
@@ -3506,7 +3511,7 @@ async function epaddb(fastify, options, done) {
       reply.code(resultRemoteRegister.code).send(resultRemoteRegister.data);
       return;
     }
-
+    console.log('after................request body', request.body);
     const tempName = request.body.name;
     const tempEmail = request.body.email;
     const tempOrganization = request.body.organization;
@@ -3540,7 +3545,7 @@ async function epaddb(fastify, options, done) {
         hostname: tempHostname,
         email: tempEmail,
         emailvalidationcode: tempGeneratedEmailValidationCode,
-        creator: request.epadAuth.username,
+        creator: 'registercall',
         createdtime: Date.now(),
         emailvalidationsent: Date.now(),
       });
@@ -3571,7 +3576,7 @@ async function epaddb(fastify, options, done) {
           emailvalidationcode: tempGeneratedEmailValidationCode,
           updatetime: Date.now(),
           emailvalidationsent: Date.now(),
-          updated_by: request.epadAuth.username,
+          updated_by: 'registercall',
         },
         {
           where: {

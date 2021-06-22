@@ -48,7 +48,8 @@ config.thickDb = config.thickDb || {
 };
 config.maxConcurrent = config.maxConcurrent || 5;
 config.disableStats = config.disableStats || false;
-config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
+config.statsEpad =
+  config.statsEpad || process.env.STATSEPAD || 'https://epadlite-public.stanford.edu';
 config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;
 config.unassignedProjectID = config.unassignedProjectID || 'nonassigned';
 config.XNATUploadProjectID = config.XNATUploadProjectID || 'all';
@@ -70,5 +71,11 @@ if (process.env.CORS_ORIGIN) {
 }
 config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
 config.secret = process.env.SECRET || config.secret || undefined;
-
+//  mail relay example. Required to register the app
+//  config.notificationEmail = { host: 'smtp.gmail.com' };
+//  config.notificationEmail = { port: 465 }; // tls 465
+//  config.notificationEmail.isTls = true; // use TLS
+// config.notificationEmail.auth = {};
+//  config.notificationEmail.auth = { user: 'example@gmail.com' };
+//  config.notificationEmail.auth = { pass: 'examplepass' };
 module.exports = config;
