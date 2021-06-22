@@ -150,10 +150,10 @@ async function dicomwebserver(fastify) {
       })
   );
 
-  fastify.decorate(
-    'getWadoPath',
-    (studyUid, seriesUid, instanceUid) =>
-      `/?requestType=WADO&studyUID=${studyUid}&seriesUID=${seriesUid}&objectUID=${instanceUid}`
+  fastify.decorate('getWadoPath', (studyUid, seriesUid, instanceUid) =>
+    config.wadoType && config.wadoType === 'RS'
+      ? `/studies/${studyUid}/series/${seriesUid}/instances/${instanceUid}`
+      : `/?requestType=WADO&studyUID=${studyUid}&seriesUID=${seriesUid}&objectUID=${instanceUid}`
   );
 
   // add accessor methods with decorate
