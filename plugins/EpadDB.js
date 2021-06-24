@@ -3499,7 +3499,6 @@ async function epaddb(fastify, options, done) {
           'Content-Type': 'application/json',
         },
         ...tempBody,
-        username: 'admin',
       });
 
       fastify.log.info(
