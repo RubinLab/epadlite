@@ -846,7 +846,7 @@ async function reporting(fastify) {
     return out;
   });
 
-  fastify.decorate('getLongitudinal', (aims, template, shapes, request) => {
+  fastify.decorate('getLongitudinal', (aims, template, shapes, request, metric = true) => {
     try {
       const lesions = fastify.fillTable(
         aims,
@@ -930,7 +930,7 @@ async function reporting(fastify) {
             undefined, // no type filtering
             mode,
             fastify.numOfLongitudinalHeaderCols,
-            true,
+            metric,
             false
           );
 
@@ -1104,7 +1104,7 @@ async function reporting(fastify) {
           if (allCalc) {
             if (lesions[i].allcalc)
               table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] =
-                lesions[i].allcalc;
+                allCalc !== true ? { [allCalc]: lesions[i].allcalc[allCalc] } : lesions[i].allcalc; // if allCalc is a defined but not true than metric is sent to filter
           } else if (type.includes('nontarget')) {
             if (aimStatus != null && aimStatus !== '') {
               table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] = aimStatus;
@@ -1329,7 +1329,7 @@ async function reporting(fastify) {
                 const report =
                   metric === 'RECIST'
                     ? fastify.getRecist(aimsRes.rows)
-                    : fastify.getLongitudinal(aimsRes.rows, template, shapes);
+                    : fastify.getLongitudinal(aimsRes.rows, template, shapes, undefined, metric);
                 if (report == null) {
                   fastify.log.warn(
                     `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`
@@ -1351,7 +1351,7 @@ async function reporting(fastify) {
                 }
                 const recistReport = recistRequired ? fastify.getRecist(aimsRes.rows) : undefined;
                 const longitudinalReport = longitudinalRequired
-                  ? fastify.getLongitudinal(aimsRes.rows, template, shapes)
+                  ? fastify.getLongitudinal(aimsRes.rows, template, shapes, undefined, metric)
                   : undefined;
                 const report = longitudinalReport || recistReport;
                 // if both merge
