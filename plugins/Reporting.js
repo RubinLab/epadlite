@@ -1246,6 +1246,20 @@ async function reporting(fastify) {
       headerKeys.push(key);
     }
   });
+
+  fastify.decorate('colorLookup', (responseCat) => {
+    switch (responseCat) {
+      case 'PD':
+        return '#e3210'; // red
+      case 'CR':
+        return '#34ba4a'; // green
+      case 'PR':
+        return '#a310de'; // purple
+      default:
+        // SD
+        return '#74d9f2'; // blue
+    }
+  });
   /**
    * get the waterfall report filtering with template, metric and shapes
    * @param subjectsIn comma separated string of subject uids or subjectuids array
@@ -1340,6 +1354,8 @@ async function reporting(fastify) {
                 waterfallData.push({
                   name: subjProjPairs[i].subjectID,
                   y: fastify.getBestResponse(report, type, metric),
+                  rc: fastify.getResponseCategory(report, type, metric),
+                  color: fastify.colorLookup(fastify.getResponseCategory(report, type, metric)),
                   project: subjProjPairs[i].projectID,
                 });
               } else {
@@ -1646,6 +1662,44 @@ async function reporting(fastify) {
     }
     return NaN;
   });
+
+  fastify.decorate('getResponseCategory', (reportMultiUser, type, metric) => {
+    try {
+      // TODO how to support multiple readers in waterfall getting the first report for now
+      const report =
+        Object.keys(reportMultiUser).length > 0
+          ? reportMultiUser[Object.keys(reportMultiUser)[0]]
+          : reportMultiUser;
+      let rr = report.tRRMin;
+      let responseCats = report.tResponseCats;
+      if (!rr || !responseCats) {
+        const sums = fastify.calcSums(report.tTable, report.stTimepoints, metric);
+        rr = fastify.calcRRMin(sums, report.stTimepoints);
+
+        responseCats = fastify.calcResponseCat(
+          rr,
+          report.stTimepoints,
+          [], // TODO isThereNewLesion,
+          sums
+        );
+      }
+
+      const min = Math.min(...rr);
+      if (min === 0 && responseCats.length > 1) return responseCats[1];
+
+      for (let i = rr.length - 1; i >= 0; i -= 1) {
+        if (rr[i] === min) return responseCats[i];
+      }
+    } catch (err) {
+      fastify.log.error(
+        `Error generating best response for report ${JSON.stringify(
+          reportMultiUser
+        )} metric ${metric} and type ${type} Error: ${err.message}`
+      );
+    }
+    return NaN;
+  });
+
   fastify.decorate('getWaterfallReport', async (request, reply) => {
     try {
       let result;
