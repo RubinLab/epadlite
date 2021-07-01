@@ -2845,7 +2845,10 @@ async function epaddb(fastify, options, done) {
     return new Promise((resolve, reject) => {
       fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
         .pipe(csv({ skipLines: 0, headers: ['key'] }))
-        .on('data', (data) => result.push(data))
+        .on('data', (data) => {
+          console.log('csv data: ',data);
+          result.push(data);
+        })
         .on('end', () => {
           resolve(result);
         })
@@ -3100,6 +3103,13 @@ async function epaddb(fastify, options, done) {
           );
           fastify.log.info(`upload dir back error: ${errors}`);
           fastify.log.info(`upload dir back success: ${success}`);
+          if ( !success){
+            reject(
+              new InternalError(
+                'error happened while uploading merged aim with plugin calculations','success : false'
+              )
+            );
+          }
           resolve(200);
         } catch (err) {
           reject(
