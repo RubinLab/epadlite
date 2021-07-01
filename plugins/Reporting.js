@@ -518,18 +518,18 @@ async function reporting(fastify) {
         users[usernames[u]].studyDates.sort();
         users[usernames[u]].ntLesionNames.sort();
 
-        let mode = 'name';
-        let tIndex = users[usernames[u]].tLesionNames;
-        let ntIndex = users[usernames[u]].ntLesionNames;
-        if (
-          users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
-          users[usernames[u]].lesions.length > 0
-        ) {
-          fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
-          mode = 'trackingUID';
-          tIndex = users[usernames[u]].tTrackingUIDs;
-          ntIndex = users[usernames[u]].ntTrackingUIDs;
-        }
+        const mode = 'name';
+        const tIndex = users[usernames[u]].tLesionNames;
+        const ntIndex = users[usernames[u]].ntLesionNames;
+        // if (
+        //   users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
+        //   users[usernames[u]].lesions.length > 0
+        // ) {
+        //   fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
+        //   mode = 'trackingUID';
+        //   tIndex = users[usernames[u]].tTrackingUIDs;
+        //   ntIndex = users[usernames[u]].ntTrackingUIDs;
+        // }
 
         if (
           users[usernames[u]].tLesionNames.length > 0 &&
@@ -908,16 +908,16 @@ async function reporting(fastify) {
         users[usernames[u]].tLesionNames.sort();
         users[usernames[u]].studyDates.sort();
 
-        let mode = 'name';
-        let tIndex = users[usernames[u]].tLesionNames;
-        if (
-          users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
-          users[usernames[u]].lesions.length > 0
-        ) {
-          fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
-          mode = 'trackingUID';
-          tIndex = users[usernames[u]].tTrackingUIDs;
-        }
+        const mode = 'name';
+        const tIndex = users[usernames[u]].tLesionNames;
+        // if (
+        //   users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
+        //   users[usernames[u]].lesions.length > 0
+        // ) {
+        //   fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
+        //   mode = 'trackingUID';
+        //   tIndex = users[usernames[u]].tTrackingUIDs;
+        // }
         if (
           users[usernames[u]].tLesionNames.length > 0 &&
           users[usernames[u]].studyDates.length > 0
@@ -1064,7 +1064,7 @@ async function reporting(fastify) {
           table[lesionIndex][nextCol] = location;
           // get the lesion and get the timepoint. if it is integer put that otherwise calculate using study dates
           const tpObj = lesions[i].timepoint ? lesions[i].timepoint : lesions[i].lesion;
-          const lesionTimepoint = tpObj && tpObj.value ? tpObj.value : '0';
+          const lesionTimepoint = tpObj && tpObj.value ? tpObj.value : '';
           let timepoint = parseInt(lesionTimepoint, 10);
           if (Number.isNaN(timepoint)) {
             fastify.log.debug(`Trying to get timepoint from text ${lesionTimepoint}`);
