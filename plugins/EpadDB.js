@@ -2409,7 +2409,7 @@ async function epaddb(fastify, options, done) {
                         study: eacAimhObj.studyUID,
                         series: eacAimhObj.seriesUID,
                       },
-                      { format: 'stream', includeAims: 'false' },
+                      { format: 'stream', includeAims: 'true' },
                       request.epadAuth,
                       writeStream
                     );
@@ -2814,6 +2814,7 @@ async function epaddb(fastify, options, done) {
     archive.finalize();
     archive.pipe(reply.raw);
   });
+
   fastify.decorate('findFilesAndSubfilesInternal', (dirParam, fileArrayParam, extensionParam) => {
     const infuncfileArray = fs.readdirSync(dirParam);
     let cumfileArrayParam = [];
@@ -2969,7 +2970,7 @@ async function epaddb(fastify, options, done) {
             // this part needs to call remote ontology server
             if (willCallRemoteOntology === true) {
               // eslint-disable-next-line no-await-in-loop
-              newLexiconObj = await Axios.post(`${config.statsEpad}/ontology`, {
+              newLexiconObj = await Axios.post(`${config.statsEpad}/api/ontology`, {
                 headers: {
                   'Content-Type': 'application/json',
                   Authorization: `apikey config.ontologyApiKey`, // sadece api key e bak tablodan
@@ -3097,7 +3098,172 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
+  // pyradiomics --------
+  
+  fastify.decorate(
+    'pluginConvertJsonToCsvFormatForALineInternal',
+    async (fileFullPath,jsonToConvert) =>
+      new Promise(async (resolve, reject) => {
+        // array no 4 : dso file location
+        // array no 7 : dso image file location
+        try {
+          fastify.log.info(`$$$$ pyradiomics is converting json to csv line`);
+          fs.appendFile(fileFullPath, `${jsonToConvert.dsouid},1,2,3,${jsonToConvert.rootpath}/${jsonToConvert.series}/Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,${jsonToConvert.rootpath}/${jsonToConvert.series}/Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,11,'SEG',1,14,15,16,17,18,19,'description'`, function (err) {
+            if (err) throw err;
+            console.log('append!');
+          }); 
+            
+          resolve('ok');
+        } catch (err) {
+          reject(
+            new InternalError(
+              '$$$$ error happened while pyradiomics converting json to csv line',
+              err
+            )
+          );
+        }
+      })
+  );
 
+  fastify.decorate(
+    'pluginCollectDsoInfoFromAimsInternal',
+    async (fileObject) => {
+      // receives a file , return a line for the csv ->dsoLists.csv 
+      const fileArray = [];
+      let parsedAimFile = null;
+      let returnaimJsonString = {};
+      return new Promise((resolve, reject) => {
+        try {
+          console.log("pluginCollectDsoInfoFromaims ->",fileObject);
+          
+
+          //  fs.readFileSync(`${fileObject.path}/${fileObject.file}`, 'utf8', (err, aimJsonString) => {
+          //   if (err) {
+          //     reject(
+          //       new InternalError(
+          //         'error happened while reading aim file ',
+          //         err
+          //       )
+          //     );
+          //   }
+          const aimJsonString = fs.readFileSync(`${fileObject.path}/${fileObject.file}`, 'utf8');
+
+
+            
+            parsedAimFile = JSON.parse(aimJsonString);
+            console.log('aim json',aimJsonString);
+            console.log('parsed aim json',parsedAimFile);
+            const rootpath = parsedAimFile.ImageAnnotationCollection.uniqueIdentifier.root
+            const dsoUid = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].sopInstanceUid.root;
+            const study = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].studyInstanceUid.root ;
+            const series = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries.instanceUid.root;
+            const dsoImage = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].referencedSopInstanceUid.root;
+            const lineJson = {
+              rootpath : rootpath,
+              dsouid:dsoUid,
+              study: study,
+              series : series,
+              dsoImage : dsoImage
+            }; 
+            console.log('$$$$ reading necessary data for dso ');
+            console.log('$$$$ : dsoUid ->',dsoUid);
+            console.log('$$$$ : study ->',study);
+            console.log('$$$$ : series ->',series);
+            console.log('$$$$ : dsoImage ->',dsoImage);
+            // lineJson.dsouid =dsoUid;
+            // lineJson.study = study;
+            // lineJson.series = series;
+            // lineJson.dsoImage = dsoImage;
+           
+            returnaimJsonString = aimJsonString;
+            resolve(lineJson);
+          //});
+
+         
+        } catch (err) {
+          reject(
+            new InternalError(
+              'error happened while collecting dso info from the aim file',
+              err
+            )
+          );
+        }
+      });
+    }
+  );
+
+  fastify.decorate(
+    'pluginGetAimFilesInternal',
+    async (filePath) =>
+      new Promise(async (resolve, reject) => {
+        const fileArray = [];
+        try {
+          fastify.log.info(`$$$$ pyradiomics is readingaims`);
+          await fastify.findFilesAndSubfilesInternal(filePath, fileArray, 'json');     
+          resolve(fileArray);
+        } catch (err) {
+          reject(
+            new InternalError(
+              '$$$$ error happened while pyradiomics reading aims',
+              err
+            )
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'createPluginPyradiomicsDsoListInternal',
+    async (pluginparams) =>
+      new Promise(async (resolve, reject) => {
+        let resultObj = null;
+        let resultObjFiles = null;
+        const arrayForDsoListCsv = [];
+        const dsoFileName = 'dsoList.csv';
+        try {
+
+          fastify.log.info(`$$$$ pyradiomics is creating dso list`);
+          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics',pluginparams);
+          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
+          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
+          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
+          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
+          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
+         
+          resultObjFiles = await fastify.pluginGetAimFilesInternal(`${pluginparams.relativeServerFolder}/aims`);
+          console.log('xxxxxxxxxxxxxx Array : ',resultObjFiles);
+          // fs.writeFile(`${pluginparams.relativeServerFolder}/dicoms/dsoList.csv`, 'Hello content!', function (err) {
+          //   if (err) throw err;
+          //   console.log('Saved!');
+          // }); 
+          fs.open(`${pluginparams.relativeServerFolder}/dicoms/${dsoFileName}`, 'w', function (err, file) {
+            if (err) throw err;
+            console.log('opened file !',file);
+          }); 
+          for (let i = 0; i < resultObjFiles.length; i += 1) {
+            resultObj = await fastify.pluginCollectDsoInfoFromAimsInternal(resultObjFiles[i]);
+            console.log('xxxxxxxxxxxxxx plugin collected dso line  for pyrodiamics',resultObj);
+            await fastify.pluginConvertJsonToCsvFormatForALineInternal(`${pluginparams.relativeServerFolder}/dicoms/${dsoFileName}`,resultObj);
+            arrayForDsoListCsv.push(resultObj);
+          }
+
+          //console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics',resultObj);
+          console.log('xxxxxxxxxxxxxx plugin params for csv lines ->',arrayForDsoListCsv);
+          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
+
+
+          resolve(200);
+        } catch (err) {
+          reject(
+            new InternalError(
+              '$$$$ error happened while creating pyradiomics dso list',
+              err
+            )
+          );
+        }
+      })
+  );
+  // pyradiomics
   fastify.decorate('generateUidInternal', () => {
     let uid = `2.25.${Math.floor(1 + Math.random() * 9)}`;
     for (let index = 0; index < 38; index += 1) {
@@ -3148,7 +3314,7 @@ async function epaddb(fastify, options, done) {
         let checkImageExistOnHub = false;
         let checkImageExistLocal = false;
         try {
-          fastify.log.info(' tryitn to pull first ', imageRepo);
+          fastify.log.info(' trying to pull first ', imageRepo);
           // eslint-disable-next-line no-await-in-loop
           await dock.pullImageA(imageRepo);
           checkImageExistOnHub = true;
@@ -3184,6 +3350,13 @@ async function epaddb(fastify, options, done) {
             const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
               pluginParameters
             );
+
+          // add if additional input files will be prepared before starting plugin ? (adding for pyradiomics for now) 
+
+           const resultDsoListCreate = await fastify.createPluginPyradiomicsDsoListInternal(
+            pluginParameters
+          );
+          //
 
             // eslint-disable-next-line no-await-in-loop
             await fastify.updateStatusQueueProcessInternal(queueId, 'running');
