@@ -317,4 +317,38 @@ describe.only('Aim Convert Tests', () => {
         done(e);
       });
   });
+
+  it('should convert freehand aim to dicomsr ', (done) => {
+    const jsonBuffer = JSON.parse(fs.readFileSync('test/data/sr/freehand.json'));
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put(`/aim2dicomsr`)
+      .send(jsonBuffer)
+      .query({ username: 'admin' })
+      .then((res) => {
+        fs.writeFileSync('file.dcm', Buffer.from(res.body));
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+
+  it('should convert freehand dicomsr to aim from aim', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put(`/dicomsr2aim`)
+      .attach('files', 'test/data/sr/freehand.dcm', 'freehand.dcm')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        // TODO check components one by one
+        console.log('aim', res.body);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
 });
