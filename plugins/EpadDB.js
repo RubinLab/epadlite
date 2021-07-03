@@ -2839,14 +2839,68 @@ async function epaddb(fastify, options, done) {
     }
     return cumfileArrayParam;
   });
+  // we mey need to transpose csv columns and rows depending on the params given for the plugin
+  fastify.decorate('pluginTransposeCsv', async (csvPath,csvFile)=>{
+    return new Promise((resolve,reject)=>{
+        const csvLines = [];
+        const tmpTransposedFileName = 'tempTransposedcsv.csv';
+        const fd = fs.open(`${csvPath}/${tmpTransposedFileName}`, 'w', function (err, file) {
+          if (err) throw err;
+          console.log(`created temporary transposed csv file :${tmpTransposedFileName}`);
+          //  return file;
+        }); 
+        //  fs.close(fd);
+        fs.createReadStream(`${csvPath}/${csvFile}`)
+        .pipe(csv({ skipLines: 0, headers: [] }))
+        .on('data', (data) => {
+          //  console.log('csv data: ',Object.values(data));
+          csvLines.push(Object.values(data));
+        })
+        .on('end', () => {
+          for (k = 0 ; k <csvLines[0].length ; k +=1){
+          //console.log('transpose csv : ',csvLines);
+          let aLineString = '';
+            
+              for (let i = 0 ; i<csvLines.length; i +=1){
+                console.log('transpose csv : ',csvLines[i][k]);
+                if (i < csvLines.length -1){
+                  aLineString = ` ${aLineString}"${csvLines[i][k]}",`;
+                }else{
+                  aLineString = ` ${aLineString}"${csvLines[i][k]}"\n`;
+                }
+
+              }
+              fs.appendFile(`${csvPath}/${tmpTransposedFileName}`,aLineString, function (err) {
+                if (err) throw err;
+               
+              }); 
+            console.log('a line string transposed : ',aLineString);
+          }
+
+          fs.renameSync(`${csvPath}/${csvFile}`, `${csvPath}/${csvFile}_old`);
+          fs.renameSync(`${csvPath}/${tmpTransposedFileName}`, `${csvPath}/${csvFile}`);
+          resolve(csvLines);
+        })
+        .on('error', (err) => {
+          reject(
+            new InternalError(
+              'error happened while reading plugin calculation csv file in output folder',
+              err
+            )
+          );
+        });
+    });
+  })
+
   //  plugin calculations verify codemaning existance in ontology and add calculations to the user aim part
-  fastify.decorate('parseCsvForPluginCalculationsInternal', (csvFileParam) => {
+  fastify.decorate('parseCsvForPluginCalculationsInternal', async (csvFileParam) => {
     const result = [];
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+      await fastify.pluginTransposeCsv(csvFileParam.path,csvFileParam.file);
       fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
         .pipe(csv({ skipLines: 0, headers: ['key'] }))
         .on('data', (data) => {
-          console.log('csv data: ',data);
+          //  console.log('csv data: ',data);
           result.push(data);
         })
         .on('end', () => {
@@ -3259,10 +3313,12 @@ async function epaddb(fastify, options, done) {
           //   if (err) throw err;
           //   console.log('Saved!');
           // }); 
-          fs.open(`${pluginparams.relativeServerFolder}/dicoms/${dsoFileName}`, 'w', function (err, file) {
+          const fd = fs.open(`${pluginparams.relativeServerFolder}/dicoms/${dsoFileName}`, 'w', function (err, file) {
             if (err) throw err;
             console.log('created dsoList.csv',file);
+           
           }); 
+          //  fs.close(fd);
         //   fs.appendFile(`${pluginparams.relativeServerFolder}/dicoms/${dsoFileName}`, `UID,1,2,3,4,5,6,7,8,9,10,11,12,Modality,14,15,16,17,18,19,20,21,\n`, function (err) {
         //   if (err) throw err;
         //   console.log('append the header of the dsoList.csv');
@@ -3510,20 +3566,25 @@ async function epaddb(fastify, options, done) {
               );
               fastify.log.info(`csv files in the plugin output folder : ${csvArray}`);
               console.log('csv array : ',csvArray);
+              console.log('csv array : ',csvArray.length);
               if (csvArray.length > 0) {
                 let csvfound = null; 
-                for (let cntCsvArray = 0 ;csvArray.length-1; cntCsvArray  +=1  ){
+                console.log('csv array length bigger: ');
+                for (let cntCsvArray = 0 ;cntCsvArray < csvArray.length; cntCsvArray  +=1  ){
+                  console.log(`if ${csvArray[cntCsvArray].file} == pyradiomics.csv`);
                   if (csvArray[cntCsvArray].file === 'pyradiomics.csv'){
                     csvfound = cntCsvArray;
                     break;
                   }
                 }
+                console.log('csvfound : ',csvfound);
                 if (csvfound !== null) {
                   fastify.log.info(
                     `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
                   );
+                  const tempFileObject = JSON.parse(JSON.stringify(csvArray[csvfound])) ;
                   // eslint-disable-next-line no-await-in-loop
-                  const calcObj = await fastify.parseCsvForPluginCalculationsInternal(csvArray[csvfound]);
+                  const calcObj = await fastify.parseCsvForPluginCalculationsInternal(tempFileObject);
                   const totalcolumnumber = Object.keys(calcObj[0]).length;
                   console.log(' oooooooooooooooo o ooooooo ooooooooooo oooooooooo  ooo calc obj : ',totalcolumnumber );
                   const pluginInfoFromParams = {
