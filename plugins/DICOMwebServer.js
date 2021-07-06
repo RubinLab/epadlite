@@ -769,7 +769,12 @@ async function dicomwebserver(fastify) {
               // map each series to epadlite series object
               let filtered = values[0].data;
               if (query.filterDSO === 'true')
-                filtered = _.filter(filtered, (obj) => obj['00080060'].Value[0] !== 'SEG');
+                filtered = _.filter(
+                  filtered,
+                  (obj) =>
+                    !(obj['00080060'] && obj['00080060'].Value && obj['00080060'].Value[0]) ||
+                    obj['00080060'].Value[0] !== 'SEG'
+                );
               const result = _.map(filtered, (value) => ({
                 projectID: params.project ? params.project : projectID,
                 // TODO put in dicomweb but what if other dicomweb is used
@@ -808,9 +813,10 @@ async function dicomwebserver(fastify) {
                 createdTime: '', // TODO
                 firstImageUIDInSeries: '', // TODO
                 isDSO:
-                  value['00080060'] &&
-                  value['00080060'].Value &&
-                  value['00080060'].Value[0] === 'SEG',
+                  (value['00080060'] &&
+                    value['00080060'].Value &&
+                    value['00080060'].Value[0] === 'SEG') ||
+                  false,
                 isNonDicomSeries: false, // TODO
                 seriesNo:
                   value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
