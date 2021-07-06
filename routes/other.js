@@ -321,5 +321,12 @@ async function otherRoutes(fastify) {
     url: '/search',
     handler: fastify.search,
   });
+
+  // so that we can support getting query or params with body
+  fastify.route({
+    method: 'PUT',
+    url: '/search',
+    handler: fastify.search,
+  });
 }
 module.exports = otherRoutes;

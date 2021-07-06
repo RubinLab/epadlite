@@ -1971,7 +1971,7 @@ async function other(fastify) {
   fastify.decorate('search', (request, reply) => {
     try {
       const params = {};
-      const queryObj = { ...request.query };
+      const queryObj = { ...request.query, ...request.body };
       if (queryObj.project) {
         params.project = queryObj.project;
         delete queryObj.project;
