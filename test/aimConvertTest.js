@@ -351,4 +351,88 @@ describe.only('Aim Convert Tests', () => {
         done(e);
       });
   });
+
+  it.skip('should convert prostatex dicomsr to aim from aim', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put(`/dicomsr2aim`)
+      .attach('files', 'test/data/sr/ProstateX.dcm', 'ProstateX.dcm')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        console.log('aim', res.body);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+
+  it('should convert ccc 2017 length dicomsr to aim', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put(`/dicomsr2aim`)
+      .attach('files', 'test/data/sr/ccc2017_length_sr.dcm', 'ccc2017_length_sr.dcm')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        console.log('ccc 2017 aim', JSON.stringify(res.body));
+        fs.writeFileSync('ccc2017.json', Buffer.from(JSON.stringify(res.body[0])));
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+
+  it('should convert ccc 2018 bidirectional dicomsr to aim', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put(`/dicomsr2aim`)
+      .attach('files', 'test/data/sr/ccc2018_bidirectional_sr.dcm', 'ccc2018_bidirectional_sr.dcm')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        console.log('ccc 2018 aim', JSON.stringify(res.body));
+        fs.writeFileSync('ccc2018.json', Buffer.from(JSON.stringify(res.body[0])));
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+
+  it('should convert ccc 2017 aim to dicomsr ', (done) => {
+    const jsonBuffer = JSON.parse(fs.readFileSync('ccc2017.json'));
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put(`/aim2dicomsr`)
+      .send(jsonBuffer)
+      .query({ username: 'admin' })
+      .then((res) => {
+        fs.writeFileSync('file2017.dcm', Buffer.from(res.body));
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+
+  it('should convert ccc 2018 aim to dicomsr ', (done) => {
+    const jsonBuffer = JSON.parse(fs.readFileSync('ccc2018.json'));
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put(`/aim2dicomsr`)
+      .send(jsonBuffer)
+      .query({ username: 'admin' })
+      .then((res) => {
+        fs.writeFileSync('file2018.dcm', Buffer.from(res.body));
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
 });
