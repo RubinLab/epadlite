@@ -896,6 +896,10 @@ async function epaddb(fastify, options, done) {
               id: parameter.id,
               plugin_id: parameter.plugin_id,
               name: parameter.name,
+              sendname: parameter.sendname,
+              uploadimages: parameter.uploadimages,
+              uploadaims: parameter.uploadaims,
+              sendparamtodocker:parameter.sendparamtodocker,
               format: parameter.format,
               prefix: parameter.prefix,
               inputbinding: parameter.inputBinding,
@@ -973,6 +977,10 @@ async function epaddb(fastify, options, done) {
             id: parameter.id,
             plugin_id: parameter.plugin_id,
             name: parameter.name,
+            sendname: parameter.sendname,
+            uploadimages: parameter.uploadimages,
+            uploadaims: parameter.uploadaims,
+            sendparamtodocker:parameter.sendparamtodocker,
             format: parameter.format,
             prefix: parameter.prefix,
             inputbinding: parameter.inputBinding,
@@ -1445,6 +1453,10 @@ async function epaddb(fastify, options, done) {
           plugin_id: parameterform.plugindbid,
           paramid: parameterform.paramid,
           name: parameterform.name,
+          sendname: parseInt(parameterform.sendname,10),
+          uploadimages: parseInt(parameterform.uploadimages,10),
+          uploadaims: parseInt(parameterform.uploadaims,10),
+          sendparamtodocker:parseInt(parameterform.sendparamtodocker,10),
           format: parameterform.format,
           prefix: parameterform.prefix,
           inputBinding: parameterform.inputBinding,
@@ -1488,6 +1500,10 @@ async function epaddb(fastify, options, done) {
             plugin_id: parameter.dataValues.plugin_id,
             paramid: parameter.dataValues.paramid,
             name: parameter.dataValues.name,
+            sendname: parameter.dataValues.sendname,
+            uploadimages: parameter.dataValues.uploadimages,
+            uploadaims: parameter.dataValues.uploadaims,
+            sendparamtodocker:parameter.dataValues.sendparamtodocker,
             format: parameter.dataValues.format,
             prefix: parameter.dataValues.prefix,
             inputBinding: parameter.dataValues.inputBinding,
@@ -1554,6 +1570,10 @@ async function epaddb(fastify, options, done) {
           {
             paramid: paramsForm.paramid,
             name: paramsForm.name,
+            sendname: parseInt(paramsForm.sendname,10),
+            uploadimages: parseInt(paramsForm.uploadimages,10),
+            uploadaims: parseInt(paramsForm.uploadaims,10),
+            sendparamtodocker:parseInt(paramsForm.sendparamtodocker,10),
             format: paramsForm.format,
             prefix: paramsForm.prefix,
             inputBinding: paramsForm.inputBinding,
@@ -2236,6 +2256,10 @@ async function epaddb(fastify, options, done) {
             plugin_id: parameter.dataValues.plugin_id,
             paramid: parameter.dataValues.paramid,
             name: parameter.dataValues.name,
+            sendname: parameter.dataValues.sendname,
+            uploadimages: parameter.dataValues.uploadimages,
+            uploadaims: parameter.dataValues.uploadaims,
+            sendparamtodocker:parameter.dataValues.sendparamtodocker,
             format: parameter.dataValues.format,
             prefix: parameter.dataValues.prefix,
             inputBinding: parameter.dataValues.inputBinding,
@@ -2769,14 +2793,17 @@ async function epaddb(fastify, options, done) {
               }
             }
             if (tempPluginParams[i].paramid === 'parameters') {
-              if (tempPluginParams[i].prefix !== '') {
-                onlyNameValues.push(tempPluginParams[i].prefix);
-              }
-              if (tempPluginParams[i].name !== '') {
-                onlyNameValues.push(tempPluginParams[i].name);
-              }
-              if (tempPluginParams[i].default_value !== '') {
-                onlyNameValues.push(tempPluginParams[i].default_value);
+              
+              if (tempPluginParams[i].sendparamtodocker === 1){
+                if (tempPluginParams[i].prefix !== '') {
+                  onlyNameValues.push(tempPluginParams[i].prefix);
+                }
+                if (tempPluginParams[i].name !== '' && tempPluginParams[i].sendname !== 0) {
+                  onlyNameValues.push(tempPluginParams[i].name);
+                }
+                if (tempPluginParams[i].default_value !== '') {
+                  onlyNameValues.push(tempPluginParams[i].default_value);
+                }
               }
             }
           }
@@ -2918,9 +2945,22 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate(
     'createCalcEntityforPluginCalcInternal',
-    (lexiconObjParam, calcValueParam) =>
+    (lexiconObjParam, calcValueParam, pluginparams) =>
       new Promise((resolve, reject) => {
         try {
+          // section for pyradiomics prefix addition for calc aim
+          const prefixVal = null;
+          for (let paramcount = 0 ; paramcount<pluginparams.length; paramcount +=1){
+            if (pluginparams.format === 'Parameters'){
+              if (pluginparams.name === 'pyradiomicsprefix'){
+                prefixVal = pluginparams.default_value;
+                break;
+              }
+
+            }
+
+          }
+          // section for pyradiomics prefix addition for calc aim ends
           const partCalcEntity = {
             uniqueIdentifier: {
               root: fastify.generateUidInternal(),
@@ -2936,7 +2976,7 @@ async function epaddb(fastify, options, done) {
               },
             ],
             description: {
-              value: lexiconObjParam.codemeaning,
+              value: lexiconObjParam.codemeaning,  // prefix_ for pyradiomics
             },
             calculationResultCollection: {
               CalculationResult: [
@@ -2944,7 +2984,7 @@ async function epaddb(fastify, options, done) {
                   type: 'Scalar',
                   'xsi:type': 'CompactCalculationResult',
                   unitOfMeasure: {
-                    value: '{ratio}',
+                    value: '{no units}', // was ->  ratio
                   },
                   dataType: {
                     code: 'C48870',
@@ -2995,19 +3035,25 @@ async function epaddb(fastify, options, done) {
               },
             },
           };
+          // for pyradiomics
+          if (prefixVal !== null){
+            partCalcEntity.description.value = `${prefixVal}_${partCalcEntity.description.value}`;
+          }
+          // for pyradiomics ends
           resolve(partCalcEntity);
         } catch (err) {
           reject(new InternalError('error happened while creating plugin calculation entity', err));
         }
       })
   );
-  fastify.decorate('createPartialAimForPluginCalcInternal', (csvFileParam, pluginInfoParam, csvColumnActual) => {
+  fastify.decorate('createPartialAimForPluginCalcInternal', (csvFileParam, pluginInfoParam, csvColumnActual,pluginparams) => {
     const partCalcEntityArray = [];
     let willCallRemoteOntology = false;
 
     return new Promise(async (resolve, reject) => {
       try {
         console.log('xxxxxxxxxxxxxxx -> inserting lexicon in the db :',csvColumnActual);
+        console.log('vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv -> inserting lexicon in the db :',pluginparams);
         if (config.ontologyApiKey !== 'local') {
           console.log('config ontology : ',config.ontologyApiKey);
           willCallRemoteOntology = true;
@@ -3046,7 +3092,8 @@ async function epaddb(fastify, options, done) {
             // eslint-disable-next-line no-await-in-loop
             const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
               newLexiconObj,
-              csvFileParam[i][`_${csvColumnActual}`]
+              csvFileParam[i][`_${csvColumnActual}`],
+              pluginparams
             );
             partCalcEntityArray.push(resultCalcEntitObj);
           } catch (err) {
@@ -3058,7 +3105,8 @@ async function epaddb(fastify, options, done) {
               // eslint-disable-next-line no-await-in-loop
               const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
                 err.lexiconObj,
-                csvFileParam[i][`_${csvColumnActual}`]
+                csvFileParam[i][`_${csvColumnActual}`],
+                pluginparams
               );
               partCalcEntityArray.push(resultCalcEntitObj);
               // lexicon object exist already so get codemeaning to form partial aim calculations
@@ -3597,7 +3645,8 @@ async function epaddb(fastify, options, done) {
                                         const returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
                                           calcObj,
                                           pluginInfoFromParams,
-                                          csvColumncount
+                                          csvColumncount,
+                                          pluginParameters
                                         );
                                           // find first the aim fro the dso
                                         const foundAimIdFordso =  await fastify.pluginFindAimforGivenDso(calcObj[9][`_${csvColumncount}`] ,`${pluginParameters.relativeServerFolder}/aims`);
@@ -11880,6 +11929,16 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
             fastify.log.warn('Altered plugin table');
+
+            await fastify.orm.query(
+              `ALTER TABLE plugin_parameters
+                ADD COLUMN IF NOT EXISTS sendname tinyint(1) DEFAULT 0 AFTER name,
+                ADD COLUMN IF NOT EXISTS uploadimages tinyint(1) DEFAULT 0 AFTER sendname,
+                ADD COLUMN IF NOT EXISTS uploadaims tinyint(1) DEFAULT 0 AFTER uploadimages,
+                ADD COLUMN IF NOT EXISTS sendparamtodocker tinyint(1) DEFAULT 1 AFTER uploadaims;`,
+              { transaction: t }
+            );
+            fastify.log.warn('Altered plugin parameters table');
 
             await fastify.orm.query(
               `ALTER TABLE plugin_queue
