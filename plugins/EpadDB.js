@@ -5124,12 +5124,18 @@ async function epaddb(fastify, options, done) {
     (epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const collaboratorProjIds = epadAuth.projectToRole
-            .filter((role) => role.endsWith('Collaborator'))
-            .map((item) => item.split(':')[0]);
-          const aimAccessProjIds = epadAuth.projectToRole
-            .filter((role) => !role.endsWith('Collaborator'))
-            .map((item) => item.split(':')[0]);
+          const collaboratorProjIds =
+            (epadAuth.projectToRole &&
+              epadAuth.projectToRole
+                .filter((role) => role.endsWith('Collaborator'))
+                .map((item) => item.split(':')[0])) ||
+            [];
+          const aimAccessProjIds =
+            (epadAuth.projectToRole &&
+              epadAuth.projectToRole
+                .filter((role) => !role.endsWith('Collaborator'))
+                .map((item) => item.split(':')[0])) ||
+            [];
           const projects = await models.project.findAll({
             where: { type: 'Public' },
             attributes: ['projectid'],
