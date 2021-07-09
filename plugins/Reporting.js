@@ -1102,7 +1102,7 @@ async function reporting(fastify) {
             );
           // check if it is the nontarget table and fill in with text instead of values
           if (allCalc) {
-            if (lesions[i].allcalc)
+            if (lesions[i].allcalc || lesions[i][allCalc])
               table[lesionIndex][studyDates.indexOf(studyDate) + numOfHeaderCols] =
                 allCalc !== true ? { [allCalc]: lesions[i].allcalc[allCalc] } : lesions[i].allcalc; // if allCalc is a defined but not true than metric is sent to filter
           } else if (type.includes('nontarget')) {

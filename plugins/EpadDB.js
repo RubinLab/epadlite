@@ -5770,7 +5770,13 @@ async function epaddb(fastify, options, done) {
             break;
           case 'Longitudinal':
             if (request.params.subject)
-              result = fastify.getLongitudinal(result.rows, undefined, undefined, request);
+              result = fastify.getLongitudinal(
+                result.rows,
+                undefined,
+                undefined,
+                request,
+                request.query.metric
+              );
             else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
               return;
