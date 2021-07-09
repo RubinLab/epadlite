@@ -2871,6 +2871,7 @@ async function epaddb(fastify, options, done) {
     return new Promise((resolve,reject)=>{
         const csvLines = [];
         const tmpTransposedFileName = 'tempTransposedcsv.csv';
+        let rowNumForSegid = 0;
         const fd = fs.open(`${csvPath}/${tmpTransposedFileName}`, 'w', function (err, file) {
           if (err) throw err;
           // console.log(`created temporary transposed csv file :${tmpTransposedFileName}`);
@@ -2887,8 +2888,14 @@ async function epaddb(fastify, options, done) {
           for (k = 0 ; k <csvLines[0].length ; k +=1){
           //console.log('transpose csv : ',csvLines);
           let aLineString = '';
+          
             
               for (let i = 0 ; i<csvLines.length; i +=1){
+                if (csvLines[i][k] === 'Segmentation UID'){
+                  console.log(`bulduk col no : ',${i}.${k},${csvLines[i][k]}` );
+                  rowNumForSegid = k;
+
+                }
                 // console.log('transpose csv : ',csvLines[i][k]);
                 if (i < csvLines.length -1){
                   aLineString = `${aLineString}"${csvLines[i][k]}",`;
@@ -2906,7 +2913,7 @@ async function epaddb(fastify, options, done) {
 
           fs.renameSync(`${csvPath}/${csvFile}`, `${csvPath}/${csvFile}_old`);
           fs.renameSync(`${csvPath}/${tmpTransposedFileName}`, `${csvPath}/${csvFile}`);
-          resolve(csvLines);
+          resolve({lines :csvLines, rownum :rowNumForSegid});
         })
         .on('error', (err) => {
           reject(
@@ -2923,7 +2930,8 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('parseCsvForPluginCalculationsInternal', async (csvFileParam) => {
     const result = [];
     return new Promise(async (resolve, reject) => {
-      await fastify.pluginTransposeCsv(csvFileParam.path,csvFileParam.file);
+      const transposedCsv = await fastify.pluginTransposeCsv(csvFileParam.path,csvFileParam.file);
+      
       fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
         .pipe(csv({ skipLines: 0, headers: ['key'] }))
         .on('data', (data) => {
@@ -2931,7 +2939,9 @@ async function epaddb(fastify, options, done) {
           result.push(data);
         })
         .on('end', () => {
-          resolve(result);
+          //resolve({lines :csvLines, rownum :rowNumForSegid});
+
+          resolve({resultobj : result, rownumobj : transposedCsv.rownum});
         })
         .on('error', (err) => {
           reject(
@@ -3650,8 +3660,9 @@ async function epaddb(fastify, options, done) {
                   console.log("----------------------- tempFileObject",tempFileObject);
                   // eslint-disable-next-line no-await-in-loop
                   const calcObj = await fastify.parseCsvForPluginCalculationsInternal(tempFileObject);
+                  const resObj = calcObj.resultobj ;
                   //  console.log("calcObj ---- ---- --- -",calcObj);
-                  const totalcolumnumber = Object.keys(calcObj[0]).length;
+                  const totalcolumnumber = Object.keys(resObj[0]).length;
                   console.log(' oooooooooooooooo o ooooooo ooooooooooo oooooooooo  ooo calc obj : ',totalcolumnumber );
                   const pluginInfoFromParams = {
                     pluginnameid: pluginParameters.pluginnameid,
@@ -3666,7 +3677,7 @@ async function epaddb(fastify, options, done) {
                                             console.log('-------------- phase : createPartialAimForPluginCalcInternal');
                                             // eslint-disable-next-line no-await-in-loop
                                               returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
-                                              calcObj,
+                                                resObj,
                                               pluginInfoFromParams,
                                               csvColumncount,
                                               pluginParameters
@@ -3684,7 +3695,7 @@ async function epaddb(fastify, options, done) {
                                           try{
                                             console.log('-------------- phase : pluginFindAimforGivenDso');
                                             // eslint-disable-next-line no-await-in-loop
-                                            foundAimIdFordso =  await fastify.pluginFindAimforGivenDso((calcObj[9])[`_${csvColumncount}`] ,`${pluginParameters.relativeServerFolder}/aims`);
+                                            foundAimIdFordso =  await fastify.pluginFindAimforGivenDso((resObj[calcObj.rownumobj])[`_${csvColumncount}`] ,`${pluginParameters.relativeServerFolder}/aims`);
                                           // 
                                            // console.log('result from find aim id for dso : ',foundAimIdFordso);
                                           }catch(err){
@@ -3692,7 +3703,7 @@ async function epaddb(fastify, options, done) {
                                             new EpadNotification(
                                               request,
                                               '',
-                                              new Error(`error happened while ${pluginInfoFromParams.pluginname} was searching for the dso :`(calcObj[9])[`_${csvColumncount}`] ),
+                                              new Error(`error happened while ${pluginInfoFromParams.pluginname} was searching for the dso :`(resObj[calcObj.rownumobj])[`_${csvColumncount}`] ),
                                               true
                                             ).notify(fastify);
                                           }
