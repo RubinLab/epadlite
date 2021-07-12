@@ -2386,46 +2386,46 @@ async function epaddb(fastify, options, done) {
                   const aimsKeys = Object.keys(aims);
                   for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
                     const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
-                    const writeStream = fs
-                      .createWriteStream(`${inputfolder}dicoms${aimsCnt}.zip`)
-                      // eslint-disable-next-line prefer-arrow-callback
-                      .on('finish', function () {
-                        fastify.log.info('dicom copy finished');
-                        // unzip part
-                        // added aims[aimsKeys[aimsCnt]] for the folder name we will use aim uid
-                        fs.createReadStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
-                          .pipe(
-                            unzip.Extract({
-                              path: aimNamedExtractFolder,
-                            })
-                          )
-                          .on('close', () => {
-                            fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip extracted`);
-                            fs.remove(`${inputfolder}dicoms${aimsCnt}.zip`, (error) => {
-                              if (error) {
-                                fastify.log.info(
-                                  `${inputfolder}dicoms${aimsCnt}.zip file deletion error ${error.message}`
-                                );
-                                reject(error);
-                              } else {
-                                fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip deleted`);
-                              }
-                            });
-                          })
-                          .on('error', (error) => {
-                            reject(
-                              new InternalError(
-                                `Extracting zip ${inputfolder}dicoms${aimsCnt}.zip`,
-                                error
-                              )
-                            );
-                          });
-                        // un zip part over
-                      });
+                    // const writeStream = fs
+                    //   .createWriteStream(`${inputfolder}dicoms${aimsCnt}.zip`)
+                    //   // eslint-disable-next-line prefer-arrow-callback
+                    //   .on('finish', function () {
+                    //     fastify.log.info('dicom copy finished');
+                    //     // unzip part
+                    //     // added aims[aimsKeys[aimsCnt]] for the folder name we will use aim uid
+                    //     fs.createReadStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
+                    //       .pipe(
+                    //         unzip.Extract({
+                    //           path: aimNamedExtractFolder,
+                    //         })
+                    //       )
+                    //       .on('close', () => {
+                    //         fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip extracted`);
+                    //         fs.remove(`${inputfolder}dicoms${aimsCnt}.zip`, (error) => {
+                    //           if (error) {
+                    //             fastify.log.info(
+                    //               `${inputfolder}dicoms${aimsCnt}.zip file deletion error ${error.message}`
+                    //             );
+                    //             reject(error);
+                    //           } else {
+                    //             fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip deleted`);
+                    //           }
+                    //         });
+                    //       })
+                    //       .on('error', (error) => {
+                    //         reject(
+                    //           new InternalError(
+                    //             `Extracting zip ${inputfolder}dicoms${aimsCnt}.zip`,
+                    //             error
+                    //           )
+                    //         );
+                    //       });
+                    //     // un zip part over
+                    //   });
                     const eacAimhObj = aims[aimsKeys[aimsCnt]];
                     fastify.log.info('getting dicoms for aim ', eacAimhObj);
                     // eslint-disable-next-line no-await-in-loop
-                    await fastify.prepSeriesDownload(
+                    const returnSerieFolder = await fastify.prepSeriesDownload(
                       request.headers.origin,
                       {
                         project: projectid,
@@ -2435,9 +2435,28 @@ async function epaddb(fastify, options, done) {
                       },
                       { format: 'stream', includeAims: 'true' },
                       request.epadAuth,
-                      writeStream
+                      'undefined',//it was -> writeStream
+                      '', // added for seriesinfo
+                      true // added for return folder
                     );
-                  }
+                    let returnSerieFolderFullPath = path.join(__dirname, `../${returnSerieFolder}`);
+                    try {
+                      //  returnSerieFolderFullPath = path.join(__dirname, `../${returnSerieFolder}`);
+                      fs.moveSync(`${returnSerieFolderFullPath}`, `${inputfolder}`, { overwrite: true });
+                      fastify.log.info(`copying folder ${returnSerieFolderFullPath} succeed`);
+                    } catch (err) {
+                      fastify.log.error(`file copy from ${returnSerieFolderFullPath} encountered error: -> ${err}`);
+                      reject(new InternalError(`file copy from ${returnSerieFolderFullPath} encountered error`, err));
+                    }
+                    try {
+                      fs.removeSync(`${returnSerieFolderFullPath}`);
+                      fastify.log.info(`removing series folder from tmp : ${returnSerieFolderFullPath} succeed`);
+                    } catch (err) {
+                      fastify.log.error(`removing series folder from tmp: ${returnSerieFolderFullPath} encountered error -> ${err}`);
+                      reject(new InternalError(`removing series folder from tmp ${returnSerieFolderFullPath} encountered error`, err));
+                    }
+                    //  console.log('aim files returned into this location --- ---- -- - - - - - -',returnSerieFolderFullPath);
+                  } // req inputs : reqOrigin, params, query, epadAuth, output, seriesInfos, returnFolder
                 } else {
                   // project level dicoms
                   fastify.log.info(
@@ -3213,9 +3232,10 @@ async function epaddb(fastify, options, done) {
     async (aimFileLocation, projectidParam) =>
       new Promise(async (resolve, reject) => {
         const fileArray = [];
-        fileArray.push(aimFileLocation.file);
+        
 
         try {
+          fileArray.push(aimFileLocation.file);
           const { success, errors } = await fastify.saveFiles(
             aimFileLocation.path,
             fileArray,
@@ -3254,7 +3274,7 @@ async function epaddb(fastify, options, done) {
         // array no 7 : dso image file location
         try {
           fastify.log.info(`$$$$ pyradiomics is converting json to csv line`);
-          fs.appendFile(fileFullPath, `${jsonToConvert.dsouid},1,2,3,${jsonToConvert.rootpath}/${jsonToConvert.series}/Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,${jsonToConvert.rootpath}/${jsonToConvert.series}/Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,11,SEG,1,14,15,16,17,18,19,description,21,\n`, function (err) {
+          fs.appendFile(fileFullPath, `${jsonToConvert.dsouid},1,2,3,${jsonToConvert.series}/Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,${jsonToConvert.series}/Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,11,SEG,1,14,15,16,17,18,19,description,21,\n`, function (err) {
             if (err) throw err;
             console.log('append!');
           }); 
@@ -3387,14 +3407,14 @@ async function epaddb(fastify, options, done) {
 
           for (let i = 0; i < resultObjFiles.length; i += 1) {
             resultObj = await fastify.pluginCollectDsoInfoFromAimsInternal(resultObjFiles[i]);
-            console.log('xxxxxxxxxxxxxx plugin collected dso line  for pyrodiamics',resultObj);
+            //  console.log('xxxxxxxxxxxxxx plugin collected dso line  for pyrodiamics',resultObj);
             await fastify.pluginConvertJsonToCsvFormatForALineInternal(`${pluginparams.relativeServerFolder}/dicoms/${dsoFileName}`,resultObj);
             arrayForDsoListCsv.push(resultObj);
           }
 
           //console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics',resultObj);
-          console.log('xxxxxxxxxxxxxx plugin params for csv lines ->',arrayForDsoListCsv);
-          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
+          //  console.log('xxxxxxxxxxxxxx plugin params for csv lines ->',arrayForDsoListCsv);
+          //  console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
 
 
           resolve(200);
@@ -3415,7 +3435,7 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         let infuncfileArray = [];
         try {
-          console.log('--- xx ---- xxx find aim for this dsoid',dsoId);
+          //  console.log('--- xx ---- xxx find aim for this dsoid',dsoId);
           infuncfileArray = fs.readdirSync(folderToLook);
           for (let arraycnt= 0 ; arraycnt<infuncfileArray.length; arraycnt +=1){
 
@@ -3426,16 +3446,19 @@ async function epaddb(fastify, options, done) {
               //console.log('we are looking this dso id in aim',dsoId);
               //console.log('we are looking actual aim ',infuncfileArray);
               if (dsoId === dsouidFromAim){
-                console.log('dso id found in aim');
+                //  console.log('dso id found in aim');
                 resolve(infuncfileArray[arraycnt]);
               }
 
           }
-          reject(404);
+          reject(new InternalError(
+            `aim not found for given dso id ${dsoId}`,
+            '404'
+          ));
         } catch (err) {
           reject(
             new InternalError(
-              '$$$$ error happened while plugin is trying to find aim for the given dso id',
+              `error happened while plugin is trying to find aim for the given dso id ${dsoId}`,
               err
             )
           );
@@ -3636,8 +3659,6 @@ async function epaddb(fastify, options, done) {
                 'csv'
               );
               fastify.log.info(`csv files in the plugin output folder : ${csvArray}`);
-              console.log('csv array : ',csvArray);
-              console.log('csv array : ',csvArray.length);
               new EpadNotification(
                 request,
                 `${pluginParameters.pluginname} is processing output csv files `,
@@ -3646,9 +3667,7 @@ async function epaddb(fastify, options, done) {
               ).notify(fastify);
               if (csvArray.length > 0) {
                 let csvfound = null; 
-                console.log('csv array length bigger: ');
                 for (let cntCsvArray = 0 ;cntCsvArray < csvArray.length; cntCsvArray  +=1  ){
-                  console.log(`if ${csvArray[cntCsvArray].file} == pyradiomics.csv`);
                   if (csvArray[cntCsvArray].file === 'pyradiomics.csv'){
                     csvfound = cntCsvArray;
                     break;
@@ -3660,13 +3679,13 @@ async function epaddb(fastify, options, done) {
                     `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
                   );
                   const tempFileObject = JSON.parse(JSON.stringify(csvArray[csvfound])) ;
-                  console.log("----------------------- tempFileObject",tempFileObject);
+                  //  console.log("----------------------- tempFileObject",tempFileObject);
                   // eslint-disable-next-line no-await-in-loop
                   const calcObj = await fastify.parseCsvForPluginCalculationsInternal(tempFileObject);
                   const resObj = calcObj.resultobj ;
                   //  console.log("calcObj ---- ---- --- -",calcObj);
                   const totalcolumnumber = Object.keys(resObj[0]).length;
-                  console.log(' oooooooooooooooo o ooooooo ooooooooooo oooooooooo  ooo calc obj : ',totalcolumnumber );
+                  //  console.log(' oooooooooooooooo o ooooooo ooooooooooo oooooooooo  ooo calc obj : ',totalcolumnumber );
                   const pluginInfoFromParams = {
                     pluginnameid: pluginParameters.pluginnameid,
                     pluginname: pluginParameters.pluginname,
