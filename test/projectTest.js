@@ -4910,7 +4910,7 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.rows).to.be.a('array');
           expect(res.body.rows.length).to.be.eql(12);
-          expect(res.body.rows).to.be.eql(jsonBuffer);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch((e) => {
