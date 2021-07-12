@@ -2871,7 +2871,7 @@ async function epaddb(fastify, options, done) {
     return new Promise((resolve,reject)=>{
         const csvLines = [];
         const tmpTransposedFileName = 'tempTransposedcsv.csv';
-        let rowNumForSegid = 0;
+        let rowNumForSegid = -1;
         const fd = fs.open(`${csvPath}/${tmpTransposedFileName}`, 'w', function (err, file) {
           if (err) throw err;
           // console.log(`created temporary transposed csv file :${tmpTransposedFileName}`);
@@ -2885,16 +2885,22 @@ async function epaddb(fastify, options, done) {
           csvLines.push(Object.values(data));
         })
         .on('end', () => {
+          const dsoIds =[];
           for (k = 0 ; k <csvLines[0].length ; k +=1){
           //console.log('transpose csv : ',csvLines);
           let aLineString = '';
-          
+          let dontAdd = false;
             
               for (let i = 0 ; i<csvLines.length; i +=1){
+                // console.log('looking for the heasder here : ',csvLines[0][k]);
+                if (rowNumForSegid >-1 && rowNumForSegid === k){
+                  dsoIds.push(csvLines[i][rowNumForSegid]);
+                  console.log('pushing this as dso lines',csvLines[i][rowNumForSegid]);
+                }
                 if (csvLines[i][k] === 'Segmentation UID'){
                   console.log(`bulduk col no : ',${i}.${k},${csvLines[i][k]}` );
                   rowNumForSegid = k;
-
+                   
                 }
                 // console.log('transpose csv : ',csvLines[i][k]);
                 if (i < csvLines.length -1){
@@ -2902,18 +2908,23 @@ async function epaddb(fastify, options, done) {
                 }else{
                   aLineString = `${aLineString}"${csvLines[i][k]}"\n`;
                 }
-
+                if (csvLines[0][k] === "Series UID" || csvLines[0][k] === "Mask" || csvLines[0][k] === "Image" || csvLines[0][k] === "Accession Number" || csvLines[0][k] === "Study UID" || csvLines[0][k] === "Patient ID" || csvLines[0][k] === "Patient Name" || csvLines[0][k] === "PyRadiomics Version" || csvLines[0][k] === "DSO Desc" || csvLines[0][k] === "Segmentation UID" || csvLines[0][k] === "DSOSeries UID" ){
+                  dontAdd = true;
+                }
               }
+              // console.log('---- >>>> ---- alinestring: ',aLineString);
+              if (dontAdd === false){
               fs.appendFile(`${csvPath}/${tmpTransposedFileName}`,aLineString, function (err) {
                 if (err) throw err;
                
               }); 
+            }
             //  console.log('a line string transposed : ',aLineString);
           }
 
           fs.renameSync(`${csvPath}/${csvFile}`, `${csvPath}/${csvFile}_old`);
           fs.renameSync(`${csvPath}/${tmpTransposedFileName}`, `${csvPath}/${csvFile}`);
-          resolve({lines :csvLines, rownum :rowNumForSegid});
+          resolve({lines :csvLines, rownum :rowNumForSegid, dsoids : dsoIds});
         })
         .on('error', (err) => {
           reject(
@@ -2941,7 +2952,7 @@ async function epaddb(fastify, options, done) {
         .on('end', () => {
           //resolve({lines :csvLines, rownum :rowNumForSegid});
 
-          resolve({resultobj : result, rownumobj : transposedCsv.rownum});
+          resolve({resultobj : result, rownumobj : transposedCsv.rownum ,alldsoIds : transposedCsv.dsoids} );
         })
         .on('error', (err) => {
           reject(
@@ -3286,8 +3297,8 @@ async function epaddb(fastify, options, done) {
 
             
             parsedAimFile = JSON.parse(aimJsonString);
-            console.log('aim json',aimJsonString);
-            console.log('parsed aim json',parsedAimFile);
+            //  console.log('aim json',aimJsonString);
+            //  console.log('parsed aim json',parsedAimFile);
             const rootpath = parsedAimFile.ImageAnnotationCollection.uniqueIdentifier.root
             const dsoUid = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].sopInstanceUid.root;
             const study = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].studyInstanceUid.root ;
@@ -3300,11 +3311,11 @@ async function epaddb(fastify, options, done) {
               series : series,
               dsoImage : dsoImage
             }; 
-            console.log('$$$$ reading necessary data for dso ');
-            console.log('$$$$ : dsoUid ->',dsoUid);
-            console.log('$$$$ : study ->',study);
-            console.log('$$$$ : series ->',series);
-            console.log('$$$$ : dsoImage ->',dsoImage);
+            // console.log('$$$$ reading necessary data for dso ');
+            // console.log('$$$$ : dsoUid ->',dsoUid);
+            // console.log('$$$$ : study ->',study);
+            // console.log('$$$$ : series ->',series);
+            // console.log('$$$$ : dsoImage ->',dsoImage);
             // lineJson.dsouid =dsoUid;
             // lineJson.study = study;
             // lineJson.series = series;
@@ -3357,16 +3368,8 @@ async function epaddb(fastify, options, done) {
         const dsoFileName = 'dsoList.csv';
         try {
 
-          fastify.log.info(`$$$$ pyradiomics is creating dso list`);
-          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics',pluginparams);
-          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
-          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
-          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
-          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
-          console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
          
           resultObjFiles = await fastify.pluginGetAimFilesInternal(`${pluginparams.relativeServerFolder}/aims`);
-          console.log('xxxxxxxxxxxxxx Array : ',resultObjFiles);
           // fs.writeFile(`${pluginparams.relativeServerFolder}/dicoms/dsoList.csv`, 'Hello content!', function (err) {
           //   if (err) throw err;
           //   console.log('Saved!');
@@ -3674,8 +3677,8 @@ async function epaddb(fastify, options, done) {
                     let foundAimIdFordso = null;
                     let mergedaimFileLocation = null;
                                         try{
-                                            console.log('-------------- phase : createPartialAimForPluginCalcInternal');
-                                            // eslint-disable-next-line no-await-in-loop
+                                              fastify.log.info('creating calculation part of the aim from the feature values');
+                                              // eslint-disable-next-line no-await-in-loop
                                               returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
                                                 resObj,
                                               pluginInfoFromParams,
@@ -3683,7 +3686,7 @@ async function epaddb(fastify, options, done) {
                                               pluginParameters
                                             );
                                         }catch (err){
-                                              console.log('-------------- phase err : createPartialAimForPluginCalcInternal',err);
+                                              fastify.log.error(`Error : creating calculation part of the aim from the feature values, err: ${err}`);
                                               new EpadNotification(
                                                 request,
                                                 '',
@@ -3693,22 +3696,22 @@ async function epaddb(fastify, options, done) {
                                         }
                                           // find first the aim fro the dso
                                           try{
-                                            console.log('-------------- phase : pluginFindAimforGivenDso');
+                                              fastify.log.info(`finding the aim for the dso: ${calcObj.alldsoIds[csvColumncount-1]}`);
                                             // eslint-disable-next-line no-await-in-loop
-                                            foundAimIdFordso =  await fastify.pluginFindAimforGivenDso((resObj[calcObj.rownumobj])[`_${csvColumncount}`] ,`${pluginParameters.relativeServerFolder}/aims`);
+                                            foundAimIdFordso =  await fastify.pluginFindAimforGivenDso(calcObj.alldsoIds[csvColumncount-1] ,`${pluginParameters.relativeServerFolder}/aims`);
                                           // 
                                            // console.log('result from find aim id for dso : ',foundAimIdFordso);
                                           }catch(err){
-                                            console.log('-------------- phase err : pluginFindAimforGivenDso',err);
+                                            fastify.log.error(`Error: finding aim for the dso: ${calcObj.alldsoIds[csvColumncount-1]} ,err: ${err}`);
                                             new EpadNotification(
                                               request,
                                               '',
-                                              new Error(`error happened while ${pluginInfoFromParams.pluginname} was searching for the dso :`(resObj[calcObj.rownumobj])[`_${csvColumncount}`] ),
+                                              new Error(`error happened while ${pluginInfoFromParams.pluginname} was searching for the dso :${calcObj.alldsoIds[csvColumncount-1]}` ),
                                               true
                                             ).notify(fastify);
                                           }
                                           try{
-                                            console.log('-------------- phase : mergePartialCalcAimWithUserAimPluginCalcInternal');
+                                            fastify.log.info(`merging calculation object with the aim with the id : ${foundAimIdFordso}`);
                                             // eslint-disable-next-line no-await-in-loop
                                             mergedaimFileLocation = await fastify.mergePartialCalcAimWithUserAimPluginCalcInternal(
                                               returnPartialPluginCalcAim,
@@ -3716,7 +3719,7 @@ async function epaddb(fastify, options, done) {
                                               `${pluginParameters.relativeServerFolder}/aims`
                                             );
                                           }catch (err){
-                                            console.log('-------------- phase err : mergePartialCalcAimWithUserAimPluginCalcInternal',err);
+                                            fastify.log.error(`merging calculation object with the aim with the id : ${foundAimIdFordso},err: ${err}`);
                                             new EpadNotification(
                                               request,
                                               '',
@@ -3725,14 +3728,14 @@ async function epaddb(fastify, options, done) {
                                             ).notify(fastify);
                                           }
                                           try{
-                                            console.log('-------------- phase : uploadMergedAimPluginCalcInternal');
+                                            fastify.log.info(`uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin`);
                                             // eslint-disable-next-line no-await-in-loop
                                             await fastify.uploadMergedAimPluginCalcInternal(
                                               mergedaimFileLocation,
                                               pluginParameters.projectid
                                             );
                                           }catch(err){
-                                            console.log('-------------- phase err : uploadMergedAimPluginCalcInternal',err);
+                                            fastify.log.error(`Error : uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin, err:${err}`);
                                              new EpadNotification(
                                               request,
                                               "",
