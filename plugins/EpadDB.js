@@ -2305,6 +2305,31 @@ async function epaddb(fastify, options, done) {
               fastify.log.info(outputfolder);
               if (!fs.existsSync(outputfolder)) {
                 fs.mkdirSync(outputfolder, { recursive: true });
+                console.log('output folder exist already');
+                console.log('output folder exist already');
+                console.log('output folder exist already');
+                console.log('output folder exist already');
+                console.log('output folder exist already');
+                console.log('output folder exist already');
+                console.log('output folder exist already');
+                console.log('output folder exist already');
+              }else{
+                fs.rmdirSync(outputfolder, { recursive: true });
+                console.log('output folder exist already so deleted here ');
+                console.log('output folder exist already so deleted here ');
+                console.log('output folder exist already so deleted here ');
+                console.log('output folder exist already so deleted here ');
+                console.log('output folder exist already so deleted here ');
+                console.log('output folder exist already so deleted here ');
+                fs.mkdirSync(outputfolder, { recursive: true });
+                console.log('output folder recreated refresh here ');
+                console.log('output folder recreated refresh here ');
+                console.log('output folder recreated refresh here ');
+                console.log('output folder recreated refresh here ');
+                console.log('output folder recreated refresh here ');
+                console.log('output folder recreated refresh here ');
+                console.log('output folder recreated refresh here ');
+
               }
             } catch (err) {
               reject(err);
@@ -2328,6 +2353,9 @@ async function epaddb(fastify, options, done) {
                 );
                 const inputfolder = `${userfolder}/${tempPluginparams[i].paramid}/`;
                 if (!fs.existsSync(inputfolder)) {
+                  fs.mkdirSync(inputfolder, { recursive: true });
+                }else{
+                  fs.mkdirSync(inputfolder, { recursive: true });
                   fs.mkdirSync(inputfolder, { recursive: true });
                 }
 
@@ -2441,7 +2469,12 @@ async function epaddb(fastify, options, done) {
                     );
                     let returnSerieFolderFullPath = path.join(__dirname, `../${returnSerieFolder}`);
                     try {
-                      //  returnSerieFolderFullPath = path.join(__dirname, `../${returnSerieFolder}`);
+                      console.log('copyin aims to :',inputfolder);
+                      console.log('copyin aims to :',inputfolder);
+                      console.log('copyin aims to :',inputfolder);
+                      console.log('copyin aims to :',inputfolder);
+                      console.log('copyin aims to :',inputfolder);
+                      console.log('copyin aims to :',inputfolder);
                       fs.moveSync(`${returnSerieFolderFullPath}`, `${inputfolder}`, { overwrite: true });
                       fastify.log.info(`copying folder ${returnSerieFolderFullPath} succeed`);
                     } catch (err) {
@@ -2888,14 +2921,18 @@ async function epaddb(fastify, options, done) {
   // we mey need to transpose csv columns and rows depending on the params given for the plugin
   fastify.decorate('pluginTransposeCsv', async (csvPath,csvFile)=>{
     return new Promise((resolve,reject)=>{
+      console.log('pluginTransposeCsv csvPath',csvPath);
+      console.log('pluginTransposeCsv csvFile',csvFile);
+      console.log('pluginTransposeCsv');
+      console.log('pluginTransposeCsv');
+      console.log('pluginTransposeCsv');
+      console.log('pluginTransposeCsv');
         const csvLines = [];
         const tmpTransposedFileName = 'tempTransposedcsv.csv';
         let rowNumForSegid = -1;
-        const fd = fs.open(`${csvPath}/${tmpTransposedFileName}`, 'w', function (err, file) {
-          if (err) throw err;
-          // console.log(`created temporary transposed csv file :${tmpTransposedFileName}`);
-          //  return file;
-        }); 
+        const fd = fs.openSync(`${csvPath}/${tmpTransposedFileName}`, 'w');
+        const returnedConten = fs.readFileSync(`${csvPath}/${tmpTransposedFileName}`,'utf8');
+        console.log("temp transpose file befoer writing in it : expected to be empty",returnedConten);
         //  fs.close(fd);
         fs.createReadStream(`${csvPath}/${csvFile}`)
         .pipe(csv({ skipLines: 0, headers: [] }))
@@ -2933,16 +2970,16 @@ async function epaddb(fastify, options, done) {
               }
               // console.log('---- >>>> ---- alinestring: ',aLineString);
               if (dontAdd === false){
-              fs.appendFile(`${csvPath}/${tmpTransposedFileName}`,aLineString, function (err) {
-                if (err) throw err;
-               
-              }); 
+              fs.appendFileSync(`${csvPath}/${tmpTransposedFileName}`,aLineString);
             }
             //  console.log('a line string transposed : ',aLineString);
           }
-
+          console.log(`renaming pyradiomics.csv from: ${csvPath}/${csvFile} to: ${csvPath}/${csvFile}_old`);
           fs.renameSync(`${csvPath}/${csvFile}`, `${csvPath}/${csvFile}_old`);
+          console.log(`renaming tmpTransposedFileName to pyradiomics.csv : from :${csvPath}/${tmpTransposedFileName} to ${csvPath}/${csvFile}`);
           fs.renameSync(`${csvPath}/${tmpTransposedFileName}`, `${csvPath}/${csvFile}`);
+          console.log('pluginTransposeCsv ended ');
+          console.log('pluginTransposeCsv ended returning lines',csvLines);
           resolve({lines :csvLines, rownum :rowNumForSegid, dsoids : dsoIds});
         })
         .on('error', (err) => {
@@ -2961,11 +2998,17 @@ async function epaddb(fastify, options, done) {
     const result = [];
     return new Promise(async (resolve, reject) => {
       const transposedCsv = await fastify.pluginTransposeCsv(csvFileParam.path,csvFileParam.file);
-      
+      console.log('parseCsvForPluginCalculationsInternal processing');
+      console.log('parseCsvForPluginCalculationsInternal processing');
+      console.log('parseCsvForPluginCalculationsInternal processing');
+      console.log('parseCsvForPluginCalculationsInternal processing');
+      console.log('parseCsvForPluginCalculationsInternal processing');
+      console.log(`parseCsvForPluginCalculationsInternal processing ${csvFileParam.path}/${csvFileParam.file}`);
+
       fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
         .pipe(csv({ skipLines: 0, headers: ['key'] }))
         .on('data', (data) => {
-          //  console.log('csv data: ',data);
+          
           result.push(data);
         })
         .on('end', () => {
@@ -2989,6 +3032,13 @@ async function epaddb(fastify, options, done) {
       new Promise((resolve, reject) => {
         try {
           // section for pyradiomics prefix addition for calc aim
+          //console.log('createCalcEntityforPluginCalcInternal processing');
+          //console.log('createCalcEntityforPluginCalcInternal processing');
+          //console.log('createCalcEntityforPluginCalcInternal processing');
+          //console.log('createCalcEntityforPluginCalcInternal processing');
+          //console.log('createCalcEntityforPluginCalcInternal processing');
+          //console.log('createCalcEntityforPluginCalcInternal processing');
+
           let prefixVal = "";
           for (let paramcount = 0 ; paramcount<pluginparams.params.length; paramcount +=1){
             if (pluginparams.params[paramcount].format === 'Parameters'){
@@ -3080,6 +3130,7 @@ async function epaddb(fastify, options, done) {
             partCalcEntity.description.value = `${prefixVal}_${partCalcEntity.description.value}`;
           }
           // for pyradiomics ends
+          //console.log('createCalcEntityforPluginCalcInternal processing , partCalcEntity:',JSON.stringify(partCalcEntity));
           resolve(partCalcEntity);
         } catch (err) {
           reject(new InternalError('error happened while creating plugin calculation entity', err));
@@ -3092,7 +3143,13 @@ async function epaddb(fastify, options, done) {
 
     return new Promise(async (resolve, reject) => {
       try {
-        console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal :',csvColumnActual);
+        console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal :csvColumnActual',csvColumnActual);
+        console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal :csvFileParam',csvFileParam);
+        console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal :');
+        console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal :');
+        console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal :');
+        console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal :');
+
         
         if (config.ontologyApiKey !== 'local') {
           console.log('config ontology : ',config.ontologyApiKey);
@@ -3127,8 +3184,10 @@ async function epaddb(fastify, options, done) {
             } else {
               // console.log('no need to call remote ontology inserting localy lexiconobj : ',lexiconObj);
               // eslint-disable-next-line no-await-in-loop
+              //console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal : inserting lexicon obj ',lexiconObj);
               newLexiconObj = await fastify.insertOntologyItemInternal(lexiconObj);
             }
+            //console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal : will call in createCalcEntityforPluginCalcInternal no 409',newLexiconObj);
             // eslint-disable-next-line no-await-in-loop
             const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
               newLexiconObj,
@@ -3142,6 +3201,9 @@ async function epaddb(fastify, options, done) {
             } else if (err.code === 409) {
               err.lexiconObj.referenceuid = lexiconObj.referenceuid;
               err.lexiconObj.referencename = lexiconObj.referencename;
+              //console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal : lexicon obj exist already 409');
+              //console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal : will call in createCalcEntityforPluginCalcInternal in 409 err.lexiconObj',err.lexiconObj);
+              //console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal : will call in createCalcEntityforPluginCalcInternal in 409 csvFileParam[i][`_${csvColumnActual}`]',csvFileParam[i][`_${csvColumnActual}`]);
               // eslint-disable-next-line no-await-in-loop
               const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
                 err.lexiconObj,
@@ -3274,10 +3336,7 @@ async function epaddb(fastify, options, done) {
         // array no 7 : dso image file location
         try {
           fastify.log.info(`$$$$ pyradiomics is converting json to csv line`);
-          fs.appendFile(fileFullPath, `${jsonToConvert.dsouid},1,2,3,${jsonToConvert.series}/Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,${jsonToConvert.series}/Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,11,SEG,1,14,15,16,17,18,19,description,21,\n`, function (err) {
-            if (err) throw err;
-            console.log('append!');
-          }); 
+          fs.appendFileSync(fileFullPath, `${jsonToConvert.dsouid},1,2,3,${jsonToConvert.series}/Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,${jsonToConvert.series}/Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,11,SEG,1,14,15,16,17,18,19,description,21,\n`);
             
           resolve('ok');
         } catch (err) {
@@ -3385,7 +3444,7 @@ async function epaddb(fastify, options, done) {
         let resultObj = null;
         let resultObjFiles = null;
         const arrayForDsoListCsv = [];
-        const dsoFileName = 'dsoList.csv';
+        const dsoListName = 'dsoList.csv';
         try {
 
          
@@ -3394,27 +3453,19 @@ async function epaddb(fastify, options, done) {
           //   if (err) throw err;
           //   console.log('Saved!');
           // }); 
-          const fd = fs.open(`${pluginparams.relativeServerFolder}/dicoms/${dsoFileName}`, 'w', function (err, file) {
+          const fd = fs.open(`${pluginparams.relativeServerFolder}/dicoms/${dsoListName}`, 'w', function (err, file) {
             if (err) throw err;
             console.log('created dsoList.csv',file);
            
           }); 
-          //  fs.close(fd);
-        //   fs.appendFile(`${pluginparams.relativeServerFolder}/dicoms/${dsoFileName}`, `UID,1,2,3,4,5,6,7,8,9,10,11,12,Modality,14,15,16,17,18,19,20,21,\n`, function (err) {
-        //   if (err) throw err;
-        //   console.log('append the header of the dsoList.csv');
-        //  });
+
 
           for (let i = 0; i < resultObjFiles.length; i += 1) {
             resultObj = await fastify.pluginCollectDsoInfoFromAimsInternal(resultObjFiles[i]);
             //  console.log('xxxxxxxxxxxxxx plugin collected dso line  for pyrodiamics',resultObj);
-            await fastify.pluginConvertJsonToCsvFormatForALineInternal(`${pluginparams.relativeServerFolder}/dicoms/${dsoFileName}`,resultObj);
+            await fastify.pluginConvertJsonToCsvFormatForALineInternal(`${pluginparams.relativeServerFolder}/dicoms/${dsoListName}`,resultObj);
             arrayForDsoListCsv.push(resultObj);
           }
-
-          //console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics',resultObj);
-          //  console.log('xxxxxxxxxxxxxx plugin params for csv lines ->',arrayForDsoListCsv);
-          //  console.log('xxxxxxxxxxxxxx plugin params for pyrodiamics');
 
 
           resolve(200);
@@ -3435,9 +3486,15 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         let infuncfileArray = [];
         try {
-          //  console.log('--- xx ---- xxx find aim for this dsoid',dsoId);
+         
           infuncfileArray = fs.readdirSync(folderToLook);
           for (let arraycnt= 0 ; arraycnt<infuncfileArray.length; arraycnt +=1){
+             console.log('pluginFindAimforGivenDso reading file',infuncfileArray[arraycnt]);
+             console.log('pluginFindAimforGivenDso');
+             console.log('pluginFindAimforGivenDso');
+             console.log('pluginFindAimforGivenDso');
+             console.log('pluginFindAimforGivenDso');
+
 
               const aimJsonString = fs.readFileSync(`${folderToLook}/${infuncfileArray[arraycnt]}`, 'utf8');
               const parsedAimFile = JSON.parse(aimJsonString);
@@ -3447,6 +3504,11 @@ async function epaddb(fastify, options, done) {
               //console.log('we are looking actual aim ',infuncfileArray);
               if (dsoId === dsouidFromAim){
                 //  console.log('dso id found in aim');
+                console.log('pluginFindAimforGivenDso dso id found in aim',dsouidFromAim);
+                console.log('pluginFindAimforGivenDso');
+                console.log('pluginFindAimforGivenDso');
+                console.log('pluginFindAimforGivenDso');
+                console.log('pluginFindAimforGivenDso');
                 resolve(infuncfileArray[arraycnt]);
               }
 
@@ -3678,7 +3740,7 @@ async function epaddb(fastify, options, done) {
                   fastify.log.info(
                     `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
                   );
-                  const tempFileObject = JSON.parse(JSON.stringify(csvArray[csvfound])) ;
+                  const tempFileObject = csvArray[csvfound] ;//JSON.parse(JSON.stringify(csvArray[csvfound])) ;
                   //  console.log("----------------------- tempFileObject",tempFileObject);
                   // eslint-disable-next-line no-await-in-loop
                   const calcObj = await fastify.parseCsvForPluginCalculationsInternal(tempFileObject);
@@ -3763,6 +3825,7 @@ async function epaddb(fastify, options, done) {
                                             ).notify(fastify);
                                           }
                   }
+                  await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
                 } else {
                   fastify.log.info(
                     'no Calculations.csv file found in output folder for the plugin'
@@ -3775,7 +3838,7 @@ async function epaddb(fastify, options, done) {
 // tthis section needs to be executed if csv needs to be proecessed // section ends
             }
             await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
-            return 'completed';
+            //return 'completed';
           } catch (err) {
             const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
             // eslint-disable-next-line no-await-in-loop
@@ -3793,6 +3856,7 @@ async function epaddb(fastify, options, done) {
             true
           ).notify(fastify);
         }
+        await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
       }
     } catch (err) {
       return err;
