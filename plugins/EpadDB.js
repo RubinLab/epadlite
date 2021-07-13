@@ -5854,7 +5854,7 @@ async function epaddb(fastify, options, done) {
                 else if (
                   aimsByName[name].aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                     .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
-                    .value < studyDate
+                    .value > studyDate
                 )
                   aimsByName[name] = { aim, type };
                 if (
@@ -5876,7 +5876,7 @@ async function epaddb(fastify, options, done) {
                         .trackingUniqueIdentifier.root
                     ].aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                       .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
-                      .value < studyDate
+                      .value > studyDate
                   )
                     aimsByTUID[
                       aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].trackingUniqueIdentifier.root
