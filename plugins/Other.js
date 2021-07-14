@@ -1689,7 +1689,13 @@ async function other(fastify) {
       // if auth has been given in config, verify authentication
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
       if (authHeader) {
-        req.epadAuth = await fastify.authCheck(authHeader, res);
+        if (authHeader.startsWith('Bearer')) {
+          req.epadAuth = await fastify.authCheck(authHeader, res);
+        } else if (authHeader.startsWith('apikey')) {
+          // apikey auth support
+          // TODO add https check
+          req.epadAuth = await fastify.validateApiKeyInternal(req);
+        }
       } else {
         res.send(
           new UnauthenticatedError('Authentication info does not exist or conform with the server')

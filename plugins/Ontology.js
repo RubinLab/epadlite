@@ -45,7 +45,9 @@ async function Ontology(fastify, options, done) {
             }
 
             fastify.log.info('you have a valid api key');
-            resolve();
+            // return user admin's epadAuth for now
+            const epadAuth = await fastify.fillUserInfo('admin');
+            resolve(epadAuth);
           } else {
             reject(new Error('no api key provided'));
           }
