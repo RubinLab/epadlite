@@ -1691,10 +1691,16 @@ async function other(fastify) {
       if (authHeader) {
         if (authHeader.startsWith('Bearer')) {
           req.epadAuth = await fastify.authCheck(authHeader, res);
-        } else if (authHeader.startsWith('apikey')) {
+        } else if (authHeader.startsWith('apikey') && req.query.user) {
           // apikey auth support
           // TODO add https check
+          // should have user in query
+          // TODO create user if not exists?
           req.epadAuth = await fastify.validateApiKeyInternal(req);
+        } else {
+          res.send(
+            new UnauthenticatedError('Authentication header does not conform with the server')
+          );
         }
       } else {
         res.send(
