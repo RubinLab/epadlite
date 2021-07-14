@@ -255,7 +255,7 @@ async function Ontology(fastify, options, done) {
   fastify.decorate(
     'insertOntologyItemInternal',
     async (lexiconObj) =>
-      // this function need to call remote ontology server if no valid ontology apikey
+      // this function need to call remote ontology server if valid ontology apikey
       new Promise(async (resolve, reject) => {
         let returnObj = null;
         try {
@@ -265,7 +265,7 @@ async function Ontology(fastify, options, done) {
         }
         if (returnObj.code === 200) {
           try {
-            const nextindex = (await fastify.generateCodeValueInternal()) + 1;
+            //  const nextindex = (await fastify.generateCodeValueInternal()) + 1;
             const {
               codemeaning: CODE_MEANING,
               description,
@@ -279,18 +279,29 @@ async function Ontology(fastify, options, done) {
 
             const retVal = await models.lexicon.create({
               CODE_MEANING,
-              CODE_VALUE: `99EPAD_${nextindex}`,
               description,
               SCHEMA_DESIGNATOR,
               SCHEMA_VERSION,
               referenceuid,
               referencename,
               referencetype,
-              indexno: nextindex,
               creator,
               createdtime: Date.now(),
               updatetime: Date.now(),
             });
+
+            await models.lexicon.update(
+              {
+                CODE_VALUE: `99EPAD_${retVal.ID}`,
+                indexno: retVal.indexno,
+                updatetime: Date.now(),
+              },
+              {
+                where: {
+                  ID: retVal.ID,
+                },
+              }
+            );
 
             const resultInJson = {
               id: retVal.ID,
@@ -417,7 +428,7 @@ async function Ontology(fastify, options, done) {
         referencename,
         referencetype,
       } = request.body;
-      models.lexicon.update(
+      await models.lexicon.update(
         {
           CODE_MEANING,
           CODE_VALUE,
@@ -453,7 +464,7 @@ async function Ontology(fastify, options, done) {
     try {
       await fastify.validateApiKeyInternal(request);
       const { codevalue: CODE_VALUE } = request.params;
-      models.lexicon.destroy({
+      await models.lexicon.destroy({
         where: {
           CODE_VALUE,
         },
