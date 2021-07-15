@@ -262,22 +262,23 @@ class DockerService {
               if (counter === 0) {
                 process.stdout.write(`${infoWord}\r`);
                 counter += 1;
-              } else if (counter >= 1 && counter < 10) {
-                // eslint-disable-next-line operator-assignment
-                showInfo = `${showInfo}.`;
-                // eslint-disable-next-line prefer-template
-                process.stdout.write(infoWord + showInfo + '\r');
-                //  process.stdout.write('\r');
-                counter += 1;
-              } else {
-                counter = 0;
-                // eslint-disable-next-line prettier/prettier
-                process.stdout.write(
-                  // eslint-disable-next-line prefer-template
-                  infoWord + '               \r'
-                );
-                showInfo = '';
-              }
+              } 
+              // else if (counter >= 1 && counter < 10) {
+            //     // eslint-disable-next-line operator-assignment
+            //     showInfo = `${showInfo}.`;
+            //     // eslint-disable-next-line prefer-template
+            //     process.stdout.write(infoWord + showInfo + '\r');
+            //     //  process.stdout.write('\r');
+            //     counter += 1;
+            //   } else {
+            //     counter = 0;
+            //     // eslint-disable-next-line prettier/prettier
+            //     process.stdout.write(
+            //       // eslint-disable-next-line prefer-template
+            //       infoWord + '               \r'
+            //     );
+            //     showInfo = '';
+            //   }
             });
             stream.on('end', () => {
               tempFastify.log.info('pulling image succeed : ', img);

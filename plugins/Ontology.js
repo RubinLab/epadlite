@@ -89,7 +89,7 @@ async function Ontology(fastify, options, done) {
         let whereString = {};
         const itemArray = [];
         try {
-          fastify.log.info('get all', requestObject);
+          // fastify.log.info('get all', requestObject);
           let {
             codevalue: CODE_VALUE,
             codemeaning: CODE_MEANING,
