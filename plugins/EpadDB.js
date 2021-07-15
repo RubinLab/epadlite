@@ -2137,6 +2137,15 @@ async function epaddb(fastify, options, done) {
           'success',
           true
         ).notify(fastify);
+      }else{
+        await fastify.updateStatusQueueProcessInternal(queuid, 'ended');
+        new EpadNotification(
+          request,
+          `container: ${containerName} has ended processing`,
+          'success',
+          true
+        ).notify(fastify);
+
       }
     }
     // reply.code(200).send('plugin stopped');
@@ -2452,6 +2461,13 @@ async function epaddb(fastify, options, done) {
                     //   });
                     const eacAimhObj = aims[aimsKeys[aimsCnt]];
                     fastify.log.info('getting dicoms for aim ', eacAimhObj);
+                    console.log('downloading multi aims for an instance download section');
+                    console.log('downloading multi aims for an instance download section');
+                    console.log('downloading multi aims for an instance download section');
+                    console.log('downloading multi aims for an instance download section');
+                    console.log('downloading multi aims for an subjectuid:',eacAimhObj.subjectID);
+                    console.log('downloading multi aims for an studyuid:',eacAimhObj.studyUID);
+                    console.log('downloading multi aims for an seriesuid:',eacAimhObj.seriesUID);
                     // eslint-disable-next-line no-await-in-loop
                     const returnSerieFolder = await fastify.prepSeriesDownload(
                       request.headers.origin,
@@ -2475,7 +2491,18 @@ async function epaddb(fastify, options, done) {
                       console.log('copyin aims to :',inputfolder);
                       console.log('copyin aims to :',inputfolder);
                       console.log('copyin aims to :',inputfolder);
-                      fs.moveSync(`${returnSerieFolderFullPath}`, `${inputfolder}`, { overwrite: true });
+                      const foldersListSource= fs.readdirSync(returnSerieFolderFullPath);
+                      const foldersListDestination= fs.readdirSync(inputfolder);
+                      console.log('xxxx : xxxx : ------>',aimsCnt);
+                      console.log('xxxx : xxxx : ------> sorce parent :',returnSerieFolderFullPath);
+                      console.log('xxxx : xxxx : ------> destination parent',inputfolder);
+                      console.log('folder list source: recevied in tmp:',foldersListSource);
+                      console.log('folder list destination: in the container :',foldersListDestination);
+                      // fs.moveSync(`${returnSerieFolderFullPath}`, `${inputfolder}`, { overwrite: true });
+                      for (let foldecount=0 ;foldecount < foldersListSource.length; foldecount +=1){
+                        fs.copySync(`${returnSerieFolderFullPath}/${foldersListSource[foldecount]}`,`${inputfolder}/${foldersListSource[foldecount]}`);
+                      }
+                      
                       fastify.log.info(`copying folder ${returnSerieFolderFullPath} succeed`);
                     } catch (err) {
                       fastify.log.error(`file copy from ${returnSerieFolderFullPath} encountered error: -> ${err}`);
