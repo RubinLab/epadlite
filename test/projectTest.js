@@ -1581,6 +1581,97 @@ describe('Project Tests', () => {
         });
     });
 
+    it('should set significant series for study 0023.2015.09.28.3 to project teststudy ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantSeries')
+        .query({ username: 'admin' })
+        .send([{ seriesUID: '0023.2015.09.28.3.3590', significanceOrder: 1 }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('project teststudy should have 2 series including DSO and one should be marked as significant by project only', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/series')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[1]).to.not.have.property('significanceOrder');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('project teststudy should have 2 series including DSO and one should be marked as significant by project and study', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/series')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          console.log('sig', res.body);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[1]).to.not.have.property('significanceOrder');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('should clear significant series for study 0023.2015.09.28.3 to project teststudy ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantSeries')
+        .query({ username: 'admin' })
+        .send([{ seriesUID: '0023.2015.09.28.3.3590', significanceOrder: 0 }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('project teststudy should have 2 series including DSO and none should be marked as significant by project only', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/series')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0]).to.not.have.property('significanceOrder');
+          expect(res.body[1]).to.not.have.property('significanceOrder');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
     it('project teststudy should have 1 nonDSO series and it should be 0023.2015.09.28.3.3590', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -4743,7 +4834,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should return one nondicom series 14356765342 DESC for study 4315541363646543 to project testsubjectnondicom patient 4 ', (done) => {
+    it('should return one nondicom series 14356765342 DESC for project testsubjectnondicom ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/series')
@@ -4757,7 +4848,22 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should return one nondicom series 14356765342 DESC for project testsubjectnondicom ', (done) => {
+    it('should set significant series for study 4315541363646543 to project testsubjectnondicom ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/significantSeries')
+        .query({ username: 'admin' })
+        .send([{ seriesUID: '14356765342', significanceOrder: 1 }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('should return one nondicom series 14356765342 DESC for project testsubjectnondicom and should be significant ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/series')
@@ -4765,6 +4871,7 @@ describe('Project Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].significanceOrder).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -4926,7 +5033,7 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.rows).to.be.a('array');
           expect(res.body.rows.length).to.be.eql(12);
-          expect(res.body.rows).to.be.eql(jsonBuffer);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch((e) => {
@@ -4986,7 +5093,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.be.eql(jsonBuffer);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch((e) => {

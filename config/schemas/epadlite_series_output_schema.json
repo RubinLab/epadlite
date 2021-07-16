@@ -66,6 +66,9 @@
       },
       "seriesNo": {
         "type": "integer"
+      },
+      "significanceOrder": {
+        "type": "integer"
       }
     },
     "required": [

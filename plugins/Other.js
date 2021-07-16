@@ -739,11 +739,12 @@ async function other(fastify) {
                     reject(err);
                   });
               } else if (
-                jsonBuffer.ImageAnnotationCollection &&
-                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
-                  .code &&
-                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
-                  .code !== 'SEG'
+                (query.forceSave && query.forceSave === 'true') ||
+                (jsonBuffer.ImageAnnotationCollection &&
+                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .typeCode[0].code &&
+                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .typeCode[0].code !== 'SEG')
               ) {
                 // aim saving via upload, ignore SEG Only annotations
                 fastify
