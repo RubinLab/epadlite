@@ -238,6 +238,21 @@ async function epaddb(fastify, options, done) {
             onDelete: 'CASCADE',
           });
 
+          models.project_subject_study_series_significance.belongsTo(models.project, {
+            foreignKey: 'project_id',
+            onDelete: 'CASCADE',
+          });
+
+          models.project_subject_study_series_significance.belongsTo(models.subject, {
+            foreignKey: 'subject_id',
+            onDelete: 'CASCADE',
+          });
+
+          models.project_subject_study_series_significance.belongsTo(models.study, {
+            foreignKey: 'study_id',
+            onDelete: 'CASCADE',
+          });
+
           await fastify.orm.sync();
           if (config.env === 'test') {
             try {
@@ -8029,6 +8044,14 @@ async function epaddb(fastify, options, done) {
             where: { '$study.studyuid$': params.study },
             include: [{ model: models.study, include: ['subject'] }],
           });
+          const seriesSignificanceMap = await fastify
+            .getSignificantSeriesInternal(params.project, params.subject, params.study)
+            .catch((err) => {
+              fastify.log.warn(
+                `Could not get significant series for nondicom ${params.study}. Error: ${err.message}`
+              );
+              return [];
+            });
           for (let i = 0; i < series.length; i += 1) {
             result.push({
               projectID: params.project,
@@ -8052,6 +8075,9 @@ async function epaddb(fastify, options, done) {
               isDSO: false,
               isNonDicomSeries: true,
               seriesNo: '',
+              significanceOrder: seriesSignificanceMap[series[i].dataValues.seriesuid]
+                ? seriesSignificanceMap[series[i].dataValues.seriesuid]
+                : undefined,
             });
           }
           resolve(result);
@@ -10185,7 +10211,7 @@ async function epaddb(fastify, options, done) {
               // TODO see if we can use getSeriesDicomOrNotInternal instead. leaving like this as we get nondicoms below
               // eslint-disable-next-line no-await-in-loop
               const studySeries = await fastify.getStudySeriesInternal(
-                { study: studyUids[j] },
+                { project: request.params.project, study: studyUids[j] },
                 request.query,
                 request.epadAuth,
                 true
@@ -12096,6 +12122,210 @@ async function epaddb(fastify, options, done) {
           resolve();
         } catch (err) {
           reject(new InternalError('afterDBReady', err));
+        }
+      })
+  );
+
+  fastify.decorate(
+    'setSignificanceInternal',
+    (project, subject, study, series, significanceOrder, username) =>
+      new Promise((resolve, reject) => {
+        if (significanceOrder === 0) {
+          // delete the tuple
+          models.project_subject_study_series_significance
+            .destroy({
+              where: {
+                study_id: study,
+                subject_id: subject,
+                project_id: project,
+                series_uid: series,
+              },
+            })
+            .then(() => resolve('Significance deleted successfully'))
+            .catch((err) => reject(new InternalError('Deleting significance', err)));
+        } else {
+          fastify
+            .upsert(
+              models.project_subject_study_series_significance,
+              {
+                study_id: study,
+                subject_id: subject,
+                project_id: project,
+                series_uid: series,
+                significance_order: significanceOrder,
+                updatetime: Date.now(),
+              },
+              {
+                study_id: study,
+                subject_id: subject,
+                project_id: project,
+                series_uid: series,
+              },
+              username
+            )
+            .then(() => resolve('Significance updated successfully'))
+            .catch((err) => reject(new InternalError('Updating significance', err)));
+        }
+      })
+  );
+
+  fastify.decorate('setSignificantSeries', (request, reply) => {
+    // set significance of series
+    // body should be an array of objects which has seriesUID and significanceOrder atributes
+    // ex. [{seriesUID: '1.2.3.45643634567.5656.787', significanceOrder:1}, {seriesUID: '1.2.3.45643634567.3555.787', significanceOrder:2}]
+    if (!Array.isArray(request.body))
+      reply.send(
+        new BadRequestError(
+          'Assigning significance to the series',
+          new Error('Request body should be an array')
+        )
+      );
+    else {
+      const validData = request.body.filter(
+        (series) => series.seriesUID && series.significanceOrder !== undefined
+      );
+      if (validData.length !== request.body.length) {
+        reply.send(
+          new BadRequestError(
+            'Assigning significance to the series',
+            new Error('Each item should have seriesUID and significanceOrder')
+          )
+        );
+        return;
+      }
+    }
+
+    const promises = [];
+    promises.push(
+      models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.subject.findOne({
+        where: { subjectuid: request.params.subject },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.study.findOne({
+        where: { studyuid: request.params.study },
+        attributes: ['id'],
+      })
+    );
+
+    Promise.all(promises).then((result) => {
+      const ids = [];
+      let missingData = false;
+      // result[i] can be null when subject is not created before, just tests
+      for (let i = 0; i < result.length; i += 1)
+        // eslint-disable-next-line no-unused-expressions
+        result[i] ? ids.push(result[i].dataValues.id) : (missingData = true);
+      if (missingData || ids.length !== result.length) {
+        reply.send(
+          new InternalError('Assigning significance to the series', new Error('Missing data'))
+        );
+      } else if (request.body !== undefined) {
+        // set significance of series
+        // body should be an array of objects which has seriesUID and significanceOrder atributes
+        // ex. [{seriesUID: '1.2.3.45643634567.5656.787', significanceOrder:1}, {seriesUID: '1.2.3.45643634567.3555.787', significanceOrder:2}]
+        if (!Array.isArray(request.body))
+          reply.send(
+            new BadRequestError(
+              'Assigning significance to the series',
+              new Error('Request body should be an array')
+            )
+          );
+        const seriesPromises = [];
+        const errors = [];
+        request.body.forEach((series) => {
+          seriesPromises.push(
+            fastify
+              .setSignificanceInternal(
+                ids[0],
+                ids[1],
+                ids[2],
+                series.seriesUID,
+                series.significanceOrder,
+                request.epadAuth.username
+              )
+              .catch((err) => {
+                fastify.log.warn(
+                  `Could not set series significance for series ${series.seriesUID}. Error: ${err.message}`
+                );
+                errors.push(series.seriesUID);
+              })
+          );
+        });
+
+        Promise.all(seriesPromises).then(() => {
+          if (errors.length === 0) {
+            reply.code(200).send('Significance orders set successfully');
+          } else
+            reply.code(200).send(`Significance orders couldn't be updated for ${' '.join(errors)}`);
+        });
+      }
+    });
+  });
+
+  fastify.decorate(
+    'getSignificantSeriesInternal',
+    (project, subject, study) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // ignore project id if we have it missing so that polling calls and such works
+          const projectID = project
+            ? (
+                await models.project.findOne({
+                  where: { projectid: project },
+                  attributes: ['id'],
+                })
+              ).dataValues.id
+            : undefined;
+
+          // we do not really need subject id, study uid is supposed to be unique
+          // ignore if we have it missing so that projects/:p/series calls and such works
+          const subjectID = subject
+            ? (
+                await models.subject.findOne({
+                  where: { subjectuid: subject },
+                  attributes: ['id'],
+                })
+              ).dataValues.id
+            : undefined;
+
+          const studyID = study
+            ? (
+                await models.study.findOne({
+                  where: { studyuid: study },
+                  attributes: ['id'],
+                })
+              ).dataValues.id
+            : undefined;
+
+          const qry = { study_id: studyID };
+          if (subjectID) qry.subject_id = subjectID;
+          if (projectID) qry.project_id = projectID;
+          const significantSeries = await models.project_subject_study_series_significance.findAll({
+            where: qry,
+            raw: true,
+            attributes: [
+              'project_id',
+              'subject_id',
+              'study_id',
+              'series_uid',
+              'significance_order',
+            ],
+          });
+          const significantSeriesMap = {};
+          for (let i = 0; i < significantSeries.length; i += 1) {
+            significantSeriesMap[significantSeries[i].series_uid] =
+              significantSeries[i].significance_order;
+          }
+          resolve(significantSeriesMap);
+        } catch (err) {
+          reject(new InternalError('Getting significant series', err));
         }
       })
   );
