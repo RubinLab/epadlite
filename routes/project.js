@@ -673,5 +673,28 @@ async function routes(fastify) {
     },
     handler: fastify.scanFolder,
   });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/projects/:project/subjects/:subject/studies/:study/significantSeries',
+    schema: {
+      tags: ['project'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.setSignificantSeries,
+  });
 }
 module.exports = routes;

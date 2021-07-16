@@ -675,6 +675,16 @@ async function dicomwebserver(fastify) {
         try {
           const promisses = [];
           promisses.push(this.request.get(`/studies/${params.study}/series`, header));
+          promisses.push(
+            fastify
+              .getSignificantSeriesInternal(params.project, params.subject, params.study)
+              .catch((err) => {
+                fastify.log.warn(
+                  `Could not get significant series for dicom ${params.study}. Error: ${err.message}`
+                );
+                return [];
+              })
+          );
           // get aims for a specific study
           if (!noStats)
             promisses.push(
@@ -692,7 +702,8 @@ async function dicomwebserver(fastify) {
             .then((values) => {
               // handle success
               // populate an aim counts map containing each series
-              const aimsCountMap = values[1] ? values[1] : [];
+              const aimsCountMap = values[2] ? values[2] : [];
+              const seriesSignificanceMap = values[1];
               // map each series to epadlite series object
               let filtered = values[0].data;
               if (query.filterDSO === 'true')
@@ -739,6 +750,9 @@ async function dicomwebserver(fastify) {
                 isNonDicomSeries: false, // TODO
                 seriesNo:
                   value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
+                significanceOrder: seriesSignificanceMap[value['0020000E'].Value[0]]
+                  ? seriesSignificanceMap[value['0020000E'].Value[0]]
+                  : undefined,
               }));
               resolve(result);
             })
