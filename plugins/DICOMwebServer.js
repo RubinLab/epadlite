@@ -4,6 +4,9 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
+// eslint-disable-next-line no-global-assign
+window = {};
+const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
@@ -29,7 +32,7 @@ async function dicomwebserver(fastify) {
       fastify.log.info('Connected to dicomweb server');
       return connect;
     } catch (err) {
-      if (config.env !== 'test') {
+      if (config.env !== 'test' || config.limitStudies) {
         fastify.log.warn('Waiting for dicomweb server');
         setTimeout(fastify.initDicomWeb, 3000);
       } else throw err;
@@ -57,7 +60,7 @@ async function dicomwebserver(fastify) {
                 baseURL: config.dicomWebConfig.baseUrl,
               });
               this.request
-                .get('/studies?limit=1', header)
+                .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`, header)
                 .then(() => {
                   resolve();
                 })
@@ -78,7 +81,7 @@ async function dicomwebserver(fastify) {
               },
             };
             this.request
-              .get('/studies?limit=1', header)
+              .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`, header)
               .then(() => {
                 resolve();
               })
@@ -88,9 +91,15 @@ async function dicomwebserver(fastify) {
           } else {
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
+              headers: {
+                accept: 'application/json',
+              },
+            });
+            this.wadoRequest = Axios.create({
+              baseURL: config.dicomWebConfig.baseUrl,
             });
             this.request
-              .get('/studies?limit=1')
+              .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
               .then(() => {
                 resolve();
               })
@@ -141,10 +150,10 @@ async function dicomwebserver(fastify) {
       })
   );
 
-  fastify.decorate(
-    'getWadoPath',
-    (studyUid, seriesUid, instanceUid) =>
-      `/?requestType=WADO&studyUID=${studyUid}&seriesUID=${seriesUid}&objectUID=${instanceUid}`
+  fastify.decorate('getWadoPath', (studyUid, seriesUid, instanceUid) =>
+    config.wadoType && config.wadoType === 'RS'
+      ? `/studies/${studyUid}/series/${seriesUid}/instances/${instanceUid}`
+      : `/?requestType=WADO&studyUID=${studyUid}&seriesUID=${seriesUid}&objectUID=${instanceUid}`
   );
 
   // add accessor methods with decorate
@@ -165,15 +174,20 @@ async function dicomwebserver(fastify) {
             },
             // },
           };
-          this.request
-            .post('/studies', data, postHeader)
-            .then(() => {
-              fastify.log.info('Dicoms sent to dicomweb with success');
-              resolve();
-            })
-            .catch((error) => {
-              reject(new InternalError('Sending dicoms to dicomweb stow', error));
-            });
+          if (config.disableDICOMSend) {
+            fastify.log.err('DICOMSend disabled');
+            resolve();
+          } else {
+            this.request
+              .post(`${config.dicomWebConfig.qidoSubPath}/studies`, data, postHeader)
+              .then(() => {
+                fastify.log.info('Dicoms sent to dicomweb with success');
+                resolve();
+              })
+              .catch((error) => {
+                reject(new InternalError('Sending dicoms to dicomweb stow', error));
+              });
+          }
         } catch (err) {
           reject(new InternalError('Preparing header and sending dicoms to dicomweb stow', err));
         }
@@ -185,7 +199,7 @@ async function dicomwebserver(fastify) {
     (params) =>
       new Promise((resolve, reject) => {
         this.request
-          .delete(`/studies/${params.study}`)
+          .delete(`${config.dicomWebConfig.qidoSubPath}/studies/${params.study}`)
           .then(() => {
             fastify.log.info(`Study ${params.study} deletion request sent successfully`);
             resolve();
@@ -201,7 +215,9 @@ async function dicomwebserver(fastify) {
     (params) =>
       new Promise((resolve, reject) => {
         this.request
-          .delete(`/studies/${params.study}/series/${params.series}`)
+          .delete(
+            `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}`
+          )
           .then(() => {
             fastify.log.info(`Series ${params.series} deletion request sent successfully`);
             resolve();
@@ -235,7 +251,9 @@ async function dicomwebserver(fastify) {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const query = params.subject ? `?PatientID=${params.subject}` : limit;
           const promisses = [];
-          promisses.push(this.request.get(`/studies${query}`, header));
+          promisses.push(
+            this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
+          );
           if (!noStats)
             promisses.push(
               fastify.getProjectAimCountMap({ project: params.project }, epadAuth, 'subject_uid')
@@ -273,9 +291,10 @@ async function dicomwebserver(fastify) {
                   // cumulate the number of studies
                   const numberOfStudies = _.reduce(value, (memo) => memo + 1, 0);
                   return {
-                    subjectName: value[0]['00100010'].Value
-                      ? value[0]['00100010'].Value[0].Alphabetic
-                      : '',
+                    subjectName:
+                      value[0]['00100010'] && value[0]['00100010'].Value
+                        ? value[0]['00100010'].Value[0].Alphabetic
+                        : '',
                     subjectID: fastify.replaceNull(value[0]['00100020'].Value[0]),
                     projectID: params.project ? params.project : projectID,
                     insertUser: '', // no user in studies call
@@ -488,6 +507,24 @@ async function dicomwebserver(fastify) {
   );
 
   fastify.decorate(
+    'getPatientIDandStudyUIDsFromAccession',
+    (accessionNumber) =>
+      new Promise((resolve, reject) => {
+        const query = `AccessionNumber=${accessionNumber}`;
+        this.request
+          .get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
+          .then((res) => {
+            const patientStudyPairs = res.map((value) => ({
+              patientID: fastify.replaceNull(value['00100020'].Value[0]),
+              studyUID: value['0020000D'].Value[0],
+            }));
+            resolve(patientStudyPairs);
+          })
+          .catch((err) => reject(new InternalError('Retrieving studies with accession', err)));
+      })
+  );
+
+  fastify.decorate(
     'getPatientStudiesInternal',
     (
       params,
@@ -503,9 +540,13 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
-          const query = params.subject ? `?PatientID=${params.subject}` : limit;
+          let query = limit;
+          if (params.study) query = `?StudyInstanceUID=${params.study}`;
+          else if (params.subject) query = `?PatientID=${params.subject}`;
           const promisses = [];
-          promisses.push(this.request.get(`/studies${query}`, header));
+          promisses.push(
+            this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
+          );
           // get aims for a specific patient
           if (!noStats)
             promisses.push(
@@ -576,27 +617,42 @@ async function dicomwebserver(fastify) {
                       return {
                         projectID: params.project ? params.project : projectID,
                         patientID: fastify.replaceNull(value['00100020'].Value[0]),
-                        patientName: value['00100010'].Value
-                          ? value['00100010'].Value[0].Alphabetic
-                          : '',
+                        patientName:
+                          value['00100010'] && value['00100010'].Value
+                            ? value['00100010'].Value[0].Alphabetic
+                            : '',
                         studyUID: value['0020000D'].Value[0],
-                        insertDate: value['00080020'].Value ? value['00080020'].Value[0] : '', // study date
+                        insertDate:
+                          value['00080020'] && value['00080020'].Value
+                            ? value['00080020'].Value[0]
+                            : '', // study date
                         firstSeriesUID: '', // TODO
                         firstSeriesDateAcquired: '', // TODO
                         physicianName: '', // TODO
-                        referringPhysicianName: value['00080090'].Value
-                          ? value['00080090'].Value[0].Alphabetic
-                          : '',
-                        birthdate: value['00100030'].Value ? value['00100030'].Value[0] : '',
-                        sex: value['00100040'].Value ? value['00100040'].Value[0] : '',
+                        referringPhysicianName:
+                          value['00080090'] && value['00080090'].Value
+                            ? value['00080090'].Value[0].Alphabetic
+                            : '',
+                        birthdate:
+                          value['00100030'] && value['00100030'].Value
+                            ? value['00100030'].Value[0]
+                            : '',
+                        sex:
+                          value['00100040'] && value['00100040'].Value
+                            ? value['00100040'].Value[0]
+                            : '',
                         studyDescription:
                           value['00081030'] && value['00081030'].Value
                             ? value['00081030'].Value[0]
                             : '',
-                        studyAccessionNumber: value['00080050'].Value
-                          ? value['00080050'].Value[0]
-                          : '',
-                        examTypes: value['00080061'].Value ? value['00080061'].Value : [],
+                        studyAccessionNumber:
+                          value['00080050'] && value['00080050'].Value
+                            ? value['00080050'].Value[0]
+                            : '',
+                        examTypes:
+                          value['00080061'] && value['00080061'].Value
+                            ? value['00080061'].Value
+                            : [],
                         numberOfImages,
                         numberOfSeries,
                         numberOfAnnotations: aimsCountMap[value['0020000D'].Value[0]]
@@ -607,9 +663,18 @@ async function dicomwebserver(fastify) {
                             ? createdTimes[value['0020000D'].Value[0]]
                             : '',
                         // extra for flexview
-                        studyID: value['00200010'].Value ? value['00200010'].Value[0] : '',
-                        studyDate: value['00080020'].Value ? value['00080020'].Value[0] : '',
-                        studyTime: value['00080030'].Value ? value['00080030'].Value[0] : '',
+                        studyID:
+                          value['00200010'] && value['00200010'].Value
+                            ? value['00200010'].Value[0]
+                            : '',
+                        studyDate:
+                          value['00080020'] && value['00080020'].Value
+                            ? value['00080020'].Value[0]
+                            : '',
+                        studyTime:
+                          value['00080030'] && value['00080030'].Value
+                            ? value['00080030'].Value[0]
+                            : '',
                       };
                     })
                     .sortBy('studyDate')
@@ -640,7 +705,10 @@ async function dicomwebserver(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
-          const studies = await this.request.get(`/studies${limit}`, header);
+          const studies = await this.request.get(
+            `${config.dicomWebConfig.qidoSubPath}/studies${limit}`,
+            header
+          );
           const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);
           let result = [];
           for (let j = 0; j < studyUids.length; j += 1) {
@@ -674,7 +742,12 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          promisses.push(this.request.get(`/studies/${params.study}/series`, header));
+          promisses.push(
+            this.request.get(
+              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series`,
+              header
+            )
+          );
           promisses.push(
             fastify
               .getSignificantSeriesInternal(params.project, params.subject, params.study)
@@ -719,18 +792,22 @@ async function dicomwebserver(fastify) {
                 patientID:
                   value['00100020'] && value['00100020'].Value
                     ? fastify.replaceNull(value['00100020'].Value[0])
-                    : '',
+                    : params.subject,
                 // TODO
                 patientName:
                   value['00100010'] && value['00100010'].Value
                     ? value['00100010'].Value[0].Alphabetic
                     : '',
-                studyUID: value['0020000D'].Value[0],
+                studyUID:
+                  value['0020000D'] && value['0020000D'].Value
+                    ? value['0020000D'].Value[0]
+                    : params.study,
                 seriesUID: value['0020000E'].Value[0],
                 seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
                 seriesDescription:
                   value['0008103E'] && value['0008103E'].Value ? value['0008103E'].Value[0] : '',
-                examType: value['00080060'].Value ? value['00080060'].Value[0] : '',
+                examType:
+                  value['00080060'] && value['00080060'].Value ? value['00080060'].Value[0] : '',
                 bodyPart: '', // TODO
                 accessionNumber:
                   value['00080050'] && value['00080050'].Value ? value['00080050'].Value[0] : '',
@@ -746,7 +823,11 @@ async function dicomwebserver(fastify) {
                 department: '', // TODO
                 createdTime: '', // TODO
                 firstImageUIDInSeries: '', // TODO
-                isDSO: (value['00080060'].Value && value['00080060'].Value[0] === 'SEG') || false,
+                isDSO:
+                  (value['00080060'] &&
+                    value['00080060'].Value &&
+                    value['00080060'].Value[0] === 'SEG') ||
+                  false,
                 isNonDicomSeries: false, // TODO
                 seriesNo:
                   value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
@@ -778,7 +859,10 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           this.request
-            .get(`/studies/${params.study}/series/${params.series}/instances`, header)
+            .get(
+              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances`,
+              header
+            )
             .then(async (response) => {
               // handle success
               // map each instance to epadlite image object
@@ -788,10 +872,17 @@ async function dicomwebserver(fastify) {
                   patientID:
                     value['00100020'] && value['00100020'].Value
                       ? fastify.replaceNull(value['00100020'].Value[0])
-                      : '',
-                  studyUID: value['0020000D'].Value ? value['0020000D'].Value[0] : '',
-                  seriesUID: value['0020000E'].Value ? value['0020000E'].Value[0] : '',
-                  imageUID: value['00080018'].Value ? value['00080018'].Value[0] : '',
+                      : params.subject,
+                  studyUID:
+                    value['0020000D'] && value['0020000D'].Value
+                      ? value['0020000D'].Value[0]
+                      : params.study,
+                  seriesUID:
+                    value['0020000E'] && value['0020000E'].Value
+                      ? value['0020000E'].Value[0]
+                      : params.series,
+                  imageUID:
+                    value['00080018'] && value['00080018'].Value ? value['00080018'].Value[0] : '',
                   classUID:
                     value['00080016'] && value['00080016'].Value ? value['00080016'].Value[0] : '',
                   insertDate: '', // no date in studies call
@@ -801,7 +892,7 @@ async function dicomwebserver(fastify) {
                     value['00200013'] && value['00200013'].Value ? value['00200013'].Value[0] : '1'
                   ),
                   losslessImage: '', // TODO
-                  // lossyImage: `/studies/${params.study}/series/${params.series}/instances/${
+                  // lossyImage: `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances/${
                   //   value['00080018'].Value[0]
                   // }`,
                   // send wado-uri instead of wado-rs
@@ -856,9 +947,25 @@ async function dicomwebserver(fastify) {
       .catch((err) => reply.send(new InternalError('WADO', err)));
   });
 
+  fastify.decorate('getWadoRS', async (request, reply) => {
+    try {
+      const result = await this.wadoRequest.get(
+        `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}`,
+        { responseType: 'stream' } // removed headers: request.headers, it was getting 401 from pacs
+      );
+
+      const res = await fastify.getMultipartBuffer(result.data);
+      const parts = dcmjs.utilities.message.multipartDecode(res);
+      reply.headers(result.headers);
+      reply.send(Buffer.from(parts[0]));
+    } catch (err) {
+      reply.send(new InternalError('WADO', err));
+    }
+  });
+
   fastify.decorate('getWadoInternal', (params) =>
-    this.request.get(
-      `/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${params.image}`,
+    this.wadoRequest.get(
+      `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${params.image}`,
       { ...header, responseType: 'stream' }
     )
   );

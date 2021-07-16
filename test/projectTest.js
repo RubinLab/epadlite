@@ -25,16 +25,30 @@ after(() => {
 beforeEach(() => {
   const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
   const segBuffer = fs.readFileSync('test/data/testseg.dcm');
-  nock(config.dicomWebConfig.baseUrl).get('/studies?limit=100').reply(200, studiesResponse);
-  nock(config.dicomWebConfig.baseUrl).get('/studies?PatientID=3').reply(200, studiesResponse);
-  nock(config.dicomWebConfig.baseUrl).get('/studies?PatientID=7').reply(200, [{}]);
-  nock(config.dicomWebConfig.baseUrl).get('/studies?PatientID=4').reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
-    .get('/studies/0023.2015.09.28.3/series')
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=0023.2015.09.28.3`)
+    .reply(200, studiesResponse);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=56547547373`)
+    .reply(200, [{}]);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=100`)
+    .reply(200, studiesResponse);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=3`)
+    .reply(200, studiesResponse);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=7`)
+    .reply(200, [{}]);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=4`)
+    .reply(200, [{}]);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies/0023.2015.09.28.3/series`)
     .reply(200, seriesResponse);
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      '/?requestType=WADO&studyUID=1.2.752.24.7.19011385.453825&seriesUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000&objectUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.1.1.1000.1'
+      `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=1.2.752.24.7.19011385.453825&seriesUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000&objectUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.1.1.1000.1`
     )
     .reply(200, segBuffer);
   nock(config.dicomWebConfig.baseUrl)
@@ -42,12 +56,14 @@ beforeEach(() => {
     .matchHeader('content-type', (val) =>
       val.includes('multipart/related; type=application/dicom;')
     )
-    .post('/studies')
+    .post(`${config.dicomWebConfig.qidoSubPath}/studies`)
     .reply(200);
-  nock(config.dicomWebConfig.baseUrl).delete('/studies/0023.2015.09.28.3').reply(200);
+  nock(config.dicomWebConfig.baseUrl)
+    .delete(`${config.dicomWebConfig.qidoSubPath}/studies/0023.2015.09.28.3`)
+    .reply(200);
   nock(config.dicomWebConfig.baseUrl)
     .delete(
-      '/studies/1.2.752.24.7.19011385.453825/series/1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000'
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.2.752.24.7.19011385.453825/series/1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000`
     )
     .reply(200);
 
