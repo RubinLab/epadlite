@@ -1623,7 +1623,6 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          console.log('sig', res.body);
           expect(res.body.length).to.be.eql(2);
           expect(res.body[0].patientID).to.be.eql('3');
           expect(res.body[0].patientName).to.be.eql('Phantom');
