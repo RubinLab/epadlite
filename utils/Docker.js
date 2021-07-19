@@ -45,14 +45,14 @@ class DockerService {
     const tempFastify = this.fastify;
     return new Promise((resolve, reject) => {
       try {
-        tempFastify.log.info('docker is working on stopping container', containerId);
+        tempFastify.log.info(`docker is working on stopping container : ${containerId}`);
         // eslint-disable-next-line prefer-arrow-callback
         this.docker.getContainer(containerId).stop(() => {
-          tempFastify.log.info('container stopped  : ', containerId);
+          tempFastify.log.info(`container stopped  : ${containerId}`);
           resolve('stopped');
         });
       } catch (err) {
-        tempFastify.log.error('error happened while stopping container  : ', containerId);
+        tempFastify.log.error(`error happened while stopping container  : ${containerId}`);
         reject(err);
       }
     }).catch((err) => err);
@@ -63,10 +63,10 @@ class DockerService {
     const tempFastify = this.fastify;
     return new Promise((resolve, reject) => {
       try {
-        this.fastify.log.info('docker is working on getting log for container', containerId);
+        this.fastify.log.info(`docker is working on getting log for container :${containerId}`);
         // eslint-disable-next-line prefer-arrow-callback
         tmpContainer = this.docker.getContainer(`epadplugin_${containerId}`);
-        tempFastify.log.info('docker service getting log for ', `epadplugin_${containerId}`);
+        tempFastify.log.info(`docker service getting log for epadplugin_${containerId}`);
         // eslint-disable-next-line prefer-arrow-callback
         tmpContainer.attach({ stream: true, stdout: true, stderr: true }, function (err, stream) {
           tempFastify.log.info('docker catched stream and resolving');
@@ -78,8 +78,7 @@ class DockerService {
         });
       } catch (err) {
         tempFastify.log.error(
-          'error happened while streaming the log  for the container with the id : ',
-          containerId
+          `error happened while streaming the log  for the container with the id : ${containerId}`
         );
         reject(err);
       }
@@ -134,17 +133,17 @@ class DockerService {
         })
         // eslint-disable-next-line prefer-arrow-callback
         .then(function (container) {
-          tempFastify.log.info('created container : ', container.id);
+          tempFastify.log.info(`created container : ${container.id}`);
           tmpContainer = container;
           // eslint-disable-next-line prefer-arrow-callback
           tmpContainer.inspect(function (err, data) {
             if (err) {
               //  this.fastify.log.info(err);
-              tempFastify.log.info('error happened while inspecting plugin container : ', err);
+              tempFastify.log.info(`error happened while inspecting plugin container : ${err}`);
               return err;
             }
             if (data) {
-              tempFastify.log.info('inspect result for plugin container: ', data);
+              tempFastify.log.info(`inspect result for plugin container: ${JSON.stringify(data)}`);
               return data;
             }
             // return 'container took too long to create';
@@ -157,8 +156,7 @@ class DockerService {
           const tempPluginDataRootPath = path.join(__dirname, `../pluginsDataFolder`);
           const filename = `${tempPluginDataRootPath}/${tempContainerInfo.creator}/${tempContainerInfo.id}/logs`;
           tempFastify.log.info(
-            'waiting for plugin to finish processing for container :',
-            containerNameToGive
+            `waiting for plugin to finish processing for container : ${containerNameToGive}`
           );
           // eslint-disable-next-line prefer-arrow-callback
           tmpContainer.attach({ stream: true, stdout: true, stderr: true }, function (err, stream) {
@@ -166,7 +164,7 @@ class DockerService {
             stream.pipe(strm);
           });
           const runRes = await tmpContainer.wait();
-          tempFastify.log.info('waiting result', runRes);
+          tempFastify.log.info(`waiting result : ${JSON.stringify(runRes)}`);
           return runRes.StatusCode;
         })
         // eslint-disable-next-line prefer-arrow-callback
@@ -183,7 +181,7 @@ class DockerService {
         })
         // eslint-disable-next-line prefer-arrow-callback
         .catch(function (err) {
-          tempFastify.log.error('error in catch docker utils creating container phase: ', err);
+          tempFastify.log.error(`error in catch docker utils creating container phase: ${err}`);
           return err;
         })
     );
@@ -228,7 +226,7 @@ class DockerService {
         return imageList;
       })
       .catch((error) => {
-        tempFastify.log.error('Something went wrong while getting docker image list');
+        tempFastify.log.error(`Something went wrong while getting docker image list , ${error}`);
         return new Error('Something went wrong while getting docker image list', error);
       });
   }
@@ -239,10 +237,10 @@ class DockerService {
     return this.docker
       .pull(img)
       .then(() => {
-        tempFastify.log.info('pulling image succeed : ', img);
+        tempFastify.log.info(`pulling image succeed : ${img}`);
       })
       .catch(() => {
-        tempFastify.log.error('error happened while pulling the image', img);
+        tempFastify.log.error(`error happened while pulling the image ${img}`);
       });
   }
 
@@ -262,25 +260,26 @@ class DockerService {
               if (counter === 0) {
                 process.stdout.write(`${infoWord}\r`);
                 counter += 1;
-              } else if (counter >= 1 && counter < 10) {
-                // eslint-disable-next-line operator-assignment
-                showInfo = `${showInfo}.`;
-                // eslint-disable-next-line prefer-template
-                process.stdout.write(infoWord + showInfo + '\r');
-                //  process.stdout.write('\r');
-                counter += 1;
-              } else {
-                counter = 0;
-                // eslint-disable-next-line prettier/prettier
-                process.stdout.write(
-                  // eslint-disable-next-line prefer-template
-                  infoWord + '               \r'
-                );
-                showInfo = '';
-              }
+              } 
+              // else if (counter >= 1 && counter < 10) {
+            //     // eslint-disable-next-line operator-assignment
+            //     showInfo = `${showInfo}.`;
+            //     // eslint-disable-next-line prefer-template
+            //     process.stdout.write(infoWord + showInfo + '\r');
+            //     //  process.stdout.write('\r');
+            //     counter += 1;
+            //   } else {
+            //     counter = 0;
+            //     // eslint-disable-next-line prettier/prettier
+            //     process.stdout.write(
+            //       // eslint-disable-next-line prefer-template
+            //       infoWord + '               \r'
+            //     );
+            //     showInfo = '';
+            //   }
             });
             stream.on('end', () => {
-              tempFastify.log.info('pulling image succeed : ', img);
+              tempFastify.log.info(`pulling image succeed : ${img}`);
               resolve('finished pulling');
             });
           }
@@ -310,11 +309,11 @@ class DockerService {
       // eslint-disable-next-line prefer-arrow-callback
       return container.inspect(function (err, data) {
         if (err) {
-          tempFastify.log.error('error happened while checking container presence : ', err);
+          tempFastify.log.error(`error happened while checking container presence : ${err}`);
           reject(new Error(404));
         }
         if (data) {
-          tempFastify.log.info('checking container presence succeed: ', containerName);
+          tempFastify.log.info(`checking container presence succeed: ${containerName}`);
           resolve(data);
         }
       });
@@ -327,10 +326,10 @@ class DockerService {
       try {
         const container = this.docker.getContainer(containerName);
         container.remove();
-        tempFastify.log.info('deleting container succeed : ', containerName);
+        tempFastify.log.info(`deleting container succeed : ${containerName}`);
         resolve('success');
       } catch (err) {
-        tempFastify.log.error('error happened while deleting container  : ', containerName);
+        tempFastify.log.error(`error happened while deleting container  : ${containerName}`);
         reject(err);
       }
     }).catch((err) => err);
