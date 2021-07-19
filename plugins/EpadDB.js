@@ -3195,7 +3195,7 @@ async function epaddb(fastify, options, done) {
           };
           
           if (csvColumnActual === 1){
-            console.log("Object.keys(tmpcodeValues).length",Object.keys(tmpcodeValues).length);
+            //  console.log("Object.keys(tmpcodeValues).length",Object.keys(tmpcodeValues).length);
                 try {
                   // this part needs to call remote ontology server
                   if (willCallRemoteOntology === true) {
@@ -3238,7 +3238,7 @@ async function epaddb(fastify, options, done) {
                       csvFileParam[i][`_${csvColumnActual}`],
                       pluginparams
                     );
-                    fastify.log.info(`feature value exist in db already actual values from db here -> cm : ${err.lexiconObj.codemeaning} cv : ${err.lexiconObj.codevalue}`);
+                    fastify.log.info(`feature value exist in db already actual values from db used -> codemeaning : ${err.lexiconObj.codemeaning} codevalue : ${err.lexiconObj.codevalue}`);
                     partCalcEntityArray.push(resultCalcEntitObj);
                     // lexicon object exist already so get codemeaning to form partial aim calculations
                   }
@@ -3292,12 +3292,36 @@ async function epaddb(fastify, options, done) {
               break;
             }
           }
+          let CaclEntityfound ="null";
+          let newMergedCalcEntity = {};
+          let partaimIndice =-1;
+          const partEntities = [];
           jsonString = fs.readFileSync(`${aimFileLocation}/${userAimParam}`, 'utf8');
             parsedAimFile = JSON.parse(jsonString);
             if (parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].hasOwnProperty('calculationEntityCollection')){
-                const newMergedCalcEntity = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
-                  partialAimParam
-                );
+              for (let partAimCAlcEntityCnt = 0 ; partAimCAlcEntityCnt < partialAimParam.length; partAimCAlcEntityCnt +=1){
+                for (let calcentcnt = 0 ; calcentcnt < parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.length; calcentcnt +=1){
+                
+                  console.log("user aim : ",JSON.stringify(parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity[calcentcnt].typeCode[0].code));
+                  console.log("calculated partaim : ",JSON.stringify(partialAimParam[partAimCAlcEntityCnt].typeCode[0].code));
+                  if (parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity[calcentcnt].typeCode[0].code === partialAimParam[partAimCAlcEntityCnt].typeCode[0].code){
+                    CaclEntityfound = "found";
+                    console.log("did we find ?",CaclEntityfound);
+                    break;
+                  }
+                }
+                if (CaclEntityfound === "null" ){
+                  console.log("we didnt find the calc entity",CaclEntityfound);
+                  partEntities.push(partialAimParam[partAimCAlcEntityCnt]);
+                  console.log('we didnt find the entity indice :',partAimCAlcEntityCnt);
+                   console.log('we didnt find the entity  :',partialAimParam[partAimCAlcEntityCnt]);
+                  partaimIndice = -1;
+                  CaclEntityfound = "null";
+                }
+              }
+              console.log("this cacl in the part array : ",partEntities);
+              newMergedCalcEntity = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
+                partEntities);
                 parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity = newMergedCalcEntity;
             }else{
               parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]['calculationEntityCollection'] = {CalculationEntity : partialAimParam};
