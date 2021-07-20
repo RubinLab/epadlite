@@ -2967,12 +2967,10 @@ async function epaddb(fastify, options, done) {
   // we mey need to transpose csv columns and rows depending on the params given for the plugin
   fastify.decorate('pluginTransposeCsv', async (csvPath,csvFile)=>{
     return new Promise((resolve,reject)=>{
+      console.log('transposing output csv file ');
       console.log('pluginTransposeCsv csvPath',csvPath);
       console.log('pluginTransposeCsv csvFile',csvFile);
-      console.log('pluginTransposeCsv');
-      console.log('pluginTransposeCsv');
-      console.log('pluginTransposeCsv');
-      console.log('pluginTransposeCsv');
+
         const csvLines = [];
         const tmpTransposedFileName = 'tempTransposedcsv.csv';
         let rowNumForSegid = -1;
@@ -3044,11 +3042,7 @@ async function epaddb(fastify, options, done) {
     const result = [];
     return new Promise(async (resolve, reject) => {
       const transposedCsv = await fastify.pluginTransposeCsv(csvFileParam.path,csvFileParam.file);
-      console.log('parseCsvForPluginCalculationsInternal processing');
-      console.log('parseCsvForPluginCalculationsInternal processing');
-      console.log('parseCsvForPluginCalculationsInternal processing');
-      console.log('parseCsvForPluginCalculationsInternal processing');
-      console.log('parseCsvForPluginCalculationsInternal processing');
+
       console.log(`parseCsvForPluginCalculationsInternal processing ${csvFileParam.path}/${csvFileParam.file}`);
 
       fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
@@ -3059,7 +3053,7 @@ async function epaddb(fastify, options, done) {
         })
         .on('end', () => {
           //resolve({lines :csvLines, rownum :rowNumForSegid});
-
+          console.log(`parseCsvForPluginCalculationsInternal processing ${csvFileParam.path}/${csvFileParam.file} ended`);
           resolve({resultobj : result, rownumobj : transposedCsv.rownum ,alldsoIds : transposedCsv.dsoids} );
         })
         .on('error', (err) => {
@@ -3078,12 +3072,8 @@ async function epaddb(fastify, options, done) {
       new Promise((resolve, reject) => {
         try {
           // section for pyradiomics prefix addition for calc aim
-          //console.log('createCalcEntityforPluginCalcInternal processing');
-          //console.log('createCalcEntityforPluginCalcInternal processing');
-          //console.log('createCalcEntityforPluginCalcInternal processing');
-          //console.log('createCalcEntityforPluginCalcInternal processing');
-          //console.log('createCalcEntityforPluginCalcInternal processing');
-          //console.log('createCalcEntityforPluginCalcInternal processing');
+          console.log('createing calculation entity from each feature values');
+         
 
           let prefixVal = "";
           for (let paramcount = 0 ; paramcount<pluginparams.params.length; paramcount +=1){
@@ -3177,6 +3167,7 @@ async function epaddb(fastify, options, done) {
           }
           // for pyradiomics ends
           //console.log('createCalcEntityforPluginCalcInternal processing , partCalcEntity:',JSON.stringify(partCalcEntity));
+          console.log('createing calculation entity from each feature values ended for codevalue: ',lexiconObjParam.codevalue);
           resolve(partCalcEntity);
         } catch (err) {
           reject(new InternalError('error happened while creating plugin calculation entity', err));
@@ -3187,6 +3178,7 @@ async function epaddb(fastify, options, done) {
     const partCalcEntityArray = [];
     let willCallRemoteOntology = false;
     const tmpcodeValues = codeValues;
+    const mapCodeValuesToCalcEntity = new Map();
 
     return new Promise(async (resolve, reject) => {
       try {
@@ -3231,6 +3223,7 @@ async function epaddb(fastify, options, done) {
                   }
                   //console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal : will call in createCalcEntityforPluginCalcInternal no 409',newLexiconObj);
                   tmpcodeValues[lexiconObj.codemeaning] = newLexiconObj.codevalue;
+                 
 
                   // eslint-disable-next-line no-await-in-loop
                   const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
@@ -3238,6 +3231,7 @@ async function epaddb(fastify, options, done) {
                     csvFileParam[i][`_${csvColumnActual}`],
                     pluginparams
                   );
+                  mapCodeValuesToCalcEntity.set(newLexiconObj.codevalue,resultCalcEntitObj);
                   partCalcEntityArray.push(resultCalcEntitObj);
                 } catch (err) {
                   if (err instanceof InternalError) {
@@ -3247,12 +3241,14 @@ async function epaddb(fastify, options, done) {
                     err.lexiconObj.referenceuid = lexiconObj.referenceuid;
                     err.lexiconObj.referencename = lexiconObj.referencename;
                     tmpcodeValues[ err.lexiconObj.codemeaning] =  err.lexiconObj.codevalue;
+                   
                     // eslint-disable-next-line no-await-in-loop
                     const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
                       err.lexiconObj,
                       csvFileParam[i][`_${csvColumnActual}`],
                       pluginparams
                     );
+                    mapCodeValuesToCalcEntity.set( err.lexiconObj.codevalue,resultCalcEntitObj);
                     fastify.log.info(`feature value exist in db already actual values from db used -> codemeaning : ${err.lexiconObj.codemeaning} codevalue : ${err.lexiconObj.codevalue}`);
                     partCalcEntityArray.push(resultCalcEntitObj);
                     // lexicon object exist already so get codemeaning to form partial aim calculations
@@ -3275,8 +3271,8 @@ async function epaddb(fastify, options, done) {
 
 
         }
-        
-        resolve(partCalcEntityArray);
+        console.log('xxxxxxxxxxxxxxx -> createPartialAimForPluginCalcInternal ended');
+        resolve({calcEntityOb : partCalcEntityArray, mapCvtoCm : mapCodeValuesToCalcEntity});
       } catch (err) {
         reject(
           new InternalError(
@@ -3296,7 +3292,7 @@ async function epaddb(fastify, options, done) {
       let jsonString = {};
       return new Promise((resolve, reject) => {
         try {
-          //  console.log('mergin calculation with the user aim : partialaimparam',JSON.stringify(partialAimParam));
+            console.log('mergin calculation part aim with the user aim : partialaimparam');
           //  console.log('mergin calculation with the user aim : userAimParam',userAimParam);
           //  console.log('mergin calculation with the user aim : aimFileLocation',aimFileLocation);
           fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
@@ -3310,39 +3306,29 @@ async function epaddb(fastify, options, done) {
           let CaclEntityfound ="null";
           let newMergedCalcEntity = {};
           let partaimIndice =-1;
-          const partEntities = [];
+          let partEntities = [];
           jsonString = fs.readFileSync(`${aimFileLocation}/${userAimParam}`, 'utf8');
             parsedAimFile = JSON.parse(jsonString);
             if (parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].hasOwnProperty('calculationEntityCollection')){
-              for (let partAimCAlcEntityCnt = 0 ; partAimCAlcEntityCnt < partialAimParam.length; partAimCAlcEntityCnt +=1){
+
                 for (let calcentcnt = 0 ; calcentcnt < parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.length; calcentcnt +=1){
-                
-                  console.log("user aim : ",JSON.stringify(parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity[calcentcnt].typeCode[0].code));
-                  console.log("calculated partaim : ",JSON.stringify(partialAimParam[partAimCAlcEntityCnt].typeCode[0].code));
-                  if (parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity[calcentcnt].typeCode[0].code === partialAimParam[partAimCAlcEntityCnt].typeCode[0].code){
-                    CaclEntityfound = "found";
-                    console.log("did we find ?",CaclEntityfound);
-                    break;
+
+                  let eacCodeValue = (parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity[calcentcnt].typeCode[0].code);
+                  if (partialAimParam.mapCvtoCm.has(eacCodeValue)){
+                    partialAimParam.mapCvtoCm.delete(eacCodeValue);
                   }
+
                 }
-                if (CaclEntityfound === "null" ){
-                  console.log("we didnt find the calc entity",CaclEntityfound);
-                  partEntities.push(partialAimParam[partAimCAlcEntityCnt]);
-                  console.log('we didnt find the entity indice :',partAimCAlcEntityCnt);
-                   console.log('we didnt find the entity  :',partialAimParam[partAimCAlcEntityCnt]);
-                  partaimIndice = -1;
-                  CaclEntityfound = "null";
-                }
-              }
+                partEntities = Array.from(partialAimParam.mapCvtoCm.values());
               console.log("this cacl in the part array : ",partEntities);
               newMergedCalcEntity = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
                 partEntities);
                 parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity = newMergedCalcEntity;
             }else{
-              parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]['calculationEntityCollection'] = {CalculationEntity : partialAimParam};
+              parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]['calculationEntityCollection'] = {CalculationEntity : partialAimParam.calcEntityOb};
             }
             fs.writeFileSync(`${aimFileLocation}/${userAimParam}`,JSON.stringify(parsedAimFile),"utf8");
-
+            console.log('mergin calculation part aim with the user aim : partialaimparam ended file to write : ',fileArray[foundAimInIndice]);
           resolve(fileArray[foundAimInIndice]);
         } catch (err) {
           reject(
@@ -3355,6 +3341,7 @@ async function epaddb(fastify, options, done) {
       });
     }
   );
+  
   fastify.decorate(
     'uploadMergedAimPluginCalcInternal',
     async (aimFileLocation, projectidParam) =>
@@ -3403,14 +3390,14 @@ async function epaddb(fastify, options, done) {
         // array no 4 : dso file location
         // array no 7 : dso image file location
         try {
-          fastify.log.info(`$$$$ pyradiomics is converting json to csv line`);
+          fastify.log.info(`creating input csv dsolists.csv for pyradiomics this calls create a line from given param`);
           fs.appendFileSync(fileFullPath, `${jsonToConvert.dsouid},1,2,3,${jsonToConvert.series}/Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,${jsonToConvert.series}/Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,11,SEG,1,14,15,16,17,18,19,description,21,\n`);
             
           resolve('ok');
         } catch (err) {
           reject(
             new InternalError(
-              '$$$$ error happened while pyradiomics converting json to csv line',
+              'error happened while pyradiomics converting json to csv line',
               err
             )
           );
@@ -3514,30 +3501,21 @@ async function epaddb(fastify, options, done) {
         const arrayForDsoListCsv = [];
         const dsoListName = 'dsoList.csv';
         try {
-
-         
           resultObjFiles = await fastify.pluginGetAimFilesInternal(`${pluginparams.relativeServerFolder}/aims`);
-          // fs.writeFile(`${pluginparams.relativeServerFolder}/dicoms/dsoList.csv`, 'Hello content!', function (err) {
-          //   if (err) throw err;
-          //   console.log('Saved!');
-          // }); 
-          //fs.openSync(`${csvPath}/${tmpTransposedFileName}`, 'w');
           const fd = fs.openSync(`${pluginparams.relativeServerFolder}/dicoms/${dsoListName}`, 'w');
-
 
           for (let i = 0; i < resultObjFiles.length; i += 1) {
             resultObj = await fastify.pluginCollectDsoInfoFromAimsInternal(resultObjFiles[i]);
-            //  console.log('xxxxxxxxxxxxxx plugin collected dso line  for pyrodiamics',resultObj);
+            console.log('creating dsoList.cvs lines',resultObj);
             await fastify.pluginConvertJsonToCsvFormatForALineInternal(`${pluginparams.relativeServerFolder}/dicoms/${dsoListName}`,resultObj);
             arrayForDsoListCsv.push(resultObj);
           }
-
-
+          console.log('creating dsoList.cvs lines ended. dsoList.csv is ready',resultObj);
           resolve(200);
         } catch (err) {
           reject(
             new InternalError(
-              '$$$$ error happened while creating pyradiomics dso list',
+              ' error happened while creating pyradiomics dso list',
               err
             )
           );
@@ -3555,10 +3533,7 @@ async function epaddb(fastify, options, done) {
           infuncfileArray = fs.readdirSync(folderToLook);
           for (let arraycnt= 0 ; arraycnt<infuncfileArray.length; arraycnt +=1){
              console.log('pluginFindAimforGivenDso reading file',infuncfileArray[arraycnt]);
-             console.log('pluginFindAimforGivenDso');
-             console.log('pluginFindAimforGivenDso');
-             console.log('pluginFindAimforGivenDso');
-             console.log('pluginFindAimforGivenDso');
+
 
 
               const aimJsonString = fs.readFileSync(`${folderToLook}/${infuncfileArray[arraycnt]}`, 'utf8');
@@ -3570,10 +3545,6 @@ async function epaddb(fastify, options, done) {
               if (dsoId === dsouidFromAim){
                 //  console.log('dso id found in aim');
                 console.log('pluginFindAimforGivenDso dso id found in aim',dsouidFromAim);
-                console.log('pluginFindAimforGivenDso');
-                console.log('pluginFindAimforGivenDso');
-                console.log('pluginFindAimforGivenDso');
-                console.log('pluginFindAimforGivenDso');
                 resolve(infuncfileArray[arraycnt]);
               }
 
@@ -3819,6 +3790,7 @@ async function epaddb(fastify, options, done) {
                   };
                   // this block needs to be called in an array of each csv column
                     const codeValues = {};
+                    const mapCodeValues = new Map();
                   for (let csvColumncount = 1;  csvColumncount <totalcolumnumber; csvColumncount +=1){
                     let returnPartialPluginCalcAim = null;
                     let foundAimIdFordso = null;
