@@ -3391,7 +3391,7 @@ async function epaddb(fastify, options, done) {
         // array no 7 : dso image file location
         try {
           fastify.log.info(`creating input csv dsolists.csv for pyradiomics this calls create a line from given param`);
-          fs.appendFileSync(fileFullPath, `${jsonToConvert.dsouid},1,2,3,${jsonToConvert.series}/Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,${jsonToConvert.series}/Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,11,SEG,1,14,15,16,17,18,19,description,21,\n`);
+          fs.appendFileSync(fileFullPath, `${jsonToConvert.dsouid},1,${jsonToConvert.studyInstanceUid},${jsonToConvert.patientId},${jsonToConvert.series}/Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,${jsonToConvert.series}/Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,${jsonToConvert.patientName},SEG,1,14,15,16,17,18,19,${jsonToConvert.description},21,\n`);
             
           resolve('ok');
         } catch (err) {
@@ -3414,52 +3414,33 @@ async function epaddb(fastify, options, done) {
       let returnaimJsonString = {};
       return new Promise((resolve, reject) => {
         try {
-          console.log("pluginCollectDsoInfoFromaims ->",fileObject);
-          
+            console.log("pluginCollectDsoInfoFromaims ->",fileObject);
 
-          //  fs.readFileSync(`${fileObject.path}/${fileObject.file}`, 'utf8', (err, aimJsonString) => {
-          //   if (err) {
-          //     reject(
-          //       new InternalError(
-          //         'error happened while reading aim file ',
-          //         err
-          //       )
-          //     );
-          //   }
-          const aimJsonString = fs.readFileSync(`${fileObject.path}/${fileObject.file}`, 'utf8');
-
-
-            
+            const aimJsonString = fs.readFileSync(`${fileObject.path}/${fileObject.file}`, 'utf8');
             parsedAimFile = JSON.parse(aimJsonString);
-            //  console.log('aim json',aimJsonString);
-            //  console.log('parsed aim json',parsedAimFile);
             const rootpath = parsedAimFile.ImageAnnotationCollection.uniqueIdentifier.root
             const dsoUid = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].sopInstanceUid.root;
             const study = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].studyInstanceUid.root ;
             const series = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.imageSeries.instanceUid.root;
             const dsoImage = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].referencedSopInstanceUid.root;
+            const studyInstanceUid =  parsedAimFile.ImageAnnotationCollection.studyInstanceUid.root;
+            const patientId =  parsedAimFile.ImageAnnotationCollection.person.id.value;
+            const patientName =  parsedAimFile.ImageAnnotationCollection.person.name.value;
+            const description = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value;
             const lineJson = {
               rootpath : rootpath,
-              dsouid:dsoUid,
+              dsouid: dsoUid,
               study: study,
               series : series,
-              dsoImage : dsoImage
+              dsoImage : dsoImage,
+              studyInstanceUid: studyInstanceUid,
+              patientId: patientId,
+              patientName: patientName,
+              description : description
             }; 
-            // console.log('$$$$ reading necessary data for dso ');
-            // console.log('$$$$ : dsoUid ->',dsoUid);
-            // console.log('$$$$ : study ->',study);
-            // console.log('$$$$ : series ->',series);
-            // console.log('$$$$ : dsoImage ->',dsoImage);
-            // lineJson.dsouid =dsoUid;
-            // lineJson.study = study;
-            // lineJson.series = series;
-            // lineJson.dsoImage = dsoImage;
-           
             returnaimJsonString = aimJsonString;
             resolve(lineJson);
-          //});
 
-         
         } catch (err) {
           reject(
             new InternalError(
