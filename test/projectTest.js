@@ -25,16 +25,30 @@ after(() => {
 beforeEach(() => {
   const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
   const segBuffer = fs.readFileSync('test/data/testseg.dcm');
-  nock(config.dicomWebConfig.baseUrl).get('/studies?limit=100').reply(200, studiesResponse);
-  nock(config.dicomWebConfig.baseUrl).get('/studies?PatientID=3').reply(200, studiesResponse);
-  nock(config.dicomWebConfig.baseUrl).get('/studies?PatientID=7').reply(200, [{}]);
-  nock(config.dicomWebConfig.baseUrl).get('/studies?PatientID=4').reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
-    .get('/studies/0023.2015.09.28.3/series')
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=0023.2015.09.28.3`)
+    .reply(200, studiesResponse);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=56547547373`)
+    .reply(200, [{}]);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=100`)
+    .reply(200, studiesResponse);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=3`)
+    .reply(200, studiesResponse);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=7`)
+    .reply(200, [{}]);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=4`)
+    .reply(200, [{}]);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies/0023.2015.09.28.3/series`)
     .reply(200, seriesResponse);
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      '/?requestType=WADO&studyUID=1.2.752.24.7.19011385.453825&seriesUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000&objectUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.1.1.1000.1'
+      `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=1.2.752.24.7.19011385.453825&seriesUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000&objectUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.1.1.1000.1`
     )
     .reply(200, segBuffer);
   nock(config.dicomWebConfig.baseUrl)
@@ -42,12 +56,14 @@ beforeEach(() => {
     .matchHeader('content-type', (val) =>
       val.includes('multipart/related; type=application/dicom;')
     )
-    .post('/studies')
+    .post(`${config.dicomWebConfig.qidoSubPath}/studies`)
     .reply(200);
-  nock(config.dicomWebConfig.baseUrl).delete('/studies/0023.2015.09.28.3').reply(200);
+  nock(config.dicomWebConfig.baseUrl)
+    .delete(`${config.dicomWebConfig.qidoSubPath}/studies/0023.2015.09.28.3`)
+    .reply(200);
   nock(config.dicomWebConfig.baseUrl)
     .delete(
-      '/studies/1.2.752.24.7.19011385.453825/series/1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000'
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.2.752.24.7.19011385.453825/series/1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000`
     )
     .reply(200);
 
@@ -1558,6 +1574,96 @@ describe('Project Tests', () => {
           expect(res.body[0].patientID).to.be.eql('3');
           expect(res.body[0].patientName).to.be.eql('Phantom');
           expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('should set significant series for study 0023.2015.09.28.3 to project teststudy ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantSeries')
+        .query({ username: 'admin' })
+        .send([{ seriesUID: '0023.2015.09.28.3.3590', significanceOrder: 1 }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('project teststudy should have 2 series including DSO and one should be marked as significant by project only', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/series')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[1]).to.not.have.property('significanceOrder');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('project teststudy should have 2 series including DSO and one should be marked as significant by project and study', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/series')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[1]).to.not.have.property('significanceOrder');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('should clear significant series for study 0023.2015.09.28.3 to project teststudy ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantSeries')
+        .query({ username: 'admin' })
+        .send([{ seriesUID: '0023.2015.09.28.3.3590', significanceOrder: 0 }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('project teststudy should have 2 series including DSO and none should be marked as significant by project only', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/series')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0]).to.not.have.property('significanceOrder');
+          expect(res.body[1]).to.not.have.property('significanceOrder');
           done();
         })
         .catch((e) => {
@@ -4727,7 +4833,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should return one nondicom series 14356765342 DESC for study 4315541363646543 to project testsubjectnondicom patient 4 ', (done) => {
+    it('should return one nondicom series 14356765342 DESC for project testsubjectnondicom ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/series')
@@ -4741,7 +4847,22 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should return one nondicom series 14356765342 DESC for project testsubjectnondicom ', (done) => {
+    it('should set significant series for study 4315541363646543 to project testsubjectnondicom ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/significantSeries')
+        .query({ username: 'admin' })
+        .send([{ seriesUID: '14356765342', significanceOrder: 1 }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('should return one nondicom series 14356765342 DESC for project testsubjectnondicom and should be significant ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testsubjectnondicom/subjects/4/studies/4315541363646543/series')
@@ -4749,6 +4870,7 @@ describe('Project Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].significanceOrder).to.be.eql(1);
           done();
         })
         .catch((e) => {
@@ -4910,7 +5032,7 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.rows).to.be.a('array');
           expect(res.body.rows.length).to.be.eql(12);
-          expect(res.body.rows).to.be.eql(jsonBuffer);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch((e) => {
@@ -4970,7 +5092,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.be.eql(jsonBuffer);
+          expect(res.body).to.deep.equalInAnyOrder(jsonBuffer);
           done();
         })
         .catch((e) => {
@@ -5120,6 +5242,39 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/search?project=reporting&template=RECIST')
         .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(12);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with project and template query using manual query', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_proj_temp.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/search?query=(project:reporting AND template_code:RECIST)')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(12);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return return correct output for search with project and template query using manual query in body', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_proj_temp.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({ query: 'project:reporting AND template_code:RECIST' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(12);

@@ -374,6 +374,10 @@ async function couchdb(fastify, options) {
   );
 
   fastify.decorate('generateSearchQuery', async (params, epadAuth, filter) => {
+    // if filter is query just use that do not generate
+    if (filter && filter.query) {
+      return filter.query;
+    }
     // if new search indexes are added, it should be added here too
     const validQryParams = [
       'patient_name',
@@ -462,6 +466,10 @@ async function couchdb(fastify, options) {
                     isDicomSR: 'NA',
                     originalSubjectID: body.rows[i].fields.patient_id,
                     userName: body.rows[i].fields.user,
+                    projectID: body.rows[i].fields.project,
+                    modality: body.rows[i].fields.modality,
+                    anatomy: body.rows[i].fields.anatomy,
+                    observation: body.rows[i].fields.observation,
                   });
                 }
                 resObj.rows = res;
