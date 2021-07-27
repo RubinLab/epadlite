@@ -1315,14 +1315,28 @@ async function reporting(fastify) {
             };
             // disable db read for export
 
-            const bestResponse = exportCalcs
+            const { bestResponse, responseCat } = !exportCalcs
               ? // eslint-disable-next-line no-await-in-loop
-                await fastify.getReportFromDB(params, metric, epadAuth, type)
-              : null;
-            if (bestResponse !== null) {
+                await fastify.getReportFromDB(
+                  params,
+                  metric === 'RECIST' ? 'RECIST' : 'LONGITUDINAL',
+                  epadAuth,
+                  type,
+                  metric,
+                  template,
+                  shapes
+                )
+              : { bestResponse: null, responseCat: null };
+            // TODO if null, write the prepared report back to the db for the next time
+            if (bestResponse !== null && responseCat !== null) {
+              fastify.log.info(
+                `Using DB record for subject ${subjProjPairs[i].subjectID} project ${subjProjPairs[i].projectID}`
+              );
               waterfallData.push({
                 name: subjProjPairs[i].subjectID,
                 y: bestResponse,
+                rc: responseCat,
+                color: fastify.colorLookup(responseCat),
                 project: subjProjPairs[i].projectID,
               });
             } else {
@@ -1351,11 +1365,29 @@ async function reporting(fastify) {
                   // eslint-disable-next-line no-continue
                   continue;
                 }
+
+                // check if the report is a precompute report and save to db if so
+                // eslint-disable-next-line no-await-in-loop
+                const projectId = await fastify.findProjectIdInternal(subjProjPairs[i].projectID);
+                // eslint-disable-next-line no-await-in-loop
+                const subjectId = await fastify.findSubjectIdInternal(subjProjPairs[i].subjectID);
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.savePrecomputeReports(
+                  projectId,
+                  subjectId,
+                  report,
+                  metric === 'RECIST' ? 'RECIST' : 'LONGITUDINAL',
+                  metric,
+                  template,
+                  shapes,
+                  epadAuth
+                );
+                const rc = fastify.getResponseCategory(report, type, metric);
                 waterfallData.push({
                   name: subjProjPairs[i].subjectID,
                   y: fastify.getBestResponse(report, type, metric),
-                  rc: fastify.getResponseCategory(report, type, metric),
-                  color: fastify.colorLookup(fastify.getResponseCategory(report, type, metric)),
+                  rc,
+                  color: fastify.colorLookup(rc),
                   project: subjProjPairs[i].projectID,
                 });
               } else {
@@ -1550,13 +1582,13 @@ async function reporting(fastify) {
                       responseCats[exportCalc] = recistReport[reader].tResponseCats;
                     } else {
                       // use rrmin not baseline
-                      const responseCat = fastify.calcResponseCat(
+                      const rc = fastify.calcResponseCat(
                         rr,
                         readerReport.stTimepoints,
                         [], // TODO isThereNewLesion,
                         sumsArray
                       );
-                      responseCats[exportCalc] = responseCat;
+                      responseCats[exportCalc] = rc;
                     }
                   }
                   for (let valNum = 0; valNum < exportCalcs.length; valNum += 1) {
@@ -1699,6 +1731,17 @@ async function reporting(fastify) {
     }
     return NaN;
   });
+
+  // type is composite of report, metric, template and shapes (template and shape is just for ADLA, is there a better way?)
+  fastify.decorate(
+    'getReportType',
+    (report, metric, template, shapes) =>
+      `${report.toLowerCase()}${metric && metric !== 'RECIST' ? '_' : ''}${
+        metric && metric !== 'RECIST' ? metric : ''
+      }${template ? '_' : ''}${template || ''}${shapes ? '_' : ''}${
+        shapes ? JSON.stringify(shapes) : ''
+      }`
+  );
 
   fastify.decorate('getWaterfallReport', async (request, reply) => {
     try {

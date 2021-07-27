@@ -5652,45 +5652,60 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('getReportFromDB', async (params, report, epadAuth, bestResponseType) => {
-    try {
-      const projSubjReport = await models.project_subject_report.findOne({
-        where: {
-          '$subject.subjectuid$': params.subject,
-          '$project.projectid$': params.project,
-          type: report.toLowerCase(),
-        },
-        include: [{ model: models.project }, { model: models.subject }],
-      });
-
-      if (projSubjReport) {
-        if (bestResponseType) {
-          if (bestResponseType.toLowerCase() === 'min')
-            return Number(projSubjReport.dataValues.best_response_min);
-          if (bestResponseType.toLowerCase() === 'baseline')
-            return Number(projSubjReport.dataValues.best_response_baseline);
-          fastify.log.warn(`Unsupported bestResponseType ${bestResponseType}`);
-          return null;
-        }
-        if (projSubjReport.dataValues.report) {
-          const reportJson = JSON.parse(projSubjReport.dataValues.report);
-          // if the user is a collaborator (s)he should only see his/her report
-          if (fastify.isCollaborator(params.project, epadAuth)) {
-            if (reportJson[epadAuth.username])
-              return { [epadAuth.username]: reportJson[epadAuth.username] };
+  fastify.decorate(
+    'getReportFromDB',
+    async (params, report, epadAuth, bestResponseType, metric, template, shapes) => {
+      try {
+        const type = fastify.getReportType(report, metric, template, shapes);
+        const projSubjReport = await models.project_subject_report.findOne({
+          where: {
+            '$subject.subjectuid$': params.subject,
+            '$project.projectid$': params.project,
+            type,
+          },
+          include: [{ model: models.project }, { model: models.subject }],
+        });
+        if (projSubjReport) {
+          // if old, missing response cat, should be updated
+          if (
+            !projSubjReport.dataValues.response_cat_min ||
+            !projSubjReport.dataValues.response_cat_baseline
+          )
+            return null;
+          if (bestResponseType) {
+            if (bestResponseType.toLowerCase() === 'min')
+              return {
+                bestResponse: Number(projSubjReport.dataValues.best_response_min),
+                responseCat: projSubjReport.dataValues.response_cat_min,
+              };
+            if (bestResponseType.toLowerCase() === 'baseline')
+              return {
+                bestResponse: Number(projSubjReport.dataValues.best_response_baseline),
+                responseCat: projSubjReport.dataValues.response_cat_baseline,
+              };
+            fastify.log.warn(`Unsupported bestResponseType ${bestResponseType}`);
             return null;
           }
-          return reportJson;
+          if (projSubjReport.dataValues.report) {
+            const reportJson = JSON.parse(projSubjReport.dataValues.report);
+            // if the user is a collaborator (s)he should only see his/her report
+            if (fastify.isCollaborator(params.project, epadAuth)) {
+              if (reportJson[epadAuth.username])
+                return { [epadAuth.username]: reportJson[epadAuth.username] };
+              return null;
+            }
+            return reportJson;
+          }
         }
+        return { bestResponse: null, responseCat: null };
+      } catch (err) {
+        throw new InternalError(
+          `Getting report ${report} from params ${JSON.stringify(params)}`,
+          err
+        );
       }
-      return null;
-    } catch (err) {
-      throw new InternalError(
-        `Getting report ${report} from params ${JSON.stringify(params)}`,
-        err
-      );
     }
-  });
+  );
 
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
@@ -6291,55 +6306,143 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
-    'getAndSaveRecist',
-    (projectId, subject, result, epadAuth, transaction) =>
+    'getAndSavePrecomputeReports',
+    (projectId, subjectId, result, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
-          const reportMultiUser = fastify.getRecist(result);
+          // recist is default the rest should be added to the config
+          const precomputeReports = [{ report: 'RECIST' }, ...config.precomputeReports];
+          const reportPromises = [];
+          precomputeReports.forEach((pr) =>
+            reportPromises.push(
+              fastify
+                .getAndSaveReport(
+                  projectId,
+                  subjectId,
+                  result,
+                  epadAuth,
+                  pr.report,
+                  pr.metric,
+                  pr.template,
+                  pr.shapes,
+                  transaction
+                )
+                .catch((err) =>
+                  fastify.log.error(
+                    `Updating precompute report ${pr.report} ${pr.metric} for project ${projectId}, subject ${subjectId}. Error ${err.message}`
+                  )
+                )
+            )
+          );
+          await Promise.all(reportPromises);
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating precompute report for project ${projectId}, subject ${subjectId}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  // I have the report just extract the part and save it
+  fastify.decorate(
+    'savePrecomputeReports',
+    (
+      projectId,
+      subjectId,
+      reportMultiUser,
+      report,
+      metric,
+      template,
+      shapes,
+      epadAuth,
+      transaction
+    ) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // recist is default the rest should be added to the config
+          const precomputeReports = [{ report: 'RECIST' }, ...config.precomputeReports];
+          const reportPromises = [];
+          precomputeReports.forEach((pr) => {
+            if (
+              pr.report === report &&
+              (pr.metric === metric || pr.report === metric) &&
+              pr.template === template &&
+              pr.shapes === shapes
+            )
+              reportPromises.push(
+                fastify
+                  .saveReport2DB(
+                    projectId,
+                    subjectId,
+                    reportMultiUser,
+                    pr.report,
+                    pr.metric,
+                    pr.template,
+                    pr.shapes,
+                    epadAuth,
+                    transaction
+                  )
+                  .catch((err) =>
+                    fastify.log.error(
+                      `Updating precompute report from ready report ${pr.report} ${pr.metric} for project ${projectId}, subject ${subjectId}. Error ${err.message}`
+                    )
+                  )
+              );
+          });
+          await Promise.all(reportPromises);
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating precompute report for project ${projectId}, subject ${subjectId}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getAndSaveReport',
+    (projectId, subjectId, result, epadAuth, report, metric, template, shapes, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const reportMultiUser =
+            report === 'RECIST'
+              ? fastify.getRecist(result)
+              : fastify.getLongitudinal(result, template, shapes, undefined, metric);
           if (reportMultiUser && reportMultiUser !== {}) {
-            // TODO how to support multiple readers in waterfall getting the first report for now
-            const recist =
-              Object.keys(reportMultiUser).length > 0
-                ? reportMultiUser[Object.keys(reportMultiUser)[0]]
-                : reportMultiUser;
-            const bestResponseBaseline = recist.tRRBaseline ? Math.min(...recist.tRRBaseline) : 0;
-            const bestResponseMin = recist.tRRMin ? Math.min(...recist.tRRMin) : 0;
-            await fastify.upsert(
-              models.project_subject_report,
-              {
-                project_id: projectId,
-                subject_id: subject.id,
-                type: 'recist',
-                report: JSON.stringify(reportMultiUser),
-                best_response_baseline: bestResponseBaseline,
-                best_response_min: bestResponseMin,
-                updated: true,
-                updatetime: Date.now(),
-              },
-              {
-                project_id: projectId,
-                subject_id: subject.id,
-                type: 'recist',
-              },
-              epadAuth.username,
+            await fastify.saveReport2DB(
+              projectId,
+              subjectId,
+              reportMultiUser,
+              report,
+              metric,
+              template,
+              shapes,
+              epadAuth,
               transaction
             );
-            fastify.log.info(`Recist report for ${subject.subjectuid} updated`);
-            resolve('Recist got and saved');
+            fastify.log.info(`${report} ${metric}  report for ${subjectId} updated`);
+            resolve(`${report} ${metric}  got and saved`);
           } else {
             fastify.log.info(
-              `Recist report generation failed, deleting old report for ${subject.subjectuid} if exists`
+              `${report} ${metric} report generation failed, deleting old report for ${subjectId} if exists`
             );
             await models.project_subject_report.destroy({
               where: {
                 project_id: projectId,
-                subject_id: subject.id,
-                type: 'recist',
+                subject_id: subjectId,
+                type: fastify.getReportType(report, metric, template, shapes),
               },
             });
             reject(
               new InternalError(
-                `Updating recist report for project ${projectId}, subject ${subject.subjectuid}`,
+                `Updating ${report} ${metric}  report for project ${projectId}, subject ${subjectId}`,
                 new Error('Report not generated')
               )
             );
@@ -6347,7 +6450,74 @@ async function epaddb(fastify, options, done) {
         } catch (err) {
           reject(
             new InternalError(
-              `Updating recist report for project ${projectId}, subject ${subject.subjectuid}`,
+              `Updating ${report} ${metric} report for project ${projectId}, subject ${subjectId}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'saveReport2DB',
+    (
+      projectId,
+      subjectId,
+      reportMultiUser,
+      report,
+      metric,
+      template,
+      shapes,
+      epadAuth,
+      transaction
+    ) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const type = fastify.getReportType(report, metric, template, shapes);
+          // TODO how to support multiple readers in waterfall getting the first report for now
+          const singleReport =
+            Object.keys(reportMultiUser).length > 0
+              ? reportMultiUser[Object.keys(reportMultiUser)[0]]
+              : reportMultiUser;
+          const bestResponseBaseline = singleReport.tRRBaseline
+            ? Math.min(...singleReport.tRRBaseline)
+            : fastify.getBestResponse(reportMultiUser, 'BASELINE', metric);
+          const bestResponseMin = singleReport.tRRMin
+            ? Math.min(...singleReport.tRRMin)
+            : fastify.getBestResponse(reportMultiUser, 'MIN', metric);
+          const responseCatBaseline = fastify.getResponseCategory(
+            reportMultiUser,
+            'BASELINE',
+            metric
+          );
+          const responseCatMin = fastify.getResponseCategory(reportMultiUser, 'MIN', metric);
+          await fastify.upsert(
+            models.project_subject_report,
+            {
+              project_id: projectId,
+              subject_id: subjectId,
+              type,
+              report: JSON.stringify(reportMultiUser),
+              best_response_baseline: bestResponseBaseline,
+              best_response_min: bestResponseMin,
+              response_cat_baseline: responseCatBaseline,
+              response_cat_min: responseCatMin,
+              updated: true,
+              updatetime: Date.now(),
+            },
+            {
+              project_id: projectId,
+              subject_id: subjectId,
+              type,
+            },
+            epadAuth.username,
+            transaction
+          );
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating ${report} ${metric} report for project ${projectId}, subject ${subjectId}`,
               err
             )
           );
@@ -6383,7 +6553,13 @@ async function epaddb(fastify, options, done) {
               undefined,
               true
             );
-            await fastify.getAndSaveRecist(projectId, subject, result.rows, epadAuth, transaction);
+            await fastify.getAndSavePrecomputeReports(
+              projectId,
+              subject.id,
+              result.rows,
+              epadAuth,
+              transaction
+            );
             resolve('Reports updated!');
           }
         } catch (err) {
@@ -6488,6 +6664,23 @@ async function epaddb(fastify, options, done) {
           resolve(projectId.id);
         } catch (err) {
           reject(new InternalError(`Finding project id ${project}`, err));
+        }
+      })
+  );
+
+  fastify.decorate(
+    'findSubjectIdInternal',
+    (subject) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const subjectId = await models.subject.findOne({
+            where: { subjectuid: subject },
+            attributes: ['id'],
+            raw: true,
+          });
+          resolve(subjectId.id);
+        } catch (err) {
+          reject(new InternalError(`Finding subject id ${subject}`, err));
         }
       })
   );
@@ -11691,6 +11884,14 @@ async function epaddb(fastify, options, done) {
             fastify.log.warn(
               'worklist_id column is added to project_subject_study_series_user_status'
             );
+            await fastify.orm.query(
+              `ALTER TABLE project_subject_report 
+                MODIFY COLUMN type varchar(256) NOT NULL,
+                ADD COLUMN IF NOT EXISTS response_cat_baseline varchar(4) DEFAULT NULL AFTER best_response_min,
+                ADD COLUMN IF NOT EXISTS response_cat_min varchar(4) DEFAULT NULL AFTER response_cat_baseline;`,
+              { transaction: t }
+            );
+            fastify.log.warn('response_cat is added to project_subject_report');
           });
 
           // the db schema is updated successfully lets copy the files

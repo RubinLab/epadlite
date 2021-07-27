@@ -45,6 +45,14 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.STRING(32),
         allowNull: false,
       },
+      response_cat_baseline: {
+        type: DataTypes.STRING(4),
+        allowNull: true,
+      },
+      response_cat_min: {
+        type: DataTypes.STRING(4),
+        allowNull: true,
+      },
       manual_edits: {
         type: DataTypes.STRING(512),
         allowNull: true,
