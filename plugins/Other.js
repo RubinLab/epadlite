@@ -1690,7 +1690,19 @@ async function other(fastify) {
       // if auth has been given in config, verify authentication
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
       if (authHeader) {
-        req.epadAuth = await fastify.authCheck(authHeader, res);
+        if (authHeader.startsWith('Bearer')) {
+          req.epadAuth = await fastify.authCheck(authHeader, res);
+        } else if (authHeader.startsWith('apikey') && req.protocol === 'https' && req.query.user) {
+          // apikey auth support
+          // should be https
+          // should have user in query
+          // TODO create user if not exists?
+          req.epadAuth = await fastify.validateApiKeyInternal(req);
+        } else {
+          res.send(
+            new UnauthenticatedError('Authentication header does not conform with the server')
+          );
+        }
       } else {
         res.send(
           new UnauthenticatedError('Authentication info does not exist or conform with the server')
