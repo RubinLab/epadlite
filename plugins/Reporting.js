@@ -518,18 +518,18 @@ async function reporting(fastify) {
         users[usernames[u]].studyDates.sort();
         users[usernames[u]].ntLesionNames.sort();
 
-        const mode = 'name';
-        const tIndex = users[usernames[u]].tLesionNames;
-        const ntIndex = users[usernames[u]].ntLesionNames;
-        // if (
-        //   users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
-        //   users[usernames[u]].lesions.length > 0
-        // ) {
-        //   fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
-        //   mode = 'trackingUID';
-        //   tIndex = users[usernames[u]].tTrackingUIDs;
-        //   ntIndex = users[usernames[u]].ntTrackingUIDs;
-        // }
+        let mode = 'name';
+        let tIndex = users[usernames[u]].tLesionNames;
+        let ntIndex = users[usernames[u]].ntLesionNames;
+        if (
+          users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
+          users[usernames[u]].lesions.length > 0
+        ) {
+          fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
+          mode = 'trackingUID';
+          tIndex = users[usernames[u]].tTrackingUIDs;
+          ntIndex = users[usernames[u]].ntTrackingUIDs;
+        }
 
         if (
           users[usernames[u]].tLesionNames.length > 0 &&
@@ -910,6 +910,7 @@ async function reporting(fastify) {
 
         const mode = 'name';
         const tIndex = users[usernames[u]].tLesionNames;
+        // ignoring tracking uids for longitudinal. as it's not common to use select baseline for non-recist lesions and we put tracking uids on every annotation which messes up reports
         // if (
         //   users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
         //   users[usernames[u]].lesions.length > 0
