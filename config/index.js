@@ -77,6 +77,9 @@ if (process.env.CORS_ORIGIN) {
 }
 config.noResume = process.env.NO_RESUME === 'true' || config.noResume || false;
 config.secret = process.env.SECRET || config.secret || undefined;
+config.precomputeReports = process.env.PRECOMPUTE_REPORTS
+  ? JSON.parse(process.env.PRECOMPUTE_REPORTS)
+  : config.precomputeReports || [];
 config.wadoType = process.env.WADO_TYPE || config.wadoType || undefined;
 
 module.exports = config;
