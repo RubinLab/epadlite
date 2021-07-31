@@ -1692,10 +1692,9 @@ async function other(fastify) {
       if (authHeader) {
         if (authHeader.startsWith('Bearer')) {
           req.epadAuth = await fastify.authCheck(authHeader, res);
-        } else if (authHeader.startsWith('apikey') && req.protocol === 'https' && req.query.user) {
+        } else if (authHeader.startsWith('apikey')) {
           // apikey auth support
-          // should be https
-          // should have user in query
+          // TODO should be https (&& req.protocol === 'https') it doesn't work because of nginx
           // TODO create user if not exists?
           req.epadAuth = await fastify.validateApiKeyInternal(req);
         } else {
