@@ -5687,13 +5687,14 @@ async function epaddb(fastify, options, done) {
           include: [{ model: models.project }, { model: models.subject }],
         });
         if (projSubjReport) {
-          // if old, missing response cat, should be updated
-          if (
-            !projSubjReport.dataValues.response_cat_min ||
-            !projSubjReport.dataValues.response_cat_baseline
-          )
-            return null;
           if (bestResponseType) {
+            // get bestresponse for waterfall
+            // if old, missing response cat, should be updated
+            if (
+              !projSubjReport.dataValues.response_cat_min ||
+              !projSubjReport.dataValues.response_cat_baseline
+            )
+              return null;
             if (bestResponseType.toLowerCase() === 'min')
               return {
                 bestResponse: Number(projSubjReport.dataValues.best_response_min),
@@ -5707,6 +5708,7 @@ async function epaddb(fastify, options, done) {
             fastify.log.warn(`Unsupported bestResponseType ${bestResponseType}`);
             return null;
           }
+          // if not bestresponse, I want the actual report
           if (projSubjReport.dataValues.report) {
             const reportJson = JSON.parse(projSubjReport.dataValues.report);
             // if the user is a collaborator (s)he should only see his/her report

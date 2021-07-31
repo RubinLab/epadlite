@@ -1316,7 +1316,7 @@ async function reporting(fastify) {
             };
             // disable db read for export
 
-            const { bestResponse, responseCat } = !exportCalcs
+            const dbRec = !exportCalcs
               ? // eslint-disable-next-line no-await-in-loop
                 await fastify.getReportFromDB(
                   params,
@@ -1329,15 +1329,15 @@ async function reporting(fastify) {
                 )
               : { bestResponse: null, responseCat: null };
             // TODO if null, write the prepared report back to the db for the next time
-            if (bestResponse !== null && responseCat !== null) {
+            if (dbRec && dbRec.bestResponse !== null && dbRec.responseCat !== null) {
               fastify.log.info(
                 `Using DB record for subject ${subjProjPairs[i].subjectID} project ${subjProjPairs[i].projectID}`
               );
               waterfallData.push({
                 name: subjProjPairs[i].subjectID,
-                y: bestResponse,
-                rc: responseCat,
-                color: fastify.colorLookup(responseCat),
+                y: dbRec.bestResponse,
+                rc: dbRec.responseCat,
+                color: fastify.colorLookup(dbRec.responseCat),
                 project: subjProjPairs[i].projectID,
               });
             } else {
@@ -1730,7 +1730,7 @@ async function reporting(fastify) {
         )} metric ${metric} and type ${type} Error: ${err.message}`
       );
     }
-    return NaN;
+    return 'NA';
   });
 
   // type is composite of report, metric, template and shapes (template and shape is just for ADLA, is there a better way?)
