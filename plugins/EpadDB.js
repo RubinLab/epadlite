@@ -6282,6 +6282,7 @@ async function epaddb(fastify, options, done) {
             }
           }
           try {
+            await Promise.all(updateCompPromises);
             reply.code(200).send(`Worklist requirement added`);
           } catch (err) {
             reply.send(
@@ -6887,7 +6888,14 @@ async function epaddb(fastify, options, done) {
         await models.worklist.findOne({
           where: { worklistid: request.params.worklist },
           attributes: ['id'],
-          include: ['requirements', 'users'],
+          include: [
+            {
+              model: models.worklist_requirement,
+              required: false,
+              as: 'requirements',
+            },
+            'users',
+          ],
         })
       ).toJSON();
       const requirements = {};
@@ -6909,7 +6917,15 @@ async function epaddb(fastify, options, done) {
         const progressList = [];
         const worklistStudies = await models.worklist_study.findAll({
           where: { worklist_id: worklist.id },
-          include: ['progress', 'subject', 'study'],
+          include: [
+            {
+              model: models.worklist_study_completeness,
+              required: false,
+              as: 'progress',
+            },
+            'subject',
+            'study',
+          ],
           attributes: ['worklist_id', 'project_id', 'subject_id', 'study_id'],
         });
         // I could not create association with composite foreign key
@@ -6969,6 +6985,40 @@ async function epaddb(fastify, options, done) {
               fastify.log.error(
                 `Worklist ${worklistStudies[i].dataValues.worklist_id} has completeness records for unassigned user ${worklistStudies[i].dataValues.progress[j].dataValues.assignee}`
               );
+            }
+          }
+          // if no auto progress, use manual progress to traverse
+          // TODO what if there are other users assigned to the worklist?
+          if (worklistStudies[i].dataValues.progress.length === 0) {
+            for (let j = 0; j < worklist.users.length; j += 1) {
+              const { firstname, lastname, id } = users[worklist.users[j].username];
+              let completeness = 0;
+              if (
+                manualProgressMap[
+                  `${worklistStudies[i].dataValues.worklist_id}-${worklistStudies[i].dataValues.project_id}-${worklistStudies[i].dataValues.subject_id}-${worklistStudies[i].dataValues.study_id}-${id}`
+                ]
+              ) {
+                completeness = fastify.getManualProgressForUser(
+                  manualProgressMap,
+                  worklistStudies[i].dataValues.worklist_id,
+                  worklistStudies[i].dataValues.project_id,
+                  worklistStudies[i].dataValues.subject_id,
+                  worklistStudies[i].dataValues.study_id,
+                  id
+                );
+              }
+              progressList.push({
+                worklist_id: worklistStudies[i].dataValues.worklist_id,
+                project_id: worklistStudies[i].dataValues.project_id,
+                subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
+                subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
+                study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
+                study_desc: worklistStudies[i].dataValues.study.dataValues.description,
+                assignee: worklist.users[j].username,
+                assignee_name: `${firstname} ${lastname}`,
+                completeness,
+                type: 'MANUAL',
+              });
             }
           }
         }
