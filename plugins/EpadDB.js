@@ -1014,19 +1014,32 @@ async function epaddb(fastify, options, done) {
       });
   });
 
-  fastify.decorate('updateProjectsForPlugin', (request, reply) => {
+  fastify.decorate('updateProjectsForPlugin',async (request, reply) => {
     const { pluginid } = request.params;
     const { projectsToRemove, projectsToAdd } = request.body;
     const dbPromisesForCreate = [];
     const formattedProjects = [];
+    console.log("updateProjectsForPlugin" );
+    console.log("updateProjectsForPlugin" );
+    console.log("updateProjectsForPlugin" );
+    console.log("updateProjectsForPlugin" );
+    console.log("updateProjectsForPlugin" );
+    console.log("updateProjectsForPlugin" );
+    console.log("updateProjectsForPlugin" );
+    console.log("updateProjectsForPlugin" );
+    console.log("projects to remove :",projectsToRemove );
+    console.log("projects to removprojectsToAdde :",projectsToAdd );
+    let whereObj = {};
+    whereObj =  {
+      plugin_id: pluginid,
+      project_id: projectsToRemove,
+    };
 
     if (projectsToRemove && projectsToAdd) {
+
       models.project_plugin
         .destroy({
-          where: {
-            plugin_id: pluginid,
-            project_id: projectsToRemove,
-          },
+          where: whereObj,
         })
         .then(() => {
           projectsToAdd.forEach((projectid) => {
@@ -1506,7 +1519,8 @@ async function epaddb(fastify, options, done) {
     const parameters = [];
     models.plugin_parameters
       .findAll({
-        where: { plugin_id: plugindbid, creator: request.epadAuth.username },
+        // where: { plugin_id: plugindbid, creator: request.epadAuth.username }, #=> removed creator to show default params for runtime editing
+        where: { plugin_id: plugindbid },
       })
       .then((result) => {
         result.forEach((parameter) => {
@@ -1639,6 +1653,10 @@ async function epaddb(fastify, options, done) {
             project_id: parameter.dataValues.project_id,
             paramid: parameter.dataValues.paramid,
             name: parameter.dataValues.name,
+            sendname: parameter.dataValues.sendname,
+            uploadimages: parameter.dataValues.uploadimages,
+            uploadaims: parameter.dataValues.uploadaims,
+            sendparamtodocker:parameter.dataValues.sendparamtodocker,
             format: parameter.dataValues.format,
             prefix: parameter.dataValues.prefix,
             inputBinding: parameter.dataValues.inputBinding,
@@ -1674,6 +1692,10 @@ async function epaddb(fastify, options, done) {
         project_id: parameterform.projectdbid,
         paramid: parameterform.paramid,
         name: parameterform.name,
+        sendname: parseInt(parameterform.sendname,10),
+        uploadimages: parseInt(parameterform.uploadimages,10),
+        uploadaims: parseInt(parameterform.uploadaims,10),
+        sendparamtodocker:parseInt(parameterform.sendparamtodocker,10),
         format: parameterform.format,
         prefix: parameterform.prefix,
         inputBinding: parameterform.inputBinding,
@@ -1729,6 +1751,10 @@ async function epaddb(fastify, options, done) {
         {
           paramid: paramsForm.id,
           name: paramsForm.name,
+          sendname: parseInt(paramsForm.sendname,10),
+          uploadimages: parseInt(paramsForm.uploadimages,10),
+          uploadaims: parseInt(paramsForm.uploadaims,10),
+          sendparamtodocker:parseInt(paramsForm.sendparamtodocker,10),
           format: paramsForm.format,
           prefix: paramsForm.prefix,
           inputBinding: paramsForm.inputBinding,
@@ -3042,7 +3068,7 @@ async function epaddb(fastify, options, done) {
     const result = [];
     return new Promise(async (resolve, reject) => {
       const transposedCsv = await fastify.pluginTransposeCsv(csvFileParam.path,csvFileParam.file);
-
+      
       console.log(`parseCsvForPluginCalculationsInternal processing ${csvFileParam.path}/${csvFileParam.file}`);
 
       fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
@@ -3459,13 +3485,13 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         const fileArray = [];
         try {
-          fastify.log.info(`$$$$ pyradiomics is readingaims`);
+          fastify.log.info(`plugin is collecting aims`);
           await fastify.findFilesAndSubfilesInternal(filePath, fileArray, 'json');     
           resolve(fileArray);
         } catch (err) {
           reject(
             new InternalError(
-              '$$$$ error happened while pyradiomics reading aims',
+              'error happened while plugin was collecting aims',
               err
             )
           );
@@ -3633,10 +3659,11 @@ async function epaddb(fastify, options, done) {
             );
 
           // add if additional input files will be prepared before starting plugin ? (adding for pyradiomics for now) 
-
-           const resultDsoListCreate = await fastify.createPluginPyradiomicsDsoListInternal(
-            pluginParameters
-          );
+          if (pluginParameters.pluginnameid === "pyradiomics"){
+            const resultDsoListCreate = await fastify.createPluginPyradiomicsDsoListInternal(
+              pluginParameters
+            );
+           }
           //
 
             // eslint-disable-next-line no-await-in-loop
@@ -3746,8 +3773,9 @@ async function epaddb(fastify, options, done) {
               ).notify(fastify);
               if (csvArray.length > 0) {
                 let csvfound = null; 
+                console.log("checking paramters : ",pluginParameters);
                 for (let cntCsvArray = 0 ;cntCsvArray < csvArray.length; cntCsvArray  +=1  ){
-                  if (csvArray[cntCsvArray].file === 'pyradiomics.csv'){
+                  if (csvArray[cntCsvArray].file ===  `${pluginParameters.OutputFile}`){
                     csvfound = cntCsvArray;
                     break;
                   }
@@ -12148,6 +12176,16 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
             fastify.log.warn('Altered plugin parameters table');
+
+            await fastify.orm.query(
+              `ALTER TABLE plugin_projectparameters
+                ADD COLUMN IF NOT EXISTS sendname tinyint(1) DEFAULT 0 AFTER name,
+                ADD COLUMN IF NOT EXISTS uploadimages tinyint(1) DEFAULT 0 AFTER sendname,
+                ADD COLUMN IF NOT EXISTS uploadaims tinyint(1) DEFAULT 0 AFTER uploadimages,
+                ADD COLUMN IF NOT EXISTS sendparamtodocker tinyint(1) DEFAULT 1 AFTER uploadaims;`,
+              { transaction: t }
+            );
+            fastify.log.warn('Altered plugin project_parameters table');
 
             await fastify.orm.query(
               `ALTER TABLE plugin_queue
