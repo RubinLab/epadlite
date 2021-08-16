@@ -915,6 +915,7 @@ async function epaddb(fastify, options, done) {
               uploadimages: parameter.uploadimages,
               uploadaims: parameter.uploadaims,
               sendparamtodocker:parameter.sendparamtodocker,
+              refreshdicoms:parameter.refreshdicoms,
               format: parameter.format,
               prefix: parameter.prefix,
               inputbinding: parameter.inputBinding,
@@ -996,6 +997,7 @@ async function epaddb(fastify, options, done) {
             uploadimages: parameter.uploadimages,
             uploadaims: parameter.uploadaims,
             sendparamtodocker:parameter.sendparamtodocker,
+            refreshdicoms:parameter.refreshdicoms,
             format: parameter.format,
             prefix: parameter.prefix,
             inputbinding: parameter.inputBinding,
@@ -1485,6 +1487,7 @@ async function epaddb(fastify, options, done) {
           uploadimages: parseInt(parameterform.uploadimages,10),
           uploadaims: parseInt(parameterform.uploadaims,10),
           sendparamtodocker:parseInt(parameterform.sendparamtodocker,10),
+          refreshdicoms:parseInt(parameterform.refreshdicoms,10),
           format: parameterform.format,
           prefix: parameterform.prefix,
           inputBinding: parameterform.inputBinding,
@@ -1533,6 +1536,7 @@ async function epaddb(fastify, options, done) {
             uploadimages: parameter.dataValues.uploadimages,
             uploadaims: parameter.dataValues.uploadaims,
             sendparamtodocker:parameter.dataValues.sendparamtodocker,
+            refreshdicoms:parameter.dataValues.refreshdicoms,
             format: parameter.dataValues.format,
             prefix: parameter.dataValues.prefix,
             inputBinding: parameter.dataValues.inputBinding,
@@ -1603,6 +1607,7 @@ async function epaddb(fastify, options, done) {
             uploadimages: parseInt(paramsForm.uploadimages,10),
             uploadaims: parseInt(paramsForm.uploadaims,10),
             sendparamtodocker:parseInt(paramsForm.sendparamtodocker,10),
+            refreshdicoms:parseInt(paramsForm.refreshdicoms,10),
             format: paramsForm.format,
             prefix: paramsForm.prefix,
             inputBinding: paramsForm.inputBinding,
@@ -2314,6 +2319,7 @@ async function epaddb(fastify, options, done) {
             uploadimages: parameter.dataValues.uploadimages,
             uploadaims: parameter.dataValues.uploadaims,
             sendparamtodocker:parameter.dataValues.sendparamtodocker,
+            refreshdicoms:parameter.dataValues.refreshdicoms,
             format: parameter.dataValues.format,
             prefix: parameter.dataValues.prefix,
             inputBinding: parameter.dataValues.inputBinding,
@@ -2563,41 +2569,49 @@ async function epaddb(fastify, options, done) {
                     //  console.log('aim files returned into this location --- ---- -- - - - - - -',returnSerieFolderFullPath);
                   } // req inputs : reqOrigin, params, query, epadAuth, output, seriesInfos, returnFolder
                 } else {
-                  // project level dicoms
-                  fastify.log.info(
-                    `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
-                  );
-                  // eslint-disable-next-line no-await-in-loop
-                  const dicomPath = await fastify.prepProjectDownload(
-                    request.headers.origin,
-                    { project: projectid },
-                    { format: 'stream', includeAims: 'false' },
-                    request.epadAuth,
-                    'undefined',
-                    {
-                      project_id: projectdbid,
-                    },
-                    true
-                  );
-                  const pathFrom = path.join(__dirname, `../${dicomPath}/${projectid}`);
-                  try {
-                    fs.moveSync(`${pathFrom}`, `${inputfolder}`, { overwrite: true });
-                    fastify.log.info(`copying folder ${pathFrom} succeed`);
-                  } catch (err) {
-                    fastify.log.error(`file copy from ${pathFrom} encountered error: -> ${err}`);
-                    reject(new InternalError(`file copy from ${pathFrom} encountered error`, err));
+                        // project level dicoms
+                        console.log("______ ___ : do we need to refresh user dicoms ? ",tempPluginparams[i].refreshdicoms);
+                    if (tempPluginparams[i].refreshdicoms === 1) {
+                      //if dicoms folder exist already don't get imgaes again
+                        fastify.log.info(
+                          `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
+                        );
+                        // eslint-disable-next-line no-await-in-loop
+                        const dicomPath = await fastify.prepProjectDownload(
+                          request.headers.origin,
+                          { project: projectid },
+                          { format: 'stream', includeAims: 'false' },
+                          request.epadAuth,
+                          'undefined',
+                          {
+                            project_id: projectdbid,
+                          },
+                          true
+                        );
+                        const pathFrom = path.join(__dirname, `../${dicomPath}/${projectid}`);
+                        try {
+                          fs.moveSync(`${pathFrom}`, `${inputfolder}`, { overwrite: true });
+                          fastify.log.info(`copying folder ${pathFrom} succeed`);
+                        } catch (err) {
+                          fastify.log.error(`file copy from ${pathFrom} encountered error: -> ${err}`);
+                          reject(new InternalError(`file copy from ${pathFrom} encountered error`, err));
+                        }
+                        try {
+                          fs.removeSync(`${pathFrom}`);
+                          fastify.log.info(`removing folder ${pathFrom} succeed`);
+                        } catch (err) {
+                          fastify.log.error(`removing folder ${pathFrom} encountered error -> ${err}`);
+                          reject(new InternalError(`removing folder ${pathFrom} encountered error`, err));
+                        }
+                        fastify.log.info(`tmp folder location to move to the container : ${pathFrom}`);
+                        fastify.log.info(`full path for tmp folder location : ${__dirname}/${dicomPath}`);
+                        fastify.log.info(`plugin Params used for the plugin process : ${JSON.stringify(tempPluginparams[i])}`);
+                        fastify.log.info(`moving tmp folder content to the destination : ${inputfolder}`);
+                  }else{
+                    fastify.log.info(
+                      `don't refresh dicoms selected -> skipping prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
+                    );
                   }
-                  try {
-                    fs.removeSync(`${pathFrom}`);
-                    fastify.log.info(`removing folder ${pathFrom} succeed`);
-                  } catch (err) {
-                    fastify.log.error(`removing folder ${pathFrom} encountered error -> ${err}`);
-                    reject(new InternalError(`removing folder ${pathFrom} encountered error`, err));
-                  }
-                  fastify.log.info(`tmp folder location to move to the container : ${pathFrom}`);
-                  fastify.log.info(`full path for tmp folder location : ${__dirname}/${dicomPath}`);
-                  fastify.log.info(`plugin Params used for the plugin process : ${pluginparams}`);
-                  fastify.log.info(`moving tmp folder content to the destination : ${inputfolder}`);
                 }
               } catch (err) {
                 reject(err);
@@ -3595,7 +3609,7 @@ async function epaddb(fastify, options, done) {
           true
         ).notify(fastify);
 
-        fastify.log.info(' pluginQueueList[i] :', pluginQueueList[i]);
+        fastify.log.info(`pluginQueueList[i] :${JSON.stringify(pluginQueueList[i])}`);
         // eslint-disable-next-line no-await-in-loop
         const pluginParameters = await fastify.extractPluginParamtersInternal(
           pluginQueueList[i],
@@ -3609,19 +3623,19 @@ async function epaddb(fastify, options, done) {
             await fastify.updateStatusQueueProcessInternal(queueId, 'error');
             new EpadNotification(
               request,
-              `docker encountered an error while preparing the container  "${imageRepo}" `,
+              `docker encountered an error while preparing the container : ${imageRepo}`,
               new Error(`${pluginParameters.message}`),
               true
             ).notify(fastify);
             throw new InternalError('', pluginParameters.message);
           }
         }
-        fastify.log.info('called image : ', imageRepo);
+        fastify.log.info(`called image : ${imageRepo}`);
         const dock = new DockerService(fs, fastify, path);
         let checkImageExistOnHub = false;
         let checkImageExistLocal = false;
         try {
-          fastify.log.info(' trying to pull first ', imageRepo);
+          fastify.log.info(`trying to pull first : ${imageRepo}`);
           // eslint-disable-next-line no-await-in-loop
           await dock.pullImageA(imageRepo);
           checkImageExistOnHub = true;
@@ -12172,7 +12186,8 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS sendname tinyint(1) DEFAULT 0 AFTER name,
                 ADD COLUMN IF NOT EXISTS uploadimages tinyint(1) DEFAULT 0 AFTER sendname,
                 ADD COLUMN IF NOT EXISTS uploadaims tinyint(1) DEFAULT 0 AFTER uploadimages,
-                ADD COLUMN IF NOT EXISTS sendparamtodocker tinyint(1) DEFAULT 1 AFTER uploadaims;`,
+                ADD COLUMN IF NOT EXISTS sendparamtodocker tinyint(1) DEFAULT 1 AFTER uploadaims,
+                ADD COLUMN IF NOT EXISTS refreshdicoms tinyint(1) DEFAULT 0 AFTER sendparamtodocker;;`,
               { transaction: t }
             );
             fastify.log.warn('Altered plugin parameters table');

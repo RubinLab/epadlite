@@ -46,6 +46,11 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: false,
         defaultValue: 1,
       },
+      refreshdicoms: {
+        type: DataTypes.TINYINT(1),
+        allowNull: false,
+        defaultValue: 0,
+      },
       format: {
         type: DataTypes.STRING(128),
         allowNull: true,
