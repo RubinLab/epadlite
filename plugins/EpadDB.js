@@ -6658,7 +6658,8 @@ async function epaddb(fastify, options, done) {
                   studyUid,
                   user,
                   epadAuth,
-                  transaction
+                  transaction,
+                  subject.id
                 );
               }
             }
@@ -6738,7 +6739,8 @@ async function epaddb(fastify, options, done) {
       studyUid,
       user,
       epadAuth,
-      transaction
+      transaction,
+      subjectId
     ) => {
       // sample worklistReq
       // eslint-disable-next-line no-param-reassign
@@ -6879,6 +6881,46 @@ async function epaddb(fastify, options, done) {
         epadAuth.username,
         transaction
       );
+
+      // we need to update the other studies of the patient also if the requirement is patient level
+      if (
+        worklistReq.level.toLowerCase() === 'patient' ||
+        worklistReq.level.toLowerCase() === 'subject'
+      ) {
+        const worklistStudies = await models.worklist_study.findAll(
+          {
+            where: { project_id: projectId, subject_id: subjectId },
+            raw: true,
+          },
+          transaction ? { transaction } : {}
+        );
+        for (let i = 0; i < worklistStudies.length; i += 1) {
+          if (
+            worklistStudies[i].subject_id === subjectId &&
+            worklistStudies[i].id !== worklistStudyId
+          ) {
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.upsert(
+              models.worklist_study_completeness,
+              {
+                worklist_study_id: worklistStudies[i].id,
+                updatetime: Date.now(),
+                assignee: user,
+                worklist_requirement_id: worklistReq.id,
+                // completeness cannot be higher than 100
+                completeness: completenessPercent > 100 ? 100 : completenessPercent,
+              },
+              {
+                worklist_study_id: worklistStudies[i].id,
+                assignee: user,
+                worklist_requirement_id: worklistReq.id,
+              },
+              epadAuth.username,
+              transaction
+            );
+          }
+        }
+      }
     }
   );
 
