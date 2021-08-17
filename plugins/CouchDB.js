@@ -883,6 +883,64 @@ async function couchdb(fastify, options) {
       });
   });
 
+  fastify.decorate(
+    'getAimVersions',
+    (aimID) =>
+      new Promise((resolve, reject) => {
+        const db = fastify.couch.db.use(config.db);
+        db.fetch({ keys: [aimID] }, { attachments: true })
+          .then(async (data) => {
+            if (data.rows.length > 0 && !data.rows[0].error) {
+              const existing = data.rows[0].doc;
+              const currentAttachments = {
+                markupEntityCollection: existing._attachments.markupEntityCollection,
+                calculationEntityCollection: existing._attachments.calculationEntityCollection,
+                imageAnnotationStatementCollection:
+                  existing._attachments.imageAnnotationStatementCollection,
+              };
+              const currentAim = await fastify.addAttachmentParts(existing.aim, currentAttachments);
+              let prevAim;
+              if (existing._attachments.prevAim) {
+                const prevAimJson = JSON.parse(atob(existing._attachments.prevAim.data).toString());
+                const prevAttachments = {
+                  markupEntityCollection: existing._attachments.prevmarkupEntityCollection,
+                  calculationEntityCollection:
+                    existing._attachments.prevcalculationEntityCollection,
+                  imageAnnotationStatementCollection:
+                    existing._attachments.previmageAnnotationStatementCollection,
+                };
+                prevAim = await fastify.addAttachmentParts(prevAimJson, prevAttachments);
+              }
+              if (
+                currentAim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .markupEntityCollection
+              )
+                console.log(
+                  'currentmarkup',
+                  JSON.stringify(
+                    currentAim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .markupEntityCollection
+                  )
+                );
+              if (
+                prevAim &&
+                prevAim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .markupEntityCollection
+              )
+                console.log(
+                  'oldmarkup',
+                  JSON.stringify(
+                    prevAim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .markupEntityCollection
+                  )
+                );
+              resolve([currentAim, prevAim]);
+            }
+          })
+          .catch((err) => reject(err));
+      })
+  );
+
   // if aim is string, it is aimuid and the call is being made to update the projects (it can be from delete which sends removeProject = true)
   fastify.decorate(
     'saveAimInternal',
@@ -900,8 +958,10 @@ async function couchdb(fastify, options) {
               };
         const attachments = fastify.extractAttachmentParts(aim);
         const db = fastify.couch.db.use(config.db);
-        db.get(couchDoc._id, (error, existing) => {
-          if (!error) {
+
+        db.fetch({ keys: [couchDoc._id] }, { attachments: true }).then((data) => {
+          if (data.rows.length > 0 && !data.rows[0].error) {
+            const existing = data.rows[0].doc;
             // for updating project
             if (typeof aim === 'string') {
               couchDoc.aim = existing.aim;
@@ -911,6 +971,28 @@ async function couchdb(fastify, options) {
               couchDoc.projects = existing.projects;
             }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
+            if (config.auditLog === true) {
+              // add the old version to the couchdoc
+              // add old aim
+              attachments.push({
+                name: 'prevAim',
+                data: Buffer.from(JSON.stringify(existing.aim)),
+                content_type: 'text/plain',
+              });
+              // add old aim attachments
+              if (existing._attachments) {
+                Object.keys(existing._attachments).forEach((key) => {
+                  if (!key.startsWith('prev') && existing._attachments[key].data) {
+                    attachments.push({
+                      name: `prev${key}`,
+                      data: Buffer.from(atob(existing._attachments[key].data).toString()),
+                      content_type: 'text/plain',
+                    });
+                  }
+                });
+              }
+              // should we also add the older versions of the document?? (leaving for now)
+            }
           }
           if (projectId) {
             if (removeProject) {
@@ -925,6 +1007,7 @@ async function couchdb(fastify, options) {
           db.multipart
             .insert(couchDoc, attachments, couchDoc._id)
             .then(() => {
+              // await fastify.getAimVersions(couchDoc._id);
               resolve(`Aim ${couchDoc._id} is saved successfully`);
             })
             .catch((err) => {
