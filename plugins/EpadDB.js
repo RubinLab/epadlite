@@ -2458,120 +2458,88 @@ async function epaddb(fastify, options, done) {
                 reject(err);
               }
             }
-            // get dicoms
+            // get dicoms (series level)
             if (tempPluginparams[i].paramid === 'dicoms') {
               const inputfolder = `${userfolder}/${pluginparams[i].paramid}/`;
               fastify.log.info(`creating dicoms in this folder : ${inputfolder}`);
+              let isItFirstTimeGettingDicoms = false;
               try {
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
+                  isItFirstTimeGettingDicoms = true;
                 }
                 // eslint-disable-next-line no-case-declarations
 
                 if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
                   // aim level dicoms
-                  const aimsKeysLength = Object.keys(aims).length;
-                  const aimsKeys = Object.keys(aims);
-                  for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
-                    const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
-                    // const writeStream = fs
-                    //   .createWriteStream(`${inputfolder}dicoms${aimsCnt}.zip`)
-                    //   // eslint-disable-next-line prefer-arrow-callback
-                    //   .on('finish', function () {
-                    //     fastify.log.info('dicom copy finished');
-                    //     // unzip part
-                    //     // added aims[aimsKeys[aimsCnt]] for the folder name we will use aim uid
-                    //     fs.createReadStream(`${inputfolder}/dicoms${aimsCnt}.zip`)
-                    //       .pipe(
-                    //         unzip.Extract({
-                    //           path: aimNamedExtractFolder,
-                    //         })
-                    //       )
-                    //       .on('close', () => {
-                    //         fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip extracted`);
-                    //         fs.remove(`${inputfolder}dicoms${aimsCnt}.zip`, (error) => {
-                    //           if (error) {
-                    //             fastify.log.info(
-                    //               `${inputfolder}dicoms${aimsCnt}.zip file deletion error ${error.message}`
-                    //             );
-                    //             reject(error);
-                    //           } else {
-                    //             fastify.log.info(`${inputfolder}dicoms${aimsCnt}.zip deleted`);
-                    //           }
-                    //         });
-                    //       })
-                    //       .on('error', (error) => {
-                    //         reject(
-                    //           new InternalError(
-                    //             `Extracting zip ${inputfolder}dicoms${aimsCnt}.zip`,
-                    //             error
-                    //           )
-                    //         );
-                    //       });
-                    //     // un zip part over
-                    //   });
-                    const eacAimhObj = aims[aimsKeys[aimsCnt]];
-                    fastify.log.info('getting dicoms for aim ', eacAimhObj);
-                    console.log('downloading multi aims for an instance download section');
-                    console.log('downloading multi aims for an instance download section');
-                    console.log('downloading multi aims for an instance download section');
-                    console.log('downloading multi aims for an instance download section');
-                    console.log('downloading multi aims for an subjectuid:',eacAimhObj.subjectID);
-                    console.log('downloading multi aims for an studyuid:',eacAimhObj.studyUID);
-                    console.log('downloading multi aims for an seriesuid:',eacAimhObj.seriesUID);
-                    // eslint-disable-next-line no-await-in-loop
-                    const returnSerieFolder = await fastify.prepSeriesDownload(
-                      request.headers.origin,
-                      {
-                        project: projectid,
-                        subject: eacAimhObj.subjectID,
-                        study: eacAimhObj.studyUID,
-                        series: eacAimhObj.seriesUID,
-                      },
-                      { format: 'stream', includeAims: 'true' },
-                      request.epadAuth,
-                      'undefined',//it was -> writeStream
-                      '', // added for seriesinfo
-                      true // added for return folder
-                    );
-                    let returnSerieFolderFullPath = path.join(__dirname, `../${returnSerieFolder}`);
-                    try {
-                      console.log('copyin aims to :',inputfolder);
-                      console.log('copyin aims to :',inputfolder);
-                      console.log('copyin aims to :',inputfolder);
-                      console.log('copyin aims to :',inputfolder);
-                      console.log('copyin aims to :',inputfolder);
-                      console.log('copyin aims to :',inputfolder);
-                      const foldersListSource= fs.readdirSync(returnSerieFolderFullPath);
-                      const foldersListDestination= fs.readdirSync(inputfolder);
-                      console.log('xxxx : xxxx : ------>',aimsCnt);
-                      console.log('xxxx : xxxx : ------> sorce parent :',returnSerieFolderFullPath);
-                      console.log('xxxx : xxxx : ------> destination parent',inputfolder);
-                      console.log('folder list source: recevied in tmp:',foldersListSource);
-                      console.log('folder list destination: in the container :',foldersListDestination);
-                      // fs.moveSync(`${returnSerieFolderFullPath}`, `${inputfolder}`, { overwrite: true });
-                      for (let foldecount=0 ;foldecount < foldersListSource.length; foldecount +=1){
-                        fs.copySync(`${returnSerieFolderFullPath}/${foldersListSource[foldecount]}`,`${inputfolder}/${foldersListSource[foldecount]}`);
-                      }
-                      
-                      fastify.log.info(`copying folder ${returnSerieFolderFullPath} succeed`);
-                    } catch (err) {
-                      fastify.log.error(`file copy from ${returnSerieFolderFullPath} encountered error: -> ${err}`);
-                      reject(new InternalError(`file copy from ${returnSerieFolderFullPath} encountered error`, err));
-                    }
-                    try {
-                      fs.removeSync(`${returnSerieFolderFullPath}`);
-                      fastify.log.info(`removing series folder from tmp : ${returnSerieFolderFullPath} succeed`);
-                    } catch (err) {
-                      fastify.log.error(`removing series folder from tmp: ${returnSerieFolderFullPath} encountered error -> ${err}`);
-                      reject(new InternalError(`removing series folder from tmp ${returnSerieFolderFullPath} encountered error`, err));
-                    }
-                    //  console.log('aim files returned into this location --- ---- -- - - - - - -',returnSerieFolderFullPath);
-                  } // req inputs : reqOrigin, params, query, epadAuth, output, seriesInfos, returnFolder
+                  if (tempPluginparams[i].refreshdicoms === 1  || isItFirstTimeGettingDicoms) {
+                          const aimsKeysLength = Object.keys(aims).length;
+                          const aimsKeys = Object.keys(aims);
+                          for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
+                            const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
+                            const eacAimhObj = aims[aimsKeys[aimsCnt]];
+                            fastify.log.info('getting dicoms for aim ', eacAimhObj);
+                            console.log('downloading multi aims for an instance download section');
+                            console.log('downloading multi aims for an instance download section');
+                            console.log('downloading multi aims for an instance download section');
+                            console.log('downloading multi aims for an instance download section');
+                            console.log('downloading multi aims for an subjectuid:',eacAimhObj.subjectID);
+                            console.log('downloading multi aims for an studyuid:',eacAimhObj.studyUID);
+                            console.log('downloading multi aims for an seriesuid:',eacAimhObj.seriesUID);
+                            // eslint-disable-next-line no-await-in-loop
+                            const returnSerieFolder = await fastify.prepSeriesDownload(
+                              request.headers.origin,
+                              {
+                                project: projectid,
+                                subject: eacAimhObj.subjectID,
+                                study: eacAimhObj.studyUID,
+                                series: eacAimhObj.seriesUID,
+                              },
+                              { format: 'stream', includeAims: 'true' },
+                              request.epadAuth,
+                              'undefined',//it was -> writeStream
+                              '', // added for seriesinfo
+                              true // added for return folder
+                            );
+                            let returnSerieFolderFullPath = path.join(__dirname, `../${returnSerieFolder}`);
+                            try {
+                              console.log('copyin aims to :',inputfolder);
+                              console.log('copyin aims to :',inputfolder);
+                              console.log('copyin aims to :',inputfolder);
+                              console.log('copyin aims to :',inputfolder);
+                              console.log('copyin aims to :',inputfolder);
+                              console.log('copyin aims to :',inputfolder);
+                              const foldersListSource= fs.readdirSync(returnSerieFolderFullPath);
+                              const foldersListDestination= fs.readdirSync(inputfolder);
+                              console.log('xxxx : xxxx : ------>',aimsCnt);
+                              console.log('xxxx : xxxx : ------> sorce parent :',returnSerieFolderFullPath);
+                              console.log('xxxx : xxxx : ------> destination parent',inputfolder);
+                              console.log('folder list source: recevied in tmp:',foldersListSource);
+                              console.log('folder list destination: in the container :',foldersListDestination);
+                              // fs.moveSync(`${returnSerieFolderFullPath}`, `${inputfolder}`, { overwrite: true });
+                              for (let foldecount=0 ;foldecount < foldersListSource.length; foldecount +=1){
+                                fs.copySync(`${returnSerieFolderFullPath}/${foldersListSource[foldecount]}`,`${inputfolder}/${foldersListSource[foldecount]}`);
+                              }
+                              
+                              fastify.log.info(`copying folder ${returnSerieFolderFullPath} succeed`);
+                            } catch (err) {
+                              fastify.log.error(`file copy from ${returnSerieFolderFullPath} encountered error: -> ${err}`);
+                              reject(new InternalError(`file copy from ${returnSerieFolderFullPath} encountered error`, err));
+                            }
+                            try {
+                              fs.removeSync(`${returnSerieFolderFullPath}`);
+                              fastify.log.info(`removing series folder from tmp : ${returnSerieFolderFullPath} succeed`);
+                            } catch (err) {
+                              fastify.log.error(`removing series folder from tmp: ${returnSerieFolderFullPath} encountered error -> ${err}`);
+                              reject(new InternalError(`removing series folder from tmp ${returnSerieFolderFullPath} encountered error`, err));
+                            }
+                            //  console.log('aim files returned into this location --- ---- -- - - - - - -',returnSerieFolderFullPath);
+                          } // req inputs : reqOrigin, params, query, epadAuth, output, seriesInfos, returnFolder
+                  }
                 } else {
                         // project level dicoms
                         console.log("______ ___ : do we need to refresh user dicoms ? ",tempPluginparams[i].refreshdicoms);
-                    if (tempPluginparams[i].refreshdicoms === 1) {
+                    if (tempPluginparams[i].refreshdicoms === 1  || isItFirstTimeGettingDicoms) {
                       //if dicoms folder exist already don't get imgaes again
                         fastify.log.info(
                           `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
@@ -3038,7 +3006,8 @@ async function epaddb(fastify, options, done) {
                   console.log('pushing this as dso lines',csvLines[i][rowNumForSegid]);
                 }
                 if (csvLines[i][k] === 'Segmentation UID'){
-                  console.log(`bulduk col no : ',${i}.${k},${csvLines[i][k]}` );
+                  console.log(`lookin for seg uid column no: ',${i}.${k},${csvLines[i][k]}` );
+                  console.log(`seg uid column no: ${k}`);
                   rowNumForSegid = k;
                    
                 }
@@ -3058,11 +3027,11 @@ async function epaddb(fastify, options, done) {
             }
             //  console.log('a line string transposed : ',aLineString);
           }
-          console.log(`renaming pyradiomics.csv from: ${csvPath}/${csvFile} to: ${csvPath}/${csvFile}_old`);
+          console.log(`renaming csv file in pluigin output folder from: ${csvPath}/${csvFile} to: ${csvPath}/${csvFile}_old`);
           fs.renameSync(`${csvPath}/${csvFile}`, `${csvPath}/${csvFile}_old`);
-          console.log(`renaming tmpTransposedFileName to pyradiomics.csv : from :${csvPath}/${tmpTransposedFileName} to ${csvPath}/${csvFile}`);
+          console.log(`renaming tmpTransposedFileName to plugin original csv file name : from :${csvPath}/${tmpTransposedFileName} to ${csvPath}/${csvFile}`);
           fs.renameSync(`${csvPath}/${tmpTransposedFileName}`, `${csvPath}/${csvFile}`);
-          console.log('pluginTransposeCsv ended ');
+          console.log('transposing plugin csv ended ');
           // console.log('pluginTransposeCsv ended returning lines',csvLines);
           resolve({lines :csvLines, rownum :rowNumForSegid, dsoids : dsoIds});
         })
@@ -3078,11 +3047,14 @@ async function epaddb(fastify, options, done) {
   })
 
   //  plugin calculations verify codemaning existance in ontology and add calculations to the user aim part
-  fastify.decorate('parseCsvForPluginCalculationsInternal', async (csvFileParam) => {
+  fastify.decorate('parseCsvForPluginCalculationsInternal', async (csvFileParam,pluginParameters) => {
     const result = [];
     return new Promise(async (resolve, reject) => {
-      const transposedCsv = await fastify.pluginTransposeCsv(csvFileParam.path,csvFileParam.file);
-      
+      if (pluginParameters.pluginnameid === "pyradiomics"){
+        const transposedCsv = await fastify.pluginTransposeCsv(csvFileParam.path,csvFileParam.file);
+      }else{
+        const transposedCsv = {};
+      }
       console.log(`parseCsvForPluginCalculationsInternal processing ${csvFileParam.path}/${csvFileParam.file}`);
 
       fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
@@ -3094,7 +3066,11 @@ async function epaddb(fastify, options, done) {
         .on('end', () => {
           //resolve({lines :csvLines, rownum :rowNumForSegid});
           console.log(`parseCsvForPluginCalculationsInternal processing ${csvFileParam.path}/${csvFileParam.file} ended`);
-          resolve({resultobj : result, rownumobj : transposedCsv.rownum ,alldsoIds : transposedCsv.dsoids} );
+          if (pluginParameters.pluginnameid === "pyradiomics"){
+            resolve({resultobj : result, rownumobj : transposedCsv.rownum ,alldsoIds : transposedCsv.dsoids} );
+          }else{
+            resolve({resultobj : result, rownumobj : null ,alldsoIds : null} );
+          }
         })
         .on('error', (err) => {
           reject(
@@ -3747,25 +3723,28 @@ async function epaddb(fastify, options, done) {
               fastify.log.info(
                 `source path for files to upload back to epad :${pluginParameters.relativeServerFolder}/output`
               );
+              if (pluginParameters.uploadimages === 1){
+                  if (fileArray.length > 0 ) {
+                    fastify.log.info(
+                      `plugin is uploading dcm files from output folder ${pluginParameters.relativeServerFolder}/output`
+                    );
+                    //  eslint-disable-next-line no-await-in-loop
+                    const { success, errors } = await fastify.saveFiles(
+                      `${pluginParameters.relativeServerFolder}/output`,
+                      dcmFilesWithoutPath,
+                      { project: pluginParameters.projectid },
+                      {},
+                      request.epadAuth
+                    );
 
-              if (fileArray.length > 0) {
-                fastify.log.info(
-                  `plugin is uploading dcm files from output folder ${pluginParameters.relativeServerFolder}/output`
-                );
-                //  eslint-disable-next-line no-await-in-loop
-                const { success, errors } = await fastify.saveFiles(
-                  `${pluginParameters.relativeServerFolder}/output`,
-                  dcmFilesWithoutPath,
-                  { project: pluginParameters.projectid },
-                  {},
-                  request.epadAuth
-                );
-
-                fastify.log.info(`dcm upload process project id :${pluginParameters.projectid}`);
-                fastify.log.info(`dcm upload process error: ${errors}`);
-                fastify.log.info(`dcm upload process success: ${success}`);
-              } else {
-                fastify.log.info('no dcm file found in output folder for the plugin');
+                    fastify.log.info(`dcm upload process project id :${pluginParameters.projectid}`);
+                    fastify.log.info(`dcm upload process error: ${errors}`);
+                    fastify.log.info(`dcm upload process success: ${success}`);
+                  } else {
+                    fastify.log.info(`no dcm file found in output folder for the plugin`);
+                  }
+              }else{
+                  fastify.log.info(`user set don't upload back dicoms from output folder flag`);
               }
               // look for dcm files to upload section ends
 
@@ -3802,7 +3781,7 @@ async function epaddb(fastify, options, done) {
                   const tempFileObject = csvArray[csvfound] ;//JSON.parse(JSON.stringify(csvArray[csvfound])) ;
                   //  console.log("----------------------- tempFileObject",tempFileObject);
                   // eslint-disable-next-line no-await-in-loop
-                  const calcObj = await fastify.parseCsvForPluginCalculationsInternal(tempFileObject);
+                  const calcObj = await fastify.parseCsvForPluginCalculationsInternal(tempFileObject,pluginParameters);
                   const resObj = calcObj.resultobj ;
                   //  console.log("calcObj ---- ---- --- -",calcObj);
                   const totalcolumnumber = Object.keys(resObj[0]).length;
@@ -3838,22 +3817,42 @@ async function epaddb(fastify, options, done) {
                                                 true
                                               ).notify(fastify);
                                         }
-                                          // find first the aim fro the dso
-                                          try{
-                                              fastify.log.info(`finding the aim for the dso: ${calcObj.alldsoIds[csvColumncount-1]}`);
-                                            // eslint-disable-next-line no-await-in-loop
-                                            foundAimIdFordso =  await fastify.pluginFindAimforGivenDso(calcObj.alldsoIds[csvColumncount-1] ,`${pluginParameters.relativeServerFolder}/aims`);
-                                          // 
-                                           // console.log('result from find aim id for dso : ',foundAimIdFordso);
-                                          }catch(err){
-                                            fastify.log.error(`Error: finding aim for the dso: ${calcObj.alldsoIds[csvColumncount-1]} ,err: ${err}`);
-                                            new EpadNotification(
-                                              request,
-                                              '',
-                                              new Error(`error happened while ${pluginInfoFromParams.pluginname} was searching for the dso :${calcObj.alldsoIds[csvColumncount-1]}` ),
-                                              true
-                                            ).notify(fastify);
-                                          }
+                                                    // find the aim id from the dso id -> if the plugin is pyradiomics
+                                                  if (pluginParameters.pluginnameid === "pyradiomics"){
+                                                    try{
+                                                        fastify.log.info(`finding the aim for the dso: ${calcObj.alldsoIds[csvColumncount-1]}`);
+                                                      // eslint-disable-next-line no-await-in-loop
+                                                      foundAimIdFordso =  await fastify.pluginFindAimforGivenDso(calcObj.alldsoIds[csvColumncount-1] ,`${pluginParameters.relativeServerFolder}/aims`);
+                                                    }catch(err){
+                                                      fastify.log.error(`Error: finding aim for the dso: ${calcObj.alldsoIds[csvColumncount-1]} ,err: ${err}`);
+                                                      new EpadNotification(
+                                                        request,
+                                                        '',
+                                                        new Error(`error happened while ${pluginInfoFromParams.pluginname} was searching for the dso :${calcObj.alldsoIds[csvColumncount-1]}` ),
+                                                        true
+                                                      ).notify(fastify);
+                                                    }
+                                                  }else{
+                                                    try{
+                                                      // we assume that plugins other than pyradiomics will use only one aim for the calculations
+                                                        const tmpAims = [];
+                                                        fastify.findFilesAndSubfilesInternal(
+                                                          `${pluginParameters.relativeServerFolder}/aims`,
+                                                          tmpAims,
+                                                          'json'
+                                                        );
+                                                        // we may need to rename the foundAimIdFordso. Because we only collect aimid from dso for pyradiomics. 
+                                                        foundAimIdFordso = tmpAims[0];
+                                                    }catch (err){
+                                                      fastify.log.error(`Error: finding aim for non pyradiomics plugins ,err: ${err}`);
+                                                      new EpadNotification(
+                                                        request,
+                                                        '',
+                                                        new Error(`error happened while  ${pluginInfoFromParams.pluginname} was searching for plugin aims `),
+                                                        true
+                                                      ).notify(fastify);
+                                                    }
+                                                  }
                                           try{
                                             fastify.log.info(`merging calculation object with the aim with the id : ${foundAimIdFordso}`);
                                             // eslint-disable-next-line no-await-in-loop
@@ -3863,7 +3862,7 @@ async function epaddb(fastify, options, done) {
                                               `${pluginParameters.relativeServerFolder}/aims`
                                             );
                                           }catch (err){
-                                            fastify.log.error(`merging calculation object with the aim with the id : ${foundAimIdFordso},err: ${err}`);
+                                            fastify.log.error(`merging calculation object with the aim with the aimid : ${foundAimIdFordso},err: ${err}`);
                                             new EpadNotification(
                                               request,
                                               '',
@@ -3871,21 +3870,25 @@ async function epaddb(fastify, options, done) {
                                               true
                                             ).notify(fastify);
                                           }
-                                          try{
-                                            fastify.log.info(`uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin`);
-                                            // eslint-disable-next-line no-await-in-loop
-                                            await fastify.uploadMergedAimPluginCalcInternal(
-                                              mergedaimFileLocation,
-                                              pluginParameters.projectid
-                                            );
-                                          }catch(err){
-                                            fastify.log.error(`Error : uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin, err:${err}`);
-                                             new EpadNotification(
-                                              request,
-                                              "",
-                                              new Error(`error happened while  ${pluginInfoFromParams.pluginname} was uploading back the aim : ${foundAimIdFordso}`),
-                                              true
-                                            ).notify(fastify);
+                                          if (pluginParameters.uploadaims === 1){
+                                            try{
+                                              fastify.log.info(`uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin`);
+                                              // eslint-disable-next-line no-await-in-loop
+                                              await fastify.uploadMergedAimPluginCalcInternal(
+                                                mergedaimFileLocation,
+                                                pluginParameters.projectid
+                                              );
+                                            }catch(err){
+                                              fastify.log.error(`Error : uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin, err:${err}`);
+                                              new EpadNotification(
+                                                request,
+                                                "",
+                                                new Error(`error happened while  ${pluginInfoFromParams.pluginname} was uploading back the aim : ${foundAimIdFordso}`),
+                                                true
+                                              ).notify(fastify);
+                                            }
+                                          }else{
+                                            fastify.log.info(`user set don't upload aims back flag`);
                                           }
                   }
                   new EpadNotification(
@@ -3897,7 +3900,7 @@ async function epaddb(fastify, options, done) {
                   await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
                 } else {
                   fastify.log.info(
-                    'no Calculations.csv file found in output folder for the plugin'
+                    `required ${pluginParameters.OutputFile} file couldn't be found to process in output folder for the plugin`
                   );
                 }
               } else {
