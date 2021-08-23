@@ -5,6 +5,8 @@ const fs = require('fs-extra');
 const archiver = require('archiver');
 const atob = require('atob');
 const path = require('path');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const dateFormatter = require('date-format');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 const {
@@ -881,6 +883,214 @@ async function couchdb(fastify, options) {
       .catch((err) => {
         reply.send(err);
       });
+  });
+
+  fastify.decorate(
+    'getAimVersionChangesBulk',
+    (aimuids) =>
+      new Promise((resolve, reject) => {
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const header = [
+            // Date_Created	Patient_Name	Patient_ID	Reviewer	Name Comment	Points	Study_UID	Series_UID	Image_UID
+            { id: 'aimUid', title: 'Aim_UID' },
+            { id: 'date', title: 'Date_Created' },
+            { id: 'patientName', title: 'Patient_Name' },
+            { id: 'patientId', title: 'Patient_ID' },
+            { id: 'reviewer', title: 'Reviewer' },
+            { id: 'name', title: 'Name' },
+            { id: 'comment', title: 'Comment' },
+            { id: 'userComment', title: 'User_Comment' },
+            { id: 'dsoSeriesUid', title: 'DSO_Series_UID' },
+            { id: 'studyUid', title: 'Study_UID' },
+            { id: 'seriesUid', title: 'Series_UID' },
+            { id: 'imageUid', title: 'Image_UID' },
+            { id: 'changes', title: 'Markup_Changes' },
+          ];
+          const rows = [];
+          db.fetch({ keys: aimuids }, { attachments: true })
+            .then(async (data) => {
+              if (data.rows.length > 0) {
+                for (let i = 0; i < data.rows.length; i += 1) {
+                  console.log('deleted', data.rows[i]._deleted, data.rows[i].id);
+                  if (!data.rows[i].error) {
+                    const existing = data.rows[i].doc;
+                    let { aim } = existing;
+                    let prevAim;
+                    if (existing._attachments) {
+                      const currentAttachments = {
+                        markupEntityCollection: existing._attachments.markupEntityCollection,
+                        calculationEntityCollection:
+                          existing._attachments.calculationEntityCollection,
+                        imageAnnotationStatementCollection:
+                          existing._attachments.imageAnnotationStatementCollection,
+                      };
+                      // eslint-disable-next-line no-await-in-loop
+                      aim = await fastify.addAttachmentParts(existing.aim, currentAttachments);
+
+                      if (existing._attachments.prevAim) {
+                        const prevAimJson = JSON.parse(
+                          atob(existing._attachments.prevAim.data).toString()
+                        );
+                        const prevAttachments = {
+                          markupEntityCollection: existing._attachments.prevmarkupEntityCollection,
+                          calculationEntityCollection:
+                            existing._attachments.prevcalculationEntityCollection,
+                          imageAnnotationStatementCollection:
+                            existing._attachments.previmageAnnotationStatementCollection,
+                        };
+                        // eslint-disable-next-line no-await-in-loop
+                        prevAim = await fastify.addAttachmentParts(prevAimJson, prevAttachments);
+                      }
+                    }
+                    const imageAnnotations =
+                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
+
+                    imageAnnotations.forEach((imageAnnotation) => {
+                      const commentSplit = imageAnnotation.comment.value.split('~~');
+                      const row = {
+                        aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                        date: dateFormatter.asString(
+                          dateFormatter.ISO8601_FORMAT,
+                          dateFormatter.parse(
+                            'yyyyMMddhhmmssSSS',
+                            `${imageAnnotation.dateTime.value}000`
+                          )
+                        ),
+                        patientName: aim.ImageAnnotationCollection.person.name.value,
+                        patientId: aim.ImageAnnotationCollection.person.id.value,
+                        reviewer: aim.ImageAnnotationCollection.user.name.value,
+                        name: imageAnnotation.name.value.split('~')[0],
+                        comment: commentSplit[0],
+                        userComment: commentSplit.length > 1 ? commentSplit[1] : '',
+                        dsoSeriesUid:
+                          imageAnnotation.segmentationEntityCollection &&
+                          imageAnnotation.segmentationEntityCollection.SegmentationEntity
+                            ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                                .seriesInstanceUid.root
+                            : '',
+                        studyUid:
+                          imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                            .imageStudy.instanceUid.root,
+                        seriesUid:
+                          imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                            .imageStudy.imageSeries.instanceUid.root,
+                        imageUid:
+                          imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                            .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
+                        changes: fastify.getChanges(aim, prevAim),
+                      };
+
+                      rows.push(row);
+                    });
+                  }
+                }
+              }
+              resolve({ header, data: rows });
+            })
+            .catch((err) => {
+              console.log(err);
+              reject(new InternalError('Export changes', err));
+            });
+        } catch (err) {
+          reject(new InternalError('Exporting changes with uids', err));
+        }
+      })
+  );
+
+  fastify.decorate('getAimVersionChangesAimUIDs', (request, reply) => {
+    fastify
+      .getAimVersionChangesBulk(request.body)
+      .then(({ header, data }) => {
+        const filename = path.join('/tmp', `summary${new Date().getTime()}.csv`);
+        const csvWriter = createCsvWriter({
+          path: filename,
+          header,
+        });
+        csvWriter.writeRecords(data).then(() => {
+          fastify.log.info('The export CSV file was written successfully');
+          const buffer = fs.readFileSync(filename);
+          fs.remove(filename, (error) => {
+            if (error) {
+              fastify.log.info(`${filename} export csv file deletion error ${error.message}`);
+            } else {
+              fastify.log.info(`${filename} export csv deleted`);
+            }
+          });
+          reply.header('Content-Disposition', `attachment; filename=changes.csv`);
+          reply.code(200).send(buffer);
+        });
+      })
+      .catch((err) => reply.send(new InternalError('Export changes', err)));
+  });
+
+  fastify.decorate('getAimVersionChangesProject', (request, reply) => {
+    const db = fastify.couch.db.use(config.db);
+    const dbFilter = {
+      q: `project: ${request.params.project}`,
+      deleted: true,
+      sort: 'name<string>',
+      limit: 200,
+    };
+    db.search('search', 'aimSearch', dbFilter, (error, body) => {
+      console.log('seer', dbFilter, error);
+      if (!error) {
+        const aimuids = [];
+        for (let i = 0; i < body.rows.length; i += 1) {
+          aimuids.push(body.rows[i].id);
+        }
+        console.log('aimuids', aimuids);
+        fastify
+          .getAimVersionChangesBulk(aimuids)
+          .then(({ header, data }) => {
+            const filename = path.join('/tmp', `summary${new Date().getTime()}.csv`);
+            const csvWriter = createCsvWriter({
+              path: filename,
+              header,
+            });
+            csvWriter.writeRecords(data).then(() => {
+              fastify.log.info('The export CSV file was written successfully');
+              const buffer = fs.readFileSync(filename);
+              fs.remove(filename, (err) => {
+                if (err) {
+                  fastify.log.info(`${filename} export csv file deletion error ${err.message}`);
+                } else {
+                  fastify.log.info(`${filename} export csv deleted`);
+                }
+              });
+              reply.header('Content-Disposition', `attachment; filename=changes.csv`);
+              reply.code(200).send(buffer);
+            });
+          })
+          .catch((err) => reply.send(new InternalError('Export changes', err)));
+      } else {
+        reply.send(new InternalError('Export changes', error));
+      }
+    });
+  });
+
+  fastify.decorate('getMarkupText', (aim) => {
+    const currentShapes = aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection.MarkupEntity.map(
+      (mu) => {
+        const coordinates = mu.twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate.map(
+          (coor) => `${coor.x.value} ${coor.y.value}`
+        );
+        return `(${coordinates.join(';')})`;
+      }
+    );
+    return `[${currentShapes.join('|')}]`;
+  });
+
+  fastify.decorate('getChanges', (currentAim, prevAim) => {
+    try {
+      if (!prevAim) return 'No change';
+      return `Current shape: ${fastify.getMarkupText(
+        currentAim
+      )} Old shape: ${fastify.getMarkupText(prevAim)}`;
+    } catch (err) {
+      console.log('sss', currentAim, prevAim, err);
+      return err.message;
+    }
   });
 
   fastify.decorate(
