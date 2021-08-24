@@ -512,9 +512,9 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         const query = `AccessionNumber=${accessionNumber}`;
         this.request
-          .get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
+          .get(`${config.dicomWebConfig.qidoSubPath}/studies?${query}`, header)
           .then((res) => {
-            const patientStudyPairs = res.map((value) => ({
+            const patientStudyPairs = res.data.map((value) => ({
               patientID: fastify.replaceNull(value['00100020'].Value[0]),
               studyUID: value['0020000D'].Value[0],
             }));
