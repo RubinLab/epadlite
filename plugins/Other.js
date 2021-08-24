@@ -1959,7 +1959,9 @@ async function other(fastify) {
         reply.send({ ...obj, projectID });
       } else if (obj.accession) {
         // if accession
-        const patientStudyPairs = await fastify.getPatientIDandStudyUIDsFromAccession(obj.accession);
+        const patientStudyPairs = await fastify.getPatientIDandStudyUIDsFromAccession(
+          obj.accession
+        );
 
         // send the first it there is
         if (patientStudyPairs.length > 0) {
