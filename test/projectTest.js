@@ -2954,16 +2954,20 @@ describe('Project Tests', () => {
     after(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilesubject');
+        .delete('/projects/testfilesubject')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilesubject2');
+        .delete('/projects/testfilesubject2')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilesubject3');
+        .delete('/projects/testfilesubject3')
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testfilesubject4');
+        .delete('/projects/testfilesubject4')
+        .query({ username: 'admin' });
     });
     it('should return no files for subject 3 in project testfilesubject', (done) => {
       chai

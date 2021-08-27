@@ -1813,7 +1813,7 @@ async function other(fastify) {
         reqInfo.project
       );
       fastify.log.info('Creator is', creator);
-      if (creator && creator === request.epadAuth.username) return true;
+      if (creator && request.epadAuth && creator === request.epadAuth.username) return true;
       // not a db item return true
       if (!creator) {
         if (reqInfo.level === 'aim') {

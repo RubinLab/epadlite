@@ -2033,7 +2033,7 @@ async function couchdb(fastify, options) {
           db.fetch({ keys: ids })
             .then((data) => {
               data.rows.forEach((item) => {
-                if ('doc' in item)
+                if (item.doc)
                   docsToDelete.push({ _id: item.id, _rev: item.doc._rev, _deleted: true });
               });
               if (docsToDelete.length > 0)
