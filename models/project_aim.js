@@ -54,6 +54,10 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
+      deleted: {
+        type: DataTypes.INTEGER(11),
+        allowNull: true,
+      },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,

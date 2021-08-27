@@ -888,7 +888,7 @@ async function couchdb(fastify, options) {
   fastify.decorate(
     'getAimVersionChangesBulk',
     (aimuids) =>
-      new Promise((resolve, reject) => {
+      new Promise(async (resolve, reject) => {
         try {
           const db = fastify.couch.db.use(config.db);
           const header = [
@@ -908,90 +908,98 @@ async function couchdb(fastify, options) {
             { id: 'changes', title: 'Markup_Changes' },
           ];
           const rows = [];
-          db.fetch({ keys: aimuids }, { attachments: true })
-            .then(async (data) => {
-              if (data.rows.length > 0) {
-                for (let i = 0; i < data.rows.length; i += 1) {
-                  console.log('deleted', data.rows[i]._deleted, data.rows[i].id);
-                  if (!data.rows[i].error) {
-                    const existing = data.rows[i].doc;
-                    let { aim } = existing;
-                    let prevAim;
-                    if (existing._attachments) {
-                      const currentAttachments = {
-                        markupEntityCollection: existing._attachments.markupEntityCollection,
-                        calculationEntityCollection:
-                          existing._attachments.calculationEntityCollection,
-                        imageAnnotationStatementCollection:
-                          existing._attachments.imageAnnotationStatementCollection,
-                      };
-                      // eslint-disable-next-line no-await-in-loop
-                      aim = await fastify.addAttachmentParts(existing.aim, currentAttachments);
+          const data = await db.fetch({ keys: aimuids }, { attachments: true });
+          if (data.rows.length > 0) {
+            for (let i = 0; i < data.rows.length; i += 1) {
+              if (!data.rows[i].error) {
+                let existing = data.rows[i].doc;
+                if (data.rows[i].value && data.rows[i].value.deleted) {
+                  // making two calls to couchdb, couldn't find another way to fill all
+                  // if performance is an issue, we can get it from the db, but there won't be name, comment, etc.
+                  // eslint-disable-next-line no-await-in-loop
+                  const revisionsDoc = await db.get(data.rows[i].id, {
+                    revs: true,
+                    open_revs: 'all',
+                  });
+                  const prevRev = `${revisionsDoc[0].ok._revisions.start - 1}-${
+                    revisionsDoc[0].ok._revisions.ids[1]
+                  }`;
+                  // eslint-disable-next-line no-await-in-loop
+                  existing = await db.get(data.rows[i].id, { rev: prevRev });
+                }
+                let { aim } = existing;
+                let prevAim;
+                if (existing._attachments) {
+                  const currentAttachments = {
+                    markupEntityCollection: existing._attachments.markupEntityCollection,
+                    calculationEntityCollection: existing._attachments.calculationEntityCollection,
+                    imageAnnotationStatementCollection:
+                      existing._attachments.imageAnnotationStatementCollection,
+                  };
+                  // eslint-disable-next-line no-await-in-loop
+                  aim = await fastify.addAttachmentParts(existing.aim, currentAttachments);
 
-                      if (existing._attachments.prevAim) {
-                        const prevAimJson = JSON.parse(
-                          atob(existing._attachments.prevAim.data).toString()
-                        );
-                        const prevAttachments = {
-                          markupEntityCollection: existing._attachments.prevmarkupEntityCollection,
-                          calculationEntityCollection:
-                            existing._attachments.prevcalculationEntityCollection,
-                          imageAnnotationStatementCollection:
-                            existing._attachments.previmageAnnotationStatementCollection,
-                        };
-                        // eslint-disable-next-line no-await-in-loop
-                        prevAim = await fastify.addAttachmentParts(prevAimJson, prevAttachments);
-                      }
-                    }
-                    const imageAnnotations =
-                      aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
-
-                    imageAnnotations.forEach((imageAnnotation) => {
-                      const commentSplit = imageAnnotation.comment.value.split('~~');
-                      const row = {
-                        aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
-                        date: dateFormatter.asString(
-                          dateFormatter.ISO8601_FORMAT,
-                          dateFormatter.parse(
-                            'yyyyMMddhhmmssSSS',
-                            `${imageAnnotation.dateTime.value}000`
-                          )
-                        ),
-                        patientName: aim.ImageAnnotationCollection.person.name.value,
-                        patientId: aim.ImageAnnotationCollection.person.id.value,
-                        reviewer: aim.ImageAnnotationCollection.user.name.value,
-                        name: imageAnnotation.name.value.split('~')[0],
-                        comment: commentSplit[0],
-                        userComment: commentSplit.length > 1 ? commentSplit[1] : '',
-                        dsoSeriesUid:
-                          imageAnnotation.segmentationEntityCollection &&
-                          imageAnnotation.segmentationEntityCollection.SegmentationEntity
-                            ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
-                                .seriesInstanceUid.root
-                            : '',
-                        studyUid:
-                          imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                            .imageStudy.instanceUid.root,
-                        seriesUid:
-                          imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                            .imageStudy.imageSeries.instanceUid.root,
-                        imageUid:
-                          imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
-                            .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
-                        changes: fastify.getChanges(aim, prevAim),
-                      };
-
-                      rows.push(row);
-                    });
+                  if (existing._attachments.prevAim && !data.rows[i].value.deleted) {
+                    const prevAimJson = JSON.parse(
+                      atob(existing._attachments.prevAim.data).toString()
+                    );
+                    const prevAttachments = {
+                      markupEntityCollection: existing._attachments.prevmarkupEntityCollection,
+                      calculationEntityCollection:
+                        existing._attachments.prevcalculationEntityCollection,
+                      imageAnnotationStatementCollection:
+                        existing._attachments.previmageAnnotationStatementCollection,
+                    };
+                    // eslint-disable-next-line no-await-in-loop
+                    prevAim = await fastify.addAttachmentParts(prevAimJson, prevAttachments);
                   }
                 }
+                const imageAnnotations =
+                  aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
+
+                imageAnnotations.forEach((imageAnnotation) => {
+                  const commentSplit = imageAnnotation.comment.value.split('~~');
+                  const row = {
+                    aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
+                    date: dateFormatter.asString(
+                      dateFormatter.ISO8601_FORMAT,
+                      dateFormatter.parse(
+                        'yyyyMMddhhmmssSSS',
+                        `${imageAnnotation.dateTime.value}000`
+                      )
+                    ),
+                    patientName: aim.ImageAnnotationCollection.person.name.value,
+                    patientId: aim.ImageAnnotationCollection.person.id.value,
+                    reviewer: aim.ImageAnnotationCollection.user.name.value,
+                    name: imageAnnotation.name.value.split('~')[0],
+                    comment: commentSplit[0],
+                    userComment: commentSplit.length > 1 ? commentSplit[1] : '',
+                    dsoSeriesUid:
+                      imageAnnotation.segmentationEntityCollection &&
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity
+                        ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                            .seriesInstanceUid.root
+                        : '',
+                    studyUid:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.instanceUid.root,
+                    seriesUid:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.imageSeries.instanceUid.root,
+                    imageUid:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
+                    changes: data.rows[i].value.deleted
+                      ? 'Deleted'
+                      : fastify.getChanges(aim, prevAim),
+                  };
+
+                  rows.push(row);
+                });
               }
-              resolve({ header, data: rows });
-            })
-            .catch((err) => {
-              console.log(err);
-              reject(new InternalError('Export changes', err));
-            });
+            }
+          }
+          resolve({ header, data: rows });
         } catch (err) {
           reject(new InternalError('Exporting changes with uids', err));
         }
@@ -1002,70 +1010,80 @@ async function couchdb(fastify, options) {
     fastify
       .getAimVersionChangesBulk(request.body)
       .then(({ header, data }) => {
-        const filename = path.join('/tmp', `summary${new Date().getTime()}.csv`);
-        const csvWriter = createCsvWriter({
-          path: filename,
-          header,
-        });
-        csvWriter.writeRecords(data).then(() => {
-          fastify.log.info('The export CSV file was written successfully');
-          const buffer = fs.readFileSync(filename);
-          fs.remove(filename, (error) => {
-            if (error) {
-              fastify.log.info(`${filename} export csv file deletion error ${error.message}`);
-            } else {
-              fastify.log.info(`${filename} export csv deleted`);
-            }
+        if (request.query.rawData === 'true') {
+          reply.code(200).send({ header, data });
+        } else {
+          const filename = path.join('/tmp', `summary${new Date().getTime()}.csv`);
+          const csvWriter = createCsvWriter({
+            path: filename,
+            header,
           });
-          reply.header('Content-Disposition', `attachment; filename=changes.csv`);
-          reply.code(200).send(buffer);
-        });
+          csvWriter.writeRecords(data).then(() => {
+            fastify.log.info('The export CSV file was written successfully');
+            const buffer = fs.readFileSync(filename);
+            fs.remove(filename, (error) => {
+              if (error) {
+                fastify.log.info(`${filename} export csv file deletion error ${error.message}`);
+              } else {
+                fastify.log.info(`${filename} export csv deleted`);
+              }
+            });
+            reply.header('Content-Disposition', `attachment; filename=changes.csv`);
+            reply.code(200).send(buffer);
+          });
+        }
       })
       .catch((err) => reply.send(new InternalError('Export changes', err)));
   });
 
   fastify.decorate('getAimVersionChangesProject', (request, reply) => {
     const db = fastify.couch.db.use(config.db);
-    const dbFilter = {
-      q: `project: ${request.params.project}`,
-      deleted: true,
-      sort: 'name<string>',
-      limit: 200,
-    };
-    db.search('search', 'aimSearch', dbFilter, (error, body) => {
-      console.log('seer', dbFilter, error);
-      if (!error) {
-        const aimuids = [];
-        for (let i = 0; i < body.rows.length; i += 1) {
-          aimuids.push(body.rows[i].id);
+    // get the deleted aims first
+    fastify.getDeletedAimsDB(request.params.project).then((dbAims) => {
+      const deletedAims = dbAims.map((ae) => ae.dataValues.aim_uid);
+      const dbFilter = {
+        q: `project: ${request.params.project}`,
+        deleted: true,
+        sort: 'name<string>',
+        limit: 200,
+      };
+      db.search('search', 'aimSearch', dbFilter, (error, body) => {
+        if (!error) {
+          const aimuids = deletedAims;
+          for (let i = 0; i < body.rows.length; i += 1) {
+            aimuids.push(body.rows[i].id);
+          }
+          fastify
+            .getAimVersionChangesBulk(aimuids)
+            .then(({ header, data }) => {
+              if (request.query.rawData === 'true') {
+                reply.code(200).send({ header, data });
+              } else {
+                const filename = path.join('/tmp', `summary${new Date().getTime()}.csv`);
+                const csvWriter = createCsvWriter({
+                  path: filename,
+                  header,
+                });
+                csvWriter.writeRecords(data).then(() => {
+                  fastify.log.info('The export CSV file was written successfully');
+                  const buffer = fs.readFileSync(filename);
+                  fs.remove(filename, (err) => {
+                    if (err) {
+                      fastify.log.info(`${filename} export csv file deletion error ${err.message}`);
+                    } else {
+                      fastify.log.info(`${filename} export csv deleted`);
+                    }
+                  });
+                  reply.header('Content-Disposition', `attachment; filename=changes.csv`);
+                  reply.code(200).send(buffer);
+                });
+              }
+            })
+            .catch((err) => reply.send(new InternalError('Export changes', err)));
+        } else {
+          reply.send(new InternalError('Export changes', error));
         }
-        console.log('aimuids', aimuids);
-        fastify
-          .getAimVersionChangesBulk(aimuids)
-          .then(({ header, data }) => {
-            const filename = path.join('/tmp', `summary${new Date().getTime()}.csv`);
-            const csvWriter = createCsvWriter({
-              path: filename,
-              header,
-            });
-            csvWriter.writeRecords(data).then(() => {
-              fastify.log.info('The export CSV file was written successfully');
-              const buffer = fs.readFileSync(filename);
-              fs.remove(filename, (err) => {
-                if (err) {
-                  fastify.log.info(`${filename} export csv file deletion error ${err.message}`);
-                } else {
-                  fastify.log.info(`${filename} export csv deleted`);
-                }
-              });
-              reply.header('Content-Disposition', `attachment; filename=changes.csv`);
-              reply.code(200).send(buffer);
-            });
-          })
-          .catch((err) => reply.send(new InternalError('Export changes', err)));
-      } else {
-        reply.send(new InternalError('Export changes', error));
-      }
+      });
     });
   });
 
@@ -1088,7 +1106,6 @@ async function couchdb(fastify, options) {
         currentAim
       )} Old shape: ${fastify.getMarkupText(prevAim)}`;
     } catch (err) {
-      console.log('sss', currentAim, prevAim, err);
       return err.message;
     }
   });
@@ -1121,29 +1138,6 @@ async function couchdb(fastify, options) {
                 };
                 prevAim = await fastify.addAttachmentParts(prevAimJson, prevAttachments);
               }
-              if (
-                currentAim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .markupEntityCollection
-              )
-                console.log(
-                  'currentmarkup',
-                  JSON.stringify(
-                    currentAim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                      .markupEntityCollection
-                  )
-                );
-              if (
-                prevAim &&
-                prevAim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .markupEntityCollection
-              )
-                console.log(
-                  'oldmarkup',
-                  JSON.stringify(
-                    prevAim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                      .markupEntityCollection
-                  )
-                );
               resolve([currentAim, prevAim]);
             }
           })
@@ -1170,7 +1164,7 @@ async function couchdb(fastify, options) {
         const db = fastify.couch.db.use(config.db);
 
         db.fetch({ keys: [couchDoc._id] }, { attachments: true }).then((data) => {
-          if (data.rows.length > 0 && !data.rows[0].error) {
+          if (data.rows.length > 0 && !data.rows[0].error && !data.rows[0].value.deleted) {
             const existing = data.rows[0].doc;
             // for updating project
             if (typeof aim === 'string') {

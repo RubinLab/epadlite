@@ -5181,6 +5181,10 @@ async function epaddb(fastify, options, done) {
           if (params.project) whereJSON = { ...whereJSON, '$project.projectid$': params.project };
           if (params.subject) whereJSON = { ...whereJSON, subject_uid: params.subject };
           if (params.study) whereJSON = { ...whereJSON, study_uid: params.study };
+          whereJSON = {
+            ...whereJSON,
+            ...fastify.qryNotDeleted(),
+          };
           const projectAims = await models.project_aim.findAll({
             where: whereJSON,
             attributes: ['aim_uid', 'user', field],
@@ -5264,6 +5268,7 @@ async function epaddb(fastify, options, done) {
             where: { projectid: projectID },
           },
         ],
+        where: fastify.qryNotDeleted(),
         attributes: ['subject_uid'],
         group: ['subject_uid'],
       });
@@ -5287,7 +5292,15 @@ async function epaddb(fastify, options, done) {
       } else {
         const project = await models.project.findOne({
           where: { projectid: request.params.project },
-          include: [{ model: models.project_aim, attributes: ['aim_uid', 'user', 'subject_uid'] }],
+          include: [
+            {
+              model: models.project_aim,
+              attributes: ['aim_uid', 'user', 'subject_uid', 'deleted'],
+              required: false,
+              // TODO or 0
+              where: { '$project_aims.deleted$': null }, // if I put the deleted check in where above left outer fails
+            },
+          ],
         });
 
         if (project === null) {
@@ -5418,12 +5431,10 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate(
     'deleteSeriesAimProjectRels',
-    (params) =>
+    (params, username) =>
       new Promise(async (resolve, reject) => {
         try {
-          await models.project_aim.destroy({
-            where: { series_uid: params.series },
-          });
+          await fastify.deleteAimDB({ series_uid: params.series }, username);
           resolve();
         } catch (err) {
           reject(new InternalError(`Deletion of aim project relation from ${params.series}`, err));
@@ -5449,9 +5460,7 @@ async function epaddb(fastify, options, done) {
             });
           }
           if (subject !== null) {
-            await models.project_aim.destroy({
-              where: { subject_uid: subject.subjectuid },
-            });
+            await fastify.deleteAimDB({ subject_uid: subject.subjectuid }, epadAuth.username);
             // delete the subject
             await models.subject.destroy({
               where: { id: subject.id },
@@ -5539,9 +5548,10 @@ async function epaddb(fastify, options, done) {
               await models.worklist_study.destroy({
                 where: { project_id: project.id, subject_id: subject.id },
               });
-              await models.project_aim.destroy({
-                where: { project_id: project.id, subject_uid: subject.subjectuid },
-              });
+              await fastify.deleteAimDB(
+                { project_id: project.id, subject_uid: subject.subjectuid },
+                epadAuth.username
+              );
 
               // if delete from all or it doesn't exist in any other project, delete from system
               try {
@@ -5563,9 +5573,7 @@ async function epaddb(fastify, options, done) {
                   await models.worklist_study.destroy({
                     where: { project_id: project.id, subject_id: subject.id },
                   });
-                  await models.project_aim.destroy({
-                    where: { subject_uid: subject.subjectuid },
-                  });
+                  await fastify.deleteAimDB({ subject_uid: subject.subjectuid }, epadAuth.username);
                   // delete the subject
                   await models.subject.destroy({
                     where: { id: subject.id },
@@ -5619,6 +5627,10 @@ async function epaddb(fastify, options, done) {
                 }
               }
             }
+            whereJSON = {
+              ...whereJSON,
+              ...fastify.qryNotDeleted(),
+            };
             if (filter) whereJSON = { ...whereJSON, ...filter };
             const aimUids = [];
             const projectAims = await models.project_aim.findAll({
@@ -6717,7 +6729,11 @@ async function epaddb(fastify, options, done) {
         try {
           const projectId = await fastify.findProjectIdInternal(project);
           const aimsCount = await models.project_aim.count({
-            where: { project_id: projectId, dso_series_uid: dsoSeriesUid },
+            where: {
+              project_id: projectId,
+              dso_series_uid: dsoSeriesUid,
+              ...fastify.qryNotDeleted(),
+            },
           });
           resolve(aimsCount > 0);
         } catch (err) {
@@ -6751,6 +6767,7 @@ async function epaddb(fastify, options, done) {
         subject_uid: subjectUid,
         study_uid: studyUid,
         user,
+        ...fastify.qryNotDeleted(),
       };
       // if the requirement is patient level, calculate patient level and update all studies
       // I need to compute using all aims for that patient
@@ -7085,6 +7102,64 @@ async function epaddb(fastify, options, done) {
     return { completed, required };
   });
 
+  fastify.decorate('deleteAimDB', async (whereJson, username) => {
+    let whereStr = '';
+    if (whereJson.series_uid) whereStr += `series_uid = '${whereJson.series_uid}'`;
+    if (whereJson.subject_uid)
+      whereStr += `${whereStr !== '' ? ' AND ' : ''} subject_uid = '${whereJson.subject_uid}'`;
+    if (whereJson.project_id)
+      whereStr += `${whereStr !== '' ? ' AND ' : ''} project_id = ${whereJson.project_id}`;
+    if (whereJson.aim_uid) {
+      if (Array.isArray(whereJson.aim_uid)) {
+        whereStr += `${whereStr !== '' ? ' AND ' : ''} aim_uid IN ('${whereJson.aim_uid.join(
+          "','"
+        )}')`;
+      } else {
+        whereStr += `${whereStr !== '' ? ' AND ' : ''} aim_uid = '${whereJson.aim_uid}'`;
+      }
+    }
+    let numDeleted = 0;
+    if (config.auditLog === true) {
+      // TODO updatetime = ${Date.now()},
+      const ret = await fastify.orm.query(
+        `update project_aim SET updated_by = '${username}', deleted = 1 WHERE ${whereStr}`
+      );
+      numDeleted = ret[0].affectedRows;
+    } else {
+      numDeleted = await models.project_aim.destroy({
+        where: whereJson,
+      });
+    }
+    return numDeleted;
+  });
+
+  fastify.decorate('qryNotDeleted', () => ({
+    // $or: [
+    //   {
+    //     deleted: {
+    //       $eq: 0,
+    //     },
+    //   },
+    //   {
+    //     deleted: {
+    //       $eq: null,
+    //     },
+    //   },
+    // ],
+    deleted: null,
+  }));
+
+  fastify.decorate('getDeletedAimsDB', (project) =>
+    models.project_aim.findAll({
+      where: {
+        '$project.projectid$': project,
+        deleted: 1,
+      },
+      include: [{ model: models.project }],
+      attributes: ['aim_uid'],
+    })
+  );
+
   fastify.decorate('deleteAimFromProject', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -7105,20 +7180,25 @@ async function epaddb(fastify, options, done) {
         reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
         const args = await models.project_aim.findOne({
-          where: { project_id: project.id, aim_uid: request.params.aimuid },
+          where: {
+            project_id: project.id,
+            aim_uid: request.params.aimuid,
+            ...fastify.qryNotDeleted(),
+          },
           attributes: ['project_id', 'subject_uid', 'study_uid', 'user'],
           raw: true,
         });
-
-        const numDeleted = await models.project_aim.destroy({
-          where: { project_id: project.id, aim_uid: request.params.aimuid },
-        });
+        const numDeleted = await fastify.deleteAimDB(
+          { project_id: project.id, aim_uid: request.params.aimuid },
+          request.epadAuth.username
+        );
         // if delete from all or it doesn't exist in any other project, delete from system
         try {
           if (request.query.all && request.query.all === 'true') {
-            const deletednum = await models.project_aim.destroy({
-              where: { aim_uid: request.params.aimuid },
-            });
+            const deletednum = await fastify.deleteAimDB(
+              { aim_uid: request.params.aimuid },
+              request.epadAuth.username
+            );
             await fastify.deleteAimInternal(request.params.aimuid);
             if (args) {
               await fastify.aimUpdateGateway(
@@ -7136,7 +7216,10 @@ async function epaddb(fastify, options, done) {
               .send(`Aim deleted from system and removed from ${deletednum + numDeleted} projects`);
           } else {
             const count = await models.project_aim.count({
-              where: { aim_uid: request.params.aimuid },
+              where: {
+                aim_uid: request.params.aimuid,
+                ...fastify.qryNotDeleted(),
+              },
             });
             if (count === 0) {
               await fastify.deleteAimInternal(request.params.aimuid);
@@ -7238,6 +7321,10 @@ async function epaddb(fastify, options, done) {
             if (params.study) aimQry = { ...aimQry, study_uid: params.study };
             if (params.series) aimQry = { ...aimQry, series_uid: params.series };
           }
+          aimQry = {
+            ...aimQry,
+            ...fastify.qryNotDeleted(),
+          };
           const qry =
             query.all && query.all === 'true'
               ? aimQry
@@ -7272,9 +7359,11 @@ async function epaddb(fastify, options, done) {
           if (aimUids.length === 0 && body && Array.isArray(body)) {
             aimUids = body;
           }
-          const numDeleted = await models.project_aim.destroy({
-            where: { aim_uid: aimUids },
-          });
+
+          const numDeleted =
+            aimUids.length > 0
+              ? await fastify.deleteAimDB({ aim_uid: aimUids }, epadAuth.username)
+              : 0;
 
           // if delete from all or it doesn't exist in any other project, delete from system
           try {
@@ -7379,9 +7468,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('deleteAimFromSystem', async (request, reply) => {
     try {
       const aimUid = request.params.aimuid;
-      const numDeleted = await models.project_aim.destroy({
-        where: { aim_uid: aimUid },
-      });
+      const numDeleted = await fastify.deleteAimDB({ aim_uid: aimUid }, request.epadAuth.username);
       await fastify.deleteAimInternal(request.params.aimuid);
       reply.code(200).send(`Aim deleted from system and removed from ${numDeleted} projects`);
     } catch (err) {
@@ -7845,6 +7932,7 @@ async function epaddb(fastify, options, done) {
                   const projectAims = await models.project_aim.findAll({
                     where: {
                       project_id: whereJSON.project_id,
+                      ...fastify.qryNotDeleted(),
                     },
                     attributes: ['aim_uid', 'user', 'study_uid'],
                   });
@@ -11175,11 +11263,13 @@ async function epaddb(fastify, options, done) {
             numOfAims = await models.project_aim.count({
               col: 'aim_uid',
               distinct: true,
+              where: fastify.qryNotDeleted(),
             });
             numOfTemplateAimsMap = await models.project_aim.findAll({
               group: ['template'],
               attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
               raw: true,
+              where: fastify.qryNotDeleted(),
             });
           }
 
@@ -11579,6 +11669,7 @@ async function epaddb(fastify, options, done) {
               },
             ],
             attributes: ['aim_uid'],
+            where: fastify.qryNotDeleted(),
           });
           const aimProjects = projectAims.map((projectAim) => ({
             aim: projectAim.dataValues.aim_uid,
@@ -11624,6 +11715,7 @@ async function epaddb(fastify, options, done) {
               `ALTER TABLE project_aim 
                 ADD COLUMN IF NOT EXISTS frame_id int(11) DEFAULT NULL AFTER image_uid,
                 ADD COLUMN IF NOT EXISTS dso_series_uid varchar(256) DEFAULT NULL AFTER frame_id,
+                ADD COLUMN IF NOT EXISTS deleted int(11) DEFAULT NULL AFTER dso_series_uid,
                 DROP CONSTRAINT IF EXISTS project_aimuid_ind,
                 ADD CONSTRAINT project_aimuid_ind UNIQUE (project_id, aim_uid);`,
               { transaction: t }

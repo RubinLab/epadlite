@@ -2253,7 +2253,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('aim update with changing the name to Lesion2 should be successful ', (done) => {
+    it('aim update with changing the name to Lesion2 and markup change should be successful ', (done) => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
       const nameSplit = jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value.split(
         '~'
@@ -2262,6 +2262,9 @@ describe('Project Tests', () => {
       jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = nameSplit.join(
         '~'
       );
+      // change shape
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate[0].x.value = 100;
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].markupEntityCollection.MarkupEntity[0].twoDimensionSpatialCoordinateCollection.TwoDimensionSpatialCoordinate[0].y.value = 100;
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put(`/projects/testaim/aims/${jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root}`)
@@ -2269,6 +2272,25 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
+
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    // get changes test
+    it('aim changes should have shape change', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims/changes?rawData=true')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.data[0].name).to.be.eql('Lesion2');
+          expect(res.body.data[0].changes).to.be.eql(
+            'Current shape: [(100 100;179.48764044943823 201.34831460674158)] Old shape: [(112.7550561797753 222.05842696629216;179.48764044943823 201.34831460674158)]'
+          );
           done();
         })
         .catch((e) => {
@@ -2306,6 +2328,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    // TODO delete from project only changes??
 
     it('project testaim should have no aim ', (done) => {
       chai
@@ -2359,6 +2382,22 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    // get changes test
+    it('aim changes should have deletion change', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims/changes?rawData=true')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.data[0].name).to.be.eql('Lesion2');
+          expect(res.body.data[0].changes).to.be.eql('Deleted');
           done();
         })
         .catch((e) => {

@@ -262,7 +262,7 @@ async function routes(fastify) {
   });
 
   fastify.route({
-    method: 'POST',
+    method: 'GET',
     url: '/projects/:project/aims/changes',
     schema: {
       tags: ['project', 'aim'],

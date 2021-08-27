@@ -1309,7 +1309,9 @@ async function other(fastify) {
           return fastify.deleteSeriesDicomsInternal(request.params);
         })
       );
-      promisses.push(() => fastify.deleteSeriesAimProjectRels(request.params));
+      promisses.push(() =>
+        fastify.deleteSeriesAimProjectRels(request.params, request.epadAuth.username)
+      );
       promisses.push(() =>
         fastify.deleteAimsInternal(request.params, request.epadAuth, { all: 'true' })
       );
