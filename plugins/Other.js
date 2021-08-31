@@ -1309,7 +1309,9 @@ async function other(fastify) {
           return fastify.deleteSeriesDicomsInternal(request.params);
         })
       );
-      promisses.push(() => fastify.deleteSeriesAimProjectRels(request.params));
+      promisses.push(() =>
+        fastify.deleteSeriesAimProjectRels(request.params, request.epadAuth.username)
+      );
       promisses.push(() =>
         fastify.deleteAimsInternal(request.params, request.epadAuth, { all: 'true' })
       );
@@ -1811,7 +1813,7 @@ async function other(fastify) {
         reqInfo.project
       );
       fastify.log.info('Creator is', creator);
-      if (creator && creator === request.epadAuth.username) return true;
+      if (creator && request.epadAuth && creator === request.epadAuth.username) return true;
       // not a db item return true
       if (!creator) {
         if (reqInfo.level === 'aim') {

@@ -81,5 +81,7 @@ config.precomputeReports = process.env.PRECOMPUTE_REPORTS
   ? JSON.parse(process.env.PRECOMPUTE_REPORTS)
   : config.precomputeReports || [];
 config.wadoType = process.env.WADO_TYPE || config.wadoType || undefined;
+config.auditLog =
+  (process.env.AUDIT_LOG && process.env.AUDIT_LOG === 'true') || config.auditLog || false;
 
 module.exports = config;
