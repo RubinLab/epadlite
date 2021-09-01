@@ -39,6 +39,11 @@ config.dicomWebConfig.wadoSubPath =
 config.dicomWebConfig.qidoSubPath =
   process.env.DICOMWEB_QIDOSUBPATH || config.dicomWebConfig.qidoSubPath || '';
 
+config.dicomWebConfig.username =
+  process.env.DICOMWEB_USERNAME || config.dicomWebConfig.username || undefined;
+config.dicomWebConfig.password =
+  process.env.DICOMWEB_PASSWORD || config.dicomWebConfig.password || undefined;
+
 config.mode = process.env.MODE || config.mode || 'lite'; // default lite
 config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';
 config.reportExt = process.env.REPORT_EXT || config.reportExt || 'txt|pdf';
