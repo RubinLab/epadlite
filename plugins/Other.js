@@ -1889,12 +1889,9 @@ async function other(fastify) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
-            console.log("cavit checking :",reqInfo.level);
-            console.log("cavit checking :reqInfo",reqInfo);
-            console.log("cavit checking :request.raw.url",request.raw.url);
               if (
                 !request.raw.url.startsWith('/decrypt') &&
-                !request.raw.url.startsWith('/plugins') && //cavit added to let normal user to add remove projects to the plugin
+                !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
                 !request.raw.url.startsWith(`/${config.prefix}/decrypt`) &&
                 reqInfo.level !== 'ontology' &&
                 (await fastify.isCreatorOfObject(request, reqInfo)) === false &&

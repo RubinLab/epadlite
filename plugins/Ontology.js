@@ -28,9 +28,10 @@ async function Ontology(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           let configApiKey = null;
-
-          if (Object.prototype.hasOwnProperty.call(request.raw, 'headers')) {
-            if (Object.prototype.hasOwnProperty.call(request.raw.headers, 'authorization')) {
+          // eslint-disable-next-line dot-notation
+          if (request.raw['headers']) {
+            // eslint-disable-next-line dot-notation
+            if (request.raw.headers['authorization']) {
               // eslint-disable-next-line prefer-destructuring
               configApiKey = request.raw.headers.authorization.split(' ')[1];
             }
