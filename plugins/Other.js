@@ -1700,6 +1700,12 @@ async function other(fastify) {
           // TODO should be https (&& req.protocol === 'https') it doesn't work because of nginx
           // TODO create user if not exists?
           req.epadAuth = await fastify.validateApiKeyInternal(req);
+          if (!req.epadAuth)
+            res.send(
+              new UnauthenticatedError(
+                'Request should have user in the query for apikey authentication'
+              )
+            );
         } else {
           res.send(
             new UnauthenticatedError('Authentication header does not conform with the server')
