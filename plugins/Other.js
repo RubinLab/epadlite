@@ -2044,6 +2044,7 @@ async function other(fastify) {
   fastify.decorate('decrypt', (request, reply) => {
     try {
       const obj = fastify.decryptInternal(request.query.arg);
+      if (!obj.projectID) obj.projectID = 'lite';
       if (obj) {
         reply.code(200).send(obj);
       }
