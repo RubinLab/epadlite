@@ -1309,7 +1309,9 @@ async function other(fastify) {
           return fastify.deleteSeriesDicomsInternal(request.params);
         })
       );
-      promisses.push(() => fastify.deleteSeriesAimProjectRels(request.params));
+      promisses.push(() =>
+        fastify.deleteSeriesAimProjectRels(request.params, request.epadAuth.username)
+      );
       promisses.push(() =>
         fastify.deleteAimsInternal(request.params, request.epadAuth, { all: 'true' })
       );
@@ -1685,7 +1687,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
-      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decrypt`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decrypt?`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
@@ -1698,6 +1700,12 @@ async function other(fastify) {
           // TODO should be https (&& req.protocol === 'https') it doesn't work because of nginx
           // TODO create user if not exists?
           req.epadAuth = await fastify.validateApiKeyInternal(req);
+          if (!req.epadAuth)
+            res.send(
+              new UnauthenticatedError(
+                'Request should have user in the query for apikey authentication'
+              )
+            );
         } else {
           res.send(
             new UnauthenticatedError('Authentication header does not conform with the server')
@@ -1811,7 +1819,7 @@ async function other(fastify) {
         reqInfo.project
       );
       fastify.log.info('Creator is', creator);
-      if (creator && creator === request.epadAuth.username) return true;
+      if (creator && request.epadAuth && creator === request.epadAuth.username) return true;
       // not a db item return true
       if (!creator) {
         if (reqInfo.level === 'aim') {
