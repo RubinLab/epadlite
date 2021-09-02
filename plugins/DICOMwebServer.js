@@ -58,9 +58,14 @@ async function dicomwebserver(fastify) {
               };
               this.request = Axios.create({
                 baseURL: config.dicomWebConfig.baseUrl,
+                headers: { ...header.headers, accept: 'application/json' },
+              });
+              this.wadoRequest = Axios.create({
+                baseURL: config.dicomWebConfig.baseUrl,
+                headers: header.headers,
               });
               this.request
-                .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`, header)
+                .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
                 .then(() => {
                   resolve();
                 })
@@ -69,9 +74,6 @@ async function dicomwebserver(fastify) {
                 });
             }
           } else if (config.dicomWebConfig.username) {
-            this.request = Axios.create({
-              baseURL: config.dicomWebConfig.baseUrl,
-            });
             const encoded = btoa(
               `${config.dicomWebConfig.username}:${config.dicomWebConfig.password}`
             );
@@ -80,8 +82,16 @@ async function dicomwebserver(fastify) {
                 Authorization: `Basic ${encoded}`,
               },
             };
+            this.request = Axios.create({
+              baseURL: config.dicomWebConfig.baseUrl,
+              headers: { ...header.headers, accept: 'application/json' },
+            });
+            this.wadoRequest = Axios.create({
+              baseURL: config.dicomWebConfig.baseUrl,
+              headers: header.headers,
+            });
             this.request
-              .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`, header)
+              .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
               .then(() => {
                 resolve();
               })
