@@ -2002,6 +2002,36 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('fail saving aim to project all ', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post(`/projects/${config.XNATUploadProjectID}/aims`)
+        .send(jsonBuffer)
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('fail saving aim to project unassigned ', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post(`/projects/${config.unassignedProjectID}/aims`)
+        .send(jsonBuffer)
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('aim save to project testaim should be successful ', (done) => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
       chai

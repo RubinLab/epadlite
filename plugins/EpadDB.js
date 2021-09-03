@@ -6559,6 +6559,17 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('saveAimToProject', async (request, reply) => {
     try {
       let aimUid = request.params.aimuid;
+      if (
+        request.params.project === config.XNATUploadProjectID ||
+        request.params.project === config.unassignedProjectID
+      ) {
+        reply.send(
+          new BadRequestError(
+            `Saving aim ${aimUid} to project ${request.params.project}`,
+            new Error(`Saving to ${request.params.project} project is not supported`)
+          )
+        );
+      }
       let aim = request.body;
       if (!request.params.aimuid)
         aimUid = request.body.ImageAnnotationCollection.uniqueIdentifier.root;
