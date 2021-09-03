@@ -1017,7 +1017,7 @@ async function epaddb(fastify, options, done) {
     const formattedProjects = [];
 
     fastify.log.info(`projects to remove : ${projectsToRemove}`);
-    fastify.log.info(`projects to removprojectsToAdde : ${projectsToAdd}`);
+    fastify.log.info(`projects to remove : ${projectsToAdd}`);
     let whereObj = {};
     whereObj = {
       plugin_id: pluginid,
