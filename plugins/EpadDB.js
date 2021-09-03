@@ -3615,7 +3615,7 @@ async function epaddb(fastify, options, done) {
             }
             let uploadImageBackFlag = null;
             let uploadAimsBackFlag = null;
-            let outputFileParam = null ;
+            let outputFileParam = null;
             for (let prmsCnt = 0; prmsCnt < pluginParameters.params.length; prmsCnt += 1) {
               if (pluginParameters.params[prmsCnt].format === 'OutputFile') {
                 outputFileParam = pluginParameters.params[prmsCnt].default_value;
