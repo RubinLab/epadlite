@@ -1911,6 +1911,7 @@ async function other(fastify) {
             case 'PUT': // check permissions
               if (
                 !request.raw.url.startsWith('/decrypt') &&
+                !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
                 !request.raw.url.startsWith(`/${config.prefix}/decrypt`) &&
                 reqInfo.level !== 'ontology' &&
                 (await fastify.isCreatorOfObject(request, reqInfo)) === false &&

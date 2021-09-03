@@ -34,6 +34,26 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
+      sendname: {
+        type: DataTypes.TINYINT(1),
+        allowNull: false,
+        defaultValue: 0,
+      },
+      uploadimages: {
+        type: DataTypes.TINYINT(1),
+        allowNull: false,
+        defaultValue: 0,
+      },
+      uploadaims: {
+        type: DataTypes.TINYINT(1),
+        allowNull: false,
+        defaultValue: 0,
+      },
+      sendparamtodocker: {
+        type: DataTypes.TINYINT(1),
+        allowNull: false,
+        defaultValue: 1,
+      },
       format: {
         type: DataTypes.STRING(128),
         allowNull: true,
