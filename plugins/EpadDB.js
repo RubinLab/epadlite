@@ -792,7 +792,6 @@ async function epaddb(fastify, options, done) {
       .then((pluginDataRootPath) => {
         // eslint-disable-next-line no-param-reassign
         pluginDataRootPath = path.join(__dirname, `../pluginsDataFolder`);
-        // const { creator } = request.body;
         fastify
           .getObjectCreator('pluginqueue', containerid, '')
           .then((creator) => {
@@ -802,7 +801,6 @@ async function epaddb(fastify, options, done) {
               .inspectContainer(`epadplugin_${containerid}`)
               .then((inspectResultObject) => {
                 fastify.log.info('inspect result object', inspectResultObject);
-                // fastify.log.info('status : ', inspectResultObject.State.Status);
                 fastify.log.info(
                   `trying to read from the path : ${pluginDataRootPath}/${creator}/${containerid}/logs/logfile.txt`
                 );
@@ -926,10 +924,6 @@ async function epaddb(fastify, options, done) {
 
             pluginObj.parameters.push(parameterObj);
           });
-          //  if (request.epadAuth.admin || obj.loginNames.includes(request.epadAuth.username))
-          // if (request.epadAuth.admin) {
-          //   result.push(pluginObj);
-          // }
           result.push(pluginObj);
         });
 
@@ -1177,8 +1171,6 @@ async function epaddb(fastify, options, done) {
           )
         );
     }
-
-    //
   });
 
   fastify.decorate('deletePlugin', async (request, reply) => {
@@ -1192,7 +1184,6 @@ async function epaddb(fastify, options, done) {
       pluginid = [...pluginIdsToDelete];
     }
     if (request.epadAuth.admin === false) {
-      //  new UnauthorizedError('User has no access to project')
       reply.send(new UnauthorizedError('User has no right to delete plugin'));
     } else {
       try {
@@ -1265,7 +1256,6 @@ async function epaddb(fastify, options, done) {
       tempprocessmultipleaims = pluginform.processmultipleaims;
     }
     if (request.epadAuth.admin === false) {
-      //  new UnauthorizedError('User has no access to project')
       reply.send(new UnauthorizedError('User has no right to create plugin'));
     } else {
       // check if plugin_id exist
@@ -1295,7 +1285,6 @@ async function epaddb(fastify, options, done) {
                 processmultipleaims: tempprocessmultipleaims,
               })
               .then(() => {
-                //  new UnauthorizedError('User has no access to project')
                 reply.code(200).send('Plugin saved seccessfully');
               })
               .catch((err) => {
@@ -1467,7 +1456,6 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('saveDefaultParameter', (request, reply) => {
     const parameterform = request.body;
     if (request.epadAuth.admin === false) {
-      //  new UnauthorizedError('User has no access to project')
       reply.send(new UnauthorizedError('User has no right to add plugin default parameters'));
     } else {
       models.plugin_parameters
@@ -1559,7 +1547,6 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('deleteOneDefaultParameter', (request, reply) => {
     const parameterIdToDelete = request.params.parameterdbid;
     if (request.epadAuth.admin === false) {
-      //  new UnauthorizedError('User has no access to project')
       reply.send(new UnauthorizedError('User has no right to delete plugin default parameters'));
     } else {
       models.plugin_parameters
@@ -1587,7 +1574,6 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('editDefaultparameter', (request, reply) => {
     const paramsForm = request.body;
     if (request.epadAuth.admin === false) {
-      //  new UnauthorizedError('User has no access to project')
       reply.send(new UnauthorizedError('User has no right to edit plugin default parameters'));
     } else {
       models.plugin_parameters
@@ -1937,11 +1923,7 @@ async function epaddb(fastify, options, done) {
         dock
           .checkContainerExistance(containerName)
           .then((resInspect) => {
-            fastify.log.info(
-              'deleteFromPluginQueue inspect element result',
-              // resInspect.State.Status
-              resInspect.message
-            );
+            fastify.log.info('deleteFromPluginQueue inspect element result', resInspect.message);
             if (resInspect.message === '404') {
               fastify.log.info('need to throw an error here ');
               throw new Error('404');
@@ -2038,7 +2020,7 @@ async function epaddb(fastify, options, done) {
             status: 'added',
             runtime_params: queueObjects.runtimeParams,
             aim_uid: newAimObject,
-            starttime: '1970-01-01 00:00:01', //  added this
+            starttime: '1970-01-01 00:00:01',
             endtime: '1970-01-01 00:00:01',
           })
         );
@@ -2137,7 +2119,6 @@ async function epaddb(fastify, options, done) {
     const containerLists = await dock.listContainers();
     let containerFound = false;
     reply.code(204).send();
-    console.log('container top Called ....ids', queueIds);
     for (let cnt = 0; cnt < queueIds.length; cnt += 1) {
       const containerName = `/epadplugin_${queueIds[cnt]}`;
       let containerId = null;
@@ -2149,7 +2130,6 @@ async function epaddb(fastify, options, done) {
             containerFound = true;
             containerId = containerLists[i].id;
             queuid = queueIds[cnt];
-
             break;
           }
         }
@@ -2176,7 +2156,6 @@ async function epaddb(fastify, options, done) {
           'success',
           true
         ).notify(fastify);
-        //  reply.code(200).send();
       } else {
         for (let queueIdCnt = 0; queueIdCnt < queueIds.length; queueIdCnt += 1) {
           // eslint-disable-next-line no-await-in-loop
@@ -2187,11 +2166,9 @@ async function epaddb(fastify, options, done) {
             'success',
             true
           ).notify(fastify);
-          //  reply.code(200).send();
         }
       }
     }
-    // reply.code(200).send('plugin stopped');
   });
   fastify.decorate('runPluginsQueue', async (request, reply) => {
     //  will receive a queue object which contains plugin id
@@ -2234,7 +2211,6 @@ async function epaddb(fastify, options, done) {
             dock
               .checkContainerExistance(containerName)
               .then((resInspect) => {
-                // fastify.log.info('inspect element result', resInspect);
                 if (resInspect.message === '404') {
                   fastify.log.info('need to throw an error here ');
                   throw new Error('404');
@@ -2258,7 +2234,6 @@ async function epaddb(fastify, options, done) {
           });
         });
     } catch (err) {
-      // reply.send(new InternalError(' plugin queue error while starting', err));
       fastify.log.error(`runPluginsQueue error : ${err}`);
     }
   });
@@ -2335,8 +2310,6 @@ async function epaddb(fastify, options, done) {
     'createPluginfoldersInternal',
     (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) =>
       new Promise(async (resolve, reject) => {
-        //  let aimsParamsProcessed = false;
-        //  let dicomsParamsProcessed = false;
         let tempPluginparams = null;
         if (Array.isArray(pluginparams)) {
           tempPluginparams = [...pluginparams];
@@ -2447,7 +2420,6 @@ async function epaddb(fastify, options, done) {
                     const aimsKeysLength = Object.keys(aims).length;
                     const aimsKeys = Object.keys(aims);
                     for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
-                      //  const aimNamedExtractFolder = `${inputfolder}${aimsKeys[aimsCnt]}`;
                       const eacAimhObj = aims[aimsKeys[aimsCnt]];
                       fastify.log.info('getting dicoms for aim ', eacAimhObj);
                       // eslint-disable-next-line no-await-in-loop
@@ -2471,8 +2443,6 @@ async function epaddb(fastify, options, done) {
                       );
                       try {
                         const foldersListSource = fs.readdirSync(returnSerieFolderFullPath);
-                        //  const foldersListDestination = fs.readdirSync(inputfolder);
-                        // fs.moveSync(`${returnSerieFolderFullPath}`, `${inputfolder}`, { overwrite: true });
                         for (
                           let foldecount = 0;
                           foldecount < foldersListSource.length;
@@ -2512,7 +2482,6 @@ async function epaddb(fastify, options, done) {
                           )
                         );
                       }
-                      //  console.log('aim files returned into this location --- ---- -- - - - - - -',returnSerieFolderFullPath);
                     } // req inputs : reqOrigin, params, query, epadAuth, output, seriesInfos, returnFolder
                   }
                 } else {
@@ -2913,7 +2882,6 @@ async function epaddb(fastify, options, done) {
           return reject(
             new InternalError('error sortPluginParamsAndExtractWhatToMapInternal', err)
           );
-          //  reject(err);
         }
       })
   );
@@ -2963,7 +2931,7 @@ async function epaddb(fastify, options, done) {
     }
     return cumfileArrayParam;
   });
-  // we mey need to transpose csv columns and rows depending on the params given for the plugin
+  // we mey need to transpose calculations.csv columns and rows depending on the params given for the plugin
   fastify.decorate(
     'pluginTransposeCsv',
     async (csvPath, csvFile) =>
@@ -2971,18 +2939,16 @@ async function epaddb(fastify, options, done) {
         const csvLines = [];
         const tmpTransposedFileName = 'tempTransposedcsv.csv';
         let rowNumForSegid = -1;
-        fs.openSync(`${csvPath}/${tmpTransposedFileName}`, 'w');
-        fs.readFileSync(`${csvPath}/${tmpTransposedFileName}`, 'utf8');
+        fs.openSync(`${csvPath}/${tmpTransposedFileName}`, 'w'); // check which one
+        fs.readFileSync(`${csvPath}/${tmpTransposedFileName}`, 'utf8'); // check whic one to use
         fs.createReadStream(`${csvPath}/${csvFile}`)
           .pipe(csv({ skipLines: 0, headers: [] }))
           .on('data', (data) => {
-            // console.log('csv data: ',Object.values(data));
             csvLines.push(Object.values(data));
           })
           .on('end', () => {
             const dsoIds = [];
             for (let k = 0; k < csvLines[0].length; k += 1) {
-              // console.log('transpose csv : ',csvLines);
               let aLineString = '';
               let dontAdd = false;
 
@@ -2991,11 +2957,12 @@ async function epaddb(fastify, options, done) {
                   dsoIds.push(csvLines[i][rowNumForSegid]);
                 }
                 if (csvLines[i][k] === 'Segmentation UID') {
-                  fastify.log.info(`lookin for seg uid column no: ',${i}.${k},${csvLines[i][k]}`);
+                  fastify.log.info(
+                    `looking for seg uid column number: ',${i}.${k},${csvLines[i][k]}`
+                  );
                   fastify.log.info(`seg uid column no: ${k}`);
                   rowNumForSegid = k;
                 }
-                // console.log('transpose csv : ',csvLines[i][k]);
                 if (i < csvLines.length - 1) {
                   aLineString = `${aLineString}"${csvLines[i][k]}",`;
                 } else {
@@ -3108,7 +3075,7 @@ async function epaddb(fastify, options, done) {
               },
             ],
             description: {
-              value: lexiconObjParam.codemeaning, // prefix_ for pyradiomics
+              value: lexiconObjParam.codemeaning,
             },
             calculationResultCollection: {
               CalculationResult: [
@@ -3116,7 +3083,7 @@ async function epaddb(fastify, options, done) {
                   type: 'Scalar',
                   'xsi:type': 'CompactCalculationResult',
                   unitOfMeasure: {
-                    value: 'no units', // was ->  ratio
+                    value: 'no units',
                   },
                   dataType: {
                     code: 'C48870',
@@ -3205,7 +3172,6 @@ async function epaddb(fastify, options, done) {
             };
 
             if (csvColumnActual === 1) {
-              //  console.log("Object.keys(tmpcodeValues).length",Object.keys(tmpcodeValues).length);
               try {
                 // this part needs to call remote ontology server
                 if (willCallRemoteOntology === true) {
@@ -3213,8 +3179,7 @@ async function epaddb(fastify, options, done) {
                   newLexiconObj = await Axios.post(`${config.statsEpad}/api/ontology`, {
                     headers: {
                       'Content-Type': 'application/json',
-                      Authorization: `apikey config.ontologyApiKey`, // check api key from the db table
-                      // ontologyName: config.ontologyName, // put directly from config file
+                      Authorization: `apikey config.ontologyApiKey`,
                     },
                     lexiconObj,
                   });
@@ -3238,7 +3203,6 @@ async function epaddb(fastify, options, done) {
                 if (err instanceof InternalError) {
                   throw err;
                 } else if (err.code === 409) {
-                  // console.log('err.lexiconObj object here : ',err.lexiconObj);
                   err.lexiconObj.referenceuid = lexiconObj.referenceuid;
                   err.lexiconObj.referencename = lexiconObj.referencename;
                   tmpcodeValues[err.lexiconObj.codemeaning] = err.lexiconObj.codevalue;
@@ -3257,7 +3221,6 @@ async function epaddb(fastify, options, done) {
                   // lexicon object exist already so get codemeaning to form partial aim calculations
                 }
               }
-              // console.log("collecting keyc and codevalues ,column ===1",JSON.stringify(tmpcodeValues));
             } else {
               // eslint-disable-next-line dot-notation
               lexiconObj.codevalue = tmpcodeValues[csvFileParam[i]['key']];
@@ -3303,9 +3266,7 @@ async function epaddb(fastify, options, done) {
               break;
             }
           }
-          //  let CaclEntityfound = "null";
           let newMergedCalcEntity = {};
-          //  let partaimIndice = -1;
           let partEntities = [];
           jsonString = fs.readFileSync(`${aimFileLocation}/${userAimParam}`, 'utf8');
           parsedAimFile = JSON.parse(jsonString);
@@ -3375,7 +3336,6 @@ async function epaddb(fastify, options, done) {
             { project: projectidParam },
             { forceSave: 'true' },
             'admin'
-            //  request.epadAuth
           );
 
           fastify.log.info(`uploading merged aim back to epad error: ${errors}`);
@@ -3402,7 +3362,7 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
-  // pyradiomics --------
+  // pyradiomics section--------
 
   fastify.decorate(
     'pluginConvertJsonToCsvFormatForALineInternal',
@@ -3430,9 +3390,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('pluginCollectDsoInfoFromAimsInternal', async (fileObject) => {
     //  receives a file , return a line for the csv ->dsoLists.csv
-    //  const fileArray = [];
     let parsedAimFile = null;
-    //  let returnaimJsonString = {};
     return new Promise((resolve, reject) => {
       try {
         const aimJsonString = fs.readFileSync(`${fileObject.path}/${fileObject.file}`, 'utf8');
@@ -3467,7 +3425,6 @@ async function epaddb(fastify, options, done) {
           patientName,
           description,
         };
-        //  returnaimJsonString = aimJsonString;
         resolve(lineJson);
       } catch (err) {
         reject(
@@ -3634,16 +3591,15 @@ async function epaddb(fastify, options, done) {
         if (checkImageExistOnHub === true || checkImageExistLocal === true) {
           try {
             // eslint-disable-next-line no-await-in-loop
-            // const userPluginRootPath = await fastify.getUserPluginDataPathInternal();
-
             let opreationresult = '';
             // eslint-disable-next-line no-await-in-loop
             const sortedParams = await fastify.sortPluginParamsAndExtractWhatToMapInternal(
               pluginParameters
             );
 
-            // add if additional input files will be prepared before starting plugin ? (adding for pyradiomics for now)
+            // Add if additional input files will be prepared before starting plugin ? (adding for pyradiomics for now)
             if (pluginParameters.pluginnameid === 'pyradiomics') {
+              fastify.log.info(`running plugin is an instance of pyradiomics plugin`);
               // eslint-disable-next-line no-await-in-loop
               await fastify.createPluginPyradiomicsDsoListInternal(pluginParameters);
             }
@@ -3662,7 +3618,6 @@ async function epaddb(fastify, options, done) {
 
             // eslint-disable-next-line no-await-in-loop
             await fastify.updateStatusQueueProcessInternal(queueId, 'running');
-            // opreationresult = ` plugin image : ${imageRepo} is runing`;
             new EpadNotification(
               request,
               `plugin image: ${imageRepo} started the process and container is running`,
@@ -3686,10 +3641,8 @@ async function epaddb(fastify, options, done) {
               // eslint-disable-next-line no-new
               throw new InternalError('', opreationresult);
             }
-            // return new Error(opreationresult.Error);
 
             // eslint-disable-next-line no-await-in-loop
-            // await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
             opreationresult = ` plugin image : ${imageRepo} terminated the container process with success`;
             new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
             fastify.log.info('plugin finished working', imageRepo);
@@ -3702,12 +3655,7 @@ async function epaddb(fastify, options, done) {
             );
             if (fs.existsSync(`${pluginParameters.relativeServerFolder}/output`)) {
               // look for dcm files to upload section
-              new EpadNotification(
-                request,
-                `${pluginParameters.pluginname} is processing output dcm files `,
-                'success',
-                true
-              ).notify(fastify);
+
               const dcmFilesWithoutPath = [];
 
               fastify.findFilesAndSubfilesInternal(
@@ -3729,6 +3677,12 @@ async function epaddb(fastify, options, done) {
               );
               if (uploadImageBackFlag === 1) {
                 if (fileArray.length > 0) {
+                  new EpadNotification(
+                    request,
+                    `${pluginParameters.pluginname} is processing output dcm files `,
+                    'success',
+                    true
+                  ).notify(fastify);
                   fastify.log.info(
                     `plugin is uploading dcm files from output folder ${pluginParameters.relativeServerFolder}/output`
                   );
@@ -3752,7 +3706,6 @@ async function epaddb(fastify, options, done) {
               }
               // look for dcm files to upload section ends
 
-              //  end
               // this section needs to be executed if csv needs to be proecessed
               // write plugin calculations to aim
               const csvArray = [];
@@ -3788,16 +3741,13 @@ async function epaddb(fastify, options, done) {
                     pluginParameters
                   );
                   const resObj = calcObj.resultobj;
-                  //  console.log("calcObj ---- ---- --- -",calcObj);
                   const totalcolumnumber = Object.keys(resObj[0]).length;
-                  //  console.log(' oooooooooooooooo o ooooooo ooooooooooo oooooooooo  ooo calc obj : ',totalcolumnumber );
                   const pluginInfoFromParams = {
                     pluginnameid: pluginParameters.pluginnameid,
                     pluginname: pluginParameters.pluginname,
                   };
                   // this block needs to be called in an array of each csv column
                   const codeValues = {};
-                  //  const mapCodeValues = new Map();
                   for (
                     let csvColumncount = 1;
                     csvColumncount < totalcolumnumber;
@@ -3982,8 +3932,8 @@ async function epaddb(fastify, options, done) {
     }
     return true;
   });
-  //  internal functions end
-  //  plugins section end
+  //  internal functions ends
+  //  plugins section ends
 
   // regiter host for app section
 
