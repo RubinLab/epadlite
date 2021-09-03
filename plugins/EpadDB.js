@@ -3647,6 +3647,18 @@ async function epaddb(fastify, options, done) {
               // eslint-disable-next-line no-await-in-loop
               await fastify.createPluginPyradiomicsDsoListInternal(pluginParameters);
             }
+            let uploadImageBackFlag = null;
+            let uploadAimsBackFlag = null;
+            let outputFileParam = null ;
+            for (let prmsCnt = 0; prmsCnt < pluginParameters.params.length; prmsCnt += 1) {
+              if (pluginParameters.params[prmsCnt].format === 'OutputFile') {
+                outputFileParam = pluginParameters.params[prmsCnt].default_value;
+              }
+              if (pluginParameters.params[prmsCnt].format === 'OutputFolder') {
+                uploadImageBackFlag = pluginParameters.params[prmsCnt].uploadimages;
+                uploadAimsBackFlag = pluginParameters.params[prmsCnt].uploadaims;
+              }
+            }
 
             // eslint-disable-next-line no-await-in-loop
             await fastify.updateStatusQueueProcessInternal(queueId, 'running');
@@ -3715,7 +3727,7 @@ async function epaddb(fastify, options, done) {
               fastify.log.info(
                 `source path for files to upload back to epad :${pluginParameters.relativeServerFolder}/output`
               );
-              if (pluginParameters.uploadimages === 1) {
+              if (uploadImageBackFlag === 1) {
                 if (fileArray.length > 0) {
                   fastify.log.info(
                     `plugin is uploading dcm files from output folder ${pluginParameters.relativeServerFolder}/output`
@@ -3749,22 +3761,23 @@ async function epaddb(fastify, options, done) {
                 csvArray,
                 'csv'
               );
-              fastify.log.info(`csv files in the plugin output folder : ${csvArray}`);
-              new EpadNotification(
-                request,
-                `${pluginParameters.pluginname} is processing output csv files `,
-                'success',
-                true
-              ).notify(fastify);
+              fastify.log.info(`csv files exists in the plugin output folder : ${csvArray}`);
+
               if (csvArray.length > 0) {
                 let csvfound = null;
                 for (let cntCsvArray = 0; cntCsvArray < csvArray.length; cntCsvArray += 1) {
-                  if (csvArray[cntCsvArray].file === `${pluginParameters.OutputFile}`) {
+                  if (csvArray[cntCsvArray].file === `${outputFileParam}`) {
                     csvfound = cntCsvArray;
                     break;
                   }
                 }
                 if (csvfound !== null) {
+                  new EpadNotification(
+                    request,
+                    `${pluginParameters.pluginname} is processing output csv files `,
+                    'success',
+                    true
+                  ).notify(fastify);
                   fastify.log.info(
                     `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
                   );
@@ -3896,7 +3909,7 @@ async function epaddb(fastify, options, done) {
                         true
                       ).notify(fastify);
                     }
-                    if (pluginParameters.uploadaims === 1) {
+                    if (uploadAimsBackFlag === 1) {
                       try {
                         fastify.log.info(
                           `uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin`
@@ -3933,7 +3946,7 @@ async function epaddb(fastify, options, done) {
                   await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
                 } else {
                   fastify.log.info(
-                    `required ${pluginParameters.OutputFile} file couldn't be found to process in output folder for the plugin`
+                    `required ${outputFileParam} file couldn't be found to process in output folder for the plugin`
                   );
                 }
               } else {
