@@ -2939,8 +2939,18 @@ async function epaddb(fastify, options, done) {
         const csvLines = [];
         const tmpTransposedFileName = 'tempTransposedcsv.csv';
         let rowNumForSegid = -1;
-        fs.openSync(`${csvPath}/${tmpTransposedFileName}`, 'w'); // check which one
-        fs.readFileSync(`${csvPath}/${tmpTransposedFileName}`, 'utf8'); // check whic one to use
+        try {
+          if (fs.existsSync(`${csvPath}/${tmpTransposedFileName}`)) {
+            fs.unlinkSync(`${csvPath}/${tmpTransposedFileName}`);
+          }
+        } catch (e) {
+          reject(
+            new InternalError(
+              `error happened while removing temporary calculation file ${tmpTransposedFileName}`,
+              e
+            )
+          );
+        }
         fs.createReadStream(`${csvPath}/${csvFile}`)
           .pipe(csv({ skipLines: 0, headers: [] }))
           .on('data', (data) => {
