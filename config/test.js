@@ -19,4 +19,5 @@ module.exports = {
   },
   limitStudies: 100,
   pollDW: 0,
+  auditLog: true,
 };

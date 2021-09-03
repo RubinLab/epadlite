@@ -33,6 +33,17 @@ if (config.dicomweb && fs.existsSync(path.join(__dirname, `${config.dicomweb}.js
 config.dicomWebConfig.baseUrl =
   process.env.DICOMWEB_BASEURL || config.dicomWebConfig.baseUrl || 'http://hostname';
 
+config.dicomWebConfig.wadoSubPath =
+  process.env.DICOMWEB_WADOSUBPATH || config.dicomWebConfig.wadoSubPath || '';
+
+config.dicomWebConfig.qidoSubPath =
+  process.env.DICOMWEB_QIDOSUBPATH || config.dicomWebConfig.qidoSubPath || '';
+
+config.dicomWebConfig.username =
+  process.env.DICOMWEB_USERNAME || config.dicomWebConfig.username || undefined;
+config.dicomWebConfig.password =
+  process.env.DICOMWEB_PASSWORD || config.dicomWebConfig.password || undefined;
+
 config.mode = process.env.MODE || config.mode || 'lite'; // default lite
 config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';
 config.reportExt = process.env.REPORT_EXT || config.reportExt || 'txt|pdf';
@@ -51,6 +62,7 @@ config.disableStats = config.disableStats || false;
 config.statsEpad =
   config.statsEpad || process.env.STATSEPAD || 'https://epadlite-public.stanford.edu';
 config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;
+config.disableDICOMSend = process.env.DISABLE_DICOM_SEND === 'true' || config.disableDICOMSend;
 config.unassignedProjectID = config.unassignedProjectID || 'nonassigned';
 config.XNATUploadProjectID = config.XNATUploadProjectID || 'all';
 config.pollDW =
@@ -78,4 +90,11 @@ config.secret = process.env.SECRET || config.secret || undefined;
 //  config.notificationEmail.auth = {};
 //  config.notificationEmail.auth.user: 'example@gmail.com' ;
 //  config.notificationEmail.auth.pass: 'examplepass' ;
+config.precomputeReports = process.env.PRECOMPUTE_REPORTS
+  ? JSON.parse(process.env.PRECOMPUTE_REPORTS)
+  : config.precomputeReports || [];
+config.wadoType = process.env.WADO_TYPE || config.wadoType || undefined;
+config.auditLog =
+  (process.env.AUDIT_LOG && process.env.AUDIT_LOG === 'true') || config.auditLog || false;
+
 module.exports = config;

@@ -238,6 +238,21 @@ async function epaddb(fastify, options, done) {
             onDelete: 'CASCADE',
           });
 
+          models.project_subject_study_series_significance.belongsTo(models.project, {
+            foreignKey: 'project_id',
+            onDelete: 'CASCADE',
+          });
+
+          models.project_subject_study_series_significance.belongsTo(models.subject, {
+            foreignKey: 'subject_id',
+            onDelete: 'CASCADE',
+          });
+
+          models.project_subject_study_series_significance.belongsTo(models.study, {
+            foreignKey: 'study_id',
+            onDelete: 'CASCADE',
+          });
+
           await fastify.orm.sync();
           if (config.env === 'test') {
             try {
@@ -5182,12 +5197,18 @@ async function epaddb(fastify, options, done) {
     (epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const collaboratorProjIds = epadAuth.projectToRole
-            .filter((role) => role.endsWith('Collaborator'))
-            .map((item) => item.split(':')[0]);
-          const aimAccessProjIds = epadAuth.projectToRole
-            .filter((role) => !role.endsWith('Collaborator'))
-            .map((item) => item.split(':')[0]);
+          const collaboratorProjIds =
+            (epadAuth.projectToRole &&
+              epadAuth.projectToRole
+                .filter((role) => role.endsWith('Collaborator'))
+                .map((item) => item.split(':')[0])) ||
+            [];
+          const aimAccessProjIds =
+            (epadAuth.projectToRole &&
+              epadAuth.projectToRole
+                .filter((role) => !role.endsWith('Collaborator'))
+                .map((item) => item.split(':')[0])) ||
+            [];
           const projects = await models.project.findAll({
             where: { type: 'Public' },
             attributes: ['projectid'],
@@ -5218,6 +5239,10 @@ async function epaddb(fastify, options, done) {
           if (params.project) whereJSON = { ...whereJSON, '$project.projectid$': params.project };
           if (params.subject) whereJSON = { ...whereJSON, subject_uid: params.subject };
           if (params.study) whereJSON = { ...whereJSON, study_uid: params.study };
+          whereJSON = {
+            ...whereJSON,
+            ...fastify.qryNotDeleted(),
+          };
           const projectAims = await models.project_aim.findAll({
             where: whereJSON,
             attributes: ['aim_uid', 'user', field],
@@ -5301,6 +5326,7 @@ async function epaddb(fastify, options, done) {
             where: { projectid: projectID },
           },
         ],
+        where: fastify.qryNotDeleted(),
         attributes: ['subject_uid'],
         group: ['subject_uid'],
       });
@@ -5324,7 +5350,15 @@ async function epaddb(fastify, options, done) {
       } else {
         const project = await models.project.findOne({
           where: { projectid: request.params.project },
-          include: [{ model: models.project_aim, attributes: ['aim_uid', 'user', 'subject_uid'] }],
+          include: [
+            {
+              model: models.project_aim,
+              attributes: ['aim_uid', 'user', 'subject_uid', 'deleted'],
+              required: false,
+              // TODO or 0
+              where: { '$project_aims.deleted$': null }, // if I put the deleted check in where above left outer fails
+            },
+          ],
         });
 
         if (project === null) {
@@ -5455,12 +5489,10 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate(
     'deleteSeriesAimProjectRels',
-    (params) =>
+    (params, username) =>
       new Promise(async (resolve, reject) => {
         try {
-          await models.project_aim.destroy({
-            where: { series_uid: params.series },
-          });
+          await fastify.deleteAimDB({ series_uid: params.series }, username);
           resolve();
         } catch (err) {
           reject(new InternalError(`Deletion of aim project relation from ${params.series}`, err));
@@ -5486,9 +5518,7 @@ async function epaddb(fastify, options, done) {
             });
           }
           if (subject !== null) {
-            await models.project_aim.destroy({
-              where: { subject_uid: subject.subjectuid },
-            });
+            await fastify.deleteAimDB({ subject_uid: subject.subjectuid }, epadAuth.username);
             // delete the subject
             await models.subject.destroy({
               where: { id: subject.id },
@@ -5576,9 +5606,10 @@ async function epaddb(fastify, options, done) {
               await models.worklist_study.destroy({
                 where: { project_id: project.id, subject_id: subject.id },
               });
-              await models.project_aim.destroy({
-                where: { project_id: project.id, subject_uid: subject.subjectuid },
-              });
+              await fastify.deleteAimDB(
+                { project_id: project.id, subject_uid: subject.subjectuid },
+                epadAuth.username
+              );
 
               // if delete from all or it doesn't exist in any other project, delete from system
               try {
@@ -5600,9 +5631,7 @@ async function epaddb(fastify, options, done) {
                   await models.worklist_study.destroy({
                     where: { project_id: project.id, subject_id: subject.id },
                   });
-                  await models.project_aim.destroy({
-                    where: { subject_uid: subject.subjectuid },
-                  });
+                  await fastify.deleteAimDB({ subject_uid: subject.subjectuid }, epadAuth.username);
                   // delete the subject
                   await models.subject.destroy({
                     where: { id: subject.id },
@@ -5656,6 +5685,10 @@ async function epaddb(fastify, options, done) {
                 }
               }
             }
+            whereJSON = {
+              ...whereJSON,
+              ...fastify.qryNotDeleted(),
+            };
             if (filter) whereJSON = { ...whereJSON, ...filter };
             const aimUids = [];
             const projectAims = await models.project_aim.findAll({
@@ -5710,45 +5743,62 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate('getReportFromDB', async (params, report, epadAuth, bestResponseType) => {
-    try {
-      const projSubjReport = await models.project_subject_report.findOne({
-        where: {
-          '$subject.subjectuid$': params.subject,
-          '$project.projectid$': params.project,
-          type: report.toLowerCase(),
-        },
-        include: [{ model: models.project }, { model: models.subject }],
-      });
-
-      if (projSubjReport) {
-        if (bestResponseType) {
-          if (bestResponseType.toLowerCase() === 'min')
-            return Number(projSubjReport.dataValues.best_response_min);
-          if (bestResponseType.toLowerCase() === 'baseline')
-            return Number(projSubjReport.dataValues.best_response_baseline);
-          fastify.log.warn(`Unsupported bestResponseType ${bestResponseType}`);
-          return null;
-        }
-        if (projSubjReport.dataValues.report) {
-          const reportJson = JSON.parse(projSubjReport.dataValues.report);
-          // if the user is a collaborator (s)he should only see his/her report
-          if (fastify.isCollaborator(params.project, epadAuth)) {
-            if (reportJson[epadAuth.username])
-              return { [epadAuth.username]: reportJson[epadAuth.username] };
+  fastify.decorate(
+    'getReportFromDB',
+    async (params, report, epadAuth, bestResponseType, metric, template, shapes) => {
+      try {
+        const type = fastify.getReportType(report, metric, template, shapes);
+        const projSubjReport = await models.project_subject_report.findOne({
+          where: {
+            '$subject.subjectuid$': params.subject,
+            '$project.projectid$': params.project,
+            type,
+          },
+          include: [{ model: models.project }, { model: models.subject }],
+        });
+        if (projSubjReport) {
+          if (bestResponseType) {
+            // get bestresponse for waterfall
+            // if old, missing response cat, should be updated
+            if (
+              !projSubjReport.dataValues.response_cat_min ||
+              !projSubjReport.dataValues.response_cat_baseline
+            )
+              return null;
+            if (bestResponseType.toLowerCase() === 'min')
+              return {
+                bestResponse: Number(projSubjReport.dataValues.best_response_min),
+                responseCat: projSubjReport.dataValues.response_cat_min,
+              };
+            if (bestResponseType.toLowerCase() === 'baseline')
+              return {
+                bestResponse: Number(projSubjReport.dataValues.best_response_baseline),
+                responseCat: projSubjReport.dataValues.response_cat_baseline,
+              };
+            fastify.log.warn(`Unsupported bestResponseType ${bestResponseType}`);
             return null;
           }
-          return reportJson;
+          // if not bestresponse, I want the actual report
+          if (projSubjReport.dataValues.report) {
+            const reportJson = JSON.parse(projSubjReport.dataValues.report);
+            // if the user is a collaborator (s)he should only see his/her report
+            if (fastify.isCollaborator(params.project, epadAuth)) {
+              if (reportJson[epadAuth.username])
+                return { [epadAuth.username]: reportJson[epadAuth.username] };
+              return null;
+            }
+            return reportJson;
+          }
         }
+        return { bestResponse: null, responseCat: null };
+      } catch (err) {
+        throw new InternalError(
+          `Getting report ${report} from params ${JSON.stringify(params)}`,
+          err
+        );
       }
-      return null;
-    } catch (err) {
-      throw new InternalError(
-        `Getting report ${report} from params ${JSON.stringify(params)}`,
-        err
-      );
     }
-  });
+  );
 
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
@@ -5828,7 +5878,13 @@ async function epaddb(fastify, options, done) {
             break;
           case 'Longitudinal':
             if (request.params.subject)
-              result = fastify.getLongitudinal(result.rows, undefined, undefined, request);
+              result = fastify.getLongitudinal(
+                result.rows,
+                undefined,
+                undefined,
+                request,
+                request.query.metric
+              );
             else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
               return;
@@ -5906,7 +5962,7 @@ async function epaddb(fastify, options, done) {
                 else if (
                   aimsByName[name].aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                     .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
-                    .value < studyDate
+                    .value > studyDate
                 )
                   aimsByName[name] = { aim, type };
                 if (
@@ -5928,7 +5984,7 @@ async function epaddb(fastify, options, done) {
                         .trackingUniqueIdentifier.root
                     ].aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                       .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
-                      .value < studyDate
+                      .value > studyDate
                   )
                     aimsByTUID[
                       aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].trackingUniqueIdentifier.root
@@ -6296,6 +6352,7 @@ async function epaddb(fastify, options, done) {
             }
           }
           try {
+            await Promise.all(updateCompPromises);
             reply.code(200).send(`Worklist requirement added`);
           } catch (err) {
             reply.send(
@@ -6343,55 +6400,143 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
-    'getAndSaveRecist',
-    (projectId, subject, result, epadAuth, transaction) =>
+    'getAndSavePrecomputeReports',
+    (projectId, subjectId, result, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
-          const reportMultiUser = fastify.getRecist(result);
+          // recist is default the rest should be added to the config
+          const precomputeReports = [{ report: 'RECIST' }, ...config.precomputeReports];
+          const reportPromises = [];
+          precomputeReports.forEach((pr) =>
+            reportPromises.push(
+              fastify
+                .getAndSaveReport(
+                  projectId,
+                  subjectId,
+                  result,
+                  epadAuth,
+                  pr.report,
+                  pr.metric,
+                  pr.template,
+                  pr.shapes,
+                  transaction
+                )
+                .catch((err) =>
+                  fastify.log.error(
+                    `Updating precompute report ${pr.report} ${pr.metric} for project ${projectId}, subject ${subjectId}. Error ${err.message}`
+                  )
+                )
+            )
+          );
+          await Promise.all(reportPromises);
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating precompute report for project ${projectId}, subject ${subjectId}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  // I have the report just extract the part and save it
+  fastify.decorate(
+    'savePrecomputeReports',
+    (
+      projectId,
+      subjectId,
+      reportMultiUser,
+      report,
+      metric,
+      template,
+      shapes,
+      epadAuth,
+      transaction
+    ) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // recist is default the rest should be added to the config
+          const precomputeReports = [{ report: 'RECIST' }, ...config.precomputeReports];
+          const reportPromises = [];
+          precomputeReports.forEach((pr) => {
+            if (
+              pr.report === report &&
+              (pr.metric === metric || pr.report === metric) &&
+              pr.template === template &&
+              pr.shapes === shapes
+            )
+              reportPromises.push(
+                fastify
+                  .saveReport2DB(
+                    projectId,
+                    subjectId,
+                    reportMultiUser,
+                    pr.report,
+                    pr.metric,
+                    pr.template,
+                    pr.shapes,
+                    epadAuth,
+                    transaction
+                  )
+                  .catch((err) =>
+                    fastify.log.error(
+                      `Updating precompute report from ready report ${pr.report} ${pr.metric} for project ${projectId}, subject ${subjectId}. Error ${err.message}`
+                    )
+                  )
+              );
+          });
+          await Promise.all(reportPromises);
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating precompute report for project ${projectId}, subject ${subjectId}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'getAndSaveReport',
+    (projectId, subjectId, result, epadAuth, report, metric, template, shapes, transaction) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const reportMultiUser =
+            report === 'RECIST'
+              ? fastify.getRecist(result)
+              : fastify.getLongitudinal(result, template, shapes, undefined, metric);
           if (reportMultiUser && reportMultiUser !== {}) {
-            // TODO how to support multiple readers in waterfall getting the first report for now
-            const recist =
-              Object.keys(reportMultiUser).length > 0
-                ? reportMultiUser[Object.keys(reportMultiUser)[0]]
-                : reportMultiUser;
-            const bestResponseBaseline = recist.tRRBaseline ? Math.min(...recist.tRRBaseline) : 0;
-            const bestResponseMin = recist.tRRMin ? Math.min(...recist.tRRMin) : 0;
-            await fastify.upsert(
-              models.project_subject_report,
-              {
-                project_id: projectId,
-                subject_id: subject.id,
-                type: 'recist',
-                report: JSON.stringify(reportMultiUser),
-                best_response_baseline: bestResponseBaseline,
-                best_response_min: bestResponseMin,
-                updated: true,
-                updatetime: Date.now(),
-              },
-              {
-                project_id: projectId,
-                subject_id: subject.id,
-                type: 'recist',
-              },
-              epadAuth.username,
+            await fastify.saveReport2DB(
+              projectId,
+              subjectId,
+              reportMultiUser,
+              report,
+              metric,
+              template,
+              shapes,
+              epadAuth,
               transaction
             );
-            fastify.log.info(`Recist report for ${subject.subjectuid} updated`);
-            resolve('Recist got and saved');
+            fastify.log.info(`${report} ${metric}  report for ${subjectId} updated`);
+            resolve(`${report} ${metric}  got and saved`);
           } else {
             fastify.log.info(
-              `Recist report generation failed, deleting old report for ${subject.subjectuid} if exists`
+              `${report} ${metric} report generation failed, deleting old report for ${subjectId} if exists`
             );
             await models.project_subject_report.destroy({
               where: {
                 project_id: projectId,
-                subject_id: subject.id,
-                type: 'recist',
+                subject_id: subjectId,
+                type: fastify.getReportType(report, metric, template, shapes),
               },
             });
             reject(
               new InternalError(
-                `Updating recist report for project ${projectId}, subject ${subject.subjectuid}`,
+                `Updating ${report} ${metric}  report for project ${projectId}, subject ${subjectId}`,
                 new Error('Report not generated')
               )
             );
@@ -6399,7 +6544,74 @@ async function epaddb(fastify, options, done) {
         } catch (err) {
           reject(
             new InternalError(
-              `Updating recist report for project ${projectId}, subject ${subject.subjectuid}`,
+              `Updating ${report} ${metric} report for project ${projectId}, subject ${subjectId}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  fastify.decorate(
+    'saveReport2DB',
+    (
+      projectId,
+      subjectId,
+      reportMultiUser,
+      report,
+      metric,
+      template,
+      shapes,
+      epadAuth,
+      transaction
+    ) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const type = fastify.getReportType(report, metric, template, shapes);
+          // TODO how to support multiple readers in waterfall getting the first report for now
+          const singleReport =
+            Object.keys(reportMultiUser).length > 0
+              ? reportMultiUser[Object.keys(reportMultiUser)[0]]
+              : reportMultiUser;
+          const bestResponseBaseline = singleReport.tRRBaseline
+            ? Math.min(...singleReport.tRRBaseline)
+            : fastify.getBestResponse(reportMultiUser, 'BASELINE', metric);
+          const bestResponseMin = singleReport.tRRMin
+            ? Math.min(...singleReport.tRRMin)
+            : fastify.getBestResponse(reportMultiUser, 'MIN', metric);
+          const responseCatBaseline = fastify.getResponseCategory(
+            reportMultiUser,
+            'BASELINE',
+            metric
+          );
+          const responseCatMin = fastify.getResponseCategory(reportMultiUser, 'MIN', metric);
+          await fastify.upsert(
+            models.project_subject_report,
+            {
+              project_id: projectId,
+              subject_id: subjectId,
+              type,
+              report: JSON.stringify(reportMultiUser),
+              best_response_baseline: bestResponseBaseline,
+              best_response_min: bestResponseMin,
+              response_cat_baseline: responseCatBaseline,
+              response_cat_min: responseCatMin,
+              updated: true,
+              updatetime: Date.now(),
+            },
+            {
+              project_id: projectId,
+              subject_id: subjectId,
+              type,
+            },
+            epadAuth.username,
+            transaction
+          );
+          resolve();
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Updating ${report} ${metric} report for project ${projectId}, subject ${subjectId}`,
               err
             )
           );
@@ -6435,7 +6647,13 @@ async function epaddb(fastify, options, done) {
               undefined,
               true
             );
-            await fastify.getAndSaveRecist(projectId, subject, result.rows, epadAuth, transaction);
+            await fastify.getAndSavePrecomputeReports(
+              projectId,
+              subject.id,
+              result.rows,
+              epadAuth,
+              transaction
+            );
             resolve('Reports updated!');
           }
         } catch (err) {
@@ -6510,7 +6728,8 @@ async function epaddb(fastify, options, done) {
                   studyUid,
                   user,
                   epadAuth,
-                  transaction
+                  transaction,
+                  subject.id
                 );
               }
             }
@@ -6545,13 +6764,34 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'findSubjectIdInternal',
+    (subject) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const subjectId = await models.subject.findOne({
+            where: { subjectuid: subject },
+            attributes: ['id'],
+            raw: true,
+          });
+          resolve(subjectId.id);
+        } catch (err) {
+          reject(new InternalError(`Finding subject id ${subject}`, err));
+        }
+      })
+  );
+
+  fastify.decorate(
     'checkProjectSegAimExistence',
     (dsoSeriesUid, project) =>
       new Promise(async (resolve, reject) => {
         try {
           const projectId = await fastify.findProjectIdInternal(project);
           const aimsCount = await models.project_aim.count({
-            where: { project_id: projectId, dso_series_uid: dsoSeriesUid },
+            where: {
+              project_id: projectId,
+              dso_series_uid: dsoSeriesUid,
+              ...fastify.qryNotDeleted(),
+            },
           });
           resolve(aimsCount > 0);
         } catch (err) {
@@ -6573,7 +6813,8 @@ async function epaddb(fastify, options, done) {
       studyUid,
       user,
       epadAuth,
-      transaction
+      transaction,
+      subjectId
     ) => {
       // sample worklistReq
       // eslint-disable-next-line no-param-reassign
@@ -6584,6 +6825,7 @@ async function epaddb(fastify, options, done) {
         subject_uid: subjectUid,
         study_uid: studyUid,
         user,
+        ...fastify.qryNotDeleted(),
       };
       // if the requirement is patient level, calculate patient level and update all studies
       // I need to compute using all aims for that patient
@@ -6714,6 +6956,46 @@ async function epaddb(fastify, options, done) {
         epadAuth.username,
         transaction
       );
+
+      // we need to update the other studies of the patient also if the requirement is patient level
+      if (
+        worklistReq.level.toLowerCase() === 'patient' ||
+        worklistReq.level.toLowerCase() === 'subject'
+      ) {
+        const worklistStudies = await models.worklist_study.findAll(
+          {
+            where: { project_id: projectId, subject_id: subjectId },
+            raw: true,
+          },
+          transaction ? { transaction } : {}
+        );
+        for (let i = 0; i < worklistStudies.length; i += 1) {
+          if (
+            worklistStudies[i].subject_id === subjectId &&
+            worklistStudies[i].id !== worklistStudyId
+          ) {
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.upsert(
+              models.worklist_study_completeness,
+              {
+                worklist_study_id: worklistStudies[i].id,
+                updatetime: Date.now(),
+                assignee: user,
+                worklist_requirement_id: worklistReq.id,
+                // completeness cannot be higher than 100
+                completeness: completenessPercent > 100 ? 100 : completenessPercent,
+              },
+              {
+                worklist_study_id: worklistStudies[i].id,
+                assignee: user,
+                worklist_requirement_id: worklistReq.id,
+              },
+              epadAuth.username,
+              transaction
+            );
+          }
+        }
+      }
     }
   );
 
@@ -6723,7 +7005,14 @@ async function epaddb(fastify, options, done) {
         await models.worklist.findOne({
           where: { worklistid: request.params.worklist },
           attributes: ['id'],
-          include: ['requirements', 'users'],
+          include: [
+            {
+              model: models.worklist_requirement,
+              required: false,
+              as: 'requirements',
+            },
+            'users',
+          ],
         })
       ).toJSON();
       const requirements = {};
@@ -6745,7 +7034,15 @@ async function epaddb(fastify, options, done) {
         const progressList = [];
         const worklistStudies = await models.worklist_study.findAll({
           where: { worklist_id: worklist.id },
-          include: ['progress', 'subject', 'study'],
+          include: [
+            {
+              model: models.worklist_study_completeness,
+              required: false,
+              as: 'progress',
+            },
+            'subject',
+            'study',
+          ],
           attributes: ['worklist_id', 'project_id', 'subject_id', 'study_id'],
         });
         // I could not create association with composite foreign key
@@ -6807,6 +7104,40 @@ async function epaddb(fastify, options, done) {
               );
             }
           }
+          // if no auto progress, use manual progress to traverse
+          // TODO what if there are other users assigned to the worklist?
+          if (worklistStudies[i].dataValues.progress.length === 0) {
+            for (let j = 0; j < worklist.users.length; j += 1) {
+              const { firstname, lastname, id } = users[worklist.users[j].username];
+              let completeness = 0;
+              if (
+                manualProgressMap[
+                  `${worklistStudies[i].dataValues.worklist_id}-${worklistStudies[i].dataValues.project_id}-${worklistStudies[i].dataValues.subject_id}-${worklistStudies[i].dataValues.study_id}-${id}`
+                ]
+              ) {
+                completeness = fastify.getManualProgressForUser(
+                  manualProgressMap,
+                  worklistStudies[i].dataValues.worklist_id,
+                  worklistStudies[i].dataValues.project_id,
+                  worklistStudies[i].dataValues.subject_id,
+                  worklistStudies[i].dataValues.study_id,
+                  id
+                );
+              }
+              progressList.push({
+                worklist_id: worklistStudies[i].dataValues.worklist_id,
+                project_id: worklistStudies[i].dataValues.project_id,
+                subject_uid: worklistStudies[i].dataValues.subject.dataValues.subjectuid,
+                subject_name: worklistStudies[i].dataValues.subject.dataValues.name,
+                study_uid: worklistStudies[i].dataValues.study.dataValues.studyuid,
+                study_desc: worklistStudies[i].dataValues.study.dataValues.description,
+                assignee: worklist.users[j].username,
+                assignee_name: `${firstname} ${lastname}`,
+                completeness,
+                type: 'MANUAL',
+              });
+            }
+          }
         }
         reply.code(200).send(progressList);
       }
@@ -6829,6 +7160,64 @@ async function epaddb(fastify, options, done) {
     return { completed, required };
   });
 
+  fastify.decorate('deleteAimDB', async (whereJson, username) => {
+    let whereStr = '';
+    if (whereJson.series_uid) whereStr += `series_uid = '${whereJson.series_uid}'`;
+    if (whereJson.subject_uid)
+      whereStr += `${whereStr !== '' ? ' AND ' : ''} subject_uid = '${whereJson.subject_uid}'`;
+    if (whereJson.project_id)
+      whereStr += `${whereStr !== '' ? ' AND ' : ''} project_id = ${whereJson.project_id}`;
+    if (whereJson.aim_uid) {
+      if (Array.isArray(whereJson.aim_uid)) {
+        whereStr += `${whereStr !== '' ? ' AND ' : ''} aim_uid IN ('${whereJson.aim_uid.join(
+          "','"
+        )}')`;
+      } else {
+        whereStr += `${whereStr !== '' ? ' AND ' : ''} aim_uid = '${whereJson.aim_uid}'`;
+      }
+    }
+    let numDeleted = 0;
+    if (config.auditLog === true) {
+      // TODO updatetime = ${Date.now()},
+      const ret = await fastify.orm.query(
+        `update project_aim SET updated_by = '${username}', deleted = 1 WHERE ${whereStr}`
+      );
+      numDeleted = ret[0].affectedRows;
+    } else {
+      numDeleted = await models.project_aim.destroy({
+        where: whereJson,
+      });
+    }
+    return numDeleted;
+  });
+
+  fastify.decorate('qryNotDeleted', () => ({
+    // $or: [
+    //   {
+    //     deleted: {
+    //       $eq: 0,
+    //     },
+    //   },
+    //   {
+    //     deleted: {
+    //       $eq: null,
+    //     },
+    //   },
+    // ],
+    deleted: null,
+  }));
+
+  fastify.decorate('getDeletedAimsDB', (project) =>
+    models.project_aim.findAll({
+      where: {
+        '$project.projectid$': project,
+        deleted: 1,
+      },
+      include: [{ model: models.project }],
+      attributes: ['aim_uid'],
+    })
+  );
+
   fastify.decorate('deleteAimFromProject', async (request, reply) => {
     try {
       const project = await models.project.findOne({
@@ -6849,20 +7238,25 @@ async function epaddb(fastify, options, done) {
         reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
         const args = await models.project_aim.findOne({
-          where: { project_id: project.id, aim_uid: request.params.aimuid },
+          where: {
+            project_id: project.id,
+            aim_uid: request.params.aimuid,
+            ...fastify.qryNotDeleted(),
+          },
           attributes: ['project_id', 'subject_uid', 'study_uid', 'user'],
           raw: true,
         });
-
-        const numDeleted = await models.project_aim.destroy({
-          where: { project_id: project.id, aim_uid: request.params.aimuid },
-        });
+        const numDeleted = await fastify.deleteAimDB(
+          { project_id: project.id, aim_uid: request.params.aimuid },
+          request.epadAuth.username
+        );
         // if delete from all or it doesn't exist in any other project, delete from system
         try {
           if (request.query.all && request.query.all === 'true') {
-            const deletednum = await models.project_aim.destroy({
-              where: { aim_uid: request.params.aimuid },
-            });
+            const deletednum = await fastify.deleteAimDB(
+              { aim_uid: request.params.aimuid },
+              request.epadAuth.username
+            );
             await fastify.deleteAimInternal(request.params.aimuid);
             if (args) {
               await fastify.aimUpdateGateway(
@@ -6880,7 +7274,10 @@ async function epaddb(fastify, options, done) {
               .send(`Aim deleted from system and removed from ${deletednum + numDeleted} projects`);
           } else {
             const count = await models.project_aim.count({
-              where: { aim_uid: request.params.aimuid },
+              where: {
+                aim_uid: request.params.aimuid,
+                ...fastify.qryNotDeleted(),
+              },
             });
             if (count === 0) {
               await fastify.deleteAimInternal(request.params.aimuid);
@@ -6982,6 +7379,10 @@ async function epaddb(fastify, options, done) {
             if (params.study) aimQry = { ...aimQry, study_uid: params.study };
             if (params.series) aimQry = { ...aimQry, series_uid: params.series };
           }
+          aimQry = {
+            ...aimQry,
+            ...fastify.qryNotDeleted(),
+          };
           const qry =
             query.all && query.all === 'true'
               ? aimQry
@@ -7016,9 +7417,11 @@ async function epaddb(fastify, options, done) {
           if (aimUids.length === 0 && body && Array.isArray(body)) {
             aimUids = body;
           }
-          const numDeleted = await models.project_aim.destroy({
-            where: { aim_uid: aimUids },
-          });
+
+          const numDeleted =
+            aimUids.length > 0
+              ? await fastify.deleteAimDB({ aim_uid: aimUids }, epadAuth.username)
+              : 0;
 
           // if delete from all or it doesn't exist in any other project, delete from system
           try {
@@ -7123,9 +7526,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('deleteAimFromSystem', async (request, reply) => {
     try {
       const aimUid = request.params.aimuid;
-      const numDeleted = await models.project_aim.destroy({
-        where: { aim_uid: aimUid },
-      });
+      const numDeleted = await fastify.deleteAimDB({ aim_uid: aimUid }, request.epadAuth.username);
       await fastify.deleteAimInternal(request.params.aimuid);
       reply.code(200).send(`Aim deleted from system and removed from ${numDeleted} projects`);
     } catch (err) {
@@ -7589,6 +7990,7 @@ async function epaddb(fastify, options, done) {
                   const projectAims = await models.project_aim.findAll({
                     where: {
                       project_id: whereJSON.project_id,
+                      ...fastify.qryNotDeleted(),
                     },
                     attributes: ['aim_uid', 'user', 'study_uid'],
                   });
@@ -8081,6 +8483,14 @@ async function epaddb(fastify, options, done) {
             where: { '$study.studyuid$': params.study },
             include: [{ model: models.study, include: ['subject'] }],
           });
+          const seriesSignificanceMap = await fastify
+            .getSignificantSeriesInternal(params.project, params.subject, params.study)
+            .catch((err) => {
+              fastify.log.warn(
+                `Could not get significant series for nondicom ${params.study}. Error: ${err.message}`
+              );
+              return [];
+            });
           for (let i = 0; i < series.length; i += 1) {
             result.push({
               projectID: params.project,
@@ -8104,6 +8514,9 @@ async function epaddb(fastify, options, done) {
               isDSO: false,
               isNonDicomSeries: true,
               seriesNo: '',
+              significanceOrder: seriesSignificanceMap[series[i].dataValues.seriesuid]
+                ? seriesSignificanceMap[series[i].dataValues.seriesuid]
+                : undefined,
             });
           }
           resolve(result);
@@ -10237,7 +10650,7 @@ async function epaddb(fastify, options, done) {
               // TODO see if we can use getSeriesDicomOrNotInternal instead. leaving like this as we get nondicoms below
               // eslint-disable-next-line no-await-in-loop
               const studySeries = await fastify.getStudySeriesInternal(
-                { study: studyUids[j] },
+                { project: request.params.project, study: studyUids[j] },
                 request.query,
                 request.epadAuth,
                 true
@@ -10908,11 +11321,13 @@ async function epaddb(fastify, options, done) {
             numOfAims = await models.project_aim.count({
               col: 'aim_uid',
               distinct: true,
+              where: fastify.qryNotDeleted(),
             });
             numOfTemplateAimsMap = await models.project_aim.findAll({
               group: ['template'],
               attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
               raw: true,
+              where: fastify.qryNotDeleted(),
             });
           }
 
@@ -11312,6 +11727,7 @@ async function epaddb(fastify, options, done) {
               },
             ],
             attributes: ['aim_uid'],
+            where: fastify.qryNotDeleted(),
           });
           const aimProjects = projectAims.map((projectAim) => ({
             aim: projectAim.dataValues.aim_uid,
@@ -11357,6 +11773,7 @@ async function epaddb(fastify, options, done) {
               `ALTER TABLE project_aim 
                 ADD COLUMN IF NOT EXISTS frame_id int(11) DEFAULT NULL AFTER image_uid,
                 ADD COLUMN IF NOT EXISTS dso_series_uid varchar(256) DEFAULT NULL AFTER frame_id,
+                ADD COLUMN IF NOT EXISTS deleted int(11) DEFAULT NULL AFTER dso_series_uid,
                 DROP CONSTRAINT IF EXISTS project_aimuid_ind,
                 ADD CONSTRAINT project_aimuid_ind UNIQUE (project_id, aim_uid);`,
               { transaction: t }
@@ -11743,6 +12160,14 @@ async function epaddb(fastify, options, done) {
             fastify.log.warn(
               'worklist_id column is added to project_subject_study_series_user_status'
             );
+            await fastify.orm.query(
+              `ALTER TABLE project_subject_report 
+                MODIFY COLUMN type varchar(256) NOT NULL,
+                ADD COLUMN IF NOT EXISTS response_cat_baseline varchar(4) DEFAULT NULL AFTER best_response_min,
+                ADD COLUMN IF NOT EXISTS response_cat_min varchar(4) DEFAULT NULL AFTER response_cat_baseline;`,
+              { transaction: t }
+            );
+            fastify.log.warn('response_cat is added to project_subject_report');
           });
 
           // the db schema is updated successfully lets copy the files
@@ -12148,6 +12573,210 @@ async function epaddb(fastify, options, done) {
           resolve();
         } catch (err) {
           reject(new InternalError('afterDBReady', err));
+        }
+      })
+  );
+
+  fastify.decorate(
+    'setSignificanceInternal',
+    (project, subject, study, series, significanceOrder, username) =>
+      new Promise((resolve, reject) => {
+        if (significanceOrder === 0) {
+          // delete the tuple
+          models.project_subject_study_series_significance
+            .destroy({
+              where: {
+                study_id: study,
+                subject_id: subject,
+                project_id: project,
+                series_uid: series,
+              },
+            })
+            .then(() => resolve('Significance deleted successfully'))
+            .catch((err) => reject(new InternalError('Deleting significance', err)));
+        } else {
+          fastify
+            .upsert(
+              models.project_subject_study_series_significance,
+              {
+                study_id: study,
+                subject_id: subject,
+                project_id: project,
+                series_uid: series,
+                significance_order: significanceOrder,
+                updatetime: Date.now(),
+              },
+              {
+                study_id: study,
+                subject_id: subject,
+                project_id: project,
+                series_uid: series,
+              },
+              username
+            )
+            .then(() => resolve('Significance updated successfully'))
+            .catch((err) => reject(new InternalError('Updating significance', err)));
+        }
+      })
+  );
+
+  fastify.decorate('setSignificantSeries', (request, reply) => {
+    // set significance of series
+    // body should be an array of objects which has seriesUID and significanceOrder atributes
+    // ex. [{seriesUID: '1.2.3.45643634567.5656.787', significanceOrder:1}, {seriesUID: '1.2.3.45643634567.3555.787', significanceOrder:2}]
+    if (!Array.isArray(request.body))
+      reply.send(
+        new BadRequestError(
+          'Assigning significance to the series',
+          new Error('Request body should be an array')
+        )
+      );
+    else {
+      const validData = request.body.filter(
+        (series) => series.seriesUID && series.significanceOrder !== undefined
+      );
+      if (validData.length !== request.body.length) {
+        reply.send(
+          new BadRequestError(
+            'Assigning significance to the series',
+            new Error('Each item should have seriesUID and significanceOrder')
+          )
+        );
+        return;
+      }
+    }
+
+    const promises = [];
+    promises.push(
+      models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.subject.findOne({
+        where: { subjectuid: request.params.subject },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.study.findOne({
+        where: { studyuid: request.params.study },
+        attributes: ['id'],
+      })
+    );
+
+    Promise.all(promises).then((result) => {
+      const ids = [];
+      let missingData = false;
+      // result[i] can be null when subject is not created before, just tests
+      for (let i = 0; i < result.length; i += 1)
+        // eslint-disable-next-line no-unused-expressions
+        result[i] ? ids.push(result[i].dataValues.id) : (missingData = true);
+      if (missingData || ids.length !== result.length) {
+        reply.send(
+          new InternalError('Assigning significance to the series', new Error('Missing data'))
+        );
+      } else if (request.body !== undefined) {
+        // set significance of series
+        // body should be an array of objects which has seriesUID and significanceOrder atributes
+        // ex. [{seriesUID: '1.2.3.45643634567.5656.787', significanceOrder:1}, {seriesUID: '1.2.3.45643634567.3555.787', significanceOrder:2}]
+        if (!Array.isArray(request.body))
+          reply.send(
+            new BadRequestError(
+              'Assigning significance to the series',
+              new Error('Request body should be an array')
+            )
+          );
+        const seriesPromises = [];
+        const errors = [];
+        request.body.forEach((series) => {
+          seriesPromises.push(
+            fastify
+              .setSignificanceInternal(
+                ids[0],
+                ids[1],
+                ids[2],
+                series.seriesUID,
+                series.significanceOrder,
+                request.epadAuth.username
+              )
+              .catch((err) => {
+                fastify.log.warn(
+                  `Could not set series significance for series ${series.seriesUID}. Error: ${err.message}`
+                );
+                errors.push(series.seriesUID);
+              })
+          );
+        });
+
+        Promise.all(seriesPromises).then(() => {
+          if (errors.length === 0) {
+            reply.code(200).send('Significance orders set successfully');
+          } else
+            reply.code(200).send(`Significance orders couldn't be updated for ${' '.join(errors)}`);
+        });
+      }
+    });
+  });
+
+  fastify.decorate(
+    'getSignificantSeriesInternal',
+    (project, subject, study) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // ignore project id if we have it missing so that polling calls and such works
+          const projectID = project
+            ? (
+                await models.project.findOne({
+                  where: { projectid: project },
+                  attributes: ['id'],
+                })
+              ).dataValues.id
+            : undefined;
+
+          // we do not really need subject id, study uid is supposed to be unique
+          // ignore if we have it missing so that projects/:p/series calls and such works
+          const subjectID = subject
+            ? (
+                await models.subject.findOne({
+                  where: { subjectuid: subject },
+                  attributes: ['id'],
+                })
+              ).dataValues.id
+            : undefined;
+
+          const studyID = study
+            ? (
+                await models.study.findOne({
+                  where: { studyuid: study },
+                  attributes: ['id'],
+                })
+              ).dataValues.id
+            : undefined;
+
+          const qry = { study_id: studyID };
+          if (subjectID) qry.subject_id = subjectID;
+          if (projectID) qry.project_id = projectID;
+          const significantSeries = await models.project_subject_study_series_significance.findAll({
+            where: qry,
+            raw: true,
+            attributes: [
+              'project_id',
+              'subject_id',
+              'study_id',
+              'series_uid',
+              'significance_order',
+            ],
+          });
+          const significantSeriesMap = {};
+          for (let i = 0; i < significantSeries.length; i += 1) {
+            significantSeriesMap[significantSeries[i].series_uid] =
+              significantSeries[i].significance_order;
+          }
+          resolve(significantSeriesMap);
+        } catch (err) {
+          reject(new InternalError('Getting significant series', err));
         }
       })
   );

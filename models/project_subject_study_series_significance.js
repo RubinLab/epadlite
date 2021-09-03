@@ -2,7 +2,7 @@
 
 module.exports = function (sequelize, DataTypes) {
   return sequelize.define(
-    'project_aim',
+    'project_subject_study_series_significance',
     {
       id: {
         type: DataTypes.INTEGER(10).UNSIGNED,
@@ -18,45 +18,29 @@ module.exports = function (sequelize, DataTypes) {
           key: 'id',
         },
       },
-      aim_uid: {
-        type: DataTypes.STRING(128),
-        allowNull: false,
-      },
-      user: {
-        type: DataTypes.STRING(128),
+      subject_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
+        references: {
+          model: 'subject',
+          key: 'id',
+        },
       },
-      template: {
-        type: DataTypes.STRING(128),
+      study_id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
         allowNull: true,
-      },
-      subject_uid: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
-      },
-      study_uid: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
+        references: {
+          model: 'study',
+          key: 'id',
+        },
       },
       series_uid: {
         type: DataTypes.STRING(128),
         allowNull: true,
       },
-      image_uid: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
-      },
-      frame_id: {
-        type: DataTypes.STRING(5),
-        allowNull: true,
-      },
-      dso_series_uid: {
-        type: DataTypes.STRING(128),
-        allowNull: true,
-      },
-      deleted: {
+      significance_order: {
         type: DataTypes.INTEGER(11),
-        allowNull: true,
+        allowNull: false,
       },
       creator: {
         type: DataTypes.STRING(128),
@@ -72,13 +56,9 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: false,
         defaultValue: '0000-00-00 00:00:00',
       },
-      updated_by: {
-        type: DataTypes.STRING(64),
-        allowNull: true,
-      },
     },
     {
-      tableName: 'project_aim',
+      tableName: 'project_subject_study_series_significance',
     }
   );
 };
