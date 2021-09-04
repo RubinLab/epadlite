@@ -82,9 +82,11 @@ async function dicomwebserver(fastify) {
                 Authorization: `Basic ${encoded}`,
               },
             };
+            // we have 2 separate as test VNA needed accept: 'application/json' in headers
+            // test sectra fails with it
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
-              headers: { ...header.headers, accept: 'application/json' },
+              headers: { ...header.headers },
             });
             this.wadoRequest = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
@@ -425,7 +427,7 @@ async function dicomwebserver(fastify) {
           // use admin username
           const epadAuth = { username: 'admin', admin: true };
           const updateStudyPromises = [];
-          const values = await this.request.get(`/studies`, header);
+          const values = await this.request.get(`/studies?includefield=StudyDescription`, header);
           const studyUids = await fastify.getDBStudies();
           for (let i = 0; i < values.data.length; i += 1) {
             const value = values.data[i];
@@ -551,8 +553,10 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
-          if (params.study) query = `?StudyInstanceUID=${params.study}`;
-          else if (params.subject) query = `?PatientID=${params.subject}`;
+          if (params.study)
+            query = `?StudyInstanceUID=${params.study}&includefield=StudyDescription`;
+          else if (params.subject)
+            query = `?PatientID=${params.subject}&includefield=StudyDescription`;
           const promisses = [];
           promisses.push(
             this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
@@ -716,7 +720,7 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const studies = await this.request.get(
-            `${config.dicomWebConfig.qidoSubPath}/studies${limit}`,
+            `${config.dicomWebConfig.qidoSubPath}/studies${limit}?includefield=StudyDescription`,
             header
           );
           const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);
@@ -754,7 +758,7 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(
             this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series`,
+              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
               header
             )
           );
