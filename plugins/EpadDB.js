@@ -6409,18 +6409,21 @@ async function epaddb(fastify, options, done) {
             }
             break;
           case 'Longitudinal':
-            if (request.params.subject)
-              result = fastify.getLongitudinal(
+            if (request.params.subject) {
+              result = await fastify.getLongitudinal(
                 result.rows,
                 undefined,
                 undefined,
                 request,
-                request.query.metric
+                request.query.metric,
+                request.query.html
               );
-            else {
+              console.log('result', result);
+            } else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
               return;
             }
+
             break;
           default:
             break;
@@ -7051,7 +7054,7 @@ async function epaddb(fastify, options, done) {
           const reportMultiUser =
             report === 'RECIST'
               ? fastify.getRecist(result)
-              : fastify.getLongitudinal(result, template, shapes, undefined, metric);
+              : await fastify.getLongitudinal(result, template, shapes, undefined, metric);
           if (reportMultiUser && reportMultiUser !== {}) {
             await fastify.saveReport2DB(
               projectId,

@@ -4,6 +4,7 @@ const _ = require('lodash');
 
 const { InternalError } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
+const { renderTable } = require('../utils/recist.js');
 
 async function reporting(fastify) {
   fastify.decorate('numOfLongitudinalHeaderCols', 2);
@@ -846,125 +847,146 @@ async function reporting(fastify) {
     return out;
   });
 
-  fastify.decorate('getLongitudinal', (aims, template, shapes, request, metric = true) => {
-    try {
-      const lesions = fastify.fillTable(
-        aims,
-        template,
-        [
-          'Name',
-          'StudyDate',
-          'StudyUID',
-          'SeriesUID',
-          'AimUID',
-          'AllCalc',
-          'Timepoint',
-          'Lesion',
-          'Modality',
-          'Location',
-          'Template',
-          'Shapes',
-          'TrackingUniqueIdentifier',
-          'Username',
-        ],
-        shapes
-      );
-      if (lesions.length === 0) return null;
+  fastify.decorate(
+    'getLongitudinal',
+    async (aims, template, shapes, request, metric = true, html = false) => {
+      try {
+        const lesions = fastify.fillTable(
+          aims,
+          template,
+          [
+            'Name',
+            'StudyDate',
+            'StudyUID',
+            'SeriesUID',
+            'AimUID',
+            'AllCalc',
+            'Timepoint',
+            'Lesion',
+            'Modality',
+            'Location',
+            'Template',
+            'Shapes',
+            'TrackingUniqueIdentifier',
+            'Username',
+          ],
+          shapes
+        );
+        if (lesions.length === 0) return null;
 
-      // get targets
-      const users = {};
-      // first pass fill in the lesion names and study dates (x and y axis of the table)
-      for (let i = 0; i < lesions.length; i += 1) {
-        const username = lesions[i].username.value.toLowerCase();
-        if (!users[username]) {
-          users[username] = {
-            tLesionNames: [],
-            studyDates: [],
-            lesions: [],
-            tTrackingUIDs: [],
-            lesionWTrackingUIDCount: 0,
-          };
+        // get targets
+        const users = {};
+        // first pass fill in the lesion names and study dates (x and y axis of the table)
+        for (let i = 0; i < lesions.length; i += 1) {
+          const username = lesions[i].username.value.toLowerCase();
+          if (!users[username]) {
+            users[username] = {
+              tLesionNames: [],
+              studyDates: [],
+              lesions: [],
+              tTrackingUIDs: [],
+              lesionWTrackingUIDCount: 0,
+            };
+          }
+          const lesionName = lesions[i].name.value.toLowerCase();
+          const studyDate = lesions[i].studydate.value;
+          const trackingUID = lesions[i].trackinguniqueidentifier
+            ? lesions[i].trackinguniqueidentifier.value
+            : undefined;
+          if (!users[username].studyDates.includes(studyDate))
+            users[username].studyDates.push(studyDate);
+          if (!users[username].tLesionNames.includes(lesionName))
+            users[username].tLesionNames.push(lesionName);
+          if (trackingUID && !users[username].tTrackingUIDs.includes(trackingUID))
+            users[username].tTrackingUIDs.push(trackingUID);
+          if (trackingUID) {
+            users[username].lesionWTrackingUIDCount += 1;
+          }
+          users[username].lesions.push(lesions[i]);
         }
-        const lesionName = lesions[i].name.value.toLowerCase();
-        const studyDate = lesions[i].studydate.value;
-        const trackingUID = lesions[i].trackinguniqueidentifier
-          ? lesions[i].trackinguniqueidentifier.value
-          : undefined;
-        if (!users[username].studyDates.includes(studyDate))
-          users[username].studyDates.push(studyDate);
-        if (!users[username].tLesionNames.includes(lesionName))
-          users[username].tLesionNames.push(lesionName);
-        if (trackingUID && !users[username].tTrackingUIDs.includes(trackingUID))
-          users[username].tTrackingUIDs.push(trackingUID);
-        if (trackingUID) {
-          users[username].lesionWTrackingUIDCount += 1;
-        }
-        users[username].lesions.push(lesions[i]);
-      }
-      const rrUsers = {};
-      const usernames = Object.keys(users);
-      for (let u = 0; u < usernames.length; u += 1) {
-        // sort lists
-        users[usernames[u]].tLesionNames.sort();
-        users[usernames[u]].studyDates.sort();
+        const rrUsers = {};
+        const usernames = Object.keys(users);
+        for (let u = 0; u < usernames.length; u += 1) {
+          // sort lists
+          users[usernames[u]].tLesionNames.sort();
+          users[usernames[u]].studyDates.sort();
 
-        const mode = 'name';
-        const tIndex = users[usernames[u]].tLesionNames;
-        // ignoring tracking uids for longitudinal. as it's not common to use select baseline for non-recist lesions and we put tracking uids on every annotation which messes up reports
-        // if (
-        //   users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
-        //   users[usernames[u]].lesions.length > 0
-        // ) {
-        //   fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
-        //   mode = 'trackingUID';
-        //   tIndex = users[usernames[u]].tTrackingUIDs;
-        // }
-        if (
-          users[usernames[u]].tLesionNames.length > 0 &&
-          users[usernames[u]].studyDates.length > 0
-        ) {
-          // fill in the table for target lesions
-          const { table, UIDs, timepoints, errors } = fastify.fillReportTable(
-            tIndex,
-            users[usernames[u]].studyDates,
-            users[usernames[u]].lesions,
-            undefined, // no type filtering
-            mode,
-            fastify.numOfLongitudinalHeaderCols,
-            metric,
+          const mode = 'name';
+          const tIndex = users[usernames[u]].tLesionNames;
+          // ignoring tracking uids for longitudinal. as it's not common to use select baseline for non-recist lesions and we put tracking uids on every annotation which messes up reports
+          // if (
+          //   users[usernames[u]].lesionWTrackingUIDCount === users[usernames[u]].lesions.length &&
+          //   users[usernames[u]].lesions.length > 0
+          // ) {
+          //   fastify.log.info('We have tracking UIDs for all lesions using tracking UIDs');
+          //   mode = 'trackingUID';
+          //   tIndex = users[usernames[u]].tTrackingUIDs;
+          // }
+          if (
+            users[usernames[u]].tLesionNames.length > 0 &&
+            users[usernames[u]].studyDates.length > 0
+          ) {
+            // fill in the table for target lesions
+            const { table, UIDs, timepoints, errors } = fastify.fillReportTable(
+              tIndex,
+              users[usernames[u]].studyDates,
+              users[usernames[u]].lesions,
+              undefined, // no type filtering
+              mode,
+              fastify.numOfLongitudinalHeaderCols,
+              metric,
+              false
+            );
+
+            if (errors.length > 0 && request)
+              new EpadNotification(
+                request,
+                'Report generated with errors',
+                new Error(errors.join('.')),
+                false
+              ).notify(fastify);
+
+            const rr = {
+              tLesionNames: tIndex,
+              studyDates: users[usernames[u]].studyDates,
+              tTable: table,
+              tUIDs: UIDs,
+              stTimepoints: timepoints,
+              tTimepoints: fastify.cleanConsecutives(timepoints),
+              tErrors: errors,
+            };
+            rrUsers[usernames[u]] = rr;
+          }
+        }
+        if (Object.keys(rrUsers).length > 0) {
+          if (!html) return rrUsers;
+          // let filter = 'report=Longitudinal';
+          let loadFilter = metric !== true ? `metric=${metric}` : '';
+          if (template != null) loadFilter += `&templatecode=${template}`;
+          const htmlText = await renderTable(
+            1,
+            request.params.subject,
+            request.params.project,
+            'Longitudinal',
+            rrUsers[request.query.user],
+            2,
+            [],
+            loadFilter,
+            1,
             false
           );
-
-          if (errors.length > 0 && request)
-            new EpadNotification(
-              request,
-              'Report generated with errors',
-              new Error(errors.join('.')),
-              false
-            ).notify(fastify);
-
-          const rr = {
-            tLesionNames: tIndex,
-            studyDates: users[usernames[u]].studyDates,
-            tTable: table,
-            tUIDs: UIDs,
-            stTimepoints: timepoints,
-            tTimepoints: fastify.cleanConsecutives(timepoints),
-            tErrors: errors,
-          };
-          rrUsers[usernames[u]] = rr;
+          return htmlText;
         }
+        fastify.log.info(`no target lesion in table ${lesions}`);
+        return null;
+      } catch (err) {
+        fastify.log.error(
+          `Error generating longitudinal report for ${aims.length} Error: ${err.message}`
+        );
       }
-      if (Object.keys(rrUsers).length > 0) return rrUsers;
-      fastify.log.info(`no target lesion in table ${lesions}`);
       return null;
-    } catch (err) {
-      fastify.log.error(
-        `Error generating longitudinal report for ${aims.length} Error: ${err.message}`
-      );
     }
-    return null;
-  });
+  );
 
   fastify.decorate('getLesionIndex', (index, mode, lesion) => {
     switch (mode) {
@@ -1358,7 +1380,14 @@ async function reporting(fastify) {
                 const report =
                   metric === 'RECIST'
                     ? fastify.getRecist(aimsRes.rows)
-                    : fastify.getLongitudinal(aimsRes.rows, template, shapes, undefined, metric);
+                    : // eslint-disable-next-line no-await-in-loop
+                      await fastify.getLongitudinal(
+                        aimsRes.rows,
+                        template,
+                        shapes,
+                        undefined,
+                        metric
+                      );
                 if (report == null) {
                   fastify.log.warn(
                     `Couldn't retrieve report for patient ${subjProjPairs[i].subjectID}`
@@ -1400,7 +1429,8 @@ async function reporting(fastify) {
                 }
                 const recistReport = recistRequired ? fastify.getRecist(aimsRes.rows) : undefined;
                 const longitudinalReport = longitudinalRequired
-                  ? fastify.getLongitudinal(aimsRes.rows, template, shapes, undefined, metric)
+                  ? // eslint-disable-next-line no-await-in-loop
+                    await fastify.getLongitudinal(aimsRes.rows, template, shapes, undefined, metric)
                   : undefined;
                 const report = longitudinalReport || recistReport;
                 // if both merge
