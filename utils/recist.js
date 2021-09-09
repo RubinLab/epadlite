@@ -130,7 +130,7 @@ function findMeasurements(table) {
     $.each(elem, function(j, selem) {
       if (selem != null && typeof selem === 'object') {
         Object.keys(selem).forEach(function(c) {
-          if (jQuery.inArray(c, allMeasurements) == -1) allMeasurements.push(c);
+          if ($.inArray(c, allMeasurements) == -1) allMeasurements.push(c);
         });
       }
     });
@@ -143,7 +143,7 @@ function findTemplates(uids) {
   $.each(uids, function(i, elem) {
     $.each(elem, function(j, selem) {
       if (selem != null && typeof selem['templateCode'] != 'undefined') {
-        if (jQuery.inArray(selem['templateCode'], allTemplates) == -1)
+        if ($.inArray(selem['templateCode'], allTemplates) == -1)
           allTemplates.push(selem['templateCode']);
       }
     });
@@ -159,7 +159,7 @@ function findShapes(uids) {
       if (selem != null && typeof selem['shapes'] != 'undefined') {
         shapes = selem['shapes'].split(',');
         shapes.forEach(function(shape) {
-          if (shape.trim() != '' && jQuery.inArray(shape, allShapes) == -1)
+          if (shape.trim() != '' && $.inArray(shape, allShapes) == -1)
             allShapes.push(shape);
         });
       }
