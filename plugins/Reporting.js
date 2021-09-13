@@ -1251,7 +1251,7 @@ async function reporting(fastify) {
   fastify.decorate('colorLookup', (responseCat) => {
     switch (responseCat) {
       case 'PD':
-        return '#e3210'; // red
+        return '#e32100'; // red
       case 'CR':
         return '#34ba4a'; // green
       case 'PR':
