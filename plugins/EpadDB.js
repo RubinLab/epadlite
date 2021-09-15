@@ -6418,7 +6418,6 @@ async function epaddb(fastify, options, done) {
                 request.query.metric,
                 request.query.html
               );
-              console.log('result', result);
             } else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
               return;
