@@ -1251,14 +1251,14 @@ async function reporting(fastify) {
   fastify.decorate('colorLookup', (responseCat) => {
     switch (responseCat) {
       case 'PD':
-        return '#e32100'; // red
+        return '#cd6679'; // red
       case 'CR':
-        return '#34ba4a'; // green
+        return '#9ec57c'; // green
       case 'PR':
-        return '#a310de'; // purple
+        return '#045a8d'; // blue
       default:
         // SD
-        return '#74d9f2'; // blue
+        return '#5a5289'; // purple
     }
   });
   /**
