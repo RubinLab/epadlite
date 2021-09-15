@@ -8295,7 +8295,7 @@ async function epaddb(fastify, options, done) {
           else {
             let subject = await models.subject.findOne({
               where: {
-                subjectuid: params.subject,
+                subjectuid: params.subject.replace('\u0000', '').trim(),
               },
             });
             // upload sends subject and study data in body
