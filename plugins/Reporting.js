@@ -970,7 +970,7 @@ async function reporting(fastify) {
             'Longitudinal',
             rrUsers[request.query.user],
             2,
-            [1],
+            [],
             loadFilter,
             1,
             false
