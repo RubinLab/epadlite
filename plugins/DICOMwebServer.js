@@ -863,8 +863,7 @@ async function dicomwebserver(fastify) {
               // if the series response does not have series description for any of the series
               // try and get series description from the metadata
               if (filtered.length === seriesMetadataPromises.length && filtered.length !== 0) {
-                fastify.pq
-                  .addAll(seriesMetadataPromises)
+                Promise.all(seriesMetadataPromises)
                   .then((seriesMetadatas) => {
                     // TODO traverse series metadata and update it in the result
                     if (result.length === seriesMetadatas.length) {
