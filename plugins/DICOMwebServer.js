@@ -803,7 +803,7 @@ async function dicomwebserver(fastify) {
               const seriesMetadataPromises = [];
               const result = _.map(filtered, (value) => {
                 if (!value['0008103E'] || !value['0008103E'].Value)
-                  seriesMetadataPromises.push(() =>
+                  seriesMetadataPromises.push(
                     this.request.get(
                       `${config.dicomWebConfig.wadoSubPath}/studies/${params.study}/series/${value['0020000E'].Value[0]}/metadata`,
                       header
@@ -878,7 +878,10 @@ async function dicomwebserver(fastify) {
                     }
                     resolve(result);
                   })
-                  .catch((err) => console.log('Could not retrieve series metadata', err));
+                  .catch((err) => {
+                    fastify.log.warn(`Could not retrieve series metadata. Error: ${err.message}`);
+                    resolve(result);
+                  });
               } else resolve(result);
             })
             .catch((error) => {
