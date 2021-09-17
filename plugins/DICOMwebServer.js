@@ -866,14 +866,13 @@ async function dicomwebserver(fastify) {
                 fastify.pq
                   .addAll(seriesMetadataPromises)
                   .then((seriesMetadatas) => {
-                    console.log(seriesMetadatas);
                     // TODO traverse series metadata and update it in the result
                     if (result.length === seriesMetadatas.length) {
                       for (let i = 0; i < result.length; i += 1) {
                         result[i].seriesDescription =
-                          seriesMetadatas[i].data['0008103E'] &&
-                          seriesMetadatas[i].data['0008103E'].Value
-                            ? seriesMetadatas[i].data['0008103E'].Value[0]
+                          seriesMetadatas[i].data[0]['0008103E'] &&
+                          seriesMetadatas[i].data[0]['0008103E'].Value
+                            ? seriesMetadatas[i].data[0]['0008103E'].Value[0]
                             : '';
                       }
                     }
