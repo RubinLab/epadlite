@@ -2175,6 +2175,7 @@ async function epaddb(fastify, options, done) {
 
     const queueIdsArrayToStart = request.body;
     const allStatus = ['added', 'ended', 'error', 'running'];
+    const result = []; // test cavit
     try {
       reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
 
@@ -2185,7 +2186,7 @@ async function epaddb(fastify, options, done) {
         })
         .then((tableData) => {
           tableData.forEach((data) => {
-            const result = [];
+            // const result = []; test cavit
             const pluginObj = {
               id: data.dataValues.id,
               plugin_id: data.dataValues.plugin_id,
@@ -2218,21 +2219,22 @@ async function epaddb(fastify, options, done) {
                 if (resInspect.State.Status !== 'running') {
                   fastify.log.info('container is not running : ', containerName);
                   dock.deleteContainer(containerName).then((deleteReturn) => {
-                    fastify.log.info('delete container result :', deleteReturn);
+                    fastify.log.info(`delete container result : ${deleteReturn}`);
                     result.push(pluginObj);
-                    fastify.runPluginsQueueInternal(result, request);
+                    // fastify.runPluginsQueueInternal(result, request); testcavit
                   });
                 }
               })
               .catch((err) => {
-                fastify.log.info('inspect element err', err);
+                fastify.log.info(`inspect element err : ${err}`);
                 if (err.message === '404') {
                   result.push(pluginObj);
-                  fastify.runPluginsQueueInternal(result, request);
+                  //  fastify.runPluginsQueueInternal(result, request); test cavit
                 }
               });
           });
         });
+      fastify.runPluginsQueueInternal(result, request);
     } catch (err) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
     }
@@ -3921,13 +3923,13 @@ async function epaddb(fastify, options, done) {
             const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
             // eslint-disable-next-line no-await-in-loop
             await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-            return new EpadNotification(request, operationresult, err, true).notify(fastify);
+            new EpadNotification(request, operationresult, err, true).notify(fastify);
           }
         } else {
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'error');
           fastify.log.info('image not found ', imageRepo);
-          return new EpadNotification(
+          new EpadNotification(
             request,
             'error',
             new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
@@ -3937,10 +3939,11 @@ async function epaddb(fastify, options, done) {
         // eslint-disable-next-line no-await-in-loop
         await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
       }
+      return true;
     } catch (err) {
       return err;
     }
-    return true;
+    //  return true;
   });
   //  internal functions ends
   //  plugins section ends
