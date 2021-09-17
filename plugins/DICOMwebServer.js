@@ -9,7 +9,6 @@ window = {};
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
-const { filter } = require('lodash');
 
 // I need to import this after config as it uses config values
 // eslint-disable-next-line import/order
@@ -869,6 +868,15 @@ async function dicomwebserver(fastify) {
                   .then((seriesMetadatas) => {
                     console.log(seriesMetadatas);
                     // TODO traverse series metadata and update it in the result
+                    if (result.length === seriesMetadatas.length) {
+                      for (let i = 0; i < result.length; i += 1) {
+                        result[i].seriesDescription =
+                          seriesMetadatas[i].data['0008103E'] &&
+                          seriesMetadatas[i].data['0008103E'].Value
+                            ? seriesMetadatas[i].data['0008103E'].Value[0]
+                            : '';
+                      }
+                    }
                     resolve(result);
                   })
                   .catch((err) => console.log('Could not retrieve series metadata', err));
