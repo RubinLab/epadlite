@@ -26,6 +26,8 @@
     "fastify-static": "^3.3.0",
     "fastify-swagger": "^3.5.0",
     "fs-extra": "^9.0.1",
+    "jquery": "^3.6.0",
+    "jsdom": "^17.0.0",
     "keycloak-backend": "^2.0.1",
     "lodash": "^4.17.20",
     "mariadb": "^2.5.2",
