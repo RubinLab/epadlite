@@ -2118,7 +2118,7 @@ async function epaddb(fastify, options, done) {
     const dock = new DockerService(fs, fastify, path);
     const containerLists = await dock.listContainers();
     let containerFound = false;
-    reply.code(204).send();
+    reply.code(202).send();
     for (let cnt = 0; cnt < queueIds.length; cnt += 1) {
       const containerName = `/epadplugin_${queueIds[cnt]}`;
       let containerId = null;
@@ -2175,7 +2175,7 @@ async function epaddb(fastify, options, done) {
 
     const queueIdsArrayToStart = request.body;
     const allStatus = ['added', 'ended', 'error', 'running'];
-    const result = [];
+    //  const result = [];
     try {
       reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
 
@@ -2186,7 +2186,7 @@ async function epaddb(fastify, options, done) {
         })
         .then((tableData) => {
           tableData.forEach((data) => {
-            //  const result = [];
+            const result = [];
             const pluginObj = {
               id: data.dataValues.id,
               plugin_id: data.dataValues.plugin_id,
@@ -2223,7 +2223,7 @@ async function epaddb(fastify, options, done) {
                   dock.deleteContainer(containerName).then((deleteReturn) => {
                     fastify.log.info(`delete container result :${deleteReturn}`);
                     result.push(pluginObj);
-                    //  fastify.runPluginsQueueInternal(result, request);
+                    fastify.runPluginsQueueInternal(result, request);
                   });
                 }
               })
@@ -2231,12 +2231,12 @@ async function epaddb(fastify, options, done) {
                 fastify.log.info(`inspect element err : ${err}`);
                 if (err.message === '404') {
                   result.push(pluginObj);
-                  //  fastify.runPluginsQueueInternal(result, request);
+                  fastify.runPluginsQueueInternal(result, request);
                 }
               });
           });
         });
-      fastify.runPluginsQueueInternal(result, request);
+      //  fastify.runPluginsQueueInternal(result, request);
     } catch (err) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
     }
@@ -3922,6 +3922,12 @@ async function epaddb(fastify, options, done) {
             }
             // eslint-disable-next-line no-await-in-loop
             await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
+            new EpadNotification(
+              request,
+              `${pluginInfoFromParams.pluginname}`,
+              `completed the process for epadplugin_${queueId}`,
+              true
+            ).notify(fastify);
           } catch (err) {
             const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
             // eslint-disable-next-line no-await-in-loop
