@@ -1017,7 +1017,7 @@ async function epaddb(fastify, options, done) {
     const formattedProjects = [];
 
     fastify.log.info(`projects to remove : ${projectsToRemove}`);
-    fastify.log.info(`projects to remove : ${projectsToAdd}`);
+    fastify.log.info(`projects to add : ${projectsToAdd}`);
     let whereObj = {};
     whereObj = {
       plugin_id: pluginid,
@@ -2144,10 +2144,10 @@ async function epaddb(fastify, options, done) {
           true
         ).notify(fastify);
         containerFound = false;
-        fastify.log.info('container name found  stopping : ', containerName);
+        fastify.log.info(`container name found  stopping : ${containerName}`);
         // eslint-disable-next-line no-await-in-loop
         const returnContainerStop = await dock.stopContainer(containerId);
-        fastify.log.info('container stopped : ', returnContainerStop);
+        fastify.log.info(`container stopped : ${returnContainerStop}`);
         // eslint-disable-next-line no-await-in-loop
         await fastify.updateStatusQueueProcessInternal(queuid, 'ended');
         new EpadNotification(
@@ -2175,6 +2175,7 @@ async function epaddb(fastify, options, done) {
 
     const queueIdsArrayToStart = request.body;
     const allStatus = ['added', 'ended', 'error', 'running'];
+    const result = [];
     try {
       reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
 
@@ -2185,7 +2186,7 @@ async function epaddb(fastify, options, done) {
         })
         .then((tableData) => {
           tableData.forEach((data) => {
-            const result = [];
+            //  const result = [];
             const pluginObj = {
               id: data.dataValues.id,
               plugin_id: data.dataValues.plugin_id,
@@ -2212,27 +2213,30 @@ async function epaddb(fastify, options, done) {
               .checkContainerExistance(containerName)
               .then((resInspect) => {
                 if (resInspect.message === '404') {
-                  fastify.log.info('need to throw an error here ');
+                  fastify.log.info(
+                    'not a real error. Container has not found so we can create new one'
+                  );
                   throw new Error('404');
                 }
                 if (resInspect.State.Status !== 'running') {
-                  fastify.log.info('container is not running : ', containerName);
+                  fastify.log.info(`container is not running : ${containerName}`);
                   dock.deleteContainer(containerName).then((deleteReturn) => {
-                    fastify.log.info('delete container result :', deleteReturn);
+                    fastify.log.info(`delete container result :${deleteReturn}`);
                     result.push(pluginObj);
-                    fastify.runPluginsQueueInternal(result, request);
+                    //  fastify.runPluginsQueueInternal(result, request);
                   });
                 }
               })
               .catch((err) => {
-                fastify.log.info('inspect element err', err);
+                fastify.log.info(`inspect element err : ${err}`);
                 if (err.message === '404') {
                   result.push(pluginObj);
-                  fastify.runPluginsQueueInternal(result, request);
+                  //  fastify.runPluginsQueueInternal(result, request);
                 }
               });
           });
         });
+      fastify.runPluginsQueueInternal(result, request);
     } catch (err) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
     }
@@ -2328,7 +2332,7 @@ async function epaddb(fastify, options, done) {
           if (tempPluginparams[i].format === 'OutputFolder') {
             try {
               const outputfolder = `${userfolder}/${tempPluginparams[i].paramid}/`;
-              fastify.log.info(outputfolder);
+              fastify.log.info(`create plguin folders -> outputfolder : ${outputfolder}`);
               if (!fs.existsSync(outputfolder)) {
                 fs.mkdirSync(outputfolder, { recursive: true });
               } else {
@@ -2356,6 +2360,7 @@ async function epaddb(fastify, options, done) {
                   request.epadAuth
                 );
                 const inputfolder = `${userfolder}/${tempPluginparams[i].paramid}/`;
+                fastify.log.info(`create plguin folders -> inputfolder : ${inputfolder}`);
                 if (!fs.existsSync(inputfolder)) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                 } else {
@@ -2421,7 +2426,7 @@ async function epaddb(fastify, options, done) {
                     const aimsKeys = Object.keys(aims);
                     for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
                       const eacAimhObj = aims[aimsKeys[aimsCnt]];
-                      fastify.log.info('getting dicoms for aim ', eacAimhObj);
+                      fastify.log.info(`getting dicoms for aim : ${eacAimhObj}`);
                       // eslint-disable-next-line no-await-in-loop
                       const returnSerieFolder = await fastify.prepSeriesDownload(
                         request.headers.origin,
@@ -2785,7 +2790,7 @@ async function epaddb(fastify, options, done) {
         );
     }
     if (status === 'stopping') {
-      fastify.log.info('db is writing stopping ', status);
+      fastify.log.info(`db is writing status for the plugin : ${status} `);
       models.plugin_queue
         .update(
           {
@@ -3450,8 +3455,8 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         const fileArray = [];
         try {
-          fastify.log.info(`plugin is collecting aims`);
           await fastify.findFilesAndSubfilesInternal(filePath, fileArray, 'json');
+          fastify.log.info(`plugin is collecting aims : ${JSON.stringify(fileArray)}`);
           resolve(fileArray);
         } catch (err) {
           reject(new InternalError('error happened while plugin was collecting aims', err));
@@ -3643,11 +3648,11 @@ async function epaddb(fastify, options, done) {
               pluginQueueList[i]
             );
 
-            fastify.log.info('opreationresult', JSON.stringify(opreationresult));
+            fastify.log.info(`opreationresult : ${JSON.stringify(opreationresult)}`);
 
             // eslint-disable-next-line no-prototype-builtins
             if (opreationresult.hasOwnProperty('stack')) {
-              fastify.log.info('error catched in upper level ', opreationresult.stack);
+              fastify.log.info(`error catched in upper level : ${opreationresult.stack}`);
               // eslint-disable-next-line no-new
               throw new InternalError('', opreationresult);
             }
@@ -3655,7 +3660,7 @@ async function epaddb(fastify, options, done) {
             // eslint-disable-next-line no-await-in-loop
             opreationresult = ` plugin image : ${imageRepo} terminated the container process with success`;
             new EpadNotification(request, opreationresult, 'success', true).notify(fastify);
-            fastify.log.info('plugin finished working', imageRepo);
+            fastify.log.info(`plugin finished working for the image: ${imageRepo}`);
 
             //  upload the result from container to the series
             const fileArray = [];
@@ -3921,13 +3926,20 @@ async function epaddb(fastify, options, done) {
             const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
             // eslint-disable-next-line no-await-in-loop
             await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-            return new EpadNotification(request, operationresult, err, true).notify(fastify);
+            //  return new EpadNotification(request, operationresult, err, true).notify(fastify);
+            new EpadNotification(request, operationresult, err, true).notify(fastify);
           }
         } else {
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-          fastify.log.info('image not found ', imageRepo);
-          return new EpadNotification(
+          fastify.log.info(`image not found : ${imageRepo} `);
+          // return new EpadNotification(
+          //   request,
+          //   'error',
+          //   new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
+          //   true
+          // ).notify(fastify);
+          new EpadNotification(
             request,
             'error',
             new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
@@ -3937,10 +3949,11 @@ async function epaddb(fastify, options, done) {
         // eslint-disable-next-line no-await-in-loop
         await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
       }
+      return true;
     } catch (err) {
       return err;
     }
-    return true;
+    //  return true;
   });
   //  internal functions ends
   //  plugins section ends
@@ -4048,8 +4061,7 @@ async function epaddb(fastify, options, done) {
       });
 
       fastify.log.info(
-        'remote server rsponse for register server for the apikey',
-        resultRemoteRegister
+        `remote server rsponse for register server for the apikey : ${resultRemoteRegister}`
       );
       reply.code(resultRemoteRegister.code).send(resultRemoteRegister.data);
       return;
@@ -4073,8 +4085,7 @@ async function epaddb(fastify, options, done) {
     );
     const lastRecordOfRegisteredServer = serverExistance[serverExistance.length - 1];
     fastify.log.info(
-      'we are checking if the server exist : getting last inserted data : ',
-      lastRecordOfRegisteredServer
+      `we are checking if the server exist : getting last inserted data : ${lastRecordOfRegisteredServer}`
     );
 
     if (tempUserEmailvalidationcode === '' && lastRecordOfRegisteredServer === undefined) {
@@ -4106,12 +4117,11 @@ async function epaddb(fastify, options, done) {
         return;
       }
 
-      fastify.log.info('new server registered for the apikey: ', registeredObject);
+      fastify.log.info(`new server registered for the apikey: ${JSON.stringify(registeredObject)}`);
       reply.code(200).send('validationsent');
     } else if (tempUserEmailvalidationcode === '' && lastRecordOfRegisteredServer !== undefined) {
       fastify.log.info(
-        ' server exist already updating email verification code : ',
-        lastRecordOfRegisteredServer
+        `server exist already updating email verification code : ${lastRecordOfRegisteredServer}`
       );
       const tempGeneratedEmailValidationCode = fastify.generateEmailValidationCodeInternal();
       await models.registeredapps.update(
