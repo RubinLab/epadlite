@@ -1406,6 +1406,7 @@ async function other(fastify) {
         users: 'user',
         worklists: 'worklist',
         ontology: 'ontology',
+        register: 'register',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -1687,7 +1688,8 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
-      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decrypt?`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/register`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decrypt?`) &
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
@@ -1928,6 +1930,7 @@ async function other(fastify) {
               break;
             case 'POST':
               if (
+                reqInfo.level !== 'register' &&
                 !fastify.hasCreatePermission(request, reqInfo.level) &&
                 !(
                   reqInfo.level === 'worklist' &&
