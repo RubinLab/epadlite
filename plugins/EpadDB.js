@@ -2459,7 +2459,7 @@ async function epaddb(fastify, options, done) {
                         ) {
                           fs.copySync(
                             `${returnSerieFolderFullPath}/${foldersListSource[foldecount]}`,
-                            `${inputfolder}/${foldersListSource[foldecount]}`
+                            `${inputfolder}/`
                           );
                         }
 
@@ -3399,7 +3399,7 @@ async function epaddb(fastify, options, done) {
           );
           fs.appendFileSync(
             fileFullPath,
-            `${jsonToConvert.dsouid},1,${jsonToConvert.studyInstanceUid},${jsonToConvert.patientId},${jsonToConvert.series}/Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,${jsonToConvert.series}/Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,${jsonToConvert.patientName},SEG,1,14,15,16,17,18,19,${jsonToConvert.description},21,\n`
+            `${jsonToConvert.dsouid},1,${jsonToConvert.studyInstanceUid},${jsonToConvert.patientId},Series-${jsonToConvert.series}/segs/${jsonToConvert.dsouid}.dcm,5,6,Series-${jsonToConvert.series}/${jsonToConvert.dsoImage}.dcm,${jsonToConvert.series},9,10,${jsonToConvert.patientName},SEG,1,14,15,16,17,18,19,${jsonToConvert.description},21,\n`
           );
 
           resolve('ok');
