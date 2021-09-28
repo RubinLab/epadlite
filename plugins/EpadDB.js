@@ -2422,6 +2422,10 @@ async function epaddb(fastify, options, done) {
                 if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
                   // aim level dicoms
                   if (tempPluginparams[i].refreshdicoms === 1 || isItFirstTimeGettingDicoms) {
+                    if (fs.existsSync(inputfolder)) {
+                      fs.rmdirSync(inputfolder, { recursive: true });
+                      fs.mkdirSync(inputfolder, { recursive: true });
+                    }
                     const aimsKeysLength = Object.keys(aims).length;
                     const aimsKeys = Object.keys(aims);
                     for (let aimsCnt = 0; aimsCnt < aimsKeysLength; aimsCnt += 1) {
@@ -2497,6 +2501,10 @@ async function epaddb(fastify, options, done) {
                     fastify.log.info(
                       `calling prep download for project level files/folders for { project: projectid } : ${projectid} - {project_id: projectdbid} : ${projectdbid}`
                     );
+                    if (fs.existsSync(inputfolder)) {
+                      fs.rmdirSync(inputfolder, { recursive: true });
+                      fs.mkdirSync(inputfolder, { recursive: true });
+                    }
                     // eslint-disable-next-line no-await-in-loop
                     const dicomPath = await fastify.prepProjectDownload(
                       request.headers.origin,
@@ -3631,14 +3639,30 @@ async function epaddb(fastify, options, done) {
               }
             }
 
-            // eslint-disable-next-line no-await-in-loop
-            await fastify.updateStatusQueueProcessInternal(queueId, 'running');
-            new EpadNotification(
-              request,
-              `plugin image: ${imageRepo} started the process and container is running`,
-              'success',
-              true
-            ).notify(fastify);
+            fastify.log.info(
+              ` plugin dsolist file created before the pyradiomics container starts : ${pluginParameters.relativeServerFolder}/dicoms/dsoList.csv`
+            );
+            const csvLines = [];
+            fs.createReadStream(`${pluginParameters.relativeServerFolder}/dicoms/dsoList.csv`)
+              .pipe(csv({ skipLines: 0, headers: [] }))
+              // eslint-disable-next-line no-loop-func
+              .on('data', (data) => {
+                csvLines.push(Object.values(data));
+              })
+              .on('end', () => {
+                for (let cvslinecnt = 0; cvslinecnt < csvLines.length; cvslinecnt += 1) {
+                  fastify.log.info(
+                    `dsoList file content before plugin starts: ${csvLines[cvslinecnt]}`
+                  );
+                }
+              })
+              .on('error', (err) => {
+                // eslint-disable-next-line no-new
+                new InternalError(
+                  'error happened while reading plugin calculation csv file in output folder',
+                  err
+                );
+              });
 
             // eslint-disable-next-line no-await-in-loop
             opreationresult = await dock.createContainer(
@@ -3649,7 +3673,14 @@ async function epaddb(fastify, options, done) {
             );
 
             fastify.log.info(`opreationresult : ${JSON.stringify(opreationresult)}`);
-
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'running');
+            new EpadNotification(
+              request,
+              `plugin image: ${imageRepo} started the process and container is running`,
+              'success',
+              true
+            ).notify(fastify);
             // eslint-disable-next-line no-prototype-builtins
             if (opreationresult.hasOwnProperty('stack')) {
               fastify.log.info(`error catched in upper level : ${opreationresult.stack}`);
@@ -3924,7 +3955,7 @@ async function epaddb(fastify, options, done) {
             await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
             new EpadNotification(
               request,
-              `${pluginInfoFromParams.pluginname}`,
+              ``,
               `completed the process for epadplugin_${queueId}`,
               true
             ).notify(fastify);
