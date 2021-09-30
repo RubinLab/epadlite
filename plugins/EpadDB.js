@@ -3638,32 +3638,41 @@ async function epaddb(fastify, options, done) {
                 uploadAimsBackFlag = pluginParameters.params[prmsCnt].uploadaims;
               }
             }
-
-            fastify.log.info(
-              ` plugin dsolist file created before the pyradiomics container starts : ${pluginParameters.relativeServerFolder}/dicoms/dsoList.csv`
-            );
-            const csvLines = [];
-            fs.createReadStream(`${pluginParameters.relativeServerFolder}/dicoms/dsoList.csv`)
-              .pipe(csv({ skipLines: 0, headers: [] }))
-              // eslint-disable-next-line no-loop-func
-              .on('data', (data) => {
-                csvLines.push(Object.values(data));
-              })
-              .on('end', () => {
-                for (let cvslinecnt = 0; cvslinecnt < csvLines.length; cvslinecnt += 1) {
-                  fastify.log.info(
-                    `dsoList file content before plugin starts: ${csvLines[cvslinecnt]}`
+            if (pluginParameters.pluginnameid === 'pyradiomics') {
+              // this if block is only to verify if dsoList.csv is created before the container starts.Its purpose is just to write to console.It can be removed if no debugging is necessary
+              fastify.log.info(
+                ` plugin dsolist file created before the pyradiomics container starts : ${pluginParameters.relativeServerFolder}/dicoms/dsoList.csv`
+              );
+              const csvLines = [];
+              fs.createReadStream(`${pluginParameters.relativeServerFolder}/dicoms/dsoList.csv`)
+                .pipe(csv({ skipLines: 0, headers: [] }))
+                // eslint-disable-next-line no-loop-func
+                .on('data', (data) => {
+                  csvLines.push(Object.values(data));
+                })
+                .on('end', () => {
+                  for (let cvslinecnt = 0; cvslinecnt < csvLines.length; cvslinecnt += 1) {
+                    fastify.log.info(
+                      `dsoList file content before plugin starts: ${csvLines[cvslinecnt]}`
+                    );
+                  }
+                })
+                .on('error', (err) => {
+                  // eslint-disable-next-line no-new
+                  new InternalError(
+                    'error happened while reading plugin calculation csv file in output folder',
+                    err
                   );
-                }
-              })
-              .on('error', (err) => {
-                // eslint-disable-next-line no-new
-                new InternalError(
-                  'error happened while reading plugin calculation csv file in output folder',
-                  err
-                );
-              });
-
+                });
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateStatusQueueProcessInternal(queueId, 'running');
+            new EpadNotification(
+              request,
+              `plugin image: ${imageRepo} started the process and container is running`,
+              'success',
+              true
+            ).notify(fastify);
             // eslint-disable-next-line no-await-in-loop
             opreationresult = await dock.createContainer(
               imageRepo,
@@ -3673,14 +3682,6 @@ async function epaddb(fastify, options, done) {
             );
 
             fastify.log.info(`opreationresult : ${JSON.stringify(opreationresult)}`);
-            // eslint-disable-next-line no-await-in-loop
-            await fastify.updateStatusQueueProcessInternal(queueId, 'running');
-            new EpadNotification(
-              request,
-              `plugin image: ${imageRepo} started the process and container is running`,
-              'success',
-              true
-            ).notify(fastify);
             // eslint-disable-next-line no-prototype-builtins
             if (opreationresult.hasOwnProperty('stack')) {
               fastify.log.info(`error catched in upper level : ${opreationresult.stack}`);
