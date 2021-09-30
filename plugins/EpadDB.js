@@ -2645,7 +2645,7 @@ async function epaddb(fastify, options, done) {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
           await fastify.createPluginfoldersInternal(
             paramsToSendToContainer,
-            pluginsDataFolder,
+            '/home/cavit/codebase/epadlite/pluginsDataFolder/admin/9', //  pluginsDataFolder,
             aims,
             projectid,
             projectdbid,
@@ -2654,8 +2654,8 @@ async function epaddb(fastify, options, done) {
           );
           const returnObject = {
             params: paramsToSendToContainer,
-            serverfolder: localFullPathBindPoint,
-            relativeServerFolder: pluginsDataFolder,
+            serverfolder: '/home/cavit/codebase/epadlite/pluginsDataFolder/admin/9', //  localFullPathBindPoint,
+            relativeServerFolder: '/home/cavit/codebase/epadlite/pluginsDataFolder/admin/9', //  pluginsDataFolder,
             projectid,
             projectdbid,
             pluginnameid,
@@ -3544,6 +3544,70 @@ async function epaddb(fastify, options, done) {
   });
   //  plugin calculations verify codemaning existance in ontology and add calculations to the user aim part ends
 
+  fastify.decorate(
+    'pluginAddSegmentationToAim',
+    async (aimjsonarray, dcmFilesarray) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          fastify.log.info(
+            `pluginAddSegmentationToAim -> aimarray : ${JSON.stringify(aimjsonarray)}`
+          );
+          fastify.log.info(
+            `pluginAddSegmentationToAim -> segmentation array : ${JSON.stringify(dcmFilesarray)}`
+          );
+          const readStreamForDcm = fs.createReadStream(
+            `${dcmFilesarray[0].path}/${dcmFilesarray[0].file}`
+          );
+          // eslint-disable-next-line no-await-in-loop
+          const bufferArray = await fastify.getMultipartBuffer(readStreamForDcm);
+          const segTags = dcmjs.data.DicomMessage.readFile(bufferArray);
+          const segDS = dcmjs.data.DicomMetaDictionary.naturalizeDataset(segTags.dict);
+          // eslint-disable-next-line no-underscore-dangle
+          segDS._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(segTags.meta);
+
+          const { aim } = createOfflineAimSegmentation(segDS, {
+            loginName: '', // epadAuth.username,
+            name: '', // `${epadAuth.firstname} ${epadAuth.lastname}`,
+          });
+          // looking in the returned aim for "ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection"
+          const dicomJson = aim.getAimJSON();
+          fastify.log.info(
+            `pluginAddSegmentationToAim -> tags in dicom seg
+            ${JSON.stringify(dicomJson)}`
+          );
+          fastify.log.info(
+            `pluginAddSegmentationToAim -> aimjsonArray to get the aim to merge with segmentation ${JSON.stringify(
+              aimjsonarray[0]
+            )}`
+          );
+          const jsonString = fs.readFileSync(
+            `${aimjsonarray[0].path}/${aimjsonarray[0].file}`,
+            'utf8'
+          );
+          const parsedAimFile = JSON.parse(jsonString);
+          parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection =
+            dicomJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection;
+          console.log(
+            'resulting aim after adding segmentation part to aim : ',
+            JSON.stringify(parsedAimFile)
+          );
+          fs.writeFileSync(
+            `${aimjsonarray[0].path}/${aimjsonarray[0].file}`,
+            JSON.stringify(parsedAimFile),
+            'utf8'
+          );
+          resolve(true);
+        } catch (err) {
+          reject(
+            new InternalError(
+              `error happened while plugin adding segmentationEntitiy to given aim ${aimjsonarray[0]}`,
+              err
+            )
+          );
+        }
+      })
+  );
+
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
     try {
@@ -3710,20 +3774,34 @@ async function epaddb(fastify, options, done) {
                 fileArray,
                 'dcm'
               );
-
-              for (let cnt = 0; cnt < fileArray.length; cnt += 1) {
+              const dicomfilesNumberInOutputfolder = fileArray.length;
+              for (let cnt = 0; cnt < dicomfilesNumberInOutputfolder; cnt += 1) {
                 dcmFilesWithoutPath.push(fileArray[cnt].file);
               }
 
-              fastify.log.info(`dcm files in the plugin output folder : ${fileArray}`);
               fastify.log.info(
-                `dcm files without path in the plugin output folder :${dcmFilesWithoutPath}`
+                `dcm files in the plugin output folder : ${JSON.stringify(fileArray)}`
+              );
+              fastify.log.info(
+                `dcm files without path in the plugin output folder :${JSON.stringify(
+                  dcmFilesWithoutPath
+                )}`
               );
               fastify.log.info(
                 `source path for files to upload back to epad :${pluginParameters.relativeServerFolder}/output`
               );
+              if (dicomfilesNumberInOutputfolder > 0) {
+                // this if block is for contourtodso and expected one aim in plugin aim foler and expected one segmentation (example.dcm) in the plugin output folder
+                console.log('dcm files in the output folder. Collect dicom tags to write to aim');
+                // eslint-disable-next-line no-await-in-loop
+                const aimFiles = await fastify.pluginGetAimFilesInternal(
+                  `${pluginParameters.relativeServerFolder}/aims`
+                );
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.pluginAddSegmentationToAim(aimFiles, fileArray);
+              }
               if (uploadImageBackFlag === 1) {
-                if (fileArray.length > 0) {
+                if (dicomfilesNumberInOutputfolder > 0) {
                   new EpadNotification(
                     request,
                     `${pluginParameters.pluginname} is processing output dcm files `,
