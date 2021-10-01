@@ -3362,7 +3362,9 @@ async function epaddb(fastify, options, done) {
           );
 
           fastify.log.info(`uploading merged aim back to epad error: ${errors}`);
-          fastify.log.info(`upload merged aim back to epad success: ${success}`);
+          fastify.log.info(
+            `upload merged aim back to epad success: ${success}, aimfile : ${aimFileLocation.file}`
+          );
           if (!success) {
             reject(
               new InternalError(
@@ -3693,6 +3695,7 @@ async function epaddb(fastify, options, done) {
             let uploadImageBackFlag = null;
             let uploadAimsBackFlag = null;
             let outputFileParam = null;
+            let addsegmentationentitytoaim = null;
             for (let prmsCnt = 0; prmsCnt < pluginParameters.params.length; prmsCnt += 1) {
               if (pluginParameters.params[prmsCnt].format === 'OutputFile') {
                 outputFileParam = pluginParameters.params[prmsCnt].default_value;
@@ -3700,6 +3703,9 @@ async function epaddb(fastify, options, done) {
               if (pluginParameters.params[prmsCnt].format === 'OutputFolder') {
                 uploadImageBackFlag = pluginParameters.params[prmsCnt].uploadimages;
                 uploadAimsBackFlag = pluginParameters.params[prmsCnt].uploadaims;
+              }
+              if (pluginParameters.params[prmsCnt].name === 'addsegmentationentitytoaim') {
+                addsegmentationentitytoaim = true;
               }
             }
             if (pluginParameters.pluginnameid === 'pyradiomics') {
@@ -3790,15 +3796,26 @@ async function epaddb(fastify, options, done) {
               fastify.log.info(
                 `source path for files to upload back to epad :${pluginParameters.relativeServerFolder}/output`
               );
-              if (dicomfilesNumberInOutputfolder > 0) {
-                // this if block is for contourtodso and expected one aim in plugin aim foler and expected one segmentation (example.dcm) in the plugin output folder
-                console.log('dcm files in the output folder. Collect dicom tags to write to aim');
-                // eslint-disable-next-line no-await-in-loop
-                const aimFiles = await fastify.pluginGetAimFilesInternal(
-                  `${pluginParameters.relativeServerFolder}/aims`
+              fastify.log.info(`checking plugin params : ${pluginParameters}`);
+              if (addsegmentationentitytoaim) {
+                if (dicomfilesNumberInOutputfolder > 0) {
+                  // this if block is for contourtodso and expected one aim in plugin aim foler and expected one segmentation (example.dcm) in the plugin output folder
+                  fastify.log.info(
+                    'dcm files exist in the output folder for any type of plugin. Collect dicom tags to write to aim'
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  const aimFiles = await fastify.pluginGetAimFilesInternal(
+                    `${pluginParameters.relativeServerFolder}/aims`
+                  );
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.pluginAddSegmentationToAim(aimFiles, fileArray);
+                } else {
+                  fastify.log.info(`no dicoms found in the output folder for any type of plugin `);
+                }
+              } else {
+                fastify.log.info(
+                  `pluginAddSegmentationToAim will be called (if true): ${addsegmentationentitytoaim}`
                 );
-                // eslint-disable-next-line no-await-in-loop
-                await fastify.pluginAddSegmentationToAim(aimFiles, fileArray);
               }
               if (uploadImageBackFlag === 1) {
                 if (dicomfilesNumberInOutputfolder > 0) {
@@ -3827,7 +3844,9 @@ async function epaddb(fastify, options, done) {
                   fastify.log.info(`no dcm file found in output folder for the plugin`);
                 }
               } else {
-                fastify.log.info(`user set don't upload back dicoms from output folder flag`);
+                fastify.log.info(
+                  `user didn't set "uploadbackdicoms" flag to upload back dicoms from output folder `
+                );
               }
               // look for dcm files to upload section ends
 
@@ -3987,7 +4006,9 @@ async function epaddb(fastify, options, done) {
                     if (uploadAimsBackFlag === 1) {
                       try {
                         fastify.log.info(
-                          `uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin`
+                          `uploading processed aim with the aimid: ${JSON.stringify(
+                            foundAimIdFordso
+                          )} by the plugin`
                         );
                         // eslint-disable-next-line no-await-in-loop
                         await fastify.uploadMergedAimPluginCalcInternal(
@@ -4026,6 +4047,72 @@ async function epaddb(fastify, options, done) {
                 }
               } else {
                 fastify.log.info('no csv file found in output folder for the plugin');
+                // upload aims without regarding pyradiomics or not just check upload back aim flag
+                if (uploadAimsBackFlag === 1) {
+                  const foundAimsAnyPlugin = [];
+                  try {
+                    try {
+                      fastify.log.info(
+                        `finding the aims for any plugin which has upload aim back flag is set and is not required to process csv file for feature values`
+                      );
+                      // eslint-disable-next-line no-await-in-loop
+                      fastify.findFilesAndSubfilesInternal(
+                        `${pluginParameters.relativeServerFolder}/aims`,
+                        foundAimsAnyPlugin,
+                        'json'
+                      );
+                      fastify.log.info(
+                        `found aims for any plugin : ${JSON.stringify(foundAimsAnyPlugin)}`
+                      );
+                    } catch (err) {
+                      fastify.log.error(`Error: finding aims for any plugin err: ${err}`);
+                      new EpadNotification(
+                        request,
+                        '',
+                        new Error(
+                          `error happened while lookingup for aims for any type of plugin which has "uploadaimback" flag set ${pluginParameters.pluginname} `
+                        ),
+                        true
+                      ).notify(fastify);
+                    }
+                    fastify.log.info(
+                      `uploading processed aim for any plugin with the aimid: ${JSON.stringify(
+                        foundAimsAnyPlugin
+                      )} by the plugin`
+                    );
+                    for (
+                      let foundAimsAnyPluginCnt = 0;
+                      foundAimsAnyPluginCnt < foundAimsAnyPlugin.length;
+                      foundAimsAnyPluginCnt += 1
+                    ) {
+                      // eslint-disable-next-line no-await-in-loop
+                      await fastify.uploadMergedAimPluginCalcInternal(
+                        foundAimsAnyPlugin[foundAimsAnyPluginCnt],
+                        pluginParameters.projectid
+                      );
+                    }
+                  } catch (err) {
+                    fastify.log.error(
+                      `Error : while uploading processed aim for any type of plugin with the aimid: ${JSON.stringify(
+                        foundAimsAnyPlugin
+                      )} by the plugin, err:${err}`
+                    );
+                    new EpadNotification(
+                      request,
+                      '',
+                      new Error(
+                        `error happened while  ${
+                          pluginParameters.pluginname
+                        } was uploading back the aim for any type plugin with aimid: ${JSON.stringify(
+                          foundAimsAnyPlugin
+                        )}`
+                      ),
+                      true
+                    ).notify(fastify);
+                  }
+                } else {
+                  fastify.log.info(`user set don't upload aims back flag`);
+                }
               }
 
               // tthis section needs to be executed if csv needs to be proecessed // section ends
