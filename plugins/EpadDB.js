@@ -2645,7 +2645,7 @@ async function epaddb(fastify, options, done) {
           paramsToSendToContainer = await fastify.getPluginDeafultParametersInternal(pluginid);
           await fastify.createPluginfoldersInternal(
             paramsToSendToContainer,
-            '/home/cavit/codebase/epadlite/pluginsDataFolder/admin/9', //  pluginsDataFolder,
+            pluginsDataFolder,
             aims,
             projectid,
             projectdbid,
@@ -2654,8 +2654,8 @@ async function epaddb(fastify, options, done) {
           );
           const returnObject = {
             params: paramsToSendToContainer,
-            serverfolder: '/home/cavit/codebase/epadlite/pluginsDataFolder/admin/9', //  localFullPathBindPoint,
-            relativeServerFolder: '/home/cavit/codebase/epadlite/pluginsDataFolder/admin/9', //  pluginsDataFolder,
+            serverfolder: localFullPathBindPoint,
+            relativeServerFolder: pluginsDataFolder,
             projectid,
             projectdbid,
             pluginnameid,
