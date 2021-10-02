@@ -1700,7 +1700,7 @@ async function other(fastify) {
           // TODO should be https (&& req.protocol === 'https') it doesn't work because of nginx
           // TODO create user if not exists?
           req.epadAuth = await fastify.validateApiKeyInternal(req);
-          if (!req.epadAuth)
+          if (!req.epadAuth && !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/wado`))
             res.send(
               new UnauthenticatedError(
                 'Request should have user in the query for apikey authentication'
@@ -1910,7 +1910,7 @@ async function other(fastify) {
               break;
             case 'PUT': // check permissions
               if (
-                !request.raw.url.startsWith('/decrypt') &&
+                !request.raw.url.startsWith(`/${config.prefix}/search`) &&
                 !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
                 !request.raw.url.startsWith(`/${config.prefix}/decrypt`) &&
                 reqInfo.level !== 'ontology' &&
