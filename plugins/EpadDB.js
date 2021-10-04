@@ -3012,7 +3012,16 @@ async function epaddb(fastify, options, done) {
               }
             }
             fs.renameSync(`${csvPath}/${csvFile}`, `${csvPath}/${csvFile}_old`);
-            fs.renameSync(`${csvPath}/${tmpTransposedFileName}`, `${csvPath}/${csvFile}`);
+            if (fs.existsSync(`${csvPath}/${tmpTransposedFileName}`)) {
+              fs.renameSync(`${csvPath}/${tmpTransposedFileName}`, `${csvPath}/${csvFile}`);
+            } else {
+              reject(
+                new InternalError(
+                  'error happened while creating plugin calculation tempTransposedcsv.csv file in output folder',
+                  ''
+                )
+              );
+            }
 
             resolve({ lines: csvLines, rownum: rowNumForSegid, dsoids: dsoIds });
           })
@@ -3067,6 +3076,39 @@ async function epaddb(fastify, options, done) {
       });
     }
   );
+  // below function attaches segmentation and calcuation via CalculationEntityReferencesSegmentationEntityStatement
+  fastify.decorate(
+    'createImageAnnotationStatementforPluginCalcInternal',
+    (partCalcEntity, segEntity, mapCalcEntUidToImgannotStatObj) =>
+      new Promise((resolve, reject) => {
+        try {
+          let calcEntityUid = null;
+          let segEntityUid = null;
+          if (partCalcEntity.uniqueIdentifier.root) {
+            calcEntityUid = partCalcEntity.uniqueIdentifier.root;
+          }
+          if (partCalcEntity.uniqueIdentifier.root) {
+            segEntityUid = segEntity.uniqueIdentifier.root;
+          }
+          const partImageAnnotationStatement = {
+            'xsi:type': 'CalculationEntityReferencesSegmentationEntityStatement',
+            subjectUniqueIdentifier: {
+              root: calcEntityUid, //  calculationEntity->uniqueIdentifier->root
+            },
+            objectUniqueIdentifier: {
+              root: segEntityUid, //  SegmentationEntity->uniqueIdentifier->root
+            },
+          };
+          mapCalcEntUidToImgannotStatObj.set(calcEntityUid, partImageAnnotationStatement);
+          resolve(partImageAnnotationStatement);
+        } catch (err) {
+          reject(
+            new InternalError('error happened while creating plugin ImageAnnotationStatement', err)
+          );
+        }
+      })
+  );
+
   fastify.decorate(
     'createCalcEntityforPluginCalcInternal',
     (lexiconObjParam, calcValueParam, pluginparams) =>
@@ -3170,11 +3212,13 @@ async function epaddb(fastify, options, done) {
   );
   fastify.decorate(
     'createPartialAimForPluginCalcInternal',
-    (csvFileParam, pluginInfoParam, csvColumnActual, pluginparams, codeValues) => {
+    (csvFileParam, pluginInfoParam, csvColumnActual, pluginparams, codeValues, segEntity) => {
       const partCalcEntityArray = [];
+      const partImageAnnotationStatementArray = [];
       let willCallRemoteOntology = false;
       const tmpcodeValues = codeValues;
       const mapCodeValuesToCalcEntity = new Map();
+      const mapCalcEntUidToImgannotStatObj = new Map();
 
       return new Promise(async (resolve, reject) => {
         try {
@@ -3220,8 +3264,15 @@ async function epaddb(fastify, options, done) {
                   csvFileParam[i][`_${csvColumnActual}`],
                   pluginparams
                 );
+                // eslint-disable-next-line no-await-in-loop
+                const resultImageAnnotationStatementObj = await fastify.createImageAnnotationStatementforPluginCalcInternal(
+                  resultCalcEntitObj,
+                  segEntity,
+                  mapCalcEntUidToImgannotStatObj
+                );
                 mapCodeValuesToCalcEntity.set(newLexiconObj.codevalue, resultCalcEntitObj);
                 partCalcEntityArray.push(resultCalcEntitObj);
+                partImageAnnotationStatementArray.push(resultImageAnnotationStatementObj);
               } catch (err) {
                 if (err instanceof InternalError) {
                   throw err;
@@ -3236,11 +3287,18 @@ async function epaddb(fastify, options, done) {
                     csvFileParam[i][`_${csvColumnActual}`],
                     pluginparams
                   );
+                  // eslint-disable-next-line no-await-in-loop
+                  const resultImageAnnotationStatementObj = await fastify.createImageAnnotationStatementforPluginCalcInternal(
+                    resultCalcEntitObj,
+                    segEntity,
+                    mapCalcEntUidToImgannotStatObj
+                  );
                   mapCodeValuesToCalcEntity.set(err.lexiconObj.codevalue, resultCalcEntitObj);
                   fastify.log.info(
                     `feature value exist in db already actual values from db used -> codemeaning : ${err.lexiconObj.codemeaning} codevalue : ${err.lexiconObj.codevalue}`
                   );
                   partCalcEntityArray.push(resultCalcEntitObj);
+                  partImageAnnotationStatementArray.push(resultImageAnnotationStatementObj);
                   // lexicon object exist already so get codemeaning to form partial aim calculations
                 }
               }
@@ -3255,10 +3313,22 @@ async function epaddb(fastify, options, done) {
                 csvFileParam[i][`_${csvColumnActual}`],
                 pluginparams
               );
+              // eslint-disable-next-line no-await-in-loop
+              const resultImageAnnotationStatementObj = await fastify.createImageAnnotationStatementforPluginCalcInternal(
+                resultCalcEntitObj,
+                segEntity,
+                mapCalcEntUidToImgannotStatObj
+              );
               partCalcEntityArray.push(resultCalcEntitObj);
+              partImageAnnotationStatementArray.push(resultImageAnnotationStatementObj);
             }
           }
-          resolve({ calcEntityOb: partCalcEntityArray, mapCvtoCm: mapCodeValuesToCalcEntity });
+          resolve({
+            calcEntityOb: partCalcEntityArray,
+            mapCvtoCm: mapCodeValuesToCalcEntity,
+            mapCalcEntToImgAnntStmnt: mapCalcEntUidToImgannotStatObj,
+            imgAnnotStmArray: partImageAnnotationStatementArray,
+          });
         } catch (err) {
           reject(
             new InternalError(
@@ -3270,7 +3340,10 @@ async function epaddb(fastify, options, done) {
       });
     }
   );
-
+  /* below mergePartialCalcAimWithUserAimPluginCalcInternal method adds calculatinEntities,
+    ImageAnnotationStatement(CalculationEntityReferencesSegmentationEntityStatement) to the user
+    aim cretated by the plugin
+  */
   fastify.decorate(
     'mergePartialCalcAimWithUserAimPluginCalcInternal',
     (partialAimParam, userAimParam, aimFileLocation) => {
@@ -3290,9 +3363,12 @@ async function epaddb(fastify, options, done) {
             }
           }
           let newMergedCalcEntity = {};
+          let newMergedImageAnnotationStatement = {};
           let partEntities = [];
+          let partImageAnnotationStatement = [];
           jsonString = fs.readFileSync(`${aimFileLocation}/${userAimParam}`, 'utf8');
           parsedAimFile = JSON.parse(jsonString);
+          // caclculation entity add,merge
           if (
             // eslint-disable-next-line no-prototype-builtins
             parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].hasOwnProperty(
@@ -3325,6 +3401,43 @@ async function epaddb(fastify, options, done) {
               'calculationEntityCollection'
             ] = { CalculationEntity: partialAimParam.calcEntityOb };
           }
+          // ImageAnnotationstatement(CalculationEntityReferencesSegmentationEntityStatement) add,merge
+          if (
+            // eslint-disable-next-line no-prototype-builtins
+            parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].hasOwnProperty(
+              'imageAnnotationStatementCollection'
+            )
+          ) {
+            for (
+              let imgAnnotStmcnt = 0;
+              imgAnnotStmcnt <
+              parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .imageAnnotationStatementCollection.ImageAnnotationStatement.length;
+              imgAnnotStmcnt += 1
+            ) {
+              const calcEntityUid =
+                parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  .imageAnnotationStatementCollection.ImageAnnotationStatement[imgAnnotStmcnt]
+                  .subjectUniqueIdentifier.root;
+              if (partialAimParam.mapCalcEntToImgAnntStmnt.has(calcEntityUid)) {
+                partialAimParam.mapCalcEntToImgAnntStmnt.delete(calcEntityUid);
+              }
+            }
+            partImageAnnotationStatement = Array.from(
+              partialAimParam.mapCalcEntToImgAnntStmnt.values()
+            );
+            fastify.log.info(`this cacl in the part array :  ${partImageAnnotationStatement}`);
+            newMergedImageAnnotationStatement = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection.ImageAnnotationStatement.concat(
+              partImageAnnotationStatement
+            );
+            parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection.ImageAnnotationStatement = newMergedImageAnnotationStatement;
+          } else {
+            parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0][
+              // eslint-disable-next-line dot-notation
+              'imageAnnotationStatementCollection'
+            ] = { ImageAnnotationStatement: partialAimParam.imgAnnotStmArray };
+          }
+          // write back the resulting aim to the user aim
           fs.writeFileSync(
             `${aimFileLocation}/${userAimParam}`,
             JSON.stringify(parsedAimFile),
@@ -3504,7 +3617,47 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
-
+  fastify.decorate(
+    'pluginFindSegEntUidFromSopUid',
+    async (dsoId, folderToLook) =>
+      new Promise(async (resolve, reject) => {
+        let infuncfileArray = [];
+        try {
+          infuncfileArray = fs.readdirSync(folderToLook);
+          for (let arraycnt = 0; arraycnt < infuncfileArray.length; arraycnt += 1) {
+            const aimJsonString = fs.readFileSync(
+              `${folderToLook}/${infuncfileArray[arraycnt]}`,
+              'utf8'
+            );
+            const parsedAimFile = JSON.parse(aimJsonString);
+            const segEntities =
+              parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .segmentationEntityCollection.SegmentationEntity;
+            for (let segEntitycnt = 0; segEntitycnt < segEntities.length; segEntitycnt += 1) {
+              if (dsoId === segEntities[segEntitycnt].sopInstanceUid.root) {
+                resolve(
+                  parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .segmentationEntityCollection.SegmentationEntity[segEntitycnt]
+                );
+              }
+            }
+          }
+          reject(
+            new InternalError(
+              `aim or segmentationentity not found for given dso id ${dsoId}`,
+              '404'
+            )
+          );
+        } catch (err) {
+          reject(
+            new InternalError(
+              `error happened while plugin is trying to find aim or segmentationEntity for the given dso id ${dsoId}`,
+              err
+            )
+          );
+        }
+      })
+  );
   fastify.decorate(
     'pluginFindAimforGivenDso',
     async (dsoId, folderToLook) =>
@@ -3587,11 +3740,23 @@ async function epaddb(fastify, options, done) {
             'utf8'
           );
           const parsedAimFile = JSON.parse(jsonString);
-          parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection =
-            dicomJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection;
-          console.log(
-            'resulting aim after adding segmentation part to aim : ',
-            JSON.stringify(parsedAimFile)
+          if (
+            // eslint-disable-next-line no-prototype-builtins
+            parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].hasOwnProperty(
+              'segmentationEntityCollection'
+            )
+          ) {
+            parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity.concat(
+              dicomJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .segmentationEntityCollection.SegmentationEntity
+            );
+          } else {
+            parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection =
+              dicomJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection;
+          }
+
+          fastify.log.info(
+            `resulting aim after adding segmentation part to aim : ${JSON.stringify(parsedAimFile)}`
           );
           fs.writeFileSync(
             `${aimjsonarray[0].path}/${aimjsonarray[0].file}`,
@@ -3899,33 +4064,8 @@ async function epaddb(fastify, options, done) {
                   ) {
                     let returnPartialPluginCalcAim = null;
                     let foundAimIdFordso = null;
+                    let foundSegEntity = null;
                     let mergedaimFileLocation = null;
-
-                    try {
-                      fastify.log.info(
-                        'creating calculation part of the aim from the feature values'
-                      );
-                      // eslint-disable-next-line no-await-in-loop
-                      returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
-                        resObj,
-                        pluginInfoFromParams,
-                        csvColumncount,
-                        pluginParameters,
-                        codeValues
-                      );
-                    } catch (err) {
-                      fastify.log.error(
-                        `Error : creating calculation part of the aim from the feature values, err: ${err}`
-                      );
-                      new EpadNotification(
-                        request,
-                        '',
-                        new Error(
-                          `error happened while ${pluginInfoFromParams.pluginname} was creating calculations from feature values`
-                        ),
-                        true
-                      ).notify(fastify);
-                    }
                     // find the aim id from the dso id -> if the plugin is pyradiomics
                     if (pluginParameters.pluginnameid === 'pyradiomics') {
                       try {
@@ -3979,6 +4119,37 @@ async function epaddb(fastify, options, done) {
                           true
                         ).notify(fastify);
                       }
+                    }
+                    try {
+                      fastify.log.info(
+                        'creating calculation part of the aim from the feature values'
+                      );
+                      // eslint-disable-next-line no-await-in-loop
+                      foundSegEntity = await fastify.pluginFindSegEntUidFromSopUid(
+                        calcObj.alldsoIds[csvColumncount - 1],
+                        `${pluginParameters.relativeServerFolder}/aims`
+                      );
+                      // eslint-disable-next-line no-await-in-loop
+                      returnPartialPluginCalcAim = await fastify.createPartialAimForPluginCalcInternal(
+                        resObj,
+                        pluginInfoFromParams,
+                        csvColumncount,
+                        pluginParameters,
+                        codeValues,
+                        foundSegEntity
+                      );
+                    } catch (err) {
+                      fastify.log.error(
+                        `Error : creating calculation part of the aim from the feature values, err: ${err}`
+                      );
+                      new EpadNotification(
+                        request,
+                        '',
+                        new Error(
+                          `error happened while ${pluginInfoFromParams.pluginname} was creating calculations from feature values`
+                        ),
+                        true
+                      ).notify(fastify);
                     }
                     try {
                       fastify.log.info(
