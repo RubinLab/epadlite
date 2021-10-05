@@ -3054,34 +3054,40 @@ async function epaddb(fastify, options, done) {
               )
             );
           }
-        } else {
-          transposedCsv = {};
         }
-
-        fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
-          .pipe(csv({ skipLines: 0, headers: ['key'] }))
-          .on('data', (data) => {
-            result.push(data);
-          })
-          .on('end', () => {
-            if (pluginParameters.pluginnameid === 'pyradiomics') {
-              resolve({
-                resultobj: result,
-                rownumobj: transposedCsv.rownum,
-                alldsoIds: transposedCsv.dsoids,
-              });
-            } else {
-              resolve({ resultobj: result, rownumobj: null, alldsoIds: null });
-            }
-          })
-          .on('error', (err) => {
-            reject(
-              new InternalError(
-                'error happened while reading plugin calculation csv file in output folder',
-                err
-              )
-            );
-          });
+        if (fs.existsSync(`${csvFileParam.path}/${csvFileParam.file}`)) {
+          fs.createReadStream(`${csvFileParam.path}/${csvFileParam.file}`)
+            .pipe(csv({ skipLines: 0, headers: ['key'] }))
+            .on('data', (data) => {
+              result.push(data);
+            })
+            .on('end', () => {
+              if (pluginParameters.pluginnameid === 'pyradiomics') {
+                resolve({
+                  resultobj: result,
+                  rownumobj: transposedCsv.rownum,
+                  alldsoIds: transposedCsv.dsoids,
+                });
+              } else {
+                resolve({ resultobj: result, rownumobj: null, alldsoIds: null });
+              }
+            })
+            .on('error', (err) => {
+              reject(
+                new InternalError(
+                  'error happened while reading plugin calculation csv file in output folder',
+                  err
+                )
+              );
+            });
+        } else {
+          reject(
+            new InternalError(
+              `error happened while reading ${csvFileParam.path}/${csvFileParam.file} for pyradiomics plugin instance after the transposition`,
+              ''
+            )
+          );
+        }
       });
     }
   );
@@ -4059,6 +4065,9 @@ async function epaddb(fastify, options, done) {
                   const calcObj = await fastify.parseCsvForPluginCalculationsInternal(
                     tempFileObject,
                     pluginParameters
+                  );
+                  fastify.log.info(
+                    `parseCsvForPluginCalculationsInternal -> after the transposition will be decided to continue or not. calcObj : ${calcObj}`
                   );
                   const resObj = calcObj.resultobj;
                   const totalcolumnumber = Object.keys(resObj[0]).length;
