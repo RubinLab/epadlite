@@ -4415,12 +4415,12 @@ async function epaddb(fastify, options, done) {
               }
               // eslint-disable-next-line no-await-in-loop
               // await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
-              new EpadNotification(
-                request,
-                ``,
-                `completed the process for epadplugin_${queueId}`,
-                true
-              ).notify(fastify);
+              // new EpadNotification(
+              //   request,
+              //   ``,
+              //   `completed the process for epadplugin_${queueId}`,
+              //   true
+              // ).notify(fastify);
             } catch (err) {
               containerErrorTrack = +1;
               const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
@@ -4461,6 +4461,12 @@ async function epaddb(fastify, options, done) {
         if (containerErrorTrack === 0) {
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
+          new EpadNotification(
+            request,
+            ``,
+            `completed the process for epadplugin_${queueId}`,
+            true
+          ).notify(fastify);
         }
       }
       return true;
