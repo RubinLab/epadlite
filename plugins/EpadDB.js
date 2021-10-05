@@ -4089,7 +4089,7 @@ async function epaddb(fastify, options, done) {
                     fastify.log.info(
                       `parseCsvForPluginCalculationsInternal -> after the transposition will be decided to continue or not. calcObj : ${calcObj}`
                     );
-                    if (calcObj.resultobj0) {
+                    if (calcObj.resultobj) {
                       const resObj = calcObj.resultobj;
                       const totalcolumnumber = Object.keys(resObj[0]).length;
                       const pluginInfoFromParams = {
