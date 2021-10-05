@@ -3017,7 +3017,7 @@ async function epaddb(fastify, options, done) {
             } else {
               reject(
                 new InternalError(
-                  'error happened while creating plugin calculation tempTransposedcsv.csv file in output folder',
+                  `error happened; ${tmpTransposedFileName} file does not exist in output folder`,
                   ''
                 )
               );
@@ -3028,7 +3028,7 @@ async function epaddb(fastify, options, done) {
           .on('error', (err) => {
             reject(
               new InternalError(
-                'error happened while reading plugin calculation csv file in output folder',
+                `error happened while read stream was trying to read from ${csvPath}/${csvFile} file in output folder`,
                 err
               )
             );
@@ -3044,7 +3044,16 @@ async function epaddb(fastify, options, done) {
       return new Promise(async (resolve, reject) => {
         let transposedCsv = {};
         if (pluginParameters.pluginnameid === 'pyradiomics') {
-          transposedCsv = await fastify.pluginTransposeCsv(csvFileParam.path, csvFileParam.file);
+          try {
+            transposedCsv = await fastify.pluginTransposeCsv(csvFileParam.path, csvFileParam.file);
+          } catch (err) {
+            reject(
+              new InternalError(
+                `error happened while transposing pyradiomics.csv for pyradiomics plugin instance`,
+                err
+              )
+            );
+          }
         } else {
           transposedCsv = {};
         }
@@ -3951,17 +3960,14 @@ async function epaddb(fastify, options, done) {
               }
 
               fastify.log.info(
-                `dcm files in the plugin output folder : ${JSON.stringify(fileArray)}`
-              );
-              fastify.log.info(
-                `dcm files without path in the plugin output folder :${JSON.stringify(
-                  dcmFilesWithoutPath
+                `dcm files in the plugin output folder -> we will first upload aims: ${JSON.stringify(
+                  fileArray
                 )}`
               );
               fastify.log.info(
                 `source path for files to upload back to epad :${pluginParameters.relativeServerFolder}/output`
               );
-              fastify.log.info(`checking plugin params : ${pluginParameters}`);
+              fastify.log.info(`checking plugin params : ${JSON.stringify(pluginParameters)}`);
               if (addsegmentationentitytoaim) {
                 if (dicomfilesNumberInOutputfolder > 0) {
                   // this if block is for contourtodso and expected one aim in plugin aim foler and expected one segmentation (example.dcm) in the plugin output folder
@@ -4026,7 +4032,9 @@ async function epaddb(fastify, options, done) {
                 csvArray,
                 'csv'
               );
-              fastify.log.info(`csv files exists in the plugin output folder : ${csvArray}`);
+              fastify.log.info(
+                `csv files exists in the plugin output folder : ${JSON.stringify(csvArray)}`
+              );
 
               if (csvArray.length > 0) {
                 let csvfound = null;
