@@ -3982,37 +3982,40 @@ async function epaddb(fastify, options, done) {
                   `pluginAddSegmentationToAim will be called (if true): ${addsegmentationentitytoaim}`
                 );
               }
-              if (uploadImageBackFlag === 1) {
-                if (dicomfilesNumberInOutputfolder > 0) {
-                  new EpadNotification(
-                    request,
-                    `${pluginParameters.pluginname} is processing output dcm files `,
-                    'success',
-                    true
-                  ).notify(fastify);
-                  fastify.log.info(
-                    `plugin is uploading dcm files from output folder ${pluginParameters.relativeServerFolder}/output`
-                  );
-                  //  eslint-disable-next-line no-await-in-loop
-                  const { success, errors } = await fastify.saveFiles(
-                    `${pluginParameters.relativeServerFolder}/output`,
-                    dcmFilesWithoutPath,
-                    { project: pluginParameters.projectid },
-                    {},
-                    request.epadAuth
-                  );
+              /*
+              commented out to upload first aims and then dicoms . so the section moved at the end of the method
+                                if (uploadImageBackFlag === 1) {
+                                  if (dicomfilesNumberInOutputfolder > 0) {
+                                    new EpadNotification(
+                                      request,
+                                      `${pluginParameters.pluginname} is processing output dcm files `,
+                                      'success',
+                                      true
+                                    ).notify(fastify);
+                                    fastify.log.info(
+                                      `plugin is uploading dcm files from output folder ${pluginParameters.relativeServerFolder}/output`
+                                    );
+                                    //  eslint-disable-next-line no-await-in-loop
+                                    const { success, errors } = await fastify.saveFiles(
+                                      `${pluginParameters.relativeServerFolder}/output`,
+                                      dcmFilesWithoutPath,
+                                      { project: pluginParameters.projectid },
+                                      {},
+                                      request.epadAuth
+                                    );
 
-                  fastify.log.info(`dcm upload process project id :${pluginParameters.projectid}`);
-                  fastify.log.info(`dcm upload process error: ${errors}`);
-                  fastify.log.info(`dcm upload process success: ${success}`);
-                } else {
-                  fastify.log.info(`no dcm file found in output folder for the plugin`);
-                }
-              } else {
-                fastify.log.info(
-                  `user didn't set "uploadbackdicoms" flag to upload back dicoms from output folder `
-                );
-              }
+                                    fastify.log.info(`dcm upload process project id :${pluginParameters.projectid}`);
+                                    fastify.log.info(`dcm upload process error: ${errors}`);
+                                    fastify.log.info(`dcm upload process success: ${success}`);
+                                  } else {
+                                    fastify.log.info(`no dcm file found in output folder for the plugin`);
+                                  }
+                                } else {
+                                  fastify.log.info(
+                                    `user didn't set "uploadbackdicoms" flag to upload back dicoms from output folder `
+                                  );
+                                }
+              */
               // look for dcm files to upload section ends
 
               // this section needs to be executed if csv needs to be proecessed
@@ -4287,6 +4290,39 @@ async function epaddb(fastify, options, done) {
               }
 
               // tthis section needs to be executed if csv needs to be proecessed // section ends
+
+              //  dicom upload moved here
+              if (uploadImageBackFlag === 1) {
+                if (dicomfilesNumberInOutputfolder > 0) {
+                  new EpadNotification(
+                    request,
+                    `${pluginParameters.pluginname} is processing output dcm files `,
+                    'success',
+                    true
+                  ).notify(fastify);
+                  fastify.log.info(
+                    `plugin is uploading dcm files from output folder ${pluginParameters.relativeServerFolder}/output`
+                  );
+                  //  eslint-disable-next-line no-await-in-loop
+                  const { success, errors } = await fastify.saveFiles(
+                    `${pluginParameters.relativeServerFolder}/output`,
+                    dcmFilesWithoutPath,
+                    { project: pluginParameters.projectid },
+                    {},
+                    request.epadAuth
+                  );
+
+                  fastify.log.info(`dcm upload process project id :${pluginParameters.projectid}`);
+                  fastify.log.info(`dcm upload process error: ${errors}`);
+                  fastify.log.info(`dcm upload process success: ${success}`);
+                } else {
+                  fastify.log.info(`no dcm file found in output folder for the plugin`);
+                }
+              } else {
+                fastify.log.info(
+                  `user didn't set "uploadbackdicoms" flag to upload back dicoms from output folder `
+                );
+              }
             }
             // eslint-disable-next-line no-await-in-loop
             await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
