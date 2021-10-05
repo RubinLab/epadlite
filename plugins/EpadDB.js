@@ -3405,7 +3405,9 @@ async function epaddb(fastify, options, done) {
               }
             }
             partEntities = Array.from(partialAimParam.mapCvtoCm.values());
-            fastify.log.info(`this cacl in the part array :  ${partEntities}`);
+            fastify.log.info(
+              `this cacl in the part array Calculationentities: ${JSON.stringify(partEntities)}`
+            );
             newMergedCalcEntity = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
               partEntities
             );
@@ -3441,7 +3443,11 @@ async function epaddb(fastify, options, done) {
             partImageAnnotationStatement = Array.from(
               partialAimParam.mapCalcEntToImgAnntStmnt.values()
             );
-            fastify.log.info(`this cacl in the part array :  ${partImageAnnotationStatement}`);
+            fastify.log.info(
+              `this cacl in the part array Annotationstatements: ${JSON.stringify(
+                partImageAnnotationStatement
+              )}`
+            );
             newMergedImageAnnotationStatement = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection.ImageAnnotationStatement.concat(
               partImageAnnotationStatement
             );
