@@ -3800,6 +3800,7 @@ async function epaddb(fastify, options, done) {
     const pluginQueueList = [...result];
     try {
       for (let i = 0; i < pluginQueueList.length; i += 1) {
+        let containerErrorTrack = 0;
         const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${pluginQueueList[i].plugin.image_tag}`;
         const queueId = pluginQueueList[i].id;
         try {
@@ -3822,6 +3823,7 @@ async function epaddb(fastify, options, done) {
           // eslint-disable-next-line no-prototype-builtins
           if (pluginParameters.hasOwnProperty('message')) {
             if (pluginParameters.message.includes('Error')) {
+              containerErrorTrack +=1 ;
               // eslint-disable-next-line no-await-in-loop
               await fastify.updateStatusQueueProcessInternal(queueId, 'error');
               new EpadNotification(
@@ -3915,6 +3917,7 @@ async function epaddb(fastify, options, done) {
                     }
                   })
                   .on('error', (err) => {
+                    containerErrorTrack =+ 1;
                     // eslint-disable-next-line no-new
                     new InternalError(
                       'error happened while reading plugin calculation csv file in output folder',
@@ -4078,6 +4081,7 @@ async function epaddb(fastify, options, done) {
                         pluginParameters
                       );
                     } catch (err) {
+                      containerErrorTrack = +1;
                       fastify.log.error(
                         `Error:parsing csv file in the queue failed for pyradiomics plugin instance: ${err}`
                       );
@@ -4127,6 +4131,7 @@ async function epaddb(fastify, options, done) {
                               `${pluginParameters.relativeServerFolder}/aims`
                             );
                           } catch (err) {
+                            containerErrorTrack = +1;
                             fastify.log.error(
                               `Error: finding aim for the dso: ${
                                 calcObj.alldsoIds[csvColumncount - 1]
@@ -4160,6 +4165,7 @@ async function epaddb(fastify, options, done) {
                             // eslint-disable-next-line prefer-destructuring
                             foundAimIdFordso = tmpAims[0];
                           } catch (err) {
+                            containerErrorTrack = +1;
                             fastify.log.error(
                               `Error: finding aim for non pyradiomics plugins ,err: ${err}`
                             );
@@ -4194,6 +4200,7 @@ async function epaddb(fastify, options, done) {
                             foundSegEntity
                           );
                         } catch (err) {
+                          containerErrorTrack = +1;
                           fastify.log.error(
                             `Error : creating calculation part of the aim from the feature values, err: ${err}`
                           );
@@ -4219,6 +4226,7 @@ async function epaddb(fastify, options, done) {
                             `${pluginParameters.relativeServerFolder}/aims`
                           );
                         } catch (err) {
+                          containerErrorTrack = +1;
                           fastify.log.error(
                             `merging calculation object with the aim with the aimid : ${foundAimIdFordso},err: ${err}`
                           );
@@ -4246,6 +4254,7 @@ async function epaddb(fastify, options, done) {
                               pluginParameters.projectid
                             );
                           } catch (err) {
+                            containerErrorTrack = +1;
                             fastify.log.error(
                               `Error : uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin, err:${err}`
                             );
@@ -4265,7 +4274,7 @@ async function epaddb(fastify, options, done) {
                         }
                       }
                       // eslint-disable-next-line no-await-in-loop
-                      await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
+                      //  await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
                       new EpadNotification(
                         request,
                         `${pluginInfoFromParams.pluginname}`,
@@ -4273,6 +4282,7 @@ async function epaddb(fastify, options, done) {
                         true
                       ).notify(fastify);
                     } else {
+                      containerErrorTrack = +1;
                       // eslint-disable-next-line no-await-in-loop
                       await fastify.updateStatusQueueProcessInternal(queueId, 'error');
                       new EpadNotification(
@@ -4291,7 +4301,8 @@ async function epaddb(fastify, options, done) {
                   }
                 } else {
                   fastify.log.info('no csv file found in output folder for the plugin');
-                  // upload aims without regarding pyradiomics or not just check upload back aim flag
+                  // upload aims without regarding pyradiomics or not just check upload back aim flag.this means epad will not process the csv file and will not write back into aim
+                  // but a plugin can still manipulate aim wihtout a csv. this is the case we cover here.
                   if (uploadAimsBackFlag === 1) {
                     const foundAimsAnyPlugin = [];
                     try {
@@ -4309,6 +4320,7 @@ async function epaddb(fastify, options, done) {
                           `found aims for any plugin : ${JSON.stringify(foundAimsAnyPlugin)}`
                         );
                       } catch (err) {
+                        containerErrorTrack = +1;
                         fastify.log.error(`Error: finding aims for any plugin err: ${err}`);
                         // eslint-disable-next-line no-await-in-loop
                         await fastify.updateStatusQueueProcessInternal(queueId, 'error');
@@ -4338,6 +4350,7 @@ async function epaddb(fastify, options, done) {
                         );
                       }
                     } catch (err) {
+                      containerErrorTrack = +1;
                       fastify.log.error(
                         `Error : while uploading processed aim for any type of plugin with the aimid: ${JSON.stringify(
                           foundAimsAnyPlugin
@@ -4401,7 +4414,7 @@ async function epaddb(fastify, options, done) {
                 }
               }
               // eslint-disable-next-line no-await-in-loop
-              await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
+              // await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
               new EpadNotification(
                 request,
                 ``,
@@ -4409,6 +4422,7 @@ async function epaddb(fastify, options, done) {
                 true
               ).notify(fastify);
             } catch (err) {
+              containerErrorTrack = +1;
               const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
               // eslint-disable-next-line no-await-in-loop
               await fastify.updateStatusQueueProcessInternal(queueId, 'error');
@@ -4433,7 +4447,7 @@ async function epaddb(fastify, options, done) {
             ).notify(fastify);
           }
           // eslint-disable-next-line no-await-in-loop
-          await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
+          //  await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
         } catch (err) {
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'error');
@@ -4443,6 +4457,10 @@ async function epaddb(fastify, options, done) {
             new Error(`${imageRepo} instance failed in the queue `),
             true
           ).notify(fastify);
+        }
+        if (containerErrorTrack === 0) {
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
         }
       }
       return true;
