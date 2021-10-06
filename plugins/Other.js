@@ -1356,7 +1356,8 @@ async function other(fastify) {
           'Cache-Control': 'no-cache',
           'X-Accel-Buffering': 'no',
         },
-        ...(config.corsOrigin ? { 'Access-Control-Allow-Origin': request.headers.origin } : {}),
+        // commenting out as request does not have origin
+        // ...(config.corsOrigin ? { 'Access-Control-Allow-Origin': request.headers.origin } : {}),
       });
       const padding = new Array(2049);
       reply.raw.write(`:${padding.join(' ')}\n`); // 2kB padding for IE
