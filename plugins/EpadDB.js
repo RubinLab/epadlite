@@ -7953,13 +7953,58 @@ async function epaddb(fastify, options, done) {
       )
         reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
-        const aimDelete = await fastify.deleteAimsInternal(
-          request.params,
-          request.epadAuth,
-          request.query,
-          request.body
-        );
-        reply.code(200).send(aimDelete);
+        // for each aim check if the user has a right to delete
+        const aimsThatCanBeDeleted = [];
+        const aimsThatCannotBeDeleted = [];
+        if (request.body && Array.isArray(request.body)) {
+          for (let i = 0; i < request.body.length; i += 1) {
+            if (
+              request.epadAuth.admin ||
+              fastify.isOwnerOfProject(request, request.params.project) ||
+              // eslint-disable-next-line no-await-in-loop
+              (await fastify.isCreatorOfObject(request, {
+                level: 'aim',
+                objectId: request.body[i],
+                project: request.params.project,
+              })) === true
+            )
+              aimsThatCanBeDeleted.push(request.body[i]);
+            else aimsThatCannotBeDeleted.push(request.body[i]);
+          }
+          if (aimsThatCanBeDeleted.length > 0) {
+            const aimDelete = await fastify.deleteAimsInternal(
+              request.params,
+              request.epadAuth,
+              request.query,
+              aimsThatCanBeDeleted
+            );
+            if (aimsThatCannotBeDeleted.length > 0)
+              new EpadNotification(
+                request,
+                `Only some of the aims were deleted. User does not have the sufficient rights to delete `,
+                aimsThatCannotBeDeleted.join(', ')
+              ).notify(fastify);
+            reply.code(200).send(aimDelete);
+          } else {
+            reply.send(
+              new InternalError(
+                `Aims ${JSON.stringify(request.body)}  deletion from project ${
+                  request.params.project
+                }`,
+                new Error('User does not have sufficient rights')
+              )
+            );
+          }
+        } else {
+          reply.send(
+            new InternalError(
+              `Aims ${JSON.stringify(request.body)}  deletion from project ${
+                request.params.project
+              }`,
+              new Error('No aimuids in request')
+            )
+          );
+        }
       }
     } catch (err) {
       reply.send(
