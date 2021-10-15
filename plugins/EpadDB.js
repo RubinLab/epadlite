@@ -3823,7 +3823,7 @@ async function epaddb(fastify, options, done) {
           // eslint-disable-next-line no-prototype-builtins
           if (pluginParameters.hasOwnProperty('message')) {
             if (pluginParameters.message.includes('Error')) {
-              containerErrorTrack +=1 ;
+              containerErrorTrack += 1;
               // eslint-disable-next-line no-await-in-loop
               await fastify.updateStatusQueueProcessInternal(queueId, 'error');
               new EpadNotification(
@@ -3917,7 +3917,7 @@ async function epaddb(fastify, options, done) {
                     }
                   })
                   .on('error', (err) => {
-                    containerErrorTrack =+ 1;
+                    containerErrorTrack += 1;
                     // eslint-disable-next-line no-new
                     new InternalError(
                       'error happened while reading plugin calculation csv file in output folder',
@@ -4006,40 +4006,6 @@ async function epaddb(fastify, options, done) {
                     `pluginAddSegmentationToAim will be called (if true): ${addsegmentationentitytoaim}`
                   );
                 }
-                /*
-                commented out to upload first aims and then dicoms . so the section moved at the end of the method
-                                  if (uploadImageBackFlag === 1) {
-                                    if (dicomfilesNumberInOutputfolder > 0) {
-                                      new EpadNotification(
-                                        request,
-                                        `${pluginParameters.pluginname} is processing output dcm files `,
-                                        'success',
-                                        true
-                                      ).notify(fastify);
-                                      fastify.log.info(
-                                        `plugin is uploading dcm files from output folder ${pluginParameters.relativeServerFolder}/output`
-                                      );
-                                      //  eslint-disable-next-line no-await-in-loop
-                                      const { success, errors } = await fastify.saveFiles(
-                                        `${pluginParameters.relativeServerFolder}/output`,
-                                        dcmFilesWithoutPath,
-                                        { project: pluginParameters.projectid },
-                                        {},
-                                        request.epadAuth
-                                      );
-
-                                      fastify.log.info(`dcm upload process project id :${pluginParameters.projectid}`);
-                                      fastify.log.info(`dcm upload process error: ${errors}`);
-                                      fastify.log.info(`dcm upload process success: ${success}`);
-                                    } else {
-                                      fastify.log.info(`no dcm file found in output folder for the plugin`);
-                                    }
-                                  } else {
-                                    fastify.log.info(
-                                      `user didn't set "uploadbackdicoms" flag to upload back dicoms from output folder `
-                                    );
-                                  }
-                */
                 // look for dcm files to upload section ends
 
                 // this section needs to be executed if csv needs to be proecessed
@@ -4274,7 +4240,6 @@ async function epaddb(fastify, options, done) {
                         }
                       }
                       // eslint-disable-next-line no-await-in-loop
-                      //  await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
                       new EpadNotification(
                         request,
                         `${pluginInfoFromParams.pluginname}`,
@@ -4378,7 +4343,7 @@ async function epaddb(fastify, options, done) {
 
                 // tthis section needs to be executed if csv needs to be proecessed // section ends
 
-                //  dicom upload moved here
+                //  dicom upload
                 if (uploadImageBackFlag === 1) {
                   if (dicomfilesNumberInOutputfolder > 0) {
                     new EpadNotification(
@@ -4413,32 +4378,17 @@ async function epaddb(fastify, options, done) {
                   );
                 }
               }
-              // eslint-disable-next-line no-await-in-loop
-              // await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
-              // new EpadNotification(
-              //   request,
-              //   ``,
-              //   `completed the process for epadplugin_${queueId}`,
-              //   true
-              // ).notify(fastify);
             } catch (err) {
               containerErrorTrack = +1;
               const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
               // eslint-disable-next-line no-await-in-loop
               await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-              //  return new EpadNotification(request, operationresult, err, true).notify(fastify);
               new EpadNotification(request, operationresult, err, true).notify(fastify);
             }
           } else {
             // eslint-disable-next-line no-await-in-loop
             await fastify.updateStatusQueueProcessInternal(queueId, 'error');
             fastify.log.info(`image not found : ${imageRepo} `);
-            // return new EpadNotification(
-            //   request,
-            //   'error',
-            //   new Error(`no image found check syntax "${imageRepo}" or change to a valid repo`),
-            //   true
-            // ).notify(fastify);
             new EpadNotification(
               request,
               'error',
@@ -4447,7 +4397,6 @@ async function epaddb(fastify, options, done) {
             ).notify(fastify);
           }
           // eslint-disable-next-line no-await-in-loop
-          //  await fastify.updateStatusQueueProcessInternal(queueId, 'ended');
         } catch (err) {
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'error');
@@ -4473,7 +4422,6 @@ async function epaddb(fastify, options, done) {
     } catch (err) {
       return err;
     }
-    //  return true;
   });
   //  internal functions ends
   //  plugins section ends
