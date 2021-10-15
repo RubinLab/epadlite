@@ -7265,13 +7265,15 @@ async function epaddb(fastify, options, done) {
     (projectId, subjectUid, studyUid, user, epadAuth, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
-          // TODO check if the user is an assignee
-
-          // get worklist studies that belong to this study and user
-          // const worklistsStudiesAll = await models.worklist_study.findAll({
-          //   raw: true,
-          // });
-
+          // filter by assignee
+          const dbUser = await models.user.findOne(
+            {
+              where: { username: user },
+              include: ['worklists'],
+            },
+            transaction ? { transaction } : {}
+          );
+          const worklistIds = dbUser ? dbUser.worklists.map((wl) => wl.dataValues.id) : [];
           const subject = await models.subject.findOne(
             {
               where: { subjectuid: subjectUid },
@@ -7289,7 +7291,12 @@ async function epaddb(fastify, options, done) {
           if (subject && study) {
             const worklistsStudies = await models.worklist_study.findAll(
               {
-                where: { project_id: projectId, subject_id: subject.id, study_id: study.id },
+                where: {
+                  project_id: projectId,
+                  subject_id: subject.id,
+                  study_id: study.id,
+                  worklist_id: worklistIds,
+                },
                 raw: true,
               },
               transaction ? { transaction } : {}
@@ -7555,9 +7562,14 @@ async function epaddb(fastify, options, done) {
         worklistReq.level.toLowerCase() === 'patient' ||
         worklistReq.level.toLowerCase() === 'subject'
       ) {
+        // only get the studies with the worklist that the requirement belongs to
         const worklistStudies = await models.worklist_study.findAll(
           {
-            where: { project_id: projectId, subject_id: subjectId },
+            where: {
+              project_id: projectId,
+              subject_id: subjectId,
+              worklist_id: worklistReq.worklist_id,
+            },
             raw: true,
           },
           transaction ? { transaction } : {}
