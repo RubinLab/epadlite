@@ -1555,15 +1555,13 @@ async function reporting(fastify) {
                             }`
                           );
                         } else {
-                          row[
-                            `${lesionNum + 1}_${timepoint}F_${exportCalcs[valNum].header}`
-                          ] = readerReport.tTable[lesionNum][timepoint + 2][
-                            exportCalcs[valNum].field
-                          ]
-                            ? readerReport.tTable[lesionNum][timepoint + 2][
-                                exportCalcs[valNum].field
-                              ].value
-                            : undefined;
+                          row[`${lesionNum + 1}_${timepoint}F_${exportCalcs[valNum].header}`] =
+                            readerReport.tTable[lesionNum][timepoint + 2] &&
+                            readerReport.tTable[lesionNum][timepoint + 2][exportCalcs[valNum].field]
+                              ? readerReport.tTable[lesionNum][timepoint + 2][
+                                  exportCalcs[valNum].field
+                                ].value
+                              : undefined;
                           fastify.addHeader(
                             lesionHeaders,
                             headerKeys,
