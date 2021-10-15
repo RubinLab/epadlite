@@ -26,25 +26,31 @@ beforeEach(() => {
   const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
   const segBuffer = fs.readFileSync('test/data/testseg.dcm');
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=0023.2015.09.28.3`)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=0023.2015.09.28.3&includefield=StudyDescription`
+    )
     .reply(200, studiesResponse);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=56547547373`)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=56547547373&includefield=StudyDescription`
+    )
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=100`)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=100&includefield=StudyDescription`)
     .reply(200, studiesResponse);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=3`)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=3&includefield=StudyDescription`)
     .reply(200, studiesResponse);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=7`)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=7&includefield=StudyDescription`)
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=4`)
+    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=4&includefield=StudyDescription`)
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies/0023.2015.09.28.3/series`)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies/0023.2015.09.28.3/series?includefield=SeriesDescription`
+    )
     .reply(200, seriesResponse);
   nock(config.dicomWebConfig.baseUrl)
     .get(
