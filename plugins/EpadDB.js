@@ -7984,7 +7984,7 @@ async function epaddb(fastify, options, done) {
                 `Only some of the aims were deleted. User does not have the sufficient rights to delete `,
                 aimsThatCannotBeDeleted.join(', ')
               ).notify(fastify);
-            reply.code(200).send(aimDelete);
+            reply.code(200).send({ message: aimDelete, aimsThatCannotBeDeleted });
           } else {
             reply.send(
               new InternalError(
