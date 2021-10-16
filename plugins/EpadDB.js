@@ -7954,7 +7954,7 @@ async function epaddb(fastify, options, done) {
         reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
         // for each aim check if the user has a right to delete
-        const aimsThatCanBeDeleted = [];
+        let aimsThatCanBeDeleted = [];
         const aimsThatCannotBeDeleted = [];
         if (request.body && Array.isArray(request.body)) {
           for (let i = 0; i < request.body.length; i += 1) {
@@ -7971,37 +7971,28 @@ async function epaddb(fastify, options, done) {
               aimsThatCanBeDeleted.push(request.body[i]);
             else aimsThatCannotBeDeleted.push(request.body[i]);
           }
-          if (aimsThatCanBeDeleted.length > 0) {
-            const aimDelete = await fastify.deleteAimsInternal(
-              request.params,
-              request.epadAuth,
-              request.query,
-              aimsThatCanBeDeleted
-            );
-            if (aimsThatCannotBeDeleted.length > 0)
-              new EpadNotification(
-                request,
-                `Only some of the aims were deleted. User does not have the sufficient rights to delete `,
-                aimsThatCannotBeDeleted.join(', ')
-              ).notify(fastify);
-            reply.code(200).send({ message: aimDelete, aimsThatCannotBeDeleted });
-          } else {
-            reply.send(
-              new InternalError(
-                `Aims ${JSON.stringify(request.body)}  deletion from project ${
-                  request.params.project
-                }`,
-                new Error('User does not have sufficient rights')
-              )
-            );
-          }
+        } else aimsThatCanBeDeleted = request.body;
+        if (aimsThatCanBeDeleted.length > 0) {
+          const aimDelete = await fastify.deleteAimsInternal(
+            request.params,
+            request.epadAuth,
+            request.query,
+            aimsThatCanBeDeleted
+          );
+          if (aimsThatCannotBeDeleted.length > 0)
+            new EpadNotification(
+              request,
+              `Only some of the aims were deleted. User does not have the sufficient rights to delete `,
+              aimsThatCannotBeDeleted.join(', ')
+            ).notify(fastify);
+          reply.code(200).send({ message: aimDelete, aimsThatCannotBeDeleted });
         } else {
           reply.send(
             new InternalError(
               `Aims ${JSON.stringify(request.body)}  deletion from project ${
                 request.params.project
               }`,
-              new Error('No aimuids in request')
+              new Error('User does not have sufficient rights')
             )
           );
         }
