@@ -7972,7 +7972,7 @@ async function epaddb(fastify, options, done) {
             else aimsThatCannotBeDeleted.push(request.body[i]);
           }
         } else aimsThatCanBeDeleted = request.body;
-        if (aimsThatCanBeDeleted.length > 0) {
+        if (!Array.isArray(aimsThatCanBeDeleted) || aimsThatCanBeDeleted.length > 0) {
           const aimDelete = await fastify.deleteAimsInternal(
             request.params,
             request.epadAuth,
