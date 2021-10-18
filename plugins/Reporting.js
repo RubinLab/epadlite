@@ -1660,7 +1660,10 @@ async function reporting(fastify) {
                       );
                     }
                   }
-                  row.recistErrors = recistReport[reader].tErrors.join('. ');
+                  row.recistErrors =
+                    recistReport && recistReport[reader] && recistReport[reader].tErrors
+                      ? recistReport[reader].tErrors.join('. ')
+                      : '';
                   fastify.addHeader(errorHeaders, headerKeys, `recistErrors`, `Recist Errors`);
                   row.otherErrors = readerReport.tErrors.join('. ');
                   fastify.addHeader(errorHeaders, headerKeys, `otherErrors`, `Other Errors`);
