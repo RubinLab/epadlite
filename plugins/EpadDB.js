@@ -3124,9 +3124,9 @@ async function epaddb(fastify, options, done) {
           );
           // mapCalcEntUidToImgannotStatObj.set(calcEntityUid, partImageAnnotationStatement);
           fastify.log.info(
-            `creating image annotation statement map mapCalcEntUidToImgannotStatObj:${JSON.stringify(
-              mapCalcEntUidToImgannotStatObj
-            )}`
+            `creating image annotation statement map mapCalcEntUidToImgannotStatObj:${[
+              ...mapCalcEntUidToImgannotStatObj.entries(),
+            ]}`
           );
           resolve(partImageAnnotationStatement);
         } catch (err) {
