@@ -3279,6 +3279,7 @@ async function epaddb(fastify, options, done) {
                     `wrote feature values to the local lexicon -> cm : ${newLexiconObj.codemeaning} cv : ${newLexiconObj.codevalue}`
                   );
                 }
+                console.log('createPartialAimForPluginCalcInternal newLexiconObj.codevalue', newLexiconObj.codevalue);
                 tmpcodeValues[lexiconObj.codemeaning] = newLexiconObj.codevalue;
                 // eslint-disable-next-line no-await-in-loop
                 const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
@@ -3339,6 +3340,9 @@ async function epaddb(fastify, options, done) {
                 csvFileParam[i][`_${csvColumnActual}`],
                 pluginparams
               );
+              console.log('lexiconObj.codevalue', lexiconObj.codevalue);
+              console.log('resultCalcEntitObj', JSON.stringify(resultCalcEntitObj));
+              mapCodeValuesToCalcEntity.set(lexiconObj.codevalue, resultCalcEntitObj);
               // eslint-disable-next-line no-await-in-loop
               const resultImageAnnotationStatementObj = await fastify.createImageAnnotationStatementforPluginCalcInternal(
                 resultCalcEntitObj,
@@ -3351,12 +3355,16 @@ async function epaddb(fastify, options, done) {
           }
           console.log(
             'createPartialAimForPluginCalcInternal -> partial calculation aim before merging',
-            partCalcEntityArray
+            partCalcEntityArray[0]
+          );
+          console.log(
+            'createPartialAimForPluginCalcInternal -> mapCvtoCm before merging',
+            JSON.stringify(mapCodeValuesToCalcEntity)
           );
           resolve({
-            calcEntityOb: JSON.parse(JSON.stringify(partCalcEntityArray)),
-            // mapCvtoCm: mapCodeValuesToCalcEntity, // error looks like here
-            mapCvtoCm: new Map(JSON.parse(JSON.stringify(Array.from(mapCodeValuesToCalcEntity)))),
+            calcEntityOb: partCalcEntityArray,
+            mapCvtoCm: mapCodeValuesToCalcEntity, // error looks like here
+            // mapCvtoCm: new Map(JSON.parse(JSON.stringify(Array.from(mapCodeValuesToCalcEntity)))),
             mapCalcEntToImgAnntStmnt: mapCalcEntUidToImgannotStatObj,
             imgAnnotStmArray: partImageAnnotationStatementArray,
           });
@@ -3383,9 +3391,9 @@ async function epaddb(fastify, options, done) {
       let jsonString = {};
       return new Promise((resolve, reject) => {
         try {
-          fastify.log.info(
-            `mergin calculation part aim with the user aim : ${JSON.stringify(partialAimParam)}`
-          );
+          // fastify.log.info(
+          //   `mergin calculation part aim with the user aim : ${JSON.stringify(partialAimParam)}`
+          // );
 
           fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
           let foundAimInIndice = null;
@@ -3435,9 +3443,7 @@ async function epaddb(fastify, options, done) {
             console.log(
               'calculationEntityCollection does not exist in the aim so we assign directly partial calc entities'
             );
-            console.log(
-              'calculationEntityCollection does not exist in the aim so we assign directly partial calc entities'
-            );
+            console.log('partial calc entities', JSON.stringify(partialAimParam.calcEntityOb));
             parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0][
               // eslint-disable-next-line dot-notation
               'calculationEntityCollection'
