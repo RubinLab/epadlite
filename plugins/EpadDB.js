@@ -3368,7 +3368,9 @@ async function epaddb(fastify, options, done) {
       let jsonString = {};
       return new Promise((resolve, reject) => {
         try {
-          fastify.log.info(`mergin calculation part aim with the user aim : ${partialAimParam}`);
+          fastify.log.info(
+            `mergin calculation part aim with the user aim : ${JSON.stringify(partialAimParam)}`
+          );
 
           fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
           let foundAimInIndice = null;
@@ -3407,7 +3409,7 @@ async function epaddb(fastify, options, done) {
             }
             partEntities = Array.from(partialAimParam.mapCvtoCm.values());
             fastify.log.info(
-              `this cacl in the part array Calculationentities: ${JSON.stringify(partEntities)}`
+              `this cacl in the part array Calculationentities: ${JSON.stringify(partEntities[0])}`
             );
             newMergedCalcEntity = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
               partEntities
@@ -3446,7 +3448,7 @@ async function epaddb(fastify, options, done) {
             );
             fastify.log.info(
               `this cacl in the part array Annotationstatements: ${JSON.stringify(
-                partImageAnnotationStatement
+                partImageAnnotationStatement[0]
               )}`
             );
             newMergedImageAnnotationStatement = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection.ImageAnnotationStatement.concat(
@@ -3466,7 +3468,9 @@ async function epaddb(fastify, options, done) {
             'utf8'
           );
           fastify.log.info(
-            `merging calculation part aim with the user aim : partialaimparam ended file to write : ${fileArray[foundAimInIndice]}`
+            `merging calculation part aim with the user aim : partialaimparam ended file to write : ${JSON.stringify(
+              fileArray[foundAimInIndice]
+            )}`
           );
           resolve(fileArray[foundAimInIndice]);
         } catch (err) {
