@@ -3399,7 +3399,15 @@ async function epaddb(fastify, options, done) {
       return new Promise((resolve, reject) => {
         try {
           fastify.log.info(
-            `mergin calculation part aim with the user aim : ${JSON.stringify(partialAimParam)}`
+            `mergin calculation part aim with the user aim  mapCvtoCm : ${[
+              ...partialAimParam.mapCvtoCm.entries(),
+            ]}`
+          );
+
+          fastify.log.info(
+            `mergin calculation part aim with the user aim mapCalcEntToImgAnntStmnt : ${[
+              ...partialAimParam.mapCalcEntToImgAnntStmnt.entries(),
+            ]}`
           );
 
           fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
@@ -3461,8 +3469,9 @@ async function epaddb(fastify, options, done) {
             )
           ) {
             fastify.log.info(
-              '----------------imageAnnotationStatementCollection tag exist--------partialAimParam.mapCalcEntToImgAnntStmnt',
-              JSON.stringify(partialAimParam.mapCalcEntToImgAnntStmnt)
+              `----------------imageAnnotationStatementCollection tag exist--------partialAimParam.mapCalcEntToImgAnntStmnt ${[
+                ...partialAimParam.mapCalcEntToImgAnntStmnt.entries(),
+              ]}`
             );
             // for (
             //   let imgAnnotStmcnt = 0;
