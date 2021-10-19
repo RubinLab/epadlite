@@ -3299,7 +3299,7 @@ async function epaddb(fastify, options, done) {
                   mapCalcEntUidToImgannotStatObj
                 );
                 mapCalcEntUidToImgannotStatObj.set(
-                  resultCalcEntitObj.uniqueIdentifier.root,
+                  resultCalcEntitObj.typeCode[0].code, //  .uniqueIdentifier.root,
                   resultImageAnnotationStatementObj
                 );
                 mapCodeValuesToCalcEntity.set(newLexiconObj.codevalue, resultCalcEntitObj);
@@ -3326,7 +3326,7 @@ async function epaddb(fastify, options, done) {
                     mapCalcEntUidToImgannotStatObj
                   );
                   mapCalcEntUidToImgannotStatObj.set(
-                    resultCalcEntitObj.uniqueIdentifier.root,
+                    resultCalcEntitObj.typeCode[0].code, //  .uniqueIdentifier.root,
                     resultImageAnnotationStatementObj
                   );
                   mapCodeValuesToCalcEntity.set(err.lexiconObj.codevalue, resultCalcEntitObj);
@@ -3357,7 +3357,7 @@ async function epaddb(fastify, options, done) {
                 mapCalcEntUidToImgannotStatObj
               );
               mapCalcEntUidToImgannotStatObj.set(
-                resultCalcEntitObj.uniqueIdentifier.root,
+                resultCalcEntitObj.typeCode[0].code, //  .uniqueIdentifier.root,
                 resultImageAnnotationStatementObj
               );
               partCalcEntityArray.push(resultCalcEntitObj);
@@ -3395,6 +3395,7 @@ async function epaddb(fastify, options, done) {
       const fileArray = [];
       let parsedAimFile = null;
       let jsonString = {};
+      const existanceCvForImganntstsmTrack = new Map();
       return new Promise((resolve, reject) => {
         try {
           fastify.log.info(
@@ -3433,7 +3434,9 @@ async function epaddb(fastify, options, done) {
                 parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                   .calculationEntityCollection.CalculationEntity[calcentcnt].typeCode[0].code;
               if (partialAimParam.mapCvtoCm.has(eacCodeValue)) {
+                existanceCvForImganntstsmTrack.set(eacCodeValue, 0);
                 partialAimParam.mapCvtoCm.delete(eacCodeValue);
+                partialAimParam.mapCalcEntToImgAnntStmnt.delete(eacCodeValue);
               }
             }
             partEntities = Array.from(partialAimParam.mapCvtoCm.values());
@@ -3461,27 +3464,27 @@ async function epaddb(fastify, options, done) {
               '----------------imageAnnotationStatementCollection tag exist--------partialAimParam.mapCalcEntToImgAnntStmnt',
               JSON.stringify(partialAimParam.mapCalcEntToImgAnntStmnt)
             );
-            for (
-              let imgAnnotStmcnt = 0;
-              imgAnnotStmcnt <
-              parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                .imageAnnotationStatementCollection.ImageAnnotationStatement.length;
-              imgAnnotStmcnt += 1
-            ) {
-              const calcEntityUid =
-                parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .imageAnnotationStatementCollection.ImageAnnotationStatement[imgAnnotStmcnt]
-                  .subjectUniqueIdentifier.root;
-              console.log('mapCalcEntToImgAnntStmnt :calcEntityUid-> ', calcEntityUid);
-              if (partialAimParam.mapCalcEntToImgAnntStmnt.has(calcEntityUid)) {
-                console.log(
-                  `calc entity uid = ${calcEntityUid} exist already so we are deleting from mapCalcEntToImgAnntStmnt`
-                );
-                partialAimParam.mapCalcEntToImgAnntStmnt.delete(calcEntityUid);
-              } else {
-                console.log(`calc entity uid = ${calcEntityUid} does not exist `);
-              }
-            }
+            // for (
+            //   let imgAnnotStmcnt = 0;
+            //   imgAnnotStmcnt <
+            //   parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            //     .imageAnnotationStatementCollection.ImageAnnotationStatement.length;
+            //   imgAnnotStmcnt += 1
+            // ) {
+            //   const calcEntityUid =
+            //     parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            //       .imageAnnotationStatementCollection.ImageAnnotationStatement[imgAnnotStmcnt]
+            //       .subjectUniqueIdentifier.root;
+            //   console.log('mapCalcEntToImgAnntStmnt :calcEntityUid-> ', calcEntityUid);
+            //   if (partialAimParam.mapCalcEntToImgAnntStmnt.has(calcEntityUid)) {
+            //     console.log(
+            //       `calc entity uid = ${calcEntityUid} exist already so we are deleting from mapCalcEntToImgAnntStmnt`
+            //     );
+            //     partialAimParam.mapCalcEntToImgAnntStmnt.delete(calcEntityUid);
+            //   } else {
+            //     console.log(`calc entity uid = ${calcEntityUid} does not exist `);
+            //   }
+            // }
             partImageAnnotationStatement = Array.from(
               partialAimParam.mapCalcEntToImgAnntStmnt.values()
             );
@@ -4091,7 +4094,7 @@ async function epaddb(fastify, options, done) {
                         pluginParameters
                       );
                     } catch (err) {
-                      containerErrorTrack = +1;
+                      containerErrorTrack += 1;
                       fastify.log.error(
                         `Error:parsing csv file in the queue failed for pyradiomics plugin instance: ${err}`
                       );
@@ -4141,7 +4144,7 @@ async function epaddb(fastify, options, done) {
                               `${pluginParameters.relativeServerFolder}/aims`
                             );
                           } catch (err) {
-                            containerErrorTrack = +1;
+                            containerErrorTrack += 1;
                             fastify.log.error(
                               `Error: finding aim for the dso: ${
                                 calcObj.alldsoIds[csvColumncount - 1]
@@ -4175,7 +4178,7 @@ async function epaddb(fastify, options, done) {
                             // eslint-disable-next-line prefer-destructuring
                             foundAimIdFordso = tmpAims[0];
                           } catch (err) {
-                            containerErrorTrack = +1;
+                            containerErrorTrack += 1;
                             fastify.log.error(
                               `Error: finding aim for non pyradiomics plugins ,err: ${err}`
                             );
@@ -4210,7 +4213,7 @@ async function epaddb(fastify, options, done) {
                             foundSegEntity
                           );
                         } catch (err) {
-                          containerErrorTrack = +1;
+                          containerErrorTrack += 1;
                           fastify.log.error(
                             `Error : creating calculation part of the aim from the feature values, err: ${err}`
                           );
@@ -4236,7 +4239,7 @@ async function epaddb(fastify, options, done) {
                             `${pluginParameters.relativeServerFolder}/aims`
                           );
                         } catch (err) {
-                          containerErrorTrack = +1;
+                          containerErrorTrack +=1;
                           fastify.log.error(
                             `merging calculation object with the aim with the aimid : ${foundAimIdFordso},err: ${err}`
                           );
@@ -4264,7 +4267,7 @@ async function epaddb(fastify, options, done) {
                               pluginParameters.projectid
                             );
                           } catch (err) {
-                            containerErrorTrack = +1;
+                            containerErrorTrack += 1;
                             fastify.log.error(
                               `Error : uploading processed aim with the aimid: ${foundAimIdFordso} by the plugin, err:${err}`
                             );
@@ -4291,7 +4294,7 @@ async function epaddb(fastify, options, done) {
                         true
                       ).notify(fastify);
                     } else {
-                      containerErrorTrack = +1;
+                      containerErrorTrack += 1;
                       // eslint-disable-next-line no-await-in-loop
                       await fastify.updateStatusQueueProcessInternal(queueId, 'error');
                       new EpadNotification(
@@ -4329,7 +4332,7 @@ async function epaddb(fastify, options, done) {
                           `found aims for any plugin : ${JSON.stringify(foundAimsAnyPlugin)}`
                         );
                       } catch (err) {
-                        containerErrorTrack = +1;
+                        containerErrorTrack += 1;
                         fastify.log.error(`Error: finding aims for any plugin err: ${err}`);
                         // eslint-disable-next-line no-await-in-loop
                         await fastify.updateStatusQueueProcessInternal(queueId, 'error');
@@ -4359,7 +4362,7 @@ async function epaddb(fastify, options, done) {
                         );
                       }
                     } catch (err) {
-                      containerErrorTrack = +1;
+                      containerErrorTrack += 1;
                       fastify.log.error(
                         `Error : while uploading processed aim for any type of plugin with the aimid: ${JSON.stringify(
                           foundAimsAnyPlugin
@@ -4423,7 +4426,7 @@ async function epaddb(fastify, options, done) {
                 }
               }
             } catch (err) {
-              containerErrorTrack = +1;
+              containerErrorTrack += 1;
               const operationresult = ` plugin image : ${imageRepo} terminated the container process with error`;
               // eslint-disable-next-line no-await-in-loop
               await fastify.updateStatusQueueProcessInternal(queueId, 'error');
