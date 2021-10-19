@@ -3241,7 +3241,10 @@ async function epaddb(fastify, options, done) {
 
       return new Promise(async (resolve, reject) => {
         try {
-          if (config.ontologyApiKey !== 'local') {
+          if (
+            config.ontologyApiKey !== 'local' &&
+            config.ontologyApiKey !== 'YOUR_ONTOLOGY_APIKEY'
+          ) {
             willCallRemoteOntology = true;
           }
           for (let i = 0; i < csvFileParam.length; i += 1) {
@@ -3372,10 +3375,6 @@ async function epaddb(fastify, options, done) {
       let jsonString = {};
       return new Promise((resolve, reject) => {
         try {
-          fastify.log.info(
-            `mergin calculation part aim with the user aim : ${JSON.stringify(partialAimParam)}`
-          );
-
           fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
           let foundAimInIndice = null;
           for (let cntFileArray = 0; cntFileArray < fileArray.length; cntFileArray += 1) {
