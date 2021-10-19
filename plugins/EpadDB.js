@@ -3106,8 +3106,7 @@ async function epaddb(fastify, options, done) {
             segEntityUid = segEntity.uniqueIdentifier.root;
           }
           const partImageAnnotationStatement = {
-            'xsi:type':
-              'CalculationEntityReferencesSegmentationEntityStatemcreateImageAnnotationStatementforPluginCalcInternalent',
+            'xsi:type': 'CalculationEntityReferencesSegmentationEntityStatement',
             subjectUniqueIdentifier: {
               root: calcEntityUid, //  calculationEntity->uniqueIdentifier->root
             },
