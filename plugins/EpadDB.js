@@ -3102,7 +3102,7 @@ async function epaddb(fastify, options, done) {
           if (partCalcEntity.uniqueIdentifier.root) {
             calcEntityUid = partCalcEntity.uniqueIdentifier.root;
           }
-          if (partCalcEntity.uniqueIdentifier.root) {
+          if (segEntity.uniqueIdentifier.root) {
             segEntityUid = segEntity.uniqueIdentifier.root;
           }
           const partImageAnnotationStatement = {
@@ -3237,7 +3237,10 @@ async function epaddb(fastify, options, done) {
 
       return new Promise(async (resolve, reject) => {
         try {
-          if (config.ontologyApiKey !== 'local') {
+          if (
+            config.ontologyApiKey !== 'local' &&
+            config.ontologyApiKey !== 'YOUR_ONTOLOGY_API_KEY'
+          ) {
             willCallRemoteOntology = true;
           }
           for (let i = 0; i < csvFileParam.length; i += 1) {
@@ -3252,8 +3255,12 @@ async function epaddb(fastify, options, done) {
               referencetype: 'p',
               creator: 'epadplugins',
             };
-
+            console.log('which column are we working for ?', csvColumnActual);
             if (csvColumnActual === 1) {
+              console.log(
+                'this console check the csv columns here it needs to be 1 check following line'
+              );
+              console.log('working on the column :', csvColumnActual);
               try {
                 // this part needs to call remote ontology server
                 if (willCallRemoteOntology === true) {
@@ -3318,6 +3325,10 @@ async function epaddb(fastify, options, done) {
                 }
               }
             } else {
+              console.log(
+                'this console check the csv columns here it needs to be > 1 check following line'
+              );
+              console.log('working on the column :', csvColumnActual);
               // eslint-disable-next-line dot-notation
               lexiconObj.codevalue = tmpcodeValues[csvFileParam[i]['key']];
               // eslint-disable-next-line dot-notation
@@ -3338,9 +3349,14 @@ async function epaddb(fastify, options, done) {
               partImageAnnotationStatementArray.push(resultImageAnnotationStatementObj);
             }
           }
+          console.log(
+            'createPartialAimForPluginCalcInternal -> partial calculation aim before merging',
+            partCalcEntityArray
+          );
           resolve({
             calcEntityOb: partCalcEntityArray,
-            mapCvtoCm: mapCodeValuesToCalcEntity,
+            // mapCvtoCm: mapCodeValuesToCalcEntity, // error looks like here
+            mapCvtoCm: new Map(JSON.parse(JSON.stringify(Array.from(mapCodeValuesToCalcEntity)))),
             mapCalcEntToImgAnntStmnt: mapCalcEntUidToImgannotStatObj,
             imgAnnotStmArray: partImageAnnotationStatementArray,
           });
@@ -3465,7 +3481,9 @@ async function epaddb(fastify, options, done) {
             'utf8'
           );
           fastify.log.info(
-            `merging calculation part aim with the user aim : partialaimparam ended file to write : ${fileArray[foundAimInIndice]}`
+            `merging calculation part aim with the user aim : ended writing to the aim file : ${JSON.stringify(
+              fileArray[foundAimInIndice]
+            )}`
           );
           resolve(fileArray[foundAimInIndice]);
         } catch (err) {
@@ -4341,7 +4359,7 @@ async function epaddb(fastify, options, done) {
                   }
                 }
 
-                // tthis section needs to be executed if csv needs to be proecessed // section ends
+                // this section needs to be executed if csv needs to be proecessed // section ends
 
                 //  dicom upload
                 if (uploadImageBackFlag === 1) {
