@@ -3122,7 +3122,7 @@ async function epaddb(fastify, options, done) {
               partImageAnnotationStatement
             )}`
           );
-          mapCalcEntUidToImgannotStatObj.set(calcEntityUid, partImageAnnotationStatement);
+          // mapCalcEntUidToImgannotStatObj.set(calcEntityUid, partImageAnnotationStatement);
           console.log(
             `creating image annotation statement map mapCalcEntUidToImgannotStatObj:${JSON.stringify(
               mapCalcEntUidToImgannotStatObj
@@ -3298,6 +3298,10 @@ async function epaddb(fastify, options, done) {
                   segEntity,
                   mapCalcEntUidToImgannotStatObj
                 );
+                mapCalcEntUidToImgannotStatObj.set(
+                  resultCalcEntitObj.uniqueIdentifier.root,
+                  resultImageAnnotationStatementObj
+                );
                 mapCodeValuesToCalcEntity.set(newLexiconObj.codevalue, resultCalcEntitObj);
                 partCalcEntityArray.push(resultCalcEntitObj);
                 partImageAnnotationStatementArray.push(resultImageAnnotationStatementObj);
@@ -3320,6 +3324,10 @@ async function epaddb(fastify, options, done) {
                     resultCalcEntitObj,
                     segEntity,
                     mapCalcEntUidToImgannotStatObj
+                  );
+                  mapCalcEntUidToImgannotStatObj.set(
+                    resultCalcEntitObj.uniqueIdentifier.root,
+                    resultImageAnnotationStatementObj
                   );
                   mapCodeValuesToCalcEntity.set(err.lexiconObj.codevalue, resultCalcEntitObj);
                   fastify.log.info(
@@ -3347,6 +3355,10 @@ async function epaddb(fastify, options, done) {
                 resultCalcEntitObj,
                 segEntity,
                 mapCalcEntUidToImgannotStatObj
+              );
+              mapCalcEntUidToImgannotStatObj.set(
+                resultCalcEntitObj.uniqueIdentifier.root,
+                resultImageAnnotationStatementObj
               );
               partCalcEntityArray.push(resultCalcEntitObj);
               partImageAnnotationStatementArray.push(resultImageAnnotationStatementObj);
