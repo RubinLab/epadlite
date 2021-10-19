@@ -3106,7 +3106,8 @@ async function epaddb(fastify, options, done) {
             segEntityUid = segEntity.uniqueIdentifier.root;
           }
           const partImageAnnotationStatement = {
-            'xsi:type': 'CalculationEntityReferencesSegmentationEntityStatement',
+            'xsi:type':
+              'CalculationEntityReferencesSegmentationEntityStatemcreateImageAnnotationStatementforPluginCalcInternalent',
             subjectUniqueIdentifier: {
               root: calcEntityUid, //  calculationEntity->uniqueIdentifier->root
             },
@@ -3114,7 +3115,16 @@ async function epaddb(fastify, options, done) {
               root: segEntityUid, //  SegmentationEntity->uniqueIdentifier->root
             },
           };
+          console.log(
+            'creating image annotation statement map :calcEntityUid -> partImageAnnotationStatement'
+          );
+          console.log(
+            `creating image annotation statement map :${calcEntityUid} -> ${partImageAnnotationStatement}`
+          );
           mapCalcEntUidToImgannotStatObj.set(calcEntityUid, partImageAnnotationStatement);
+          console.log(
+            `creating image annotation statement map mapCalcEntUidToImgannotStatObj:${mapCalcEntUidToImgannotStatObj}`
+          );
           resolve(partImageAnnotationStatement);
         } catch (err) {
           reject(
@@ -3314,7 +3324,7 @@ async function epaddb(fastify, options, done) {
                   );
                   partCalcEntityArray.push(resultCalcEntitObj);
                   partImageAnnotationStatementArray.push(resultImageAnnotationStatementObj);
-                  // lexicon object exist already so get codemeaning to form partial aim calculations
+                  // lexicon object exist already so get codemeaning form partial aim calculations
                 }
               }
             } else {
@@ -3432,6 +3442,10 @@ async function epaddb(fastify, options, done) {
               'imageAnnotationStatementCollection'
             )
           ) {
+            console.log(
+              '----------------imageAnnotationStatementCollection tag exist--------partialAimParam.mapCalcEntToImgAnntStmnt',
+              JSON.stringify(partialAimParam.mapCalcEntToImgAnntStmnt)
+            );
             for (
               let imgAnnotStmcnt = 0;
               imgAnnotStmcnt <
