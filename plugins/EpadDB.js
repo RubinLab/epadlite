@@ -3279,7 +3279,10 @@ async function epaddb(fastify, options, done) {
                     `wrote feature values to the local lexicon -> cm : ${newLexiconObj.codemeaning} cv : ${newLexiconObj.codevalue}`
                   );
                 }
-                console.log('createPartialAimForPluginCalcInternal newLexiconObj.codevalue', newLexiconObj.codevalue);
+                console.log(
+                  'createPartialAimForPluginCalcInternal newLexiconObj.codevalue',
+                  newLexiconObj.codevalue
+                );
                 tmpcodeValues[lexiconObj.codemeaning] = newLexiconObj.codevalue;
                 // eslint-disable-next-line no-await-in-loop
                 const resultCalcEntitObj = await fastify.createCalcEntityforPluginCalcInternal(
