@@ -3114,7 +3114,11 @@ async function epaddb(fastify, options, done) {
               root: segEntityUid, //  SegmentationEntity->uniqueIdentifier->root
             },
           };
-          mapCalcEntUidToImgannotStatObj.set(calcEntityUid, partImageAnnotationStatement);
+          //  mapCalcEntUidToImgannotStatObj.set(calcEntityUid, partImageAnnotationStatement);
+          mapCalcEntUidToImgannotStatObj.set(
+            partCalcEntity.typeCode[0].code,
+            partImageAnnotationStatement
+          );
           resolve(partImageAnnotationStatement);
         } catch (err) {
           reject(
@@ -3405,6 +3409,7 @@ async function epaddb(fastify, options, done) {
                   .calculationEntityCollection.CalculationEntity[calcentcnt].typeCode[0].code;
               if (partialAimParam.mapCvtoCm.has(eacCodeValue)) {
                 partialAimParam.mapCvtoCm.delete(eacCodeValue);
+                partialAimParam.mapCalcEntToImgAnntStmnt.delete(eacCodeValue);
               }
             }
             partEntities = Array.from(partialAimParam.mapCvtoCm.values());
@@ -3428,21 +3433,21 @@ async function epaddb(fastify, options, done) {
               'imageAnnotationStatementCollection'
             )
           ) {
-            for (
-              let imgAnnotStmcnt = 0;
-              imgAnnotStmcnt <
-              parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                .imageAnnotationStatementCollection.ImageAnnotationStatement.length;
-              imgAnnotStmcnt += 1
-            ) {
-              const calcEntityUid =
-                parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .imageAnnotationStatementCollection.ImageAnnotationStatement[imgAnnotStmcnt]
-                  .subjectUniqueIdentifier.root;
-              if (partialAimParam.mapCalcEntToImgAnntStmnt.has(calcEntityUid)) {
-                partialAimParam.mapCalcEntToImgAnntStmnt.delete(calcEntityUid);
-              }
-            }
+            // for (
+            //   let imgAnnotStmcnt = 0;
+            //   imgAnnotStmcnt <
+            //   parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            //     .imageAnnotationStatementCollection.ImageAnnotationStatement.length;
+            //   imgAnnotStmcnt += 1
+            // ) {
+            //   const calcEntityUid =
+            //     parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            //       .imageAnnotationStatementCollection.ImageAnnotationStatement[imgAnnotStmcnt]
+            //       .subjectUniqueIdentifier.root;
+            //   if (partialAimParam.mapCalcEntToImgAnntStmnt.has(calcEntityUid)) {
+            //     partialAimParam.mapCalcEntToImgAnntStmnt.delete(calcEntityUid);
+            //   }
+            // }
             partImageAnnotationStatement = Array.from(
               partialAimParam.mapCalcEntToImgAnntStmnt.values()
             );
