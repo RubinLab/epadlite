@@ -3114,16 +3114,16 @@ async function epaddb(fastify, options, done) {
               root: segEntityUid, //  SegmentationEntity->uniqueIdentifier->root
             },
           };
-          console.log(
+          fastify.log.info(
             'creating image annotation statement map :calcEntityUid -> partImageAnnotationStatement'
           );
-          console.log(
+          fastify.log.info(
             `creating image annotation statement map :${calcEntityUid} -> ${JSON.stringify(
               partImageAnnotationStatement
             )}`
           );
           // mapCalcEntUidToImgannotStatObj.set(calcEntityUid, partImageAnnotationStatement);
-          console.log(
+          fastify.log.info(
             `creating image annotation statement map mapCalcEntUidToImgannotStatObj:${JSON.stringify(
               mapCalcEntUidToImgannotStatObj
             )}`
@@ -3364,7 +3364,7 @@ async function epaddb(fastify, options, done) {
               partImageAnnotationStatementArray.push(resultImageAnnotationStatementObj);
             }
           }
-          console.log(
+          fastify.log.info(
             'createImageAnnotationStatementforPluginCalcInternal : calcUid ->ImageAnnotationStatement,subjectUniqueIdentifier ',
             JSON.stringify(mapCalcEntUidToImgannotStatObj)
           );
@@ -3460,7 +3460,7 @@ async function epaddb(fastify, options, done) {
               'imageAnnotationStatementCollection'
             )
           ) {
-            console.log(
+            fastify.log.info(
               '----------------imageAnnotationStatementCollection tag exist--------partialAimParam.mapCalcEntToImgAnntStmnt',
               JSON.stringify(partialAimParam.mapCalcEntToImgAnntStmnt)
             );
