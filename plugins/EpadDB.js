@@ -3102,7 +3102,7 @@ async function epaddb(fastify, options, done) {
           if (partCalcEntity.uniqueIdentifier.root) {
             calcEntityUid = partCalcEntity.uniqueIdentifier.root;
           }
-          if (partCalcEntity.uniqueIdentifier.root) {
+          if (segEntity.uniqueIdentifier.root) {
             segEntityUid = segEntity.uniqueIdentifier.root;
           }
           const partImageAnnotationStatement = {
