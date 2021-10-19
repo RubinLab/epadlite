@@ -3339,6 +3339,10 @@ async function epaddb(fastify, options, done) {
               partImageAnnotationStatementArray.push(resultImageAnnotationStatementObj);
             }
           }
+          console.log(
+            'createImageAnnotationStatementforPluginCalcInternal : calcUid ->ImageAnnotationStatement,subjectUniqueIdentifier ',
+            JSON.stringify(mapCalcEntUidToImgannotStatObj)
+          );
           resolve({
             calcEntityOb: partCalcEntityArray,
             mapCvtoCm: mapCodeValuesToCalcEntity,
@@ -3439,8 +3443,14 @@ async function epaddb(fastify, options, done) {
                 parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                   .imageAnnotationStatementCollection.ImageAnnotationStatement[imgAnnotStmcnt]
                   .subjectUniqueIdentifier.root;
+              console.log('mapCalcEntToImgAnntStmnt :calcEntityUid-> ', calcEntityUid);
               if (partialAimParam.mapCalcEntToImgAnntStmnt.has(calcEntityUid)) {
+                console.log(
+                  `calc entity uid = ${calcEntityUid} exist already so we are deleting from mapCalcEntToImgAnntStmnt`
+                );
                 partialAimParam.mapCalcEntToImgAnntStmnt.delete(calcEntityUid);
+              } else {
+                console.log(`calc entity uid = ${calcEntityUid} does not exist `);
               }
             }
             partImageAnnotationStatement = Array.from(
