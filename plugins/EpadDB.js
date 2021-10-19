@@ -3354,7 +3354,7 @@ async function epaddb(fastify, options, done) {
             partCalcEntityArray
           );
           resolve({
-            calcEntityOb: partCalcEntityArray,
+            calcEntityOb: JSON.parse(JSON.stringify(partCalcEntityArray)),
             // mapCvtoCm: mapCodeValuesToCalcEntity, // error looks like here
             mapCvtoCm: new Map(JSON.parse(JSON.stringify(Array.from(mapCodeValuesToCalcEntity)))),
             mapCalcEntToImgAnntStmnt: mapCalcEntUidToImgannotStatObj,
@@ -3383,7 +3383,9 @@ async function epaddb(fastify, options, done) {
       let jsonString = {};
       return new Promise((resolve, reject) => {
         try {
-          fastify.log.info(`mergin calculation part aim with the user aim : ${partialAimParam}`);
+          fastify.log.info(
+            `mergin calculation part aim with the user aim : ${JSON.stringify(partialAimParam)}`
+          );
 
           fastify.findFilesAndSubfilesInternal(aimFileLocation, fileArray, 'json');
           let foundAimInIndice = null;
@@ -3406,6 +3408,7 @@ async function epaddb(fastify, options, done) {
               'calculationEntityCollection'
             )
           ) {
+            console.log('calculationEntityCollection exist in the aim so we add calc entites');
             for (
               let calcentcnt = 0;
               calcentcnt <
@@ -3422,13 +3425,19 @@ async function epaddb(fastify, options, done) {
             }
             partEntities = Array.from(partialAimParam.mapCvtoCm.values());
             fastify.log.info(
-              `this cacl in the part array Calculationentities: ${JSON.stringify(partEntities)}`
+              `this cacl in the part array Calculationentities: ${JSON.stringify(partEntities[0])}`
             );
             newMergedCalcEntity = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity.concat(
               partEntities
             );
             parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].calculationEntityCollection.CalculationEntity = newMergedCalcEntity;
           } else {
+            console.log(
+              'calculationEntityCollection does not exist in the aim so we assign directly partial calc entities'
+            );
+            console.log(
+              'calculationEntityCollection does not exist in the aim so we assign directly partial calc entities'
+            );
             parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0][
               // eslint-disable-next-line dot-notation
               'calculationEntityCollection'
@@ -3461,7 +3470,7 @@ async function epaddb(fastify, options, done) {
             );
             fastify.log.info(
               `this cacl in the part array Annotationstatements: ${JSON.stringify(
-                partImageAnnotationStatement
+                partImageAnnotationStatement[0]
               )}`
             );
             newMergedImageAnnotationStatement = parsedAimFile.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].imageAnnotationStatementCollection.ImageAnnotationStatement.concat(
