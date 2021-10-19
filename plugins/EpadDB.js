@@ -3119,11 +3119,15 @@ async function epaddb(fastify, options, done) {
             'creating image annotation statement map :calcEntityUid -> partImageAnnotationStatement'
           );
           console.log(
-            `creating image annotation statement map :${calcEntityUid} -> ${partImageAnnotationStatement}`
+            `creating image annotation statement map :${calcEntityUid} -> ${JSON.stringify(
+              partImageAnnotationStatement
+            )}`
           );
           mapCalcEntUidToImgannotStatObj.set(calcEntityUid, partImageAnnotationStatement);
           console.log(
-            `creating image annotation statement map mapCalcEntUidToImgannotStatObj:${mapCalcEntUidToImgannotStatObj}`
+            `creating image annotation statement map mapCalcEntUidToImgannotStatObj:${JSON.stringify(
+              mapCalcEntUidToImgannotStatObj
+            )}`
           );
           resolve(partImageAnnotationStatement);
         } catch (err) {
