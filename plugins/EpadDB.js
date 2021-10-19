@@ -3328,6 +3328,7 @@ async function epaddb(fastify, options, done) {
                 csvFileParam[i][`_${csvColumnActual}`],
                 pluginparams
               );
+              mapCodeValuesToCalcEntity.set(lexiconObj.codevalue, resultCalcEntitObj);
               // eslint-disable-next-line no-await-in-loop
               const resultImageAnnotationStatementObj = await fastify.createImageAnnotationStatementforPluginCalcInternal(
                 resultCalcEntitObj,
