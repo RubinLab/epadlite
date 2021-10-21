@@ -205,6 +205,29 @@ async function aimRoutes(fastify) {
     },
     handler: fastify.getAim,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/aims/changes',
+    schema: {
+      tags: ['aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+    },
+    handler: fastify.getAimVersionChangesAimUIDs,
+  });
 }
 
 module.exports = aimRoutes;

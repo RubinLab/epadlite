@@ -292,7 +292,33 @@ async function otherRoutes(fastify) {
   fastify.route({
     method: 'GET',
     url: '/wado/',
+    schema: {
+      tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          studyUID: {
+            type: 'string',
+          },
+          seriesUID: {
+            type: 'string',
+          },
+          objectUID: {
+            type: 'string',
+          },
+        },
+      },
+    },
     handler: fastify.getWado,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/wadors/studies/:study/series/:series/instances/:instance',
+    schema: {
+      tags: ['wado'],
+    },
+    handler: fastify.getWadoRS,
   });
 
   fastify.route({
@@ -308,6 +334,12 @@ async function otherRoutes(fastify) {
   });
 
   fastify.route({
+    method: 'PUT',
+    url: '/decryptandadd',
+    handler: fastify.decryptAdd,
+  });
+
+  fastify.route({
     method: 'POST',
     url: '/reports/waterfall',
     schema: {
@@ -318,6 +350,13 @@ async function otherRoutes(fastify) {
 
   fastify.route({
     method: 'GET',
+    url: '/search',
+    handler: fastify.search,
+  });
+
+  // so that we can support getting query or params with body
+  fastify.route({
+    method: 'PUT',
     url: '/search',
     handler: fastify.search,
   });

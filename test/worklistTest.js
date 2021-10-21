@@ -524,7 +524,7 @@ describe('Worklist Tests', () => {
       //   .delete('/projects/testProgressP')
       //   .query({ username: 'admin' });
     });
-    it('should add requirement to the worklist ', (done) => {
+    it('should add study requirement to the worklist ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/worklists/testProgressW/requirements')
@@ -545,7 +545,7 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
-    it('should add requirement to the worklist ', (done) => {
+    it('should add series requirement to the worklist ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/worklists/testProgressW/requirements')
@@ -890,7 +890,7 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
-    it('should have 1 requiremet ', (done) => {
+    it('should have 1 requirement ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/worklists')
@@ -1086,12 +1086,140 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
+    it('should delete the second requirement that has completeness', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/worklists/testProgressW/requirements/2')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should have no requirements ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.body[0].requirements.length).to.be.eql(0);
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should still be able to get worklist progress for worklist testProgressW with both manual progress', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists/testProgressW/progress')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          const worklistId = res.body[0].worklist_id;
+          const projectId = res.body[0].project_id;
+          expect(res.body).to.deep.include({
+            worklist_id: worklistId,
+            project_id: projectId,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser2@gmail.com',
+            assignee_name: 'user2Name user2Surname',
+            completeness: 50,
+            type: 'MANUAL',
+          });
+          expect(res.body).to.deep.include({
+            worklist_id: worklistId,
+            project_id: projectId,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser1@gmail.com',
+            assignee_name: 'user1Name user1Surname',
+            completeness: 100,
+            type: 'MANUAL',
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('should delete the manual progress for testProgressUser1', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/worklists/testProgressW/projects/testProgressP/subjects/3/studies/0023.2015.09.28.3')
         .query({ username: 'testProgressUser1@gmail.com', annotationStatus: 0 })
         .send()
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should still be able to get worklist progress for worklist testProgressW with both manual progress with one not-started', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists/testProgressW/progress')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          const worklistId = res.body[0].worklist_id;
+          const projectId = res.body[0].project_id;
+          expect(res.body).to.deep.include({
+            worklist_id: worklistId,
+            project_id: projectId,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser2@gmail.com',
+            assignee_name: 'user2Name user2Surname',
+            completeness: 50,
+            type: 'MANUAL',
+          });
+          expect(res.body).to.deep.include({
+            worklist_id: worklistId,
+            project_id: projectId,
+            subject_uid: '3',
+            subject_name: 'Phantom',
+            study_uid: '0023.2015.09.28.3',
+            study_desc: 'Made up study desc',
+            assignee: 'testProgressUser1@gmail.com',
+            assignee_name: 'user1Name user1Surname',
+            completeness: 0,
+            type: 'MANUAL',
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should add series requirement to the worklist again', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/worklists/testProgressW/requirements')
+        .send([
+          {
+            level: 'series',
+            template: 'ROI',
+            numOfAims: 1,
+            required: true,
+          },
+        ])
+        .query({ username: 'testProgressUser1@gmail.com' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1131,7 +1259,7 @@ describe('Worklist Tests', () => {
             study_desc: 'Made up study desc',
             assignee: 'testProgressUser1@gmail.com',
             assignee_name: 'user1Name user1Surname',
-            worklist_requirement_id: 2,
+            worklist_requirement_id: 4,
             worklist_requirement_desc: '1:ROI:series',
             completeness: 100,
             type: 'AUTO',

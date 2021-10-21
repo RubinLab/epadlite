@@ -739,11 +739,12 @@ async function other(fastify) {
                     reject(err);
                   });
               } else if (
-                jsonBuffer.ImageAnnotationCollection &&
-                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
-                  .code &&
-                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0]
-                  .code !== 'SEG'
+                (query.forceSave && query.forceSave === 'true') ||
+                (jsonBuffer.ImageAnnotationCollection &&
+                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .typeCode[0].code &&
+                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .typeCode[0].code !== 'SEG')
               ) {
                 // aim saving via upload, ignore SEG Only annotations
                 fastify
@@ -1308,7 +1309,9 @@ async function other(fastify) {
           return fastify.deleteSeriesDicomsInternal(request.params);
         })
       );
-      promisses.push(() => fastify.deleteSeriesAimProjectRels(request.params));
+      promisses.push(() =>
+        fastify.deleteSeriesAimProjectRels(request.params, request.epadAuth.username)
+      );
       promisses.push(() =>
         fastify.deleteAimsInternal(request.params, request.epadAuth, { all: 'true' })
       );
@@ -1353,7 +1356,10 @@ async function other(fastify) {
           'Cache-Control': 'no-cache',
           'X-Accel-Buffering': 'no',
         },
-        ...(config.corsOrigin ? { 'Access-Control-Allow-Origin': request.headers.origin } : {}),
+        // only put Access-Control-Allow-Origin if request has origin
+        ...(config.corsOrigin && request.headers.origin
+          ? { 'Access-Control-Allow-Origin': request.headers.origin }
+          : {}),
       });
       const padding = new Array(2049);
       reply.raw.write(`:${padding.join(' ')}\n`); // 2kB padding for IE
@@ -1684,12 +1690,30 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decrypt?`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
       if (authHeader) {
-        req.epadAuth = await fastify.authCheck(authHeader, res);
+        if (authHeader.startsWith('Bearer')) {
+          req.epadAuth = await fastify.authCheck(authHeader, res);
+        } else if (authHeader.startsWith('apikey')) {
+          // apikey auth support
+          // TODO should be https (&& req.protocol === 'https') it doesn't work because of nginx
+          // TODO create user if not exists?
+          req.epadAuth = await fastify.validateApiKeyInternal(req);
+          if (!req.epadAuth && !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/wado`))
+            res.send(
+              new UnauthenticatedError(
+                'Request should have user in the query for apikey authentication'
+              )
+            );
+        } else {
+          res.send(
+            new UnauthenticatedError('Authentication header does not conform with the server')
+          );
+        }
       } else {
         res.send(
           new UnauthenticatedError('Authentication info does not exist or conform with the server')
@@ -1798,7 +1822,7 @@ async function other(fastify) {
         reqInfo.project
       );
       fastify.log.info('Creator is', creator);
-      if (creator && creator === request.epadAuth.username) return true;
+      if (creator && request.epadAuth && creator === request.epadAuth.username) return true;
       // not a db item return true
       if (!creator) {
         if (reqInfo.level === 'aim') {
@@ -1889,6 +1913,9 @@ async function other(fastify) {
               break;
             case 'PUT': // check permissions
               if (
+                !request.raw.url.startsWith(`/${config.prefix}/search`) &&
+                !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
+                !request.raw.url.startsWith(`/${config.prefix}/decrypt`) &&
                 reqInfo.level !== 'ontology' &&
                 (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
                 !(
@@ -1931,37 +1958,99 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('decryptAdd', async (request, reply) => {
+    try {
+      const obj = fastify.decryptInternal(request.query.arg);
+      const projectID = obj.projectID ? obj.projectID : 'lite';
+      // if patientID and studyUID
+      if (obj.patientID && obj.studyUID) {
+        await fastify.addPatientStudyToProjectInternal(
+          { project: projectID, subject: obj.patientID, study: obj.studyUID },
+          request.epadAuth
+        );
+        reply.send({ ...obj, projectID });
+      } else if (obj.accession) {
+        // if accession
+        const patientStudyPairs = await fastify.getPatientIDandStudyUIDsFromAccession(
+          obj.accession
+        );
+
+        // send the first it there is
+        if (patientStudyPairs.length > 0) {
+          for (let i = 0; i < patientStudyPairs.length; i += 1)
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.addPatientStudyToProjectInternal(
+              {
+                project: projectID,
+                subject: patientStudyPairs[i].patientID,
+                study: patientStudyPairs[i].studyUID,
+              },
+              request.epadAuth
+            );
+          reply.send({
+            projectID,
+            patientID: patientStudyPairs[0].patientID,
+            studyUID: patientStudyPairs[0].studyUID,
+          });
+        } else
+          reply.send(
+            new BadRequestError(
+              'Encrypted URL adding',
+              new Error(`Couldn't get study from accession ${obj.accession}`)
+            )
+          );
+      } else {
+        // not supported
+        reply.send(
+          new BadRequestError(
+            'Encrypted URL adding',
+            new Error(`Supported parameters not found patientID and studyUID or accession`)
+          )
+        );
+      }
+    } catch (err) {
+      reply.send(new InternalError(`Decrypt and add`, err));
+    }
+  });
+
+  fastify.decorate('decryptInternal', (encrypted) => {
+    if (!config.secret) {
+      throw new Error('No secret defined');
+    } else {
+      const encodeKey = crypto.createHash('sha256').update(config.secret, 'utf-8').digest();
+
+      const binary = Buffer.from(encrypted, 'base64');
+      const ivlen = binary.readInt32BE();
+      const iv = binary.subarray(4, 4 + ivlen);
+      const encoded = binary.subarray(4 + ivlen);
+      const cipher = crypto.createDecipheriv('aes-256-cbc', encodeKey, iv);
+      const decrypted = cipher.update(encoded, 'base64') + cipher.final();
+      const items = decrypted.split('&');
+      const obj = {};
+      for (let i = 0; i < items.length; i += 1) {
+        const keyValue = items[i].split('=');
+        // eslint-disable-next-line prefer-destructuring
+        obj[keyValue[0]] = keyValue[1];
+      }
+      obj.patientID = obj.patientID || obj.PatientID;
+      if (obj.expiry) {
+        const expiryDate = new Date(obj.expiry * 1000);
+        const now = new Date();
+        if (now <= expiryDate) {
+          return obj;
+        }
+        throw new Error('Time expired');
+      }
+      return obj;
+    }
+  });
+
   fastify.decorate('decrypt', (request, reply) => {
     try {
-      if (!config.secret) {
-        reply.send(new InternalError('Decrypt', new Error('No secret defined')));
-      } else {
-        const encodeKey = crypto.createHash('sha256').update(config.secret, 'utf-8').digest();
-
-        const binary = Buffer.from(request.query.arg, 'base64');
-        const ivlen = binary.readInt32BE();
-        const iv = binary.subarray(4, 4 + ivlen);
-        const encoded = binary.subarray(4 + ivlen);
-        const cipher = crypto.createDecipheriv('aes-256-cbc', encodeKey, iv);
-        const decrypted = cipher.update(encoded, 'base64') + cipher.final();
-        const items = decrypted.split('&');
-        const obj = {};
-        for (let i = 0; i < items.length; i += 1) {
-          const keyValue = items[i].split('=');
-          // eslint-disable-next-line prefer-destructuring
-          obj[keyValue[0]] = keyValue[1];
-        }
-        if (obj.expiry) {
-          const expiryDate = new Date(obj.expiry * 1000);
-          const now = new Date();
-          if (now <= expiryDate) {
-            reply.code(200).send(obj);
-          } else {
-            reply.send(new InternalError('Decrypt', new Error('Time expired')));
-          }
-        } else {
-          reply.code(200).send(obj);
-        }
+      const obj = fastify.decryptInternal(request.query.arg);
+      if (!obj.projectID) obj.projectID = 'lite';
+      if (obj) {
+        reply.code(200).send(obj);
       }
     } catch (err) {
       reply.send(new InternalError('Decrypt', err));
@@ -1971,7 +2060,7 @@ async function other(fastify) {
   fastify.decorate('search', (request, reply) => {
     try {
       const params = {};
-      const queryObj = { ...request.query };
+      const queryObj = { ...request.query, ...request.body };
       if (queryObj.project) {
         params.project = queryObj.project;
         delete queryObj.project;

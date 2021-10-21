@@ -28,9 +28,10 @@ async function Ontology(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           let configApiKey = null;
-
-          if (Object.prototype.hasOwnProperty.call(request.raw, 'headers')) {
-            if (Object.prototype.hasOwnProperty.call(request.raw.headers, 'authorization')) {
+          // eslint-disable-next-line dot-notation
+          if (request.raw['headers']) {
+            // eslint-disable-next-line dot-notation
+            if (request.raw.headers['authorization']) {
               // eslint-disable-next-line prefer-destructuring
               configApiKey = request.raw.headers.authorization.split(' ')[1];
             }
@@ -45,7 +46,12 @@ async function Ontology(fastify, options, done) {
             }
 
             fastify.log.info('you have a valid api key');
-            resolve();
+            if (request.query.user) {
+              const epadAuth = await fastify.fillUserInfo(request.query.user);
+              resolve(epadAuth);
+            } else {
+              resolve(undefined);
+            }
           } else {
             reject(new Error('no api key provided'));
           }
@@ -89,7 +95,7 @@ async function Ontology(fastify, options, done) {
         let whereString = {};
         const itemArray = [];
         try {
-          fastify.log.info('get all', requestObject);
+          // fastify.log.info('get all', requestObject);
           let {
             codevalue: CODE_VALUE,
             codemeaning: CODE_MEANING,

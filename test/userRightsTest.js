@@ -943,6 +943,40 @@ describe('User Rights Tests', () => {
           done(e);
         });
     });
+    it(`bulk project aim deletion of collaborator's aim by member should fail`, (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testRights1/aims/delete')
+        .query({ username: 'testMember@gmail.com' })
+        .send(['2.25.3526547897685764352413254324135456'])
+        .then((res) => {
+          expect(res.statusCode).to.equal(500);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it(`bulk project aim deletion of member's and collaborator's aim by member should succeed partially`, (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testRights1/aims/delete')
+        .query({ username: 'testMember@gmail.com' })
+        .send([
+          '2.25.3526547897685764352413254324135456',
+          '2.25.3526547897685764352413254324135455',
+        ])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.aimsThatCannotBeDeleted).to.include(
+            '2.25.3526547897685764352413254324135456'
+          );
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
   });
   describe('User Create Tests', () => {
     it('should succeed in creating new user for testAdmin', (done) => {
