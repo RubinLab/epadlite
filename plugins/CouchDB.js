@@ -936,9 +936,11 @@ async function couchdb(fastify, options) {
                     imageAnnotationStatementCollection:
                       existing._attachments.imageAnnotationStatementCollection,
                   };
-                  // eslint-disable-next-line no-await-in-loop
-                  aim = await fastify.addAttachmentParts(existing.aim, currentAttachments);
-
+                  // we cannot get attachments if deleted
+                  if (!data.rows[i].value.deleted)
+                    // eslint-disable-next-line no-await-in-loop
+                    aim = await fastify.addAttachmentParts(existing.aim, currentAttachments);
+                  else aim = existing.aim;
                   if (existing._attachments.prevAim && !data.rows[i].value.deleted) {
                     const prevAimJson = JSON.parse(
                       atob(existing._attachments.prevAim.data).toString()
