@@ -4,6 +4,7 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
+const dimse = require('dicom-dimse-native');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -751,17 +752,100 @@ async function dicomwebserver(fastify) {
   });
 
   fastify.decorate(
+    'getStudySeriesDIMSE',
+    (studyUID) =>
+      new Promise((resolve, reject) => {
+        dimse.findScu(
+          JSON.stringify({
+            source: {
+              aet: 'FINDSCU',
+              ip: '127.0.0.1',
+              port: '9999',
+            },
+            target: {
+              aet: config.dimse.aet,
+              ip: config.dimse.ip,
+              port: config.dimse.port,
+            },
+            tags: [
+              {
+                key: '0020000D',
+                value: studyUID,
+              },
+              {
+                key: '00080052',
+                value: 'SERIES',
+              },
+              {
+                key: '00080021',
+                value: '',
+              },
+              {
+                key: '0008103E',
+                value: '',
+              },
+              {
+                key: '0020000E',
+                value: '',
+              },
+              {
+                key: '00080060',
+                value: '',
+              },
+              {
+                key: '00080050',
+                value: '',
+              },
+              {
+                key: '00201209',
+                value: '',
+              },
+              {
+                key: '00201209',
+                value: '',
+              },
+              {
+                key: '00200011',
+                value: '',
+              },
+            ],
+          }),
+          (result) => {
+            try {
+              const jsonResult = JSON.parse(result);
+              const map = {};
+              const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
+              res.forEach((item) => {
+                if (item['0020000E'])
+                  map[item['0020000E'].Value[0]] = item['0008103E']
+                    ? item['0008103E'].Value[0]
+                    : '';
+              });
+              console.log('map', map);
+              resolve(res);
+            } catch (err) {
+              console.log(err);
+              reject(err);
+            }
+          }
+        );
+      })
+  );
+
+  fastify.decorate(
     'getStudySeriesInternal',
     (params, query, epadAuth, noStats) =>
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          promisses.push(
-            this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
-              header
-            )
-          );
+          if (config.dimse) promisses.push(fastify.getStudySeriesDIMSE(params.study));
+          else
+            promisses.push(
+              this.request.get(
+                `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
+                header
+              )
+            );
           promisses.push(
             fastify
               .getSignificantSeriesInternal(params.project, params.subject, params.study)
@@ -800,88 +884,56 @@ async function dicomwebserver(fastify) {
                     !(obj['00080060'] && obj['00080060'].Value && obj['00080060'].Value[0]) ||
                     obj['00080060'].Value[0] !== 'SEG'
                 );
-              const seriesMetadataPromises = [];
-              const result = _.map(filtered, (value) => {
-                if (!value['0008103E'] || !value['0008103E'].Value)
-                  seriesMetadataPromises.push(
-                    this.request.get(
-                      `${config.dicomWebConfig.wadoSubPath}/studies/${params.study}/series/${value['0020000E'].Value[0]}/metadata`,
-                      header
-                    )
-                  );
-                return {
-                  projectID: params.project ? params.project : projectID,
-                  // TODO put in dicomweb but what if other dicomweb is used
-                  patientID:
-                    value['00100020'] && value['00100020'].Value
-                      ? fastify.replaceNull(value['00100020'].Value[0])
-                      : params.subject,
-                  // TODO
-                  patientName:
-                    value['00100010'] && value['00100010'].Value
-                      ? value['00100010'].Value[0].Alphabetic
-                      : '',
-                  studyUID:
-                    value['0020000D'] && value['0020000D'].Value
-                      ? value['0020000D'].Value[0]
-                      : params.study,
-                  seriesUID: value['0020000E'].Value[0],
-                  seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
-                  seriesDescription:
-                    value['0008103E'] && value['0008103E'].Value ? value['0008103E'].Value[0] : '',
-                  examType:
-                    value['00080060'] && value['00080060'].Value ? value['00080060'].Value[0] : '',
-                  bodyPart: '', // TODO
-                  accessionNumber:
-                    value['00080050'] && value['00080050'].Value ? value['00080050'].Value[0] : '',
-                  numberOfImages:
-                    value['00201209'] && value['00201209'].Value ? value['00201209'].Value[0] : '',
-                  numberOfSeriesRelatedInstances:
-                    value['00201209'] && value['00201209'].Value ? value['00201209'].Value[0] : '',
-                  numberOfAnnotations: aimsCountMap[value['0020000E'].Value[0]]
-                    ? aimsCountMap[value['0020000E'].Value[0]]
-                    : 0,
-                  institution: '', // TODO
-                  stationName: '', // TODO
-                  department: '', // TODO
-                  createdTime: '', // TODO
-                  firstImageUIDInSeries: '', // TODO
-                  isDSO:
-                    (value['00080060'] &&
-                      value['00080060'].Value &&
-                      value['00080060'].Value[0] === 'SEG') ||
-                    false,
-                  isNonDicomSeries: false, // TODO
-                  seriesNo:
-                    value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
-                  significanceOrder: seriesSignificanceMap[value['0020000E'].Value[0]]
-                    ? seriesSignificanceMap[value['0020000E'].Value[0]]
-                    : undefined,
-                };
-              });
-              // not the best way to do this but no other way
-              // if the series response does not have series description for any of the series
-              // try and get series description from the metadata
-              if (filtered.length === seriesMetadataPromises.length && filtered.length !== 0) {
-                Promise.all(seriesMetadataPromises)
-                  .then((seriesMetadatas) => {
-                    // TODO traverse series metadata and update it in the result
-                    if (result.length === seriesMetadatas.length) {
-                      for (let i = 0; i < result.length; i += 1) {
-                        result[i].seriesDescription =
-                          seriesMetadatas[i].data[0]['0008103E'] &&
-                          seriesMetadatas[i].data[0]['0008103E'].Value
-                            ? seriesMetadatas[i].data[0]['0008103E'].Value[0]
-                            : '';
-                      }
-                    }
-                    resolve(result);
-                  })
-                  .catch((err) => {
-                    fastify.log.warn(`Could not retrieve series metadata. Error: ${err.message}`);
-                    resolve(result);
-                  });
-              } else resolve(result);
+              const result = _.map(filtered, (value) => ({
+                projectID: params.project ? params.project : projectID,
+                // TODO put in dicomweb but what if other dicomweb is used
+                patientID:
+                  value['00100020'] && value['00100020'].Value
+                    ? fastify.replaceNull(value['00100020'].Value[0])
+                    : params.subject,
+                // TODO
+                patientName:
+                  value['00100010'] && value['00100010'].Value
+                    ? value['00100010'].Value[0].Alphabetic
+                    : '',
+                studyUID:
+                  value['0020000D'] && value['0020000D'].Value
+                    ? value['0020000D'].Value[0]
+                    : params.study,
+                seriesUID: value['0020000E'].Value[0],
+                seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
+                seriesDescription:
+                  value['0008103E'] && value['0008103E'].Value ? value['0008103E'].Value[0] : '',
+                examType:
+                  value['00080060'] && value['00080060'].Value ? value['00080060'].Value[0] : '',
+                bodyPart: '', // TODO
+                accessionNumber:
+                  value['00080050'] && value['00080050'].Value ? value['00080050'].Value[0] : '',
+                numberOfImages:
+                  value['00201209'] && value['00201209'].Value ? value['00201209'].Value[0] : '',
+                numberOfSeriesRelatedInstances:
+                  value['00201209'] && value['00201209'].Value ? value['00201209'].Value[0] : '',
+                numberOfAnnotations: aimsCountMap[value['0020000E'].Value[0]]
+                  ? aimsCountMap[value['0020000E'].Value[0]]
+                  : 0,
+                institution: '', // TODO
+                stationName: '', // TODO
+                department: '', // TODO
+                createdTime: '', // TODO
+                firstImageUIDInSeries: '', // TODO
+                isDSO:
+                  (value['00080060'] &&
+                    value['00080060'].Value &&
+                    value['00080060'].Value[0] === 'SEG') ||
+                  false,
+                isNonDicomSeries: false, // TODO
+                seriesNo:
+                  value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
+                significanceOrder: seriesSignificanceMap[value['0020000E'].Value[0]]
+                  ? seriesSignificanceMap[value['0020000E'].Value[0]]
+                  : undefined,
+              }));
+              resolve(result);
             })
             .catch((error) => {
               reject(new InternalError(`Error retrieving study's (${params.study}) series`, error));
