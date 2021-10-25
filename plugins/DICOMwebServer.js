@@ -822,7 +822,7 @@ async function dicomwebserver(fastify) {
                     : '';
               });
               console.log('map', map);
-              resolve(res);
+              resolve({ data: res });
             } catch (err) {
               console.log(err);
               reject(err);
