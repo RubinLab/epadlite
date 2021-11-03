@@ -2027,10 +2027,8 @@ async function epaddb(fastify, options, done) {
       }
 
       Promise.all(promisesCreateForEachAnnotation)
-        .then(() => {
-          reply
-            .code(200)
-            .send('plugin process added to the plugin queue for each selected annotation');
+        .then((queuedata) => {
+          reply.code(200).send(queuedata);
         })
         .catch((err) => {
           reply
@@ -2057,8 +2055,8 @@ async function epaddb(fastify, options, done) {
           starttime: '1970-01-01 00:00:01',
           endtime: '1970-01-01 00:00:01',
         })
-        .then(() => {
-          reply.code(200).send('plugin process added to the plugin queue');
+        .then((queuedata) => {
+          reply.code(200).send(queuedata);
         })
         .catch((err) => {
           reply
