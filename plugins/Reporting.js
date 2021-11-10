@@ -1555,15 +1555,13 @@ async function reporting(fastify) {
                             }`
                           );
                         } else {
-                          row[
-                            `${lesionNum + 1}_${timepoint}F_${exportCalcs[valNum].header}`
-                          ] = readerReport.tTable[lesionNum][timepoint + 2][
-                            exportCalcs[valNum].field
-                          ]
-                            ? readerReport.tTable[lesionNum][timepoint + 2][
-                                exportCalcs[valNum].field
-                              ].value
-                            : undefined;
+                          row[`${lesionNum + 1}_${timepoint}F_${exportCalcs[valNum].header}`] =
+                            readerReport.tTable[lesionNum][timepoint + 2] &&
+                            readerReport.tTable[lesionNum][timepoint + 2][exportCalcs[valNum].field]
+                              ? readerReport.tTable[lesionNum][timepoint + 2][
+                                  exportCalcs[valNum].field
+                                ].value
+                              : undefined;
                           fastify.addHeader(
                             lesionHeaders,
                             headerKeys,
@@ -1662,7 +1660,10 @@ async function reporting(fastify) {
                       );
                     }
                   }
-                  row.recistErrors = recistReport[reader].tErrors.join('. ');
+                  row.recistErrors =
+                    recistReport && recistReport[reader] && recistReport[reader].tErrors
+                      ? recistReport[reader].tErrors.join('. ')
+                      : '';
                   fastify.addHeader(errorHeaders, headerKeys, `recistErrors`, `Recist Errors`);
                   row.otherErrors = readerReport.tErrors.join('. ');
                   fastify.addHeader(errorHeaders, headerKeys, `otherErrors`, `Other Errors`);

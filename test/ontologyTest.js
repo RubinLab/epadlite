@@ -129,7 +129,6 @@ describe('Ontology Tests', () => {
       .send()
       .set('Authorization', 'apikey 1111')
       .then((res) => {
-        console.log('get lex obj', res.body);
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(1);
         done();

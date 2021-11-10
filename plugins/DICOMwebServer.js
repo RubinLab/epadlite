@@ -265,7 +265,10 @@ async function dicomwebserver(fastify) {
           const query = params.subject ? `?PatientID=${params.subject}` : limit;
           const promisses = [];
           promisses.push(
-            this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
+            this.request.get(
+              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription`,
+              header
+            )
           );
           if (!noStats)
             promisses.push(
@@ -554,13 +557,14 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
-          if (params.study)
-            query = `?StudyInstanceUID=${params.study}&includefield=StudyDescription`;
-          else if (params.subject)
-            query = `?PatientID=${params.subject}&includefield=StudyDescription`;
+          if (params.study) query = `?StudyInstanceUID=${params.study}`;
+          else if (params.subject) query = `?PatientID=${params.subject}`;
           const promisses = [];
           promisses.push(
-            this.request.get(`${config.dicomWebConfig.qidoSubPath}/studies${query}`, header)
+            this.request.get(
+              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription`,
+              header
+            )
           );
           // get aims for a specific patient
           if (!noStats)
@@ -721,7 +725,7 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const studies = await this.request.get(
-            `${config.dicomWebConfig.qidoSubPath}/studies${limit}?includefield=StudyDescription`,
+            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription`,
             header
           );
           const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);

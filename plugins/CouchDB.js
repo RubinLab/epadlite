@@ -397,10 +397,10 @@ async function couchdb(fastify, options) {
     ];
     const qryParts = [];
     // use ' for uids not other ones
-    if (params.subject) qryParts.push(`patient_id:'${params.subject}'`);
-    if (params.study) qryParts.push(`study_uid:'${params.study}'`);
-    if (params.series) qryParts.push(`series_uid:'${params.series}'`);
-    else if (params.series === '') qryParts.push(`series_uid:'noseries'`);
+    if (params.subject) qryParts.push(`patient_id:"${params.subject}"`);
+    if (params.study) qryParts.push(`study_uid:"${params.study}"`);
+    if (params.series) qryParts.push(`series_uid:"${params.series}"`);
+    else if (params.series === '') qryParts.push(`series_uid:"noseries"`);
     if (fastify.isCollaborator(params.project, epadAuth))
       qryParts.push(`user:${epadAuth.username}`);
     if (filter) {
@@ -412,7 +412,7 @@ async function couchdb(fastify, options) {
       }
     }
     if (params.project) {
-      qryParts.push(`project:'${params.project}'`);
+      qryParts.push(`project:"${params.project}"`);
       if (qryParts.length === 0) return '*:*';
       return qryParts.join(' AND ');
     }
