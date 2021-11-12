@@ -401,8 +401,9 @@ async function couchdb(fastify, options) {
     if (params.study) qryParts.push(`study_uid:"${params.study}"`);
     if (params.series) qryParts.push(`series_uid:"${params.series}"`);
     else if (params.series === '') qryParts.push(`series_uid:"noseries"`);
+    console.log('here', params, epadAuth, fastify.isCollaborator(params.project, epadAuth));
     if (fastify.isCollaborator(params.project, epadAuth))
-      qryParts.push(`user:${epadAuth.username}`);
+      qryParts.push(`user:"${epadAuth.username}"`);
     if (filter) {
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(filter)) {
@@ -432,6 +433,7 @@ async function couchdb(fastify, options) {
         );
       qryParts.push(`( ${projectFilter.join(' OR ')})`);
     }
+    console.log('qry', qryParts);
     if (qryParts.length === 0) return '*:*';
     return qryParts.join(' AND ');
   });
@@ -514,6 +516,7 @@ async function couchdb(fastify, options) {
             fastify
               .generateSearchQuery(params, epadAuth, filter)
               .then((qry) => {
+                console.log('qryte', qry);
                 const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
                 if (format !== 'summary') {
                   dbFilter.include_docs = true;
