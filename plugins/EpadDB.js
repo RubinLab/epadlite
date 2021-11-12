@@ -368,12 +368,7 @@ async function epaddb(fastify, options, done) {
             err.errors[0].type &&
             err.errors[0].type === 'unique violation'
           )
-            reply.send(
-              new InternalError(
-                'Creating project',
-                new Error(`Project with id ${projectId} already exists`)
-              )
-            );
+            reply.send(new ResourceAlreadyExistsError('Project', projectId));
           else reply.send(new InternalError('Creating project', err));
         });
     }
@@ -4771,12 +4766,7 @@ async function epaddb(fastify, options, done) {
                   worklistCreationErr.errors[0].type &&
                   worklistCreationErr.errors[0].type === 'unique violation'
                 )
-                  reply.send(
-                    new InternalError(
-                      'Creating worklist',
-                      new Error(`Worklist with id ${request.body.worklistId} already exists`)
-                    )
-                  );
+                  reply.send(new ResourceAlreadyExistsError('Worklist', request.body.worklistId));
                 else reply.send(new InternalError('Creating worklist', worklistCreationErr));
               });
           })
