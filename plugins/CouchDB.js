@@ -432,7 +432,6 @@ async function couchdb(fastify, options) {
         );
       qryParts.push(`( ${projectFilter.join(' OR ')})`);
     }
-    console.log('qry', qryParts);
     if (qryParts.length === 0) return '*:*';
     return qryParts.join(' AND ');
   });
