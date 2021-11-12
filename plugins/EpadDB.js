@@ -362,7 +362,19 @@ async function epaddb(fastify, options, done) {
           }
         })
         .catch((err) => {
-          reply.send(new InternalError('Creating project', err));
+          if (
+            err.errors &&
+            err.errors[0] &&
+            err.errors[0].type &&
+            err.errors[0].type === 'unique violation'
+          )
+            reply.send(
+              new InternalError(
+                'Creating project',
+                new Error(`Project with id ${projectId} already exists`)
+              )
+            );
+          else reply.send(new InternalError('Creating project', err));
         });
     }
   });
