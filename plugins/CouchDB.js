@@ -406,7 +406,7 @@ async function couchdb(fastify, options) {
     if (filter) {
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(filter)) {
-        if (key === 'template') qryParts.push(`template_code:${value}`);
+        if (key === 'template') qryParts.push(`template_code:"${value}"`);
         else if (key === 'aims') qryParts.push(`(${value.join(' OR ')})`);
         else if (validQryParams.includes(key)) qryParts.push(`${key}:${value}`);
       }
@@ -423,12 +423,12 @@ async function couchdb(fastify, options) {
       // add collaborator filtering
       const projectFilter = [];
       if (aimAccessProjIds.length > 0)
-        projectFilter.push(`project:(${aimAccessProjIds.join(' OR ')})`);
+        projectFilter.push(`project:("${aimAccessProjIds.join('" OR "')}")`);
       if (collaboratorProjIds.length > 0)
         projectFilter.push(
-          `(project:${collaboratorProjIds.join(
-            ` AND user:${epadAuth.username}) OR (project:`
-          )} AND user:${epadAuth.username})`
+          `(project:"${collaboratorProjIds.join(
+            `" AND user:"${epadAuth.username}") OR (project:"`
+          )}" AND user:"${epadAuth.username}")`
         );
       qryParts.push(`( ${projectFilter.join(' OR ')})`);
     }
