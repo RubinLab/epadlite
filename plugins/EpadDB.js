@@ -2239,6 +2239,69 @@ async function epaddb(fastify, options, done) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
     }
   });
+
+  fastify.decorate('getNextPluginInSubQueue', async (paramQid, request) => {
+    //  will receive a queue object which contains plugin id
+    //  cx
+    const result = [];
+    try {
+      return await models.plugin_subqueue
+        .findAll({
+          where: { parent_qid: paramQid, status: 0 },
+        })
+        .then(async (tableData) => {
+          tableData.forEach((data) => {
+            const queueObj = {
+              id: data.dataValues.id,
+              qid: data.dataValues.qid,
+              parent_qid: data.dataValues.parent_qid,
+              status: data.dataValues.status,
+              creator: data.dataValues.creator,
+            };
+            result.push(queueObj.qid);
+          });
+          if (result.length > 0) {
+            await models.plugin_queue
+              .findAll({
+                include: ['queueplugin', 'queueproject'],
+                where: { id: result },
+              })
+              .then((queueData) => {
+                queueData.forEach((data) => {
+                  const qresult = [];
+                  const pluginObj = {
+                    id: data.dataValues.id,
+                    plugin_id: data.dataValues.plugin_id,
+                    project_id: data.dataValues.project_id,
+                    plugin_parametertype: data.dataValues.plugin_parametertype,
+                    aim_uid: data.dataValues.aim_uid,
+                    runtime_params: data.dataValues.runtime_params,
+                    max_memory: data.dataValues.max_memory,
+                    status: data.dataValues.status,
+                    creator: data.dataValues.creator,
+                    starttime: data.dataValues.starttime,
+                    endtime: data.dataValues.endtime,
+                  };
+                  if (data.dataValues.queueplugin !== null) {
+                    pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+                  }
+                  if (data.dataValues.queueproject !== null) {
+                    pluginObj.project = { ...data.dataValues.queueproject.dataValues };
+                  }
+                  qresult.push(pluginObj);
+                  fastify.runPluginsQueueInternal(qresult, request);
+                });
+              });
+            return 200;
+          }
+          return 404;
+        });
+      //  fastify.runPluginsQueueInternal(result, request);
+    } catch (err) {
+      fastify.log.error(`runPluginsQueue error : ${err}`);
+      return 404;
+    }
+  });
   //  internal functions
   fastify.decorate('getPluginProjectParametersInternal', (pluginid, projectid) => {
     const parameters = [];
@@ -4423,6 +4486,17 @@ async function epaddb(fastify, options, done) {
             `completed the process for epadplugin_${queueId}`,
             true
           ).notify(fastify);
+          // check the sub queue when the parent is done processing. here we will start the subqueue.
+          // eslint-disable-next-line no-await-in-loop
+          const chieldPluginQueueId = await fastify.getNextPluginInSubQueue(queueId, request);
+          console.log(
+            `epadplugin_${queueId} is done. checking sub queue situation : ${JSON.stringify(
+              chieldPluginQueueId
+            )}`
+          );
+          // eslint-disable-next-line no-await-in-loop
+          //  await fastify.runPluginsQueue({ body: [queueId] }, request);
+          //  cx
         }
       }
       return true;
