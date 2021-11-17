@@ -6225,23 +6225,24 @@ async function epaddb(fastify, options, done) {
           const aimAccessProjIds =
             (epadAuth.projectToRole &&
               epadAuth.projectToRole
-                .filter((role) => !role.endsWith('Collaborator'))
+                .filter((role) => role && !role.endsWith('Collaborator'))
                 .map((item) => item.split(':')[0])) ||
             [];
-          const projects = await models.project.findAll({
-            where: { type: 'Public' },
-            attributes: ['projectid'],
-            raw: true,
-          });
-          if (projects) {
-            for (let i = 0; i < projects.length; i += 1) {
-              if (
-                !aimAccessProjIds.includes(projects[i].projectid) &&
-                !collaboratorProjIds.includes(projects[i].projectid)
-              )
-                aimAccessProjIds.push(projects[i].projectid);
-            }
-          }
+          // TODO should we access public project's aims? removing it for now
+          // const projects = await models.project.findAll({
+          //   where: { type: 'Public' },
+          //   attributes: ['projectid'],
+          //   raw: true,
+          // });
+          // if (projects) {
+          //   for (let i = 0; i < projects.length; i += 1) {
+          //     if (
+          //       !aimAccessProjIds.includes(projects[i].projectid) &&
+          //       !collaboratorProjIds.includes(projects[i].projectid)
+          //     )
+          //       aimAccessProjIds.push(projects[i].projectid);
+          //   }
+          // }
           resolve({ collaboratorProjIds, aimAccessProjIds });
         } catch (err) {
           reject(err);
