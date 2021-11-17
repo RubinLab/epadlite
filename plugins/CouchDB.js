@@ -462,6 +462,7 @@ async function couchdb(fastify, options) {
                     patientName: body.rows[i].fields.patient_name,
                     studyDate: body.rows[i].fields.study_date,
                     comment: body.rows[i].fields.programmed_comment,
+                    userComment: body.rows[i].fields.comment,
                     templateType: body.rows[i].fields.template_name,
                     color: 'NA',
                     dsoFrameNo: 'NA',
