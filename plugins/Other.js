@@ -14,6 +14,7 @@ const plist = require('plist');
 const { createOfflineAimSegmentation, Aim } = require('aimapi');
 const crypto = require('crypto');
 const concat = require('concat-stream');
+const ActiveDirectory = require('activedirectory2');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -1962,6 +1963,32 @@ async function other(fastify) {
     try {
       const obj = fastify.decryptInternal(request.query.arg);
       const projectID = obj.projectID ? obj.projectID : 'lite';
+      if (obj.user) {
+        // check if user exists
+        const dbUser = fastify.getUserInternal({ user: obj.user });
+        // if not get user info and create user
+        if (!dbUser && config.ad) {
+          const ad = new ActiveDirectory(config.ad);
+          try {
+            const adUser = await ad.findUser(obj.user);
+            await fastify.createUserInternal(
+              {
+                username: obj.user,
+                firstname: adUser.givenName,
+                lastname: adUser.sn,
+                email: adUser.mail,
+                enabled: true,
+                admin: false,
+                projects: [{ role: 'Member', project: projectID }],
+              },
+              { project: projectID },
+              request.epadAuth
+            );
+          } catch (adErr) {
+            fastify.log.err(`AD lookup error. ${adErr.message}`);
+          }
+        }
+      }
       // if patientID and studyUID
       if (obj.patientID && obj.studyUID) {
         await fastify.addPatientStudyToProjectInternal(
