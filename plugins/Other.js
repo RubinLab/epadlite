@@ -1961,7 +1961,7 @@ async function other(fastify) {
 
   fastify.decorate('decryptAdd', async (request, reply) => {
     try {
-      const obj = fastify.decryptInternal(request.query.arg);
+      const obj = await fastify.decryptInternal(request.query.arg);
       const projectID = obj.projectID ? obj.projectID : 'lite';
       if (obj.user) {
         // check if user exists
@@ -2040,7 +2040,7 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('decryptInternal', (encrypted) => {
+  fastify.decorate('decryptInternal', async (encrypted) => {
     if (!config.secret) {
       throw new Error('No secret defined');
     } else {
@@ -2060,6 +2060,11 @@ async function other(fastify) {
         obj[keyValue[0]] = keyValue[1];
       }
       obj.patientID = obj.patientID || obj.PatientID;
+
+      // get the api key if there is
+      const apiKey = await fastify.getApiKeyWithSecretInternal(config.secret);
+      obj.API_KEY = apiKey;
+
       if (obj.expiry) {
         const expiryDate = new Date(obj.expiry * 1000);
         const now = new Date();
@@ -2072,9 +2077,9 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('decrypt', (request, reply) => {
+  fastify.decorate('decrypt', async (request, reply) => {
     try {
-      const obj = fastify.decryptInternal(request.query.arg);
+      const obj = await fastify.decryptInternal(request.query.arg);
       if (!obj.projectID) obj.projectID = 'lite';
       if (obj) {
         reply.code(200).send(obj);

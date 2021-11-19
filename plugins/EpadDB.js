@@ -4518,6 +4518,19 @@ async function epaddb(fastify, options, done) {
     }
   );
 
+  fastify.decorate('getApiKeyWithSecretInternal', async (secret) => {
+    fastify.log.info(
+      `looking for secret:${secret} to check existance for registered server and api key `
+    );
+    const registeredServers = await models.registeredapps.findAll({
+      where: { secret },
+      order: [['updatetime', 'DESC']],
+      raw: true,
+    });
+    if (registeredServers && registeredServers[0]) return registeredServers[0].apikey;
+    return null;
+  });
+
   fastify.decorate('registerServerForAppKey', async (request, reply) => {
     const requestSenderServerName = request.raw.headers.host.split(':')[0];
     const tempBody = request.body;
@@ -13118,6 +13131,7 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS email varchar(128) AFTER organization,
                 ADD COLUMN IF NOT EXISTS emailvalidationcode varchar(128) AFTER email,
                 ADD COLUMN IF NOT EXISTS emailvalidationsent timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS secret varchar(128) AFTER epadtype,
                 MODIFY COLUMN apikey varchar(128) null;`,
               { transaction: t }
             );
