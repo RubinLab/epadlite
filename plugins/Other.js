@@ -167,6 +167,8 @@ async function other(fastify) {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 fastify.log.info(`${dir} deleted`);
               });
+              // poll dicomweb to update the counts
+              await fastify.pollDWStudies();
               const errMessagesText = fastify.getCombinedErrorText(errors);
               if (success) {
                 if (errMessagesText) {
@@ -543,7 +545,9 @@ async function other(fastify) {
         .then(() => {
           fastify
             .processFolder(dataFolder, request.params, {}, request.epadAuth)
-            .then((result) => {
+            .then(async (result) => {
+              // poll dicomweb to update the counts
+              await fastify.pollDWStudies();
               fastify.log.info(
                 `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
                   result.success
