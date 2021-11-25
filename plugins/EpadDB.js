@@ -2071,6 +2071,126 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('insertPluginSubqueue', (request, reply) => {
+    const subQueueObj = request.body;
+    models.plugin_subqueue
+      .create({
+        qid: subQueueObj.qid,
+        parent_qid: subQueueObj.parent_qid,
+        status: subQueueObj.status,
+        creator: request.epadAuth.username,
+      })
+      .then((inserteddata) => {
+        reply.code(200).send(inserteddata);
+      })
+      .catch((err) => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while adding parent plugin for the plugin flow',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('pluginCopyAimsBetweenPlugins', (request, reply) => {
+    console.log(request.params.fromid);
+    console.log(request.params.toid);
+
+    const { fromid, toid } = request.params;
+    models.plugin_queue
+      .findOne({
+        where: { id: fromid },
+        required: false,
+      })
+      .then((eachRowObj) => {
+        if (request.epadAuth.admin === true || request.epadAuth.username === eachRowObj.creator) {
+          console.log(JSON.stringify(eachRowObj));
+          console.log('copying aim', JSON.stringify(eachRowObj.aim_uid));
+          models.plugin_queue
+            .update(
+              {
+                aim_uid: eachRowObj.aim_uid,
+              },
+              {
+                where: {
+                  id: toid,
+                },
+              }
+            )
+            .then(() => {
+              reply.code(200).send();
+            })
+            .catch((err) => new InternalError('pluginCopyAimsBetweenPlugins error', err));
+        } else {
+          reply
+            .code(401)
+            .send(
+              new InternalError(
+                `copy aims from parent plugin: user doesn't have the necessary right `,
+                ''
+              )
+            );
+        }
+      })
+      .catch((err) => {
+        reply.code(500).send(new InternalError(`pluginCopyAimsBetweenPlugins error `, err));
+      });
+  });
+
+  fastify.decorate('deletePluginSubqueue', (request, reply) => {
+    const rowToDelete = request.params.id;
+
+    models.plugin_subqueue
+      .destroy({
+        where: {
+          id: rowToDelete,
+        },
+      })
+      .then(() => {
+        reply.code(200).send('plugin deleted from the subqueue');
+      })
+      .catch((err) => {
+        reply
+          .code(500)
+          .send(
+            new InternalError('Something went wrong while deleting plugin from the subqueue', err)
+          );
+      });
+  });
+
+  fastify.decorate('getPluginParentsInQueue', (request, reply) => {
+    const result = [];
+    console.log(request.params.qid);
+    const { qid } = request.params;
+    models.plugin_subqueue
+      .findAll({
+        where: { qid },
+        required: false,
+      })
+      .then((eachRowObj) => {
+        eachRowObj.forEach((data) => {
+          const pluginObj = {
+            id: data.dataValues.id,
+            qid: data.dataValues.qid,
+            parent_qid: data.dataValues.parent_qid,
+            status: data.dataValues.status,
+            creator: data.dataValues.creator,
+          };
+          if (request.epadAuth.admin === true || request.epadAuth.username === pluginObj.creator) {
+            result.push(pluginObj);
+          }
+        });
+
+        reply.code(200).send(result);
+      })
+      .catch((err) => {
+        reply.code(500).send(new InternalError(`getPluginParentsInQueue error `, err));
+      });
+  });
+
   fastify.decorate('getPluginsQueue', (request, reply) => {
     const result = [];
     models.plugin_queue

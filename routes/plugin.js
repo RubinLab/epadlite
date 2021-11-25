@@ -264,5 +264,88 @@ async function routes(fastify) {
     },
     handler: fastify.deleteOneTemplateParameter,
   });
+  fastify.route({
+    method: 'GET',
+    url: '/pluginsubqueue/:qid',
+    schema: {
+      tags: ['plugins'],
+      params: {
+        type: 'object',
+        properties: {
+          qid: {
+            type: 'integer',
+          },
+        },
+      },
+    },
+    handler: fastify.getPluginParentsInQueue,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/pluginsubqueue',
+    schema: {
+      tags: ['plugins'],
+      body: {
+        type: 'object',
+        required: ['qid', 'parent_qid', 'status'],
+        properties: {
+          qid: { type: 'integer' },
+          parent_qid: { type: 'integer' },
+          status: { type: 'integer' },
+        },
+      },
+    },
+    handler: fastify.insertPluginSubqueue,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/pluginsubqueue/:fromid/:toid',
+    schema: {
+      tags: ['plugins'],
+      params: {
+        type: 'object',
+        required: ['fromid', 'toid'],
+        properties: {
+          fromid: { type: 'integer' },
+          toid: { type: 'integer' },
+        },
+      },
+    },
+    handler: fastify.pluginCopyAimsBetweenPlugins,
+  });
+  // fastify.route({
+  //   method: 'PUT',
+  //   url: '/pluginsubqueue/:qid',
+  //   schema: {
+  //     tags: ['plugins'],
+  //     body: {
+  //       type: 'object',
+  //       required: ['qid', 'parent_qid', 'status', 'creator'],
+  //       properties: {
+  //         qid: { type: 'integer' },
+  //         parent_qid: { type: 'integer' },
+  //         status: { type: 'integer' },
+  //         creator: { type: 'integer' },
+  //       },
+  //     },
+  //   },
+  //   handler: fastify.updatePluginSubqueue,
+  // });
+  fastify.route({
+    method: 'DELETE',
+    url: '/pluginsubqueue/:id',
+    schema: {
+      tags: ['plugins'],
+      params: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'integer',
+          },
+        },
+      },
+    },
+    handler: fastify.deletePluginSubqueue,
+  });
 }
 module.exports = routes;
