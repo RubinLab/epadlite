@@ -2293,7 +2293,7 @@ async function epaddb(fastify, options, done) {
 
     const queueIdsArrayToStart = request.body;
     const allStatus = ['added', 'ended', 'error', 'running'];
-    const result = [];
+    //  const result = [];
     try {
       reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
 
@@ -2302,9 +2302,13 @@ async function epaddb(fastify, options, done) {
           include: ['queueplugin', 'queueproject'],
           where: { id: queueIdsArrayToStart, status: allStatus },
         })
-        .then((tableData) => {
-          tableData.forEach((data) => {
-            //  const result = [];
+        .then(async (tableData) => {
+          const sequence = false;
+          const seqresult = [];
+          for (let i = 0; i < tableData.length; i += 1) {
+            const data = tableData[i];
+            // tableData.forEach(async (data) => {
+            const nonseqresult = [];
             const pluginObj = {
               id: data.dataValues.id,
               plugin_id: data.dataValues.plugin_id,
@@ -2327,35 +2331,48 @@ async function epaddb(fastify, options, done) {
 
             const dock = new DockerService(fs, fastify, path);
             const containerName = `epadplugin_${pluginObj.id}`;
-            dock
+            // eslint-disable-next-line no-await-in-loop
+            await dock
               .checkContainerExistance(containerName)
+              // eslint-disable-next-line no-loop-func
               .then((resInspect) => {
                 if (resInspect.message === '404') {
                   fastify.log.info(
                     'not a real error. Container has not found so we can create new one'
                   );
-                  throw new Error('404');
+                  if (sequence){
+                    nonseqresult.push(pluginObj);
+                    seqresult.push(pluginObj);
+                  } else {
+                    throw new Error('404');
+                  }
                 }
                 if (resInspect.State.Status !== 'running') {
                   fastify.log.info(`container is not running : ${containerName}`);
                   dock.deleteContainer(containerName).then((deleteReturn) => {
                     fastify.log.info(`delete container result :${deleteReturn}`);
-                    result.push(pluginObj);
-                    //  fastify.runPluginsQueueInternal(result, request);
+                    nonseqresult.push(pluginObj);
+                    seqresult.push(pluginObj);
+                    if (!sequence){
+                      fastify.runPluginsQueueInternal(nonseqresult, request);
+                    }
                   });
                 }
               })
               .catch((err) => {
                 fastify.log.info(`inspect element err : ${err}`);
                 if (err.message === '404') {
-                  result.push(pluginObj);
-                  //  fastify.runPluginsQueueInternal(result, request);
+                  nonseqresult.push(pluginObj);
+                  seqresult.push(pluginObj);
+                  if (!sequence){
+                    fastify.runPluginsQueueInternal(nonseqresult, request);
+                  }
                 }
-              });
-          });
-        })
-        .then(() => {
-          fastify.runPluginsQueueInternal(result, request);
+              }); //  });
+          }
+          if (sequence){
+            fastify.runPluginsQueueInternal(seqresult, request);
+          }
         });
       //  fastify.runPluginsQueueInternal(result, request);
     } catch (err) {
