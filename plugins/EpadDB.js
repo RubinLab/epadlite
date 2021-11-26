@@ -2290,8 +2290,16 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('runPluginsQueue', async (request, reply) => {
     //  will receive a queue object which contains plugin id
-
-    const queueIdsArrayToStart = request.body;
+    let queueIdsArrayToStart = null;
+    let sequence = false;
+    if (typeof request.body.ids === 'undefined') {
+      queueIdsArrayToStart = request.body;
+    } else {
+      queueIdsArrayToStart = request.body.ids;
+    }
+    if (typeof request.body.sequence !== 'undefined') {
+      sequence = request.body.sequence;
+    }
     const allStatus = ['added', 'ended', 'error', 'running'];
     //  const result = [];
     try {
@@ -2303,7 +2311,6 @@ async function epaddb(fastify, options, done) {
           where: { id: queueIdsArrayToStart, status: allStatus },
         })
         .then(async (tableData) => {
-          const sequence = false;
           const seqresult = [];
           for (let i = 0; i < tableData.length; i += 1) {
             const data = tableData[i];
