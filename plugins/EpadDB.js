@@ -362,7 +362,14 @@ async function epaddb(fastify, options, done) {
           }
         })
         .catch((err) => {
-          reply.send(new InternalError('Creating project', err));
+          if (
+            err.errors &&
+            err.errors[0] &&
+            err.errors[0].type &&
+            err.errors[0].type === 'unique violation'
+          )
+            reply.send(new ResourceAlreadyExistsError('Project', projectId));
+          else reply.send(new InternalError('Creating project', err));
         });
     }
   });
@@ -4753,7 +4760,14 @@ async function epaddb(fastify, options, done) {
                   });
               })
               .catch((worklistCreationErr) => {
-                reply.send(new InternalError('Creating worklist', worklistCreationErr));
+                if (
+                  worklistCreationErr.errors &&
+                  worklistCreationErr.errors[0] &&
+                  worklistCreationErr.errors[0].type &&
+                  worklistCreationErr.errors[0].type === 'unique violation'
+                )
+                  reply.send(new ResourceAlreadyExistsError('Worklist', request.body.worklistId));
+                else reply.send(new InternalError('Creating worklist', worklistCreationErr));
               });
           })
           .catch((userIDErr) => {
