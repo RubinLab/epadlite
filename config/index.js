@@ -88,5 +88,11 @@ config.precomputeReports = process.env.PRECOMPUTE_REPORTS
 config.wadoType = process.env.WADO_TYPE || config.wadoType || undefined;
 config.auditLog =
   (process.env.AUDIT_LOG && process.env.AUDIT_LOG === 'true') || config.auditLog || false;
+// eslint-disable-next-line no-nested-ternary
+config.dimse = config.dimse
+  ? config.dimse
+  : process.env.DIMSE_AET
+  ? { aet: process.env.DIMSE_AET, ip: process.env.DIMSE_IP, port: process.env.DIMSE_PORT }
+  : null;
 
 module.exports = config;
