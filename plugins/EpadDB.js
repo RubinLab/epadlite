@@ -16,6 +16,9 @@ const csv = require('csv-parser');
 const { createOfflineAimSegmentation } = require('aimapi');
 // eslint-disable-next-line no-global-assign
 window = {};
+const globalMapQueueById = new Map();
+const globalMapQueueByUser = new Map();
+
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const appVersion = require('../package.json').version;
@@ -2347,7 +2350,7 @@ async function epaddb(fastify, options, done) {
                   fastify.log.info(
                     'not a real error. Container has not found so we can create new one'
                   );
-                  if (sequence){
+                  if (sequence) {
                     nonseqresult.push(pluginObj);
                     seqresult.push(pluginObj);
                   } else {
@@ -2360,25 +2363,61 @@ async function epaddb(fastify, options, done) {
                     fastify.log.info(`delete container result :${deleteReturn}`);
                     nonseqresult.push(pluginObj);
                     seqresult.push(pluginObj);
-                    if (!sequence){
+                    if (!sequence) {
                       fastify.runPluginsQueueInternal(nonseqresult, request);
                     }
                   });
                 }
               })
+              // eslint-disable-next-line no-loop-func
               .catch((err) => {
                 fastify.log.info(`inspect element err : ${err}`);
                 if (err.message === '404') {
                   nonseqresult.push(pluginObj);
                   seqresult.push(pluginObj);
-                  if (!sequence){
+                  if (!sequence) {
                     fastify.runPluginsQueueInternal(nonseqresult, request);
                   }
                 }
               }); //  });
           }
-          if (sequence){
-            fastify.runPluginsQueueInternal(seqresult, request);
+          if (sequence) {
+            const removeIds = [];
+            for (let i = 0; i < seqresult.length; i += 1) {
+              if (!globalMapQueueById.has(seqresult[i].id)) {
+                globalMapQueueById.set(seqresult[i].id, '');
+              } else {
+                removeIds.push(seqresult[i].id);
+              }
+            }
+            // let gidkeys = [];
+            // gidkeys = globalMapQueueById.keys();
+            // for (let i = 0; i < gidkeys.length; i += 1) {
+            //   if (globalMapQueueById.get(seqresult[i].id) === 'sent') {
+            //     removeIds.push(seqresult[i].id);
+            //   }
+            // }
+            //  seqresult = [...globalMapQueueById.values()];
+            console.log('seqresult--------------------------------------------');
+            console.log('seqresult--------------------------------------------');
+            console.log('seqresult--------------------------------------------');
+            console.log('seqresult--------------------------------------------');
+            console.log('seqresult--------------------------------------------');
+            console.log(
+              'seqresult--------------------------------------------',
+              JSON.stringify(seqresult)
+            );
+            for (let i = 0; removeIds.length; i += 1) {
+              for (let k = 0; seqresult.length; k += 1) {
+                if (seqresult[k].id === removeIds[i]) {
+                  seqresult[k] = { id: -1 };
+                }
+              }
+            }
+            await fastify.runPluginsQueueInternal(seqresult, request);
+            // for (let i = 0; i < seqresult.length; i += 1) {
+            //   globalMapQueueById.set(seqresult[i].id, 'sent');
+            // }
           }
         });
       //  fastify.runPluginsQueueInternal(result, request);
@@ -2970,6 +3009,23 @@ async function epaddb(fastify, options, done) {
         );
     }
     if (status === 'running') {
+      models.plugin_queue
+        .update(
+          {
+            status,
+          },
+          {
+            where: {
+              id: queuid,
+            },
+          }
+        )
+        .then((data) => data)
+        .catch(
+          (err) => new InternalError('error while updating queue process status for running', err)
+        );
+    }
+    if (status === 'inqueue') {
       models.plugin_queue
         .update(
           {
@@ -4016,6 +4072,13 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
     try {
+      const seq = request.body.sequence || false;
+      if (seq) {
+        for (let i = 0; i < pluginQueueList.length; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(pluginQueueList[i].id, 'inqueue');
+        }
+      }
       for (let i = 0; i < pluginQueueList.length; i += 1) {
         let containerErrorTrack = 0;
         const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${pluginQueueList[i].plugin.image_tag}`;
@@ -4645,6 +4708,11 @@ async function epaddb(fastify, options, done) {
           //  await fastify.runPluginsQueue({ body: [queueId] }, request);
           //  cx
         }
+        //  globalMapQueueById.delete(queueId);
+      }
+      // delete global ids here
+      for (let gqidscnt = 0; gqidscnt < pluginQueueList.length; gqidscnt += 1) {
+        globalMapQueueById.delete(pluginQueueList[gqidscnt].id);
       }
       return true;
     } catch (err) {
