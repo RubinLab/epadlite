@@ -2304,7 +2304,6 @@ async function epaddb(fastify, options, done) {
       sequence = request.body.sequence;
     }
     const allStatus = ['added', 'ended', 'error', 'running'];
-    //  const result = [];
     try {
       reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
 
@@ -2317,7 +2316,6 @@ async function epaddb(fastify, options, done) {
           const seqresult = [];
           for (let i = 0; i < tableData.length; i += 1) {
             const data = tableData[i];
-            // tableData.forEach(async (data) => {
             const nonseqresult = [];
             const pluginObj = {
               id: data.dataValues.id,
@@ -2379,7 +2377,7 @@ async function epaddb(fastify, options, done) {
                     fastify.runPluginsQueueInternal(nonseqresult, request);
                   }
                 }
-              }); //  });
+              });
           }
           if (sequence) {
             const removeIds = [];
@@ -2390,23 +2388,7 @@ async function epaddb(fastify, options, done) {
                 removeIds.push(seqresult[i].id);
               }
             }
-            // let gidkeys = [];
-            // gidkeys = globalMapQueueById.keys();
-            // for (let i = 0; i < gidkeys.length; i += 1) {
-            //   if (globalMapQueueById.get(seqresult[i].id) === 'sent') {
-            //     removeIds.push(seqresult[i].id);
-            //   }
-            // }
-            //  seqresult = [...globalMapQueueById.values()];
-            console.log('seqresult--------------------------------------------');
-            console.log('seqresult--------------------------------------------');
-            console.log('seqresult--------------------------------------------');
-            console.log('seqresult--------------------------------------------');
-            console.log('seqresult--------------------------------------------');
-            console.log(
-              'seqresult--------------------------------------------',
-              JSON.stringify(seqresult)
-            );
+
             for (let i = 0; removeIds.length; i += 1) {
               for (let k = 0; seqresult.length; k += 1) {
                 if (seqresult[k].id === removeIds[i]) {
@@ -2415,12 +2397,8 @@ async function epaddb(fastify, options, done) {
               }
             }
             await fastify.runPluginsQueueInternal(seqresult, request);
-            // for (let i = 0; i < seqresult.length; i += 1) {
-            //   globalMapQueueById.set(seqresult[i].id, 'sent');
-            // }
           }
         });
-      //  fastify.runPluginsQueueInternal(result, request);
     } catch (err) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
     }
@@ -2428,7 +2406,6 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getNextPluginInSubQueue', async (paramQid, request) => {
     //  will receive a queue object which contains plugin id
-    //  cx
     const result = [];
     try {
       return await models.plugin_subqueue
@@ -2482,7 +2459,6 @@ async function epaddb(fastify, options, done) {
           }
           return 404;
         });
-      //  fastify.runPluginsQueueInternal(result, request);
     } catch (err) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
       return 404;
@@ -2664,7 +2640,6 @@ async function epaddb(fastify, options, done) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                   isItFirstTimeGettingDicoms = true;
                 }
-                // eslint-disable-next-line no-case-declarations
 
                 if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
                   // aim level dicoms
