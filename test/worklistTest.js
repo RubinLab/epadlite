@@ -141,6 +141,25 @@ describe('Worklist Tests', () => {
         done(e);
       });
   });
+  it('should fail creating a new worklist with an existing id', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/worklists?username=testCreator@gmail.com')
+      .send({
+        name: 'test',
+        worklistId: 'testCreate',
+        description: 'testdesc',
+        duedate: '2019-12-01',
+        assignees: ['testAssignee@gmail.com'],
+      })
+      .then((res) => {
+        expect(res.statusCode).to.equal(409);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
   it('worklists should have 1 worklists created by the user', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

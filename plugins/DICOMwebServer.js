@@ -4,6 +4,7 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
+const dimse = require('dicom-dimse-native');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -561,7 +562,7 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(
             this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription`,
+              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
               header
             )
           );
@@ -755,17 +756,100 @@ async function dicomwebserver(fastify) {
   });
 
   fastify.decorate(
+    'getStudySeriesDIMSE',
+    (studyUID) =>
+      new Promise((resolve, reject) => {
+        dimse.findScu(
+          JSON.stringify({
+            source: {
+              aet: 'FINDSCU',
+              ip: '127.0.0.1',
+              port: '9999',
+            },
+            target: {
+              aet: config.dimse.aet,
+              ip: config.dimse.ip,
+              port: config.dimse.port,
+            },
+            tags: [
+              {
+                key: '0020000D',
+                value: studyUID,
+              },
+              {
+                key: '00080052',
+                value: 'SERIES',
+              },
+              {
+                key: '00080021',
+                value: '',
+              },
+              {
+                key: '0008103E',
+                value: '',
+              },
+              {
+                key: '0020000E',
+                value: '',
+              },
+              {
+                key: '00080060',
+                value: '',
+              },
+              {
+                key: '00080050',
+                value: '',
+              },
+              {
+                key: '00201209',
+                value: '',
+              },
+              {
+                key: '00201209',
+                value: '',
+              },
+              {
+                key: '00200011',
+                value: '',
+              },
+            ],
+          }),
+          (result) => {
+            try {
+              const jsonResult = JSON.parse(result);
+              const map = {};
+              const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
+              res.forEach((item) => {
+                if (item['0020000E'])
+                  map[item['0020000E'].Value[0]] = item['0008103E']
+                    ? item['0008103E'].Value[0]
+                    : '';
+              });
+              console.log('map', map);
+              resolve({ data: res });
+            } catch (err) {
+              console.log(err);
+              reject(err);
+            }
+          }
+        );
+      })
+  );
+
+  fastify.decorate(
     'getStudySeriesInternal',
     (params, query, epadAuth, noStats) =>
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          promisses.push(
-            this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
-              header
-            )
-          );
+          if (config.dimse) promisses.push(fastify.getStudySeriesDIMSE(params.study));
+          else
+            promisses.push(
+              this.request.get(
+                `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
+                header
+              )
+            );
           promisses.push(
             fastify
               .getSignificantSeriesInternal(params.project, params.subject, params.study)

@@ -4404,6 +4404,26 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should fail creating testassoc2 project again ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testassoc2',
+          projectName: 'testassoc2',
+          projectDescription: 'testassoc2desc',
+          defaultTemplate: '', // giving default template automatically adds the template to the project
+          type: 'private',
+        })
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(409);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('project aim add of aim 2.25.211702350959705565754863799143359605362 to project testassoc2 should be successful ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
