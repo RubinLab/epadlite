@@ -4525,6 +4525,19 @@ async function epaddb(fastify, options, done) {
     }
   );
 
+  fastify.decorate('getApiKeyWithSecretInternal', async (secret) => {
+    fastify.log.info(
+      `looking for secret:${secret} to check existance for registered server and api key `
+    );
+    const registeredServers = await models.registeredapps.findAll({
+      where: { secret },
+      order: [['updatetime', 'DESC']],
+      raw: true,
+    });
+    if (registeredServers && registeredServers[0]) return registeredServers[0].apikey;
+    return null;
+  });
+
   fastify.decorate('registerServerForAppKey', async (request, reply) => {
     const requestSenderServerName = request.raw.headers.host.split(':')[0];
     const tempBody = request.body;
@@ -9629,96 +9642,111 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('createUser', async (request, reply) => {
-    if (!request.body) {
-      reply.send(new BadRequestError('User Creation', new Error('No body sent')));
-    } else {
-      let existingUsername;
-      let existingEmail;
-      try {
-        existingUsername = await models.user.findOne({
-          where: { username: request.body.username },
-          attributes: ['id'],
-        });
-        existingUsername = existingUsername ? existingUsername.dataValues.id : null;
-        existingEmail = await models.user.findOne({
-          where: { email: request.body.username },
-          attributes: ['id'],
-        });
-        existingEmail = existingEmail ? existingEmail.dataValues.id : null;
-      } catch (error) {
-        reply.send(new InternalError('Create user in db', error));
-      }
-      if (existingUsername || existingEmail) {
-        if (existingUsername)
-          reply.send(new ResourceAlreadyExistsError(`Username `, request.body.username));
-        if (existingEmail)
-          reply.send(new ResourceAlreadyExistsError('Email address ', request.body.username));
-      } else {
-        try {
-          const permissions = request.body.permissions ? request.body.permissions.split(',') : [''];
-          const trimmedPermission = [];
-          permissions.forEach((el) => trimmedPermission.push(el.trim()));
-          if (request.body.permissions) {
-            delete request.body.permissions;
-          }
-          request.body.permissions = trimmedPermission.join(',');
-          const user = await models.user.create({
-            ...request.body,
-            createdtime: Date.now(),
-            updatetime: Date.now(),
-            creator: request.epadAuth.username,
-          });
+    fastify
+      .createUserInternal(request.body, request.params, request.epadAuth)
+      .then((result) => reply.code(200).send(result))
+      .catch((err) => reply.send(err));
+  });
 
-          const { id } = user.dataValues;
-          if (request.body.projects && request.body.projects.length > 0) {
-            const queries = [];
+  // body should be an object with fields
+  // {username, firstname, lastname, email, enabled, admin, permissions, projects}
+  fastify.decorate(
+    'createUserInternal',
+    (body, params, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        if (!body) {
+          reject(new BadRequestError('User Creation', new Error('No body sent')));
+        } else {
+          let existingUsername;
+          let existingEmail;
+          try {
+            existingUsername = await models.user.findOne({
+              where: { username: body.username },
+              attributes: ['id'],
+            });
+            existingUsername = existingUsername ? existingUsername.dataValues.id : null;
+            existingEmail = await models.user.findOne({
+              where: { email: body.username },
+              attributes: ['id'],
+            });
+            existingEmail = existingEmail ? existingEmail.dataValues.id : null;
+          } catch (error) {
+            reject(new InternalError('Create user in db', error));
+          }
+          if (existingUsername || existingEmail) {
+            if (existingUsername)
+              reject(new ResourceAlreadyExistsError(`Username `, body.username));
+            if (existingEmail)
+              reject(new ResourceAlreadyExistsError('Email address ', body.username));
+          } else {
             try {
-              for (let i = 0; i < request.body.projects.length; i += 1) {
-                const isNone = request.body.projects[i].role.toLowerCase() === 'none';
-                if (!isNone) {
-                  // eslint-disable-next-line no-await-in-loop
-                  const project = await models.project.findOne({
-                    where: { projectid: request.body.projects[i].project },
-                    attributes: ['id'],
-                  });
-                  if (project === null) {
-                    reply.send(
-                      new BadRequestError(
-                        'Create user with project associations',
-                        new ResourceNotFoundError('Project', request.params.project)
-                      )
-                    );
-                  } else {
-                    const projectId = project.dataValues.id;
-                    const entry = {
-                      project_id: projectId,
-                      user_id: id,
-                      role: request.body.projects[i].role,
-                      createdtime: Date.now(),
-                      updatetime: Date.now(),
-                    };
-                    queries.push(models.project_user.create(entry));
-                  }
-                }
+              const permissions = body.permissions ? body.permissions.split(',') : [''];
+              const trimmedPermission = [];
+              permissions.forEach((el) => trimmedPermission.push(el.trim()));
+              if (body.permissions) {
+                // eslint-disable-next-line no-param-reassign
+                delete body.permissions;
               }
-              try {
-                await Promise.all(queries);
-                reply.code(200).send(`User succesfully created`);
-              } catch (err) {
-                reply.send(new InternalError('Create user project associations', err));
+              // eslint-disable-next-line no-param-reassign
+              body.permissions = trimmedPermission.join(',');
+              const user = await models.user.create({
+                ...body,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+                creator: epadAuth.username,
+              });
+
+              const { id } = user.dataValues;
+              if (body.projects && body.projects.length > 0) {
+                const queries = [];
+                try {
+                  for (let i = 0; i < body.projects.length; i += 1) {
+                    const isNone = body.projects[i].role.toLowerCase() === 'none';
+                    if (!isNone) {
+                      // eslint-disable-next-line no-await-in-loop
+                      const project = await models.project.findOne({
+                        where: { projectid: body.projects[i].project },
+                        attributes: ['id'],
+                      });
+                      if (project === null) {
+                        reject(
+                          new BadRequestError(
+                            'Create user with project associations',
+                            new ResourceNotFoundError('Project', params.project)
+                          )
+                        );
+                      } else {
+                        const projectId = project.dataValues.id;
+                        const entry = {
+                          project_id: projectId,
+                          user_id: id,
+                          role: body.projects[i].role,
+                          createdtime: Date.now(),
+                          updatetime: Date.now(),
+                        };
+                        queries.push(models.project_user.create(entry));
+                      }
+                    }
+                  }
+                  try {
+                    await Promise.all(queries);
+                    resolve(`User succesfully created`);
+                  } catch (err) {
+                    reject(new InternalError('Create user project associations', err));
+                  }
+                } catch (err) {
+                  reject(new InternalError('Create user project associations', err));
+                }
+              } else {
+                resolve(`User succesfully created`);
               }
             } catch (err) {
-              reply.send(new InternalError('Create user project associations', err));
+              reject(new InternalError('Create user in db', err));
             }
-          } else {
-            reply.code(200).send(`User succesfully created`);
           }
-        } catch (err) {
-          reply.send(new InternalError('Create user in db', err));
         }
-      }
-    }
-  });
+      })
+  );
 
   fastify.decorate(
     'getProjectInternal',
@@ -13118,6 +13146,7 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS email varchar(128) AFTER organization,
                 ADD COLUMN IF NOT EXISTS emailvalidationcode varchar(128) AFTER email,
                 ADD COLUMN IF NOT EXISTS emailvalidationsent timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS secret varchar(128) AFTER epadtype,
                 MODIFY COLUMN apikey varchar(128) null;`,
               { transaction: t }
             );
