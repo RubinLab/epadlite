@@ -9607,7 +9607,7 @@ async function epaddb(fastify, options, done) {
               studyUID: params.study,
               seriesUID: series[i].dataValues.seriesuid,
               seriesDate: series[i].dataValues.seriesdate,
-              seriesDescription: series[i].dataValues.description,
+              seriesDescription: series[i].dataValues.description || '',
               examType: '',
               bodyPart: '',
               accessionNumber: '',
