@@ -555,17 +555,42 @@ async function dicomwebserver(fastify) {
     ) =>
       new Promise((resolve, reject) => {
         try {
+          const promisses = [];
+          const qryIncludes =
+            '&includefield=StudyDescription&includefield=00201206&includefield=00201208';
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
-          if (params.study) query = `?StudyInstanceUID=${params.study}`;
-          else if (params.subject) query = `?PatientID=${params.subject}`;
-          const promisses = [];
-          promisses.push(
-            this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
-              header
-            )
-          );
+          if (filter) {
+            let studyUidsStr = filter.join(',');
+            const maxLength = 2048 - qryIncludes.length - '?StudyInstanceUID='.length;
+            if (studyUidsStr.length > maxLength) {
+              for (let i = 0; i < studyUidsStr.length / maxLength + 1; i += 1)
+                for (let j = maxLength; j > 0; j -= 1) {
+                  if (studyUidsStr[j] === ',') {
+                    promisses.push(
+                      this.request.get(
+                        `${
+                          config.dicomWebConfig.qidoSubPath
+                        }/studies?StudyInstanceUID=${studyUidsStr.substring(0, j)}${qryIncludes}`,
+                        header
+                      )
+                    );
+                    studyUidsStr = studyUidsStr.substring(j + 1);
+                    break;
+                  }
+                }
+            }
+          } else {
+            if (params.study) query = `?StudyInstanceUID=${params.study}`;
+            else if (params.subject) query = `?PatientID=${params.subject}`;
+
+            promisses.push(
+              this.request.get(
+                `${config.dicomWebConfig.qidoSubPath}/studies${query}${qryIncludes}`,
+                header
+              )
+            );
+          }
           // get aims for a specific patient
           if (!noStats)
             promisses.push(
@@ -581,11 +606,15 @@ async function dicomwebserver(fastify) {
 
           Promise.all(promisses)
             .then(async (values) => {
+              let studies = values[0].data;
+              for (let i = 1; i < (!noStats ? values.length - 1 : values.length); i += 1) {
+                studies = studies.concat(values[i].data);
+              }
               // handle success
               // filter the results if patient id filter is given
               // eslint-disable-next-line prefer-const
               let { filteredStudies } = await fastify.filter(
-                values[0].data,
+                studies,
                 [],
                 filter,
                 tag,
@@ -593,7 +622,7 @@ async function dicomwebserver(fastify) {
                 negateFilter
               );
               // populate an aim counts map containing each study
-              const aimsCountMap = values[1] ? values[1] : [];
+              const aimsCountMap = !noStats ? values[values.length - 1] : [];
 
               if (
                 filteredStudies.length === 0 ||
