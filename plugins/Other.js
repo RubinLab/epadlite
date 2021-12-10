@@ -14,6 +14,7 @@ const plist = require('plist');
 const { createOfflineAimSegmentation, Aim } = require('aimapi');
 const crypto = require('crypto');
 const concat = require('concat-stream');
+const ActiveDirectory = require('activedirectory2');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -167,6 +168,8 @@ async function other(fastify) {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 fastify.log.info(`${dir} deleted`);
               });
+              // poll dicomweb to update the counts
+              await fastify.pollDWStudies();
               const errMessagesText = fastify.getCombinedErrorText(errors);
               if (success) {
                 if (errMessagesText) {
@@ -543,7 +546,9 @@ async function other(fastify) {
         .then(() => {
           fastify
             .processFolder(dataFolder, request.params, {}, request.epadAuth)
-            .then((result) => {
+            .then(async (result) => {
+              // poll dicomweb to update the counts
+              await fastify.pollDWStudies();
               fastify.log.info(
                 `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
                   result.success
@@ -1960,8 +1965,34 @@ async function other(fastify) {
 
   fastify.decorate('decryptAdd', async (request, reply) => {
     try {
-      const obj = fastify.decryptInternal(request.query.arg);
+      const obj = await fastify.decryptInternal(request.query.arg);
       const projectID = obj.projectID ? obj.projectID : 'lite';
+      if (obj.user) {
+        // check if user exists
+        const dbUser = fastify.getUserInternal({ user: obj.user });
+        // if not get user info and create user
+        if (!dbUser && config.ad) {
+          const ad = new ActiveDirectory(config.ad);
+          try {
+            const adUser = await ad.findUser(obj.user);
+            await fastify.createUserInternal(
+              {
+                username: obj.user,
+                firstname: adUser.givenName,
+                lastname: adUser.sn,
+                email: adUser.mail,
+                enabled: true,
+                admin: false,
+                projects: [{ role: 'Member', project: projectID }],
+              },
+              { project: projectID },
+              request.epadAuth
+            );
+          } catch (adErr) {
+            fastify.log.err(`AD lookup error. ${adErr.message}`);
+          }
+        }
+      }
       // if patientID and studyUID
       if (obj.patientID && obj.studyUID) {
         await fastify.addPatientStudyToProjectInternal(
@@ -2013,7 +2044,7 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('decryptInternal', (encrypted) => {
+  fastify.decorate('decryptInternal', async (encrypted) => {
     if (!config.secret) {
       throw new Error('No secret defined');
     } else {
@@ -2033,6 +2064,11 @@ async function other(fastify) {
         obj[keyValue[0]] = keyValue[1];
       }
       obj.patientID = obj.patientID || obj.PatientID;
+
+      // get the api key if there is
+      const apiKey = await fastify.getApiKeyWithSecretInternal(config.secret);
+      obj.API_KEY = apiKey;
+
       if (obj.expiry) {
         const expiryDate = new Date(obj.expiry * 1000);
         const now = new Date();
@@ -2045,9 +2081,9 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('decrypt', (request, reply) => {
+  fastify.decorate('decrypt', async (request, reply) => {
     try {
-      const obj = fastify.decryptInternal(request.query.arg);
+      const obj = await fastify.decryptInternal(request.query.arg);
       if (!obj.projectID) obj.projectID = 'lite';
       if (obj) {
         reply.code(200).send(obj);
