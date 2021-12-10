@@ -99,4 +99,16 @@ config.pullStudyIds =
   config.pullStudyIds ||
   false;
 
+// eslint-disable-next-line no-nested-ternary
+config.ad = config.ad
+  ? config.ad
+  : process.env.AD_URL
+  ? {
+      url: process.env.AD_URL,
+      baseDN: process.env.AD_BASEDN,
+      username: process.env.AD_USERNAME,
+      password: process.env.AD_PASSWORD,
+    }
+  : null;
+
 module.exports = config;
