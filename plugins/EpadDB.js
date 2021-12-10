@@ -2096,9 +2096,6 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('pluginCopyAimsBetweenPlugins', (request, reply) => {
-    console.log(request.params.fromid);
-    console.log(request.params.toid);
-
     const { fromid, toid } = request.params;
     models.plugin_queue
       .findOne({
@@ -2107,8 +2104,6 @@ async function epaddb(fastify, options, done) {
       })
       .then((eachRowObj) => {
         if (request.epadAuth.admin === true || request.epadAuth.username === eachRowObj.creator) {
-          console.log(JSON.stringify(eachRowObj));
-          console.log('copying aim', JSON.stringify(eachRowObj.aim_uid));
           models.plugin_queue
             .update(
               {
@@ -4586,7 +4581,6 @@ async function epaddb(fastify, options, done) {
               true
             ).notify(fastify);
           }
-          // eslint-disable-next-line no-await-in-loop
         } catch (err) {
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'error');
@@ -4608,15 +4602,12 @@ async function epaddb(fastify, options, done) {
           ).notify(fastify);
           // check the sub queue when the parent is done processing. here we will start the subqueue.
           // eslint-disable-next-line no-await-in-loop
-          const chieldPluginQueueId = await fastify.getNextPluginInSubQueue(queueId, request);
-          console.log(
+          const childPluginQueueId = await fastify.getNextPluginInSubQueue(queueId, request);
+          fastify.log.info(
             `epadplugin_${queueId} is done. checking sub queue situation : ${JSON.stringify(
-              chieldPluginQueueId
+              childPluginQueueId
             )}`
           );
-          // eslint-disable-next-line no-await-in-loop
-          //  await fastify.runPluginsQueue({ body: [queueId] }, request);
-          //  cx
         }
       }
       return true;
