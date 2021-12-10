@@ -1963,6 +1963,28 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('createADUser', async (username, projectID, epadAuth) => {
+    const ad = new ActiveDirectory(config.ad);
+    try {
+      const adUser = await ad.findUser(username);
+      await fastify.createUserInternal(
+        {
+          username,
+          firstname: adUser.givenName,
+          lastname: adUser.sn,
+          email: adUser.mail,
+          enabled: true,
+          admin: false,
+          projects: [{ role: 'Member', project: projectID }],
+        },
+        { project: projectID },
+        epadAuth
+      );
+    } catch (adErr) {
+      fastify.log.err(`AD lookup error. ${adErr.message}`);
+    }
+  });
+
   fastify.decorate('decryptAdd', async (request, reply) => {
     try {
       const obj = await fastify.decryptInternal(request.query.arg);
@@ -1972,25 +1994,7 @@ async function other(fastify) {
         const dbUser = fastify.getUserInternal({ user: obj.user });
         // if not get user info and create user
         if (!dbUser && config.ad) {
-          const ad = new ActiveDirectory(config.ad);
-          try {
-            const adUser = await ad.findUser(obj.user);
-            await fastify.createUserInternal(
-              {
-                username: obj.user,
-                firstname: adUser.givenName,
-                lastname: adUser.sn,
-                email: adUser.mail,
-                enabled: true,
-                admin: false,
-                projects: [{ role: 'Member', project: projectID }],
-              },
-              { project: projectID },
-              request.epadAuth
-            );
-          } catch (adErr) {
-            fastify.log.err(`AD lookup error. ${adErr.message}`);
-          }
+          await fastify.createADUser(obj, projectID, request.epadAuth);
         }
       }
       // if patientID and studyUID
