@@ -94,5 +94,9 @@ config.dimse = config.dimse
   : process.env.DIMSE_AET
   ? { aet: process.env.DIMSE_AET, ip: process.env.DIMSE_IP, port: process.env.DIMSE_PORT }
   : null;
+config.pullStudyIds =
+  (process.env.PULL_STUDY_IDS && process.env.PULL_STUDY_IDS === 'true') ||
+  config.pullStudyIds ||
+  false;
 
 module.exports = config;

@@ -266,7 +266,7 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(
             this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription`,
+              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
               header
             )
           );
@@ -431,7 +431,10 @@ async function dicomwebserver(fastify) {
           // use admin username
           const epadAuth = { username: 'admin', admin: true };
           const updateStudyPromises = [];
-          const values = await this.request.get(`/studies?includefield=StudyDescription`, header);
+          const values = await this.request.get(
+            `/studies?includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+            header
+          );
           const studyUids = await fastify.getDBStudies();
           for (let i = 0; i < values.data.length; i += 1) {
             const value = values.data[i];
@@ -560,7 +563,7 @@ async function dicomwebserver(fastify) {
             '&includefield=StudyDescription&includefield=00201206&includefield=00201208';
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
-          if (filter) {
+          if (filter && config.pullStudyIds) {
             let studyUidsStr = filter.join(',');
             const maxLength = 2048 - qryIncludes.length - '?StudyInstanceUID='.length;
             if (studyUidsStr.length > maxLength) {
@@ -613,14 +616,9 @@ async function dicomwebserver(fastify) {
               // handle success
               // filter the results if patient id filter is given
               // eslint-disable-next-line prefer-const
-              let { filteredStudies } = await fastify.filter(
-                studies,
-                [],
-                filter,
-                tag,
-                aimField,
-                negateFilter
-              );
+              let { filteredStudies } = config.pullStudyIds
+                ? studies
+                : await fastify.filter(studies, [], filter, tag, aimField, negateFilter);
               // populate an aim counts map containing each study
               const aimsCountMap = !noStats ? values[values.length - 1] : [];
 
@@ -754,7 +752,7 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const studies = await this.request.get(
-            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription`,
+            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
             header
           );
           const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);
