@@ -617,7 +617,7 @@ async function dicomwebserver(fastify) {
               // filter the results if patient id filter is given
               // eslint-disable-next-line prefer-const
               let { filteredStudies } = config.pullStudyIds
-                ? studies
+                ? { filteredStudies: studies }
                 : await fastify.filter(studies, [], filter, tag, aimField, negateFilter);
               // populate an aim counts map containing each study
               const aimsCountMap = !noStats ? values[values.length - 1] : [];
