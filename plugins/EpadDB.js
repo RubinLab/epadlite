@@ -2166,7 +2166,6 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getPluginParentsInQueue', (request, reply) => {
     const result = [];
-    console.log(request.params.qid);
     const { qid } = request.params;
     models.plugin_subqueue
       .findAll({
@@ -2303,7 +2302,9 @@ async function epaddb(fastify, options, done) {
     if (typeof request.body.sequence !== 'undefined') {
       sequence = request.body.sequence;
     }
-    const allStatus = ['added', 'ended', 'error', 'running'];
+
+    // const allStatus = ['added', 'ended', 'error', 'running', 'inqueue'];
+    const allStatus = ['added', 'ended', 'error'];
     try {
       reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
 
@@ -2334,23 +2335,19 @@ async function epaddb(fastify, options, done) {
         if (data.dataValues.queueproject !== null) {
           pluginObj.project = { ...data.dataValues.queueproject.dataValues };
         }
-
-        const dock = new DockerService(fs, fastify, path);
-        const containerName = `epadplugin_${pluginObj.id}`;
-        // eslint-disable-next-line no-await-in-loop
-        const resInspect = await dock.checkContainerExistance(containerName);
-
         try {
+          const dock = new DockerService(fs, fastify, path);
+          const containerName = `epadplugin_${pluginObj.id}`;
+          // eslint-disable-next-line no-await-in-loop
+          const resInspect = await dock.checkContainerExistance(containerName);
           if (resInspect.message === '404') {
             fastify.log.info('not a real error. Container has not found so we can create new one');
-            if (sequence) {
-              nonseqresult.push(pluginObj);
-              seqresult.push(pluginObj);
-            } else {
-              throw new Error('404');
+            nonseqresult.push(pluginObj);
+            seqresult.push(pluginObj);
+            if (!sequence) {
+              fastify.runPluginsQueueInternal(nonseqresult, request);
             }
-          }
-          if (resInspect.State.Status !== 'running') {
+          } else {
             fastify.log.info(`container is not running : ${containerName}`);
             dock.deleteContainer(containerName).then((deleteReturn) => {
               fastify.log.info(`delete container result :${deleteReturn}`);
@@ -2362,18 +2359,12 @@ async function epaddb(fastify, options, done) {
             });
           }
         } catch (err) {
-          fastify.log.info(`inspect element err : ${err}`);
-          if (err.message === '404') {
-            nonseqresult.push(pluginObj);
-            seqresult.push(pluginObj);
-            if (!sequence) {
-              fastify.runPluginsQueueInternal(nonseqresult, request);
-            }
-          }
+          fastify.log.info(`error happened while adding queue object : ${err}`);
         }
       }
       if (sequence) {
         const removeIds = [];
+        const indicetoremove = [];
         for (let i = 0; i < seqresult.length; i += 1) {
           if (!globalMapQueueById.has(seqresult[i].id)) {
             globalMapQueueById.set(seqresult[i].id, '');
@@ -2386,8 +2377,12 @@ async function epaddb(fastify, options, done) {
           for (let k = 0; seqresult.length; k += 1) {
             if (seqresult[k].id === removeIds[i]) {
               seqresult[k] = { id: -1 };
+              indicetoremove.push(k);
             }
           }
+        }
+        for (let k = 0; indicetoremove.length; k += 1) {
+          seqresult.slice(indicetoremove[k], 1);
         }
         await fastify.runPluginsQueueInternal(seqresult, request);
       }
@@ -4668,7 +4663,10 @@ async function epaddb(fastify, options, done) {
           ).notify(fastify);
           // check the sub queue when the parent is done processing. here we will start the subqueue.
           // eslint-disable-next-line no-await-in-loop
-          const childPluginQueueId = await fastify.runNextPluginInSubQueue(queueId, request);
+          const childPluginQueueId = await fastify.runNextPluginInSubQueueInternal(
+            queueId,
+            request
+          );
           fastify.log.info(
             `epadplugin_${queueId} is done. checking sub queue situation : ${JSON.stringify(
               childPluginQueueId
@@ -4680,9 +4678,8 @@ async function epaddb(fastify, options, done) {
       for (let gqidscnt = 0; gqidscnt < pluginQueueList.length; gqidscnt += 1) {
         globalMapQueueById.delete(pluginQueueList[gqidscnt].id);
       }
-      return true;
     } catch (err) {
-      return err;
+      fastify.log.error(`plugin queue encountered an error : ${err}`);
     }
   });
   //  internal functions ends
