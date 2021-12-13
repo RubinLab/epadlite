@@ -16,6 +16,7 @@ const csv = require('csv-parser');
 const { createOfflineAimSegmentation } = require('aimapi');
 // eslint-disable-next-line no-global-assign
 window = {};
+const globalMapQueueById = new Map();
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const appVersion = require('../package.json').version;
@@ -2165,7 +2166,6 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getPluginParentsInQueue', (request, reply) => {
     const result = [];
-    console.log(request.params.qid);
     const { qid } = request.params;
     models.plugin_subqueue
       .findAll({
@@ -2292,79 +2292,111 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('runPluginsQueue', async (request, reply) => {
     //  will receive a queue object which contains plugin id
+    let queueIdsArrayToStart = null;
+    let sequence = false;
+    if (typeof request.body.ids === 'undefined') {
+      queueIdsArrayToStart = request.body;
+    } else {
+      queueIdsArrayToStart = request.body.ids;
+    }
+    if (typeof request.body.sequence !== 'undefined') {
+      sequence = request.body.sequence;
+    }
 
-    const queueIdsArrayToStart = request.body;
-    const allStatus = ['added', 'ended', 'error', 'running'];
-    //  const result = [];
+    // const allStatus = ['added', 'ended', 'error', 'running', 'inqueue'];
+    const allStatus = ['added', 'ended', 'error'];
     try {
       reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
 
-      await models.plugin_queue
-        .findAll({
-          include: ['queueplugin', 'queueproject'],
-          where: { id: queueIdsArrayToStart, status: allStatus },
-        })
-        .then((tableData) => {
-          tableData.forEach((data) => {
-            const result = [];
-            const pluginObj = {
-              id: data.dataValues.id,
-              plugin_id: data.dataValues.plugin_id,
-              project_id: data.dataValues.project_id,
-              plugin_parametertype: data.dataValues.plugin_parametertype,
-              aim_uid: data.dataValues.aim_uid,
-              runtime_params: data.dataValues.runtime_params,
-              max_memory: data.dataValues.max_memory,
-              status: data.dataValues.status,
-              creator: data.dataValues.creator,
-              starttime: data.dataValues.starttime,
-              endtime: data.dataValues.endtime,
-            };
-            if (data.dataValues.queueplugin !== null) {
-              pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+      const tableData = await models.plugin_queue.findAll({
+        include: ['queueplugin', 'queueproject'],
+        where: { id: queueIdsArrayToStart, status: allStatus },
+      });
+      const seqresult = [];
+      for (let i = 0; i < tableData.length; i += 1) {
+        const data = tableData[i];
+        const nonseqresult = [];
+        const pluginObj = {
+          id: data.dataValues.id,
+          plugin_id: data.dataValues.plugin_id,
+          project_id: data.dataValues.project_id,
+          plugin_parametertype: data.dataValues.plugin_parametertype,
+          aim_uid: data.dataValues.aim_uid,
+          runtime_params: data.dataValues.runtime_params,
+          max_memory: data.dataValues.max_memory,
+          status: data.dataValues.status,
+          creator: data.dataValues.creator,
+          starttime: data.dataValues.starttime,
+          endtime: data.dataValues.endtime,
+        };
+        if (data.dataValues.queueplugin !== null) {
+          pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+        }
+        if (data.dataValues.queueproject !== null) {
+          pluginObj.project = { ...data.dataValues.queueproject.dataValues };
+        }
+        try {
+          const dock = new DockerService(fs, fastify, path);
+          const containerName = `epadplugin_${pluginObj.id}`;
+          // eslint-disable-next-line no-await-in-loop
+          const resInspect = await dock.checkContainerExistance(containerName);
+          if (resInspect.message === '404') {
+            fastify.log.info('not a real error. Container has not found so we can create new one');
+            nonseqresult.push(pluginObj);
+            seqresult.push(pluginObj);
+            if (!sequence) {
+              fastify.runPluginsQueueInternal(nonseqresult, request);
             }
-            if (data.dataValues.queueproject !== null) {
-              pluginObj.project = { ...data.dataValues.queueproject.dataValues };
-            }
+          } else {
+            fastify.log.info(`container is not running : ${containerName}`);
+            dock.deleteContainer(containerName).then((deleteReturn) => {
+              fastify.log.info(`delete container result :${deleteReturn}`);
+              nonseqresult.push(pluginObj);
+              seqresult.push(pluginObj);
+              if (!sequence) {
+                fastify.runPluginsQueueInternal(nonseqresult, request);
+              }
+            });
+          }
+        } catch (err) {
+          fastify.log.info(`error happened while adding queue object : ${err}`);
+        }
+      }
+      if (sequence) {
+        const removeIds = [];
+        const indicetoremove = [];
+        for (let i = 0; i < seqresult.length; i += 1) {
+          if (!globalMapQueueById.has(seqresult[i].id)) {
+            globalMapQueueById.set(seqresult[i].id, '');
+          } else {
+            removeIds.push(seqresult[i].id);
+          }
+        }
 
-            const dock = new DockerService(fs, fastify, path);
-            const containerName = `epadplugin_${pluginObj.id}`;
-            dock
-              .checkContainerExistance(containerName)
-              .then((resInspect) => {
-                if (resInspect.message === '404') {
-                  fastify.log.info(
-                    'not a real error. Container has not found so we can create new one'
-                  );
-                  throw new Error('404');
-                }
-                if (resInspect.State.Status !== 'running') {
-                  fastify.log.info(`container is not running : ${containerName}`);
-                  dock.deleteContainer(containerName).then((deleteReturn) => {
-                    fastify.log.info(`delete container result :${deleteReturn}`);
-                    result.push(pluginObj);
-                    fastify.runPluginsQueueInternal(result, request);
-                  });
-                }
-              })
-              .catch((err) => {
-                fastify.log.info(`inspect element err : ${err}`);
-                if (err.message === '404') {
-                  result.push(pluginObj);
-                  fastify.runPluginsQueueInternal(result, request);
-                }
-              });
-          });
-        });
-      //  fastify.runPluginsQueueInternal(result, request);
+        for (let i = 0; removeIds.length; i += 1) {
+          for (let k = 0; seqresult.length; k += 1) {
+            if (seqresult[k].id === removeIds[i]) {
+              seqresult[k] = { id: -1 };
+              indicetoremove.push(k);
+            }
+          }
+        }
+        for (let k = 0; indicetoremove.length; k += 1) {
+          seqresult.slice(indicetoremove[k], 1);
+        }
+        await fastify.runPluginsQueueInternal(seqresult, request);
+      }
     } catch (err) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
     }
   });
 
-  fastify.decorate('getNextPluginInSubQueue', async (paramQid, request) => {
-    //  will receive a queue object which contains plugin id
-    //  cx
+  fastify.decorate('runNextPluginInSubQueueInternal', async (paramQid, request) => {
+    /* 
+      This function is used to run sub child plugins when ever the parent plugin terminates its process.
+      it does not return any values. it receives parent plugin id (paramQid) to look in the subqueue if it exist a child proces.
+      if there are exising child processes the collected child ids are sent to runpluginsQueue function which is the main function to run the queue. 
+    */
     const result = [];
     try {
       return await models.plugin_subqueue
@@ -2418,7 +2450,6 @@ async function epaddb(fastify, options, done) {
           }
           return 404;
         });
-      //  fastify.runPluginsQueueInternal(result, request);
     } catch (err) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
       return 404;
@@ -2600,7 +2631,6 @@ async function epaddb(fastify, options, done) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                   isItFirstTimeGettingDicoms = true;
                 }
-                // eslint-disable-next-line no-case-declarations
 
                 if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
                   // aim level dicoms
@@ -2945,6 +2975,23 @@ async function epaddb(fastify, options, done) {
         );
     }
     if (status === 'running') {
+      models.plugin_queue
+        .update(
+          {
+            status,
+          },
+          {
+            where: {
+              id: queuid,
+            },
+          }
+        )
+        .then((data) => data)
+        .catch(
+          (err) => new InternalError('error while updating queue process status for running', err)
+        );
+    }
+    if (status === 'inqueue') {
       models.plugin_queue
         .update(
           {
@@ -3991,6 +4038,13 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
     try {
+      const seq = request.body.sequence || false;
+      if (seq) {
+        for (let i = 0; i < pluginQueueList.length; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(pluginQueueList[i].id, 'inqueue');
+        }
+      }
       for (let i = 0; i < pluginQueueList.length; i += 1) {
         let containerErrorTrack = 0;
         const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${pluginQueueList[i].plugin.image_tag}`;
@@ -4609,7 +4663,10 @@ async function epaddb(fastify, options, done) {
           ).notify(fastify);
           // check the sub queue when the parent is done processing. here we will start the subqueue.
           // eslint-disable-next-line no-await-in-loop
-          const childPluginQueueId = await fastify.getNextPluginInSubQueue(queueId, request);
+          const childPluginQueueId = await fastify.runNextPluginInSubQueueInternal(
+            queueId,
+            request
+          );
           fastify.log.info(
             `epadplugin_${queueId} is done. checking sub queue situation : ${JSON.stringify(
               childPluginQueueId
@@ -4617,9 +4674,12 @@ async function epaddb(fastify, options, done) {
           );
         }
       }
-      return true;
+      // delete global ids here
+      for (let gqidscnt = 0; gqidscnt < pluginQueueList.length; gqidscnt += 1) {
+        globalMapQueueById.delete(pluginQueueList[gqidscnt].id);
+      }
     } catch (err) {
-      return err;
+      fastify.log.error(`plugin queue encountered an error : ${err}`);
     }
   });
   //  internal functions ends
