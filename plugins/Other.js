@@ -1989,14 +1989,6 @@ async function other(fastify) {
     try {
       const obj = await fastify.decryptInternal(request.query.arg);
       const projectID = obj.projectID ? obj.projectID : 'lite';
-      if (obj.user) {
-        // check if user exists
-        const dbUser = fastify.getUserInternal({ user: obj.user });
-        // if not get user info and create user
-        if (!dbUser && config.ad) {
-          await fastify.createADUser(obj, projectID, request.epadAuth);
-        }
-      }
       // if patientID and studyUID
       if (obj.patientID && obj.studyUID) {
         await fastify.addPatientStudyToProjectInternal(
@@ -2088,7 +2080,15 @@ async function other(fastify) {
   fastify.decorate('decrypt', async (request, reply) => {
     try {
       const obj = await fastify.decryptInternal(request.query.arg);
-      if (!obj.projectID) obj.projectID = 'lite';
+      const projectID = obj.projectID ? obj.projectID : 'lite';
+      if (obj.user) {
+        // check if user exists
+        const dbUser = fastify.getUserInternal({ user: obj.user });
+        // if not get user info and create user
+        if (!dbUser && config.ad) {
+          await fastify.createADUser(obj, projectID, request.epadAuth);
+        }
+      }
       if (obj) {
         reply.code(200).send(obj);
       }
