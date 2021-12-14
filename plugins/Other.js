@@ -1963,27 +1963,38 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('createADUser', async (username, projectID, epadAuth) => {
-    const ad = new ActiveDirectory(config.ad);
-    try {
-      const adUser = await ad.findUser(username);
-      await fastify.createUserInternal(
-        {
-          username,
-          firstname: adUser.givenName,
-          lastname: adUser.sn,
-          email: adUser.mail,
-          enabled: true,
-          admin: false,
-          projects: [{ role: 'Member', project: projectID }],
-        },
-        { project: projectID },
-        epadAuth
-      );
-    } catch (adErr) {
-      fastify.log.err(`AD lookup error. ${adErr.message}`);
-    }
-  });
+  fastify.decorate(
+    'createADUser',
+    (username, projectID, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        const ad = new ActiveDirectory(config.ad);
+        ad.findUser(username, async (adErr, adUser) => {
+          try {
+            if (adErr) reject(adErr);
+            else if (!adUser) reject(new ResourceNotFoundError('AD User', username));
+            else {
+              await fastify.createUserInternal(
+                {
+                  username,
+                  firstname: adUser.givenName,
+                  lastname: adUser.sn,
+                  email: adUser.mail,
+                  enabled: true,
+                  admin: false,
+                  projects: [{ role: 'Member', project: projectID }],
+                },
+                { project: projectID },
+                epadAuth
+              );
+              resolve('User successfully added with member right');
+            }
+          } catch (err) {
+            fastify.log.error(`Create aduser error. ${err.message}`);
+            reject(err);
+          }
+        });
+      })
+  );
 
   fastify.decorate('decryptAdd', async (request, reply) => {
     try {
@@ -2086,9 +2097,15 @@ async function other(fastify) {
         try {
           await fastify.getUserInternal({ user: obj.user });
         } catch (userErr) {
-          // if not get user info and create user
-          if (userErr instanceof ResourceNotFoundError && config.ad) {
-            await fastify.createADUser(obj, projectID, request.epadAuth);
+          try {
+            // if not get user info and create user
+            if (userErr instanceof ResourceNotFoundError && config.ad) {
+              await fastify.createADUser(obj.user, projectID, request.epadAuth);
+            }
+          } catch (adErr) {
+            fastify.log.error(`Error creating AD user ${adErr.message}`);
+            // remove api key so we can do reqular authentication
+            delete obj.API_KEY;
           }
         }
       }
