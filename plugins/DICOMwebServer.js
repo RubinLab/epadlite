@@ -582,6 +582,13 @@ async function dicomwebserver(fastify) {
                     break;
                   }
                 }
+            } else {
+              promisses.push(
+                this.request.get(
+                  `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=${studyUidsStr}${qryIncludes}`,
+                  header
+                )
+              );
             }
           } else {
             if (params.study) query = `?StudyInstanceUID=${params.study}`;
