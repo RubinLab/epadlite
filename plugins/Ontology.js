@@ -48,17 +48,8 @@ async function Ontology(fastify, options, done) {
 
             fastify.log.info('you have a valid api key');
             if (request.query.user) {
-              try {
-                const epadAuth = await fastify.fillUserInfo(request.query.user);
-                resolve(epadAuth);
-              } catch (userErr) {
-                if (config.ad) {
-                  const projectID = request.query.projectID ? request.query.projectID : 'lite';
-                  await fastify.createADUser(request.query.user, projectID, request.epadAuth);
-                  const epadAuth = await fastify.fillUserInfo(request.query.user);
-                  resolve(epadAuth);
-                } else resolve(undefined);
-              }
+              const epadAuth = await fastify.fillUserInfo(request.query.user);
+              resolve(epadAuth);
             } else {
               resolve(undefined);
             }
