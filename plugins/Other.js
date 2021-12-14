@@ -2083,10 +2083,13 @@ async function other(fastify) {
       const projectID = obj.projectID ? obj.projectID : 'lite';
       if (obj.user) {
         // check if user exists
-        const dbUser = fastify.getUserInternal({ user: obj.user });
-        // if not get user info and create user
-        if (!dbUser && config.ad) {
-          await fastify.createADUser(obj, projectID, request.epadAuth);
+        try {
+          await fastify.getUserInternal({ user: obj.user });
+        } catch (userErr) {
+          // if not get user info and create user
+          if (userErr instanceof ResourceNotFoundError && config.ad) {
+            await fastify.createADUser(obj, projectID, request.epadAuth);
+          }
         }
       }
       if (obj) {
