@@ -1695,7 +1695,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
-      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decrypt?`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decryptandgrantaccess?`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
