@@ -5,7 +5,6 @@ const fs = require('fs-extra');
 const path = require('path');
 
 const { InternalError } = require('../utils/EpadErrors');
-const config = require('../config/index');
 
 async function Ontology(fastify, options, done) {
   // const models = {};
