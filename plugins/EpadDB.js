@@ -4769,9 +4769,7 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate('getApiKeyWithSecretInternal', async (secret) => {
-    fastify.log.info(
-      `looking for secret:${secret} to check existance for registered server and api key `
-    );
+    fastify.log.info(`looking for secret to check existance for registered server and api key `);
     const registeredServers = await models.registeredapps.findAll({
       where: { secret },
       order: [['updatetime', 'DESC']],
@@ -9850,7 +9848,7 @@ async function epaddb(fastify, options, done) {
               studyUID: params.study,
               seriesUID: series[i].dataValues.seriesuid,
               seriesDate: series[i].dataValues.seriesdate,
-              seriesDescription: series[i].dataValues.description,
+              seriesDescription: series[i].dataValues.description || '',
               examType: '',
               bodyPart: '',
               accessionNumber: '',

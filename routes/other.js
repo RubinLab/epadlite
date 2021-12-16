@@ -329,7 +329,7 @@ async function otherRoutes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/decrypt',
+    url: '/decryptandgrantaccess',
     handler: fastify.decrypt,
   });
 

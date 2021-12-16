@@ -94,5 +94,21 @@ config.dimse = config.dimse
   : process.env.DIMSE_AET
   ? { aet: process.env.DIMSE_AET, ip: process.env.DIMSE_IP, port: process.env.DIMSE_PORT }
   : null;
+config.pullStudyIds =
+  (process.env.PULL_STUDY_IDS && process.env.PULL_STUDY_IDS === 'true') ||
+  config.pullStudyIds ||
+  false;
+
+// eslint-disable-next-line no-nested-ternary
+config.ad = config.ad
+  ? config.ad
+  : process.env.AD_URL
+  ? {
+      url: process.env.AD_URL,
+      baseDN: process.env.AD_BASEDN,
+      username: process.env.AD_USERNAME,
+      password: process.env.AD_PASSWORD,
+    }
+  : null;
 
 module.exports = config;

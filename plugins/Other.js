@@ -1695,7 +1695,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
-      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decrypt?`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decryptandgrantaccess?`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
@@ -1963,36 +1963,43 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate(
+    'createADUser',
+    (username, projectID, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        const ad = new ActiveDirectory(config.ad);
+        ad.findUser(username, async (adErr, adUser) => {
+          try {
+            if (adErr) reject(adErr);
+            else if (!adUser) reject(new ResourceNotFoundError('AD User', username));
+            else {
+              await fastify.createUserInternal(
+                {
+                  username,
+                  firstname: adUser.givenName,
+                  lastname: adUser.sn,
+                  email: adUser.mail,
+                  enabled: true,
+                  admin: false,
+                  projects: [{ role: 'Member', project: projectID }],
+                },
+                { project: projectID },
+                epadAuth
+              );
+              resolve('User successfully added with member right');
+            }
+          } catch (err) {
+            fastify.log.error(`Create aduser error. ${err.message}`);
+            reject(err);
+          }
+        });
+      })
+  );
+
   fastify.decorate('decryptAdd', async (request, reply) => {
     try {
       const obj = await fastify.decryptInternal(request.query.arg);
       const projectID = obj.projectID ? obj.projectID : 'lite';
-      if (obj.user) {
-        // check if user exists
-        const dbUser = fastify.getUserInternal({ user: obj.user });
-        // if not get user info and create user
-        if (!dbUser && config.ad) {
-          const ad = new ActiveDirectory(config.ad);
-          try {
-            const adUser = await ad.findUser(obj.user);
-            await fastify.createUserInternal(
-              {
-                username: obj.user,
-                firstname: adUser.givenName,
-                lastname: adUser.sn,
-                email: adUser.mail,
-                enabled: true,
-                admin: false,
-                projects: [{ role: 'Member', project: projectID }],
-              },
-              { project: projectID },
-              request.epadAuth
-            );
-          } catch (adErr) {
-            fastify.log.err(`AD lookup error. ${adErr.message}`);
-          }
-        }
-      }
       // if patientID and studyUID
       if (obj.patientID && obj.studyUID) {
         await fastify.addPatientStudyToProjectInternal(
@@ -2084,7 +2091,24 @@ async function other(fastify) {
   fastify.decorate('decrypt', async (request, reply) => {
     try {
       const obj = await fastify.decryptInternal(request.query.arg);
-      if (!obj.projectID) obj.projectID = 'lite';
+      const projectID = obj.projectID ? obj.projectID : 'lite';
+      if (obj.user) {
+        // check if user exists
+        try {
+          await fastify.getUserInternal({ user: obj.user });
+        } catch (userErr) {
+          try {
+            // if not get user info and create user
+            if (userErr instanceof ResourceNotFoundError && config.ad) {
+              await fastify.createADUser(obj.user, projectID, request.epadAuth);
+            }
+          } catch (adErr) {
+            fastify.log.error(`Error creating AD user ${adErr.message}`);
+            // remove api key so we can do reqular authentication
+            delete obj.API_KEY;
+          }
+        }
+      }
       if (obj) {
         reply.code(200).send(obj);
       }
