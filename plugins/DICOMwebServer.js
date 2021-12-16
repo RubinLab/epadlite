@@ -566,23 +566,23 @@ async function dicomwebserver(fastify) {
           if (filter && config.pullStudyIds) {
             let studyUidsStr = filter.join(',');
             const maxLength = 2048 - qryIncludes.length - '?StudyInstanceUID='.length;
-            if (studyUidsStr.length > maxLength) {
-              for (let i = 0; i < studyUidsStr.length / maxLength + 1; i += 1)
-                for (let j = maxLength; j > 0; j -= 1) {
-                  if (studyUidsStr[j] === ',') {
-                    promisses.push(
-                      this.request.get(
-                        `${
-                          config.dicomWebConfig.qidoSubPath
-                        }/studies?StudyInstanceUID=${studyUidsStr.substring(0, j)}${qryIncludes}`,
-                        header
-                      )
-                    );
-                    studyUidsStr = studyUidsStr.substring(j + 1);
-                    break;
-                  }
+            while (studyUidsStr.length > maxLength) {
+              for (let j = maxLength; j > 0; j -= 1) {
+                if (studyUidsStr[j] === ',') {
+                  promisses.push(
+                    this.request.get(
+                      `${
+                        config.dicomWebConfig.qidoSubPath
+                      }/studies?StudyInstanceUID=${studyUidsStr.substring(0, j)}${qryIncludes}`,
+                      header
+                    )
+                  );
+                  studyUidsStr = studyUidsStr.substring(j + 1);
+                  break;
                 }
-            } else {
+              }
+            }
+            if (studyUidsStr.length > 0) {
               promisses.push(
                 this.request.get(
                   `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=${studyUidsStr}${qryIncludes}`,
