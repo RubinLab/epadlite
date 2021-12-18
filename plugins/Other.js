@@ -1696,6 +1696,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decryptandgrantaccess?`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/apikeys`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication

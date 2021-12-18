@@ -360,5 +360,33 @@ async function otherRoutes(fastify) {
     url: '/search',
     handler: fastify.search,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/apikeys/:appid',
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          appid: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getApiKey,
+  });
+
+  fastify.route({
+    method: 'PUT',
+    url: '/apikeys/:appid',
+    handler: fastify.setApiKey,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/apikeys',
+    handler: fastify.setApiKey,
+  });
 }
 module.exports = otherRoutes;
