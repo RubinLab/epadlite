@@ -5,7 +5,7 @@ const chaiHttp = require('chai-http');
 chai.use(chaiHttp);
 const { expect } = chai;
 
-describe.only('Other Tests', () => {
+describe('Other Tests', () => {
   it('set an api key ', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
