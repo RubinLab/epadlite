@@ -165,7 +165,7 @@ class DockerService {
           });
           const runRes = await tmpContainer.wait();
           tempFastify.log.info(`waiting result : ${JSON.stringify(runRes)}`);
-          if (parseInt(runRes.StatusCode, 10) === 137){
+          if (parseInt(runRes.StatusCode, 10) === 137) {
             tempFastify.log.info(
               'epad sees err code 137 as stopping container by user but out of memory also returns the same error code.Be aware of it when debugging'
             );
