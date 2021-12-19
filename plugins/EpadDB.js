@@ -9207,6 +9207,64 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  /**
+   * Check the validity of the request (ip call is being made from)
+   * and returns the apikey if present for the appid that is sent in the params
+   */
+  fastify.decorate('getApiKey', async (request, reply) => {
+    try {
+      const dbApiKey = await models.apikeys.findAll({
+        where: {
+          appid: request.params.appid,
+        },
+        raw: true,
+      });
+      if (dbApiKey && dbApiKey.length > 0) {
+        if (dbApiKey[0].valid_ips.includes(request.socket.remoteAddress)) {
+          reply.code(200).send(dbApiKey[0].apikey);
+        } else
+          reply.send(
+            new UnauthorizedError(`The request's ip address doesn't have right to access api key`)
+          );
+      } else reply.send(new ResourceNotFoundError('Application', request.params.appid));
+    } catch (err) {
+      reply.send(new InternalError('Api key retrieval', err));
+    }
+  });
+
+  /** Add/update an apikey with a set of valid ips to access the api key */
+  fastify.decorate('setApiKey', async (request, reply) => {
+    try {
+      const missingAtt = [];
+      if (!request.body.appid) missingAtt.push('appid');
+      if (!request.body.apikey) missingAtt.push('apikey');
+      if (!request.body.validIPs) missingAtt.push('validIPs');
+      else {
+        request.body.valid_ips = request.body.validIPs.join(',');
+        delete request.body.validIPs;
+      }
+
+      if (missingAtt.length > 0)
+        reply.send(
+          new BadRequestError(
+            'Missing attribute(s) in body',
+            new Error(`Missing ${missingAtt.join(',')}`)
+          )
+        );
+      else {
+        await fastify.upsert(
+          models.apikeys,
+          request.body,
+          request.params.appid ? { appid: request.params.appid } : {},
+          request.epadAuth ? request.epadAuth.username : request.socket.remoteAddress
+        );
+        reply.code(200).send('Api key set with valid IPs');
+      }
+    } catch (err) {
+      reply.send(new InternalError('Set api key', err));
+    }
+  });
+
   fastify.decorate('add0s', (val) => (val > 9 ? val : `0${val}`));
 
   fastify.decorate('getFormattedDate', (dateFromDB) => {
