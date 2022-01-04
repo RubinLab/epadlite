@@ -344,7 +344,11 @@ async function couchdb(fastify, options) {
                     if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                     else fastify.log.info(`${dir} deleted`);
                   });
-                  resolve(`/download/annotations_${timestamp}.zip`);
+                  resolve(
+                    `${
+                      config.prefix ? `/${config.prefix}` : ''
+                    }/download/annotations_${timestamp}.zip`
+                  );
                 } else {
                   const readStream = fs.createReadStream(`${dir}/annotations.zip`);
                   // delete tmp folder after the file is sent
