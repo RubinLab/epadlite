@@ -16,6 +16,7 @@ const csv = require('csv-parser');
 const { createOfflineAimSegmentation } = require('aimapi');
 // eslint-disable-next-line no-global-assign
 window = {};
+const globalMapQueueById = new Map();
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const appVersion = require('../package.json').version;
@@ -2034,10 +2035,8 @@ async function epaddb(fastify, options, done) {
       }
 
       Promise.all(promisesCreateForEachAnnotation)
-        .then(() => {
-          reply
-            .code(200)
-            .send('plugin process added to the plugin queue for each selected annotation');
+        .then((queuedata) => {
+          reply.code(200).send(queuedata);
         })
         .catch((err) => {
           reply
@@ -2064,8 +2063,8 @@ async function epaddb(fastify, options, done) {
           starttime: '1970-01-01 00:00:01',
           endtime: '1970-01-01 00:00:01',
         })
-        .then(() => {
-          reply.code(200).send('plugin process added to the plugin queue');
+        .then((queuedata) => {
+          reply.code(200).send(queuedata);
         })
         .catch((err) => {
           reply
@@ -2078,6 +2077,120 @@ async function epaddb(fastify, options, done) {
             );
         });
     }
+  });
+
+  fastify.decorate('insertPluginSubqueue', (request, reply) => {
+    const subQueueObj = request.body;
+    models.plugin_subqueue
+      .create({
+        qid: subQueueObj.qid,
+        parent_qid: subQueueObj.parent_qid,
+        status: subQueueObj.status,
+        creator: request.epadAuth.username,
+      })
+      .then((inserteddata) => {
+        reply.code(200).send(inserteddata);
+      })
+      .catch((err) => {
+        reply
+          .code(500)
+          .send(
+            new InternalError(
+              'Something went wrong while adding parent plugin for the plugin flow',
+              err
+            )
+          );
+      });
+  });
+
+  fastify.decorate('pluginCopyAimsBetweenPlugins', (request, reply) => {
+    const { fromid, toid } = request.params;
+    models.plugin_queue
+      .findOne({
+        where: { id: fromid },
+        required: false,
+      })
+      .then((eachRowObj) => {
+        if (request.epadAuth.admin === true || request.epadAuth.username === eachRowObj.creator) {
+          models.plugin_queue
+            .update(
+              {
+                aim_uid: eachRowObj.aim_uid,
+              },
+              {
+                where: {
+                  id: toid,
+                },
+              }
+            )
+            .then(() => {
+              reply.code(200).send();
+            })
+            .catch((err) => new InternalError('pluginCopyAimsBetweenPlugins error', err));
+        } else {
+          reply
+            .code(401)
+            .send(
+              new InternalError(
+                `copy aims from parent plugin: user doesn't have the necessary right `,
+                ''
+              )
+            );
+        }
+      })
+      .catch((err) => {
+        reply.code(500).send(new InternalError(`pluginCopyAimsBetweenPlugins error `, err));
+      });
+  });
+
+  fastify.decorate('deletePluginSubqueue', (request, reply) => {
+    const rowToDelete = request.params.id;
+
+    models.plugin_subqueue
+      .destroy({
+        where: {
+          id: rowToDelete,
+        },
+      })
+      .then(() => {
+        reply.code(200).send('plugin deleted from the subqueue');
+      })
+      .catch((err) => {
+        reply
+          .code(500)
+          .send(
+            new InternalError('Something went wrong while deleting plugin from the subqueue', err)
+          );
+      });
+  });
+
+  fastify.decorate('getPluginParentsInQueue', (request, reply) => {
+    const result = [];
+    const { qid } = request.params;
+    models.plugin_subqueue
+      .findAll({
+        where: { qid },
+        required: false,
+      })
+      .then((eachRowObj) => {
+        eachRowObj.forEach((data) => {
+          const pluginObj = {
+            id: data.dataValues.id,
+            qid: data.dataValues.qid,
+            parent_qid: data.dataValues.parent_qid,
+            status: data.dataValues.status,
+            creator: data.dataValues.creator,
+          };
+          if (request.epadAuth.admin === true || request.epadAuth.username === pluginObj.creator) {
+            result.push(pluginObj);
+          }
+        });
+
+        reply.code(200).send(result);
+      })
+      .catch((err) => {
+        reply.code(500).send(new InternalError(`getPluginParentsInQueue error `, err));
+      });
   });
 
   fastify.decorate('getPluginsQueue', (request, reply) => {
@@ -2179,73 +2292,167 @@ async function epaddb(fastify, options, done) {
   });
   fastify.decorate('runPluginsQueue', async (request, reply) => {
     //  will receive a queue object which contains plugin id
+    let queueIdsArrayToStart = null;
+    let sequence = false;
+    if (typeof request.body.ids === 'undefined') {
+      queueIdsArrayToStart = request.body;
+    } else {
+      queueIdsArrayToStart = request.body.ids;
+    }
+    if (typeof request.body.sequence !== 'undefined') {
+      sequence = request.body.sequence;
+    }
 
-    const queueIdsArrayToStart = request.body;
-    const allStatus = ['added', 'ended', 'error', 'running'];
-    //  const result = [];
+    // const allStatus = ['added', 'ended', 'error', 'running', 'inqueue'];
+    const allStatus = ['added', 'ended', 'error'];
     try {
       reply.code(202).send(`runPluginsQueue called and retuened 202 inernal queue is started`);
 
-      await models.plugin_queue
-        .findAll({
-          include: ['queueplugin', 'queueproject'],
-          where: { id: queueIdsArrayToStart, status: allStatus },
-        })
-        .then((tableData) => {
-          tableData.forEach((data) => {
-            const result = [];
-            const pluginObj = {
-              id: data.dataValues.id,
-              plugin_id: data.dataValues.plugin_id,
-              project_id: data.dataValues.project_id,
-              plugin_parametertype: data.dataValues.plugin_parametertype,
-              aim_uid: data.dataValues.aim_uid,
-              runtime_params: data.dataValues.runtime_params,
-              max_memory: data.dataValues.max_memory,
-              status: data.dataValues.status,
-              creator: data.dataValues.creator,
-              starttime: data.dataValues.starttime,
-              endtime: data.dataValues.endtime,
-            };
-            if (data.dataValues.queueplugin !== null) {
-              pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+      const tableData = await models.plugin_queue.findAll({
+        include: ['queueplugin', 'queueproject'],
+        where: { id: queueIdsArrayToStart, status: allStatus },
+      });
+      const seqresult = [];
+      for (let i = 0; i < tableData.length; i += 1) {
+        const data = tableData[i];
+        const nonseqresult = [];
+        const pluginObj = {
+          id: data.dataValues.id,
+          plugin_id: data.dataValues.plugin_id,
+          project_id: data.dataValues.project_id,
+          plugin_parametertype: data.dataValues.plugin_parametertype,
+          aim_uid: data.dataValues.aim_uid,
+          runtime_params: data.dataValues.runtime_params,
+          max_memory: data.dataValues.max_memory,
+          status: data.dataValues.status,
+          creator: data.dataValues.creator,
+          starttime: data.dataValues.starttime,
+          endtime: data.dataValues.endtime,
+        };
+        if (data.dataValues.queueplugin !== null) {
+          pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+        }
+        if (data.dataValues.queueproject !== null) {
+          pluginObj.project = { ...data.dataValues.queueproject.dataValues };
+        }
+        try {
+          const dock = new DockerService(fs, fastify, path);
+          const containerName = `epadplugin_${pluginObj.id}`;
+          // eslint-disable-next-line no-await-in-loop
+          const resInspect = await dock.checkContainerExistance(containerName);
+          if (resInspect.message === '404') {
+            fastify.log.info('not a real error. Container has not found so we can create new one');
+            nonseqresult.push(pluginObj);
+            seqresult.push(pluginObj);
+            if (!sequence) {
+              fastify.runPluginsQueueInternal(nonseqresult, request);
             }
-            if (data.dataValues.queueproject !== null) {
-              pluginObj.project = { ...data.dataValues.queueproject.dataValues };
-            }
+          } else {
+            fastify.log.info(`container is not running : ${containerName}`);
+            dock.deleteContainer(containerName).then((deleteReturn) => {
+              fastify.log.info(`delete container result :${deleteReturn}`);
+              nonseqresult.push(pluginObj);
+              seqresult.push(pluginObj);
+              if (!sequence) {
+                fastify.runPluginsQueueInternal(nonseqresult, request);
+              }
+            });
+          }
+        } catch (err) {
+          fastify.log.info(`error happened while adding queue object : ${err}`);
+        }
+      }
+      if (sequence) {
+        const removeIds = [];
+        const indicetoremove = [];
+        for (let i = 0; i < seqresult.length; i += 1) {
+          if (!globalMapQueueById.has(seqresult[i].id)) {
+            globalMapQueueById.set(seqresult[i].id, '');
+          } else {
+            removeIds.push(seqresult[i].id);
+          }
+        }
 
-            const dock = new DockerService(fs, fastify, path);
-            const containerName = `epadplugin_${pluginObj.id}`;
-            dock
-              .checkContainerExistance(containerName)
-              .then((resInspect) => {
-                if (resInspect.message === '404') {
-                  fastify.log.info(
-                    'not a real error. Container has not found so we can create new one'
-                  );
-                  throw new Error('404');
-                }
-                if (resInspect.State.Status !== 'running') {
-                  fastify.log.info(`container is not running : ${containerName}`);
-                  dock.deleteContainer(containerName).then((deleteReturn) => {
-                    fastify.log.info(`delete container result :${deleteReturn}`);
-                    result.push(pluginObj);
-                    fastify.runPluginsQueueInternal(result, request);
-                  });
-                }
-              })
-              .catch((err) => {
-                fastify.log.info(`inspect element err : ${err}`);
-                if (err.message === '404') {
-                  result.push(pluginObj);
-                  fastify.runPluginsQueueInternal(result, request);
-                }
-              });
-          });
-        });
-      //  fastify.runPluginsQueueInternal(result, request);
+        for (let i = 0; removeIds.length; i += 1) {
+          for (let k = 0; seqresult.length; k += 1) {
+            if (seqresult[k].id === removeIds[i]) {
+              seqresult[k] = { id: -1 };
+              indicetoremove.push(k);
+            }
+          }
+        }
+        for (let k = 0; indicetoremove.length; k += 1) {
+          seqresult.slice(indicetoremove[k], 1);
+        }
+        await fastify.runPluginsQueueInternal(seqresult, request);
+      }
     } catch (err) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
+    }
+  });
+
+  fastify.decorate('runNextPluginInSubQueueInternal', async (paramQid, request) => {
+    /* 
+      This function is used to run sub child plugins when ever the parent plugin terminates its process.
+      it does not return any values. it receives parent plugin id (paramQid) to look in the subqueue if it exist a child proces.
+      if there are exising child processes the collected child ids are sent to runpluginsQueue function which is the main function to run the queue. 
+    */
+    const result = [];
+    try {
+      return await models.plugin_subqueue
+        .findAll({
+          where: { parent_qid: paramQid, status: 0 },
+        })
+        .then(async (tableData) => {
+          tableData.forEach((data) => {
+            const queueObj = {
+              id: data.dataValues.id,
+              qid: data.dataValues.qid,
+              parent_qid: data.dataValues.parent_qid,
+              status: data.dataValues.status,
+              creator: data.dataValues.creator,
+            };
+            result.push(queueObj.qid);
+          });
+          if (result.length > 0) {
+            await models.plugin_queue
+              .findAll({
+                include: ['queueplugin', 'queueproject'],
+                where: { id: result },
+              })
+              .then((queueData) => {
+                queueData.forEach((data) => {
+                  const qresult = [];
+                  const pluginObj = {
+                    id: data.dataValues.id,
+                    plugin_id: data.dataValues.plugin_id,
+                    project_id: data.dataValues.project_id,
+                    plugin_parametertype: data.dataValues.plugin_parametertype,
+                    aim_uid: data.dataValues.aim_uid,
+                    runtime_params: data.dataValues.runtime_params,
+                    max_memory: data.dataValues.max_memory,
+                    status: data.dataValues.status,
+                    creator: data.dataValues.creator,
+                    starttime: data.dataValues.starttime,
+                    endtime: data.dataValues.endtime,
+                  };
+                  if (data.dataValues.queueplugin !== null) {
+                    pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+                  }
+                  if (data.dataValues.queueproject !== null) {
+                    pluginObj.project = { ...data.dataValues.queueproject.dataValues };
+                  }
+                  qresult.push(pluginObj);
+                  fastify.runPluginsQueueInternal(qresult, request);
+                });
+              });
+            return 200;
+          }
+          return 404;
+        });
+    } catch (err) {
+      fastify.log.error(`runPluginsQueue error : ${err}`);
+      return 404;
     }
   });
   //  internal functions
@@ -2424,7 +2631,6 @@ async function epaddb(fastify, options, done) {
                   fs.mkdirSync(inputfolder, { recursive: true });
                   isItFirstTimeGettingDicoms = true;
                 }
-                // eslint-disable-next-line no-case-declarations
 
                 if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
                   // aim level dicoms
@@ -2769,6 +2975,23 @@ async function epaddb(fastify, options, done) {
         );
     }
     if (status === 'running') {
+      models.plugin_queue
+        .update(
+          {
+            status,
+          },
+          {
+            where: {
+              id: queuid,
+            },
+          }
+        )
+        .then((data) => data)
+        .catch(
+          (err) => new InternalError('error while updating queue process status for running', err)
+        );
+    }
+    if (status === 'inqueue') {
       models.plugin_queue
         .update(
           {
@@ -3815,6 +4038,13 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
     try {
+      const seq = request.body.sequence || false;
+      if (seq) {
+        for (let i = 0; i < pluginQueueList.length; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.updateStatusQueueProcessInternal(pluginQueueList[i].id, 'inqueue');
+        }
+      }
       for (let i = 0; i < pluginQueueList.length; i += 1) {
         let containerErrorTrack = 0;
         const imageRepo = `${pluginQueueList[i].plugin.image_repo}:${pluginQueueList[i].plugin.image_tag}`;
@@ -4412,7 +4642,6 @@ async function epaddb(fastify, options, done) {
               true
             ).notify(fastify);
           }
-          // eslint-disable-next-line no-await-in-loop
         } catch (err) {
           // eslint-disable-next-line no-await-in-loop
           await fastify.updateStatusQueueProcessInternal(queueId, 'error');
@@ -4432,11 +4661,25 @@ async function epaddb(fastify, options, done) {
             `completed the process for epadplugin_${queueId}`,
             true
           ).notify(fastify);
+          // check the sub queue when the parent is done processing. here we will start the subqueue.
+          // eslint-disable-next-line no-await-in-loop
+          const childPluginQueueId = await fastify.runNextPluginInSubQueueInternal(
+            queueId,
+            request
+          );
+          fastify.log.info(
+            `epadplugin_${queueId} is done. checking sub queue situation : ${JSON.stringify(
+              childPluginQueueId
+            )}`
+          );
         }
       }
-      return true;
+      // delete global ids here
+      for (let gqidscnt = 0; gqidscnt < pluginQueueList.length; gqidscnt += 1) {
+        globalMapQueueById.delete(pluginQueueList[gqidscnt].id);
+      }
     } catch (err) {
-      return err;
+      fastify.log.error(`plugin queue encountered an error : ${err}`);
     }
   });
   //  internal functions ends
@@ -4524,6 +4767,17 @@ async function epaddb(fastify, options, done) {
       return registeredServers;
     }
   );
+
+  fastify.decorate('getApiKeyWithSecretInternal', async (secret) => {
+    fastify.log.info(`looking for secret to check existance for registered server and api key `);
+    const registeredServers = await models.registeredapps.findAll({
+      where: { secret },
+      order: [['updatetime', 'DESC']],
+      raw: true,
+    });
+    if (registeredServers && registeredServers[0]) return registeredServers[0].apikey;
+    return null;
+  });
 
   fastify.decorate('registerServerForAppKey', async (request, reply) => {
     const requestSenderServerName = request.raw.headers.host.split(':')[0];
@@ -8953,6 +9207,64 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  /**
+   * Check the validity of the request (ip call is being made from)
+   * and returns the apikey if present for the appid that is sent in the params
+   */
+  fastify.decorate('getApiKey', async (request, reply) => {
+    try {
+      const dbApiKey = await models.apikeys.findAll({
+        where: {
+          appid: request.params.appid,
+        },
+        raw: true,
+      });
+      if (dbApiKey && dbApiKey.length > 0) {
+        if (dbApiKey[0].valid_ips.includes(request.socket.remoteAddress)) {
+          reply.code(200).send(dbApiKey[0].apikey);
+        } else
+          reply.send(
+            new UnauthorizedError(`The request's ip address doesn't have right to access api key`)
+          );
+      } else reply.send(new ResourceNotFoundError('Application', request.params.appid));
+    } catch (err) {
+      reply.send(new InternalError('Api key retrieval', err));
+    }
+  });
+
+  /** Add/update an apikey with a set of valid ips to access the api key */
+  fastify.decorate('setApiKey', async (request, reply) => {
+    try {
+      const missingAtt = [];
+      if (!request.body.appid) missingAtt.push('appid');
+      if (!request.body.apikey) missingAtt.push('apikey');
+      if (!request.body.validIPs) missingAtt.push('validIPs');
+      else {
+        request.body.valid_ips = request.body.validIPs.join(',');
+        delete request.body.validIPs;
+      }
+
+      if (missingAtt.length > 0)
+        reply.send(
+          new BadRequestError(
+            'Missing attribute(s) in body',
+            new Error(`Missing ${missingAtt.join(',')}`)
+          )
+        );
+      else {
+        await fastify.upsert(
+          models.apikeys,
+          request.body,
+          request.params.appid ? { appid: request.params.appid } : {},
+          request.epadAuth ? request.epadAuth.username : request.socket.remoteAddress
+        );
+        reply.code(200).send('Api key set with valid IPs');
+      }
+    } catch (err) {
+      reply.send(new InternalError('Set api key', err));
+    }
+  });
+
   fastify.decorate('add0s', (val) => (val > 9 ? val : `0${val}`));
 
   fastify.decorate('getFormattedDate', (dateFromDB) => {
@@ -9594,7 +9906,7 @@ async function epaddb(fastify, options, done) {
               studyUID: params.study,
               seriesUID: series[i].dataValues.seriesuid,
               seriesDate: series[i].dataValues.seriesdate,
-              seriesDescription: series[i].dataValues.description,
+              seriesDescription: series[i].dataValues.description || '',
               examType: '',
               bodyPart: '',
               accessionNumber: '',
@@ -9629,96 +9941,111 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('createUser', async (request, reply) => {
-    if (!request.body) {
-      reply.send(new BadRequestError('User Creation', new Error('No body sent')));
-    } else {
-      let existingUsername;
-      let existingEmail;
-      try {
-        existingUsername = await models.user.findOne({
-          where: { username: request.body.username },
-          attributes: ['id'],
-        });
-        existingUsername = existingUsername ? existingUsername.dataValues.id : null;
-        existingEmail = await models.user.findOne({
-          where: { email: request.body.username },
-          attributes: ['id'],
-        });
-        existingEmail = existingEmail ? existingEmail.dataValues.id : null;
-      } catch (error) {
-        reply.send(new InternalError('Create user in db', error));
-      }
-      if (existingUsername || existingEmail) {
-        if (existingUsername)
-          reply.send(new ResourceAlreadyExistsError(`Username `, request.body.username));
-        if (existingEmail)
-          reply.send(new ResourceAlreadyExistsError('Email address ', request.body.username));
-      } else {
-        try {
-          const permissions = request.body.permissions ? request.body.permissions.split(',') : [''];
-          const trimmedPermission = [];
-          permissions.forEach((el) => trimmedPermission.push(el.trim()));
-          if (request.body.permissions) {
-            delete request.body.permissions;
-          }
-          request.body.permissions = trimmedPermission.join(',');
-          const user = await models.user.create({
-            ...request.body,
-            createdtime: Date.now(),
-            updatetime: Date.now(),
-            creator: request.epadAuth.username,
-          });
+    fastify
+      .createUserInternal(request.body, request.params, request.epadAuth)
+      .then((result) => reply.code(200).send(result))
+      .catch((err) => reply.send(err));
+  });
 
-          const { id } = user.dataValues;
-          if (request.body.projects && request.body.projects.length > 0) {
-            const queries = [];
+  // body should be an object with fields
+  // {username, firstname, lastname, email, enabled, admin, permissions, projects}
+  fastify.decorate(
+    'createUserInternal',
+    (body, params, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        if (!body) {
+          reject(new BadRequestError('User Creation', new Error('No body sent')));
+        } else {
+          let existingUsername;
+          let existingEmail;
+          try {
+            existingUsername = await models.user.findOne({
+              where: { username: body.username },
+              attributes: ['id'],
+            });
+            existingUsername = existingUsername ? existingUsername.dataValues.id : null;
+            existingEmail = await models.user.findOne({
+              where: { email: body.username },
+              attributes: ['id'],
+            });
+            existingEmail = existingEmail ? existingEmail.dataValues.id : null;
+          } catch (error) {
+            reject(new InternalError('Create user in db', error));
+          }
+          if (existingUsername || existingEmail) {
+            if (existingUsername)
+              reject(new ResourceAlreadyExistsError(`Username `, body.username));
+            if (existingEmail)
+              reject(new ResourceAlreadyExistsError('Email address ', body.username));
+          } else {
             try {
-              for (let i = 0; i < request.body.projects.length; i += 1) {
-                const isNone = request.body.projects[i].role.toLowerCase() === 'none';
-                if (!isNone) {
-                  // eslint-disable-next-line no-await-in-loop
-                  const project = await models.project.findOne({
-                    where: { projectid: request.body.projects[i].project },
-                    attributes: ['id'],
-                  });
-                  if (project === null) {
-                    reply.send(
-                      new BadRequestError(
-                        'Create user with project associations',
-                        new ResourceNotFoundError('Project', request.params.project)
-                      )
-                    );
-                  } else {
-                    const projectId = project.dataValues.id;
-                    const entry = {
-                      project_id: projectId,
-                      user_id: id,
-                      role: request.body.projects[i].role,
-                      createdtime: Date.now(),
-                      updatetime: Date.now(),
-                    };
-                    queries.push(models.project_user.create(entry));
-                  }
-                }
+              const permissions = body.permissions ? body.permissions.split(',') : [''];
+              const trimmedPermission = [];
+              permissions.forEach((el) => trimmedPermission.push(el.trim()));
+              if (body.permissions) {
+                // eslint-disable-next-line no-param-reassign
+                delete body.permissions;
               }
-              try {
-                await Promise.all(queries);
-                reply.code(200).send(`User succesfully created`);
-              } catch (err) {
-                reply.send(new InternalError('Create user project associations', err));
+              // eslint-disable-next-line no-param-reassign
+              body.permissions = trimmedPermission.join(',');
+              const user = await models.user.create({
+                ...body,
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+                creator: epadAuth.username,
+              });
+
+              const { id } = user.dataValues;
+              if (body.projects && body.projects.length > 0) {
+                const queries = [];
+                try {
+                  for (let i = 0; i < body.projects.length; i += 1) {
+                    const isNone = body.projects[i].role.toLowerCase() === 'none';
+                    if (!isNone) {
+                      // eslint-disable-next-line no-await-in-loop
+                      const project = await models.project.findOne({
+                        where: { projectid: body.projects[i].project },
+                        attributes: ['id'],
+                      });
+                      if (project === null) {
+                        reject(
+                          new BadRequestError(
+                            'Create user with project associations',
+                            new ResourceNotFoundError('Project', params.project)
+                          )
+                        );
+                      } else {
+                        const projectId = project.dataValues.id;
+                        const entry = {
+                          project_id: projectId,
+                          user_id: id,
+                          role: body.projects[i].role,
+                          createdtime: Date.now(),
+                          updatetime: Date.now(),
+                        };
+                        queries.push(models.project_user.create(entry));
+                      }
+                    }
+                  }
+                  try {
+                    await Promise.all(queries);
+                    resolve(`User succesfully created`);
+                  } catch (err) {
+                    reject(new InternalError('Create user project associations', err));
+                  }
+                } catch (err) {
+                  reject(new InternalError('Create user project associations', err));
+                }
+              } else {
+                resolve(`User succesfully created`);
               }
             } catch (err) {
-              reply.send(new InternalError('Create user project associations', err));
+              reject(new InternalError('Create user in db', err));
             }
-          } else {
-            reply.code(200).send(`User succesfully created`);
           }
-        } catch (err) {
-          reply.send(new InternalError('Create user in db', err));
         }
-      }
-    }
-  });
+      })
+  );
 
   fastify.decorate(
     'getProjectInternal',
@@ -13118,6 +13445,7 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS email varchar(128) AFTER organization,
                 ADD COLUMN IF NOT EXISTS emailvalidationcode varchar(128) AFTER email,
                 ADD COLUMN IF NOT EXISTS emailvalidationsent timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS secret varchar(128) AFTER epadtype,
                 MODIFY COLUMN apikey varchar(128) null;`,
               { transaction: t }
             );

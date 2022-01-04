@@ -14,6 +14,7 @@ const plist = require('plist');
 const { createOfflineAimSegmentation, Aim } = require('aimapi');
 const crypto = require('crypto');
 const concat = require('concat-stream');
+const ActiveDirectory = require('activedirectory2');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -1694,7 +1695,8 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
-      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decrypt?`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decryptandgrantaccess?`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/apikeys`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
@@ -1962,9 +1964,42 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate(
+    'createADUser',
+    (username, projectID, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        const ad = new ActiveDirectory(config.ad);
+        ad.findUser(username, async (adErr, adUser) => {
+          try {
+            if (adErr) reject(adErr);
+            else if (!adUser) reject(new ResourceNotFoundError('AD User', username));
+            else {
+              await fastify.createUserInternal(
+                {
+                  username,
+                  firstname: adUser.givenName,
+                  lastname: adUser.sn,
+                  email: adUser.mail,
+                  enabled: true,
+                  admin: false,
+                  projects: [{ role: 'Member', project: projectID }],
+                },
+                { project: projectID },
+                epadAuth
+              );
+              resolve('User successfully added with member right');
+            }
+          } catch (err) {
+            fastify.log.error(`Create aduser error. ${err.message}`);
+            reject(err);
+          }
+        });
+      })
+  );
+
   fastify.decorate('decryptAdd', async (request, reply) => {
     try {
-      const obj = fastify.decryptInternal(request.query.arg);
+      const obj = await fastify.decryptInternal(request.query.arg);
       const projectID = obj.projectID ? obj.projectID : 'lite';
       // if patientID and studyUID
       if (obj.patientID && obj.studyUID) {
@@ -2017,7 +2052,7 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('decryptInternal', (encrypted) => {
+  fastify.decorate('decryptInternal', async (encrypted) => {
     if (!config.secret) {
       throw new Error('No secret defined');
     } else {
@@ -2037,6 +2072,11 @@ async function other(fastify) {
         obj[keyValue[0]] = keyValue[1];
       }
       obj.patientID = obj.patientID || obj.PatientID;
+
+      // get the api key if there is
+      const apiKey = await fastify.getApiKeyWithSecretInternal(config.secret);
+      obj.API_KEY = apiKey;
+
       if (obj.expiry) {
         const expiryDate = new Date(obj.expiry * 1000);
         const now = new Date();
@@ -2049,10 +2089,27 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('decrypt', (request, reply) => {
+  fastify.decorate('decrypt', async (request, reply) => {
     try {
-      const obj = fastify.decryptInternal(request.query.arg);
-      if (!obj.projectID) obj.projectID = 'lite';
+      const obj = await fastify.decryptInternal(request.query.arg);
+      const projectID = obj.projectID ? obj.projectID : 'lite';
+      if (obj.user) {
+        // check if user exists
+        try {
+          await fastify.getUserInternal({ user: obj.user });
+        } catch (userErr) {
+          try {
+            // if not get user info and create user
+            if (userErr instanceof ResourceNotFoundError && config.ad) {
+              await fastify.createADUser(obj.user, projectID, request.epadAuth);
+            }
+          } catch (adErr) {
+            fastify.log.error(`Error creating AD user ${adErr.message}`);
+            // remove api key so we can do reqular authentication
+            delete obj.API_KEY;
+          }
+        }
+      }
       if (obj) {
         reply.code(200).send(obj);
       }

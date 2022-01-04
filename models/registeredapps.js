@@ -47,6 +47,10 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.STRING(1),
         allowNull: true,
       },
+      secret: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+      },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,

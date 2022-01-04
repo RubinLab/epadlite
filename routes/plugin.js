@@ -56,7 +56,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'POST',
-    url: '/plugindefaultparameters', // /plugins/parameters/default/addnew ok
+    url: '/plugindefaultparameters',
     schema: {
       tags: ['plugins'],
     },
@@ -65,7 +65,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'POST',
-    url: '/plugindefaultparameters/edit', // /plugins/parameters/default/edit/ ok
+    url: '/plugindefaultparameters/edit',
     schema: {
       tags: ['plugins'],
     },
@@ -73,7 +73,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
-    url: '/pluginprojectparameters', //  /plugins/parameters/project/addnew ok
+    url: '/pluginprojectparameters',
     schema: {
       tags: ['plugins'],
     },
@@ -81,7 +81,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
-    url: '/pluginprojectparameters/edit', // /plugins/parameters/project/edit/ ok
+    url: '/pluginprojectparameters/edit',
     schema: {
       tags: ['plugins'],
     },
@@ -89,7 +89,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
-    url: '/plugintemplateparameters', // /plugins/parameters/template/addnew ok
+    url: '/plugintemplateparameters',
     schema: {
       tags: ['plugins'],
     },
@@ -97,7 +97,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
-    url: '/plugintemplateparameters/edit', //  /plugins/parameters/template/edit/ ok
+    url: '/plugintemplateparameters/edit',
     schema: {
       tags: ['plugins'],
     },
@@ -116,7 +116,7 @@ async function routes(fastify) {
   // });
   fastify.route({
     method: 'POST',
-    url: '/plugins', // /plugins/addnew ok
+    url: '/plugins',
     schema: {
       tags: ['plugins'],
     },
@@ -134,7 +134,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'POST',
-    url: '/plugins/delete', // /plugins ok
+    url: '/plugins/delete',
     schema: {
       tags: ['plugins'],
     },
@@ -143,7 +143,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/plugins/:plugindbid', // ok
+    url: '/plugins/:plugindbid',
     schema: {
       tags: ['plugins'],
     },
@@ -151,7 +151,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'GET',
-    url: '/plugins/:plugindbid/defaultparameters', // /plugins/parameters/default/:plugindbid ok
+    url: '/plugins/:plugindbid/defaultparameters',
     schema: {
       tags: ['plugins'],
     },
@@ -159,7 +159,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'PUT',
-    url: '/plugins/:pluginid/projects/:projectids', // ok
+    url: '/plugins/:pluginid/projects/:projectids',
     schema: {
       tags: ['plugins'],
     },
@@ -168,7 +168,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'PUT',
-    url: '/plugins/:pluginid/templates/:templateids', // ok
+    url: '/plugins/:pluginid/templates/:templateids',
     schema: {
       tags: ['plugins'],
     },
@@ -176,7 +176,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'GET',
-    url: '/plugins/:plugindbid/project/:projectdbid/projectparameters', // /plugins/parameters/project/:plugindbid/:projectdbid ok
+    url: '/plugins/:plugindbid/project/:projectdbid/projectparameters',
     schema: {
       tags: ['plugins'],
     },
@@ -184,7 +184,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'GET',
-    url: '/plugins/:plugindbid/template/:templatedbid/templateparameters', // /plugins/parameters/template/:plugindbid/:templatedbid ok
+    url: '/plugins/:plugindbid/template/:templatedbid/templateparameters',
     schema: {
       tags: ['plugins'],
     },
@@ -193,7 +193,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/pluginqueue', // /plugins/queue/ ok
+    url: '/pluginqueue',
     schema: {
       tags: ['plugins'],
     },
@@ -201,7 +201,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
-    url: '/pluginqueue', // /plugins/queue/add ok
+    url: '/pluginqueue',
     schema: {
       tags: ['plugins'],
     },
@@ -209,7 +209,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
-    url: '/pluginqueue/run', //  /plugins/queue/run ok
+    url: '/pluginqueue/run',
     schema: {
       tags: ['plugins'],
     },
@@ -217,7 +217,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
-    url: '/pluginqueue/stop', // /plugins/queue/stop ok
+    url: '/pluginqueue/stop',
     schema: {
       tags: ['plugins'],
     },
@@ -225,7 +225,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
-    url: '/pluginqueue/delete', // /plugins/queue/delete ok
+    url: '/pluginqueue/delete',
     schema: {
       tags: ['plugins'],
     },
@@ -233,7 +233,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'POST',
-    url: '/pluginqueue/download', //  /plugins/download/queue/result ok
+    url: '/pluginqueue/download',
     schema: {
       tags: ['plugins'],
     },
@@ -242,7 +242,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'DELETE',
-    url: '/pluginparameters/:parameterdbid/default', // /plugins/parameters/default/:parameterdbid ok
+    url: '/pluginparameters/:parameterdbid/default',
     schema: {
       tags: ['plugins'],
     },
@@ -250,7 +250,7 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'DELETE',
-    url: '/pluginparameters/:parameterdbid/project', //  /plugins/parameters/project/:parameterdbid ok
+    url: '/pluginparameters/:parameterdbid/project',
     schema: {
       tags: ['plugins'],
     },
@@ -258,11 +258,76 @@ async function routes(fastify) {
   });
   fastify.route({
     method: 'DELETE',
-    url: '/pluginparameters/:parameterdbid/template', // /plugins/parameters/template/:parameterdbid ok
+    url: '/pluginparameters/:parameterdbid/template',
     schema: {
       tags: ['plugins'],
     },
     handler: fastify.deleteOneTemplateParameter,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/pluginsubqueue/:qid',
+    schema: {
+      tags: ['plugins'],
+      params: {
+        type: 'object',
+        properties: {
+          qid: {
+            type: 'integer',
+          },
+        },
+      },
+    },
+    handler: fastify.getPluginParentsInQueue,
+  });
+  fastify.route({
+    method: 'POST',
+    url: '/pluginsubqueue',
+    schema: {
+      tags: ['plugins'],
+      body: {
+        type: 'object',
+        required: ['qid', 'parent_qid', 'status'],
+        properties: {
+          qid: { type: 'integer' },
+          parent_qid: { type: 'integer' },
+          status: { type: 'integer' },
+        },
+      },
+    },
+    handler: fastify.insertPluginSubqueue,
+  });
+  fastify.route({
+    method: 'GET',
+    url: '/pluginsubqueue/:fromid/:toid',
+    schema: {
+      tags: ['plugins'],
+      params: {
+        type: 'object',
+        required: ['fromid', 'toid'],
+        properties: {
+          fromid: { type: 'integer' },
+          toid: { type: 'integer' },
+        },
+      },
+    },
+    handler: fastify.pluginCopyAimsBetweenPlugins,
+  });
+  fastify.route({
+    method: 'DELETE',
+    url: '/pluginsubqueue/:id',
+    schema: {
+      tags: ['plugins'],
+      params: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'integer',
+          },
+        },
+      },
+    },
+    handler: fastify.deletePluginSubqueue,
   });
 }
 module.exports = routes;
