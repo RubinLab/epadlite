@@ -2100,7 +2100,11 @@ async function other(fastify) {
           try {
             // if not get user info and create user
             if (userErr instanceof ResourceNotFoundError && config.ad) {
-              await fastify.createADUser(obj.user, projectID, request.epadAuth);
+              await fastify.createADUser(
+                obj.user,
+                projectID,
+                request.epadAuth || { username: obj.user }
+              );
             }
           } catch (adErr) {
             fastify.log.error(`Error creating AD user ${adErr.message}`);
