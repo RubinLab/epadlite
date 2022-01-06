@@ -2091,7 +2091,7 @@ async function other(fastify) {
   fastify.decorate('decrypt', async (request, reply) => {
     try {
       const obj = await fastify.decryptInternal(request.query.arg);
-      const projectID = obj.projectID ? obj.projectID : 'lite';
+      obj.projectID = obj.projectID || 'lite';
       if (obj.user) {
         // check if user exists
         try {
@@ -2102,7 +2102,7 @@ async function other(fastify) {
             if (userErr instanceof ResourceNotFoundError && config.ad) {
               await fastify.createADUser(
                 obj.user,
-                projectID,
+                obj.projectID,
                 request.epadAuth || { username: obj.user }
               );
             }
