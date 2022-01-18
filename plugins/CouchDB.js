@@ -521,7 +521,7 @@ async function couchdb(fastify, options) {
               .then((qry) => {
                 const dbFilter = {
                   q: qry,
-                  sort: filter.sort || 'name<string>',
+                  sort: (filter && filter.sort) || 'name<string>',
                   limit: 200,
                 };
                 if (format !== 'summary') {
