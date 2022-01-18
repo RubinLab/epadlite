@@ -519,7 +519,11 @@ async function couchdb(fastify, options) {
             fastify
               .generateSearchQuery(params, epadAuth, filter)
               .then((qry) => {
-                const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
+                const dbFilter = {
+                  q: qry,
+                  sort: filter.sort || 'name<string>',
+                  limit: 200,
+                };
                 if (format !== 'summary') {
                   dbFilter.include_docs = true;
                   dbFilter.attachments = true;
