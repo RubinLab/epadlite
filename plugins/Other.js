@@ -14,6 +14,7 @@ const plist = require('plist');
 const { createOfflineAimSegmentation, Aim } = require('aimapi');
 const crypto = require('crypto');
 const concat = require('concat-stream');
+const ActiveDirectory = require('activedirectory2');
 const config = require('../config/index');
 
 let keycloak = null;
@@ -167,6 +168,8 @@ async function other(fastify) {
                 if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                 fastify.log.info(`${dir} deleted`);
               });
+              // poll dicomweb to update the counts
+              await fastify.pollDWStudies();
               const errMessagesText = fastify.getCombinedErrorText(errors);
               if (success) {
                 if (errMessagesText) {
@@ -543,7 +546,9 @@ async function other(fastify) {
         .then(() => {
           fastify
             .processFolder(dataFolder, request.params, {}, request.epadAuth)
-            .then((result) => {
+            .then(async (result) => {
+              // poll dicomweb to update the counts
+              await fastify.pollDWStudies();
               fastify.log.info(
                 `Finished processing ${dataFolder} at ${new Date().getTime()} with ${
                   result.success
@@ -1690,7 +1695,8 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
-      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decrypt?`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decryptandgrantaccess?`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/apikeys`) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
@@ -1913,9 +1919,13 @@ async function other(fastify) {
               break;
             case 'PUT': // check permissions
               if (
-                !request.raw.url.startsWith(`/${config.prefix}/search`) &&
+                !request.raw.url.startsWith(
+                  config.prefix ? `/${config.prefix}/search` : '/search'
+                ) &&
                 !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
-                !request.raw.url.startsWith(`/${config.prefix}/decrypt`) &&
+                !request.raw.url.startsWith(
+                  config.prefix ? `/${config.prefix}/decrypt` : '/decrypt'
+                ) &&
                 reqInfo.level !== 'ontology' &&
                 (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
                 !(
@@ -1958,9 +1968,42 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate(
+    'createADUser',
+    (username, projectID, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        const ad = new ActiveDirectory(config.ad);
+        ad.findUser(username, async (adErr, adUser) => {
+          try {
+            if (adErr) reject(adErr);
+            else if (!adUser) reject(new ResourceNotFoundError('AD User', username));
+            else {
+              await fastify.createUserInternal(
+                {
+                  username,
+                  firstname: adUser.givenName,
+                  lastname: adUser.sn,
+                  email: adUser.mail,
+                  enabled: true,
+                  admin: false,
+                  projects: [{ role: 'Member', project: projectID }],
+                },
+                { project: projectID },
+                epadAuth
+              );
+              resolve('User successfully added with member right');
+            }
+          } catch (err) {
+            fastify.log.error(`Create aduser error. ${err.message}`);
+            reject(err);
+          }
+        });
+      })
+  );
+
   fastify.decorate('decryptAdd', async (request, reply) => {
     try {
-      const obj = fastify.decryptInternal(request.query.arg);
+      const obj = await fastify.decryptInternal(request.query.arg);
       const projectID = obj.projectID ? obj.projectID : 'lite';
       // if patientID and studyUID
       if (obj.patientID && obj.studyUID) {
@@ -2013,7 +2056,7 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('decryptInternal', (encrypted) => {
+  fastify.decorate('decryptInternal', async (encrypted) => {
     if (!config.secret) {
       throw new Error('No secret defined');
     } else {
@@ -2033,6 +2076,11 @@ async function other(fastify) {
         obj[keyValue[0]] = keyValue[1];
       }
       obj.patientID = obj.patientID || obj.PatientID;
+
+      // get the api key if there is
+      const apiKey = await fastify.getApiKeyWithSecretInternal(config.secret);
+      obj.API_KEY = apiKey;
+
       if (obj.expiry) {
         const expiryDate = new Date(obj.expiry * 1000);
         const now = new Date();
@@ -2045,10 +2093,31 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('decrypt', (request, reply) => {
+  fastify.decorate('decrypt', async (request, reply) => {
     try {
-      const obj = fastify.decryptInternal(request.query.arg);
-      if (!obj.projectID) obj.projectID = 'lite';
+      const obj = await fastify.decryptInternal(request.query.arg);
+      obj.projectID = obj.projectID || 'lite';
+      if (obj.user) {
+        // check if user exists
+        try {
+          await fastify.getUserInternal({ user: obj.user });
+        } catch (userErr) {
+          try {
+            // if not get user info and create user
+            if (userErr instanceof ResourceNotFoundError && config.ad) {
+              await fastify.createADUser(
+                obj.user,
+                obj.projectID,
+                request.epadAuth || { username: obj.user }
+              );
+            }
+          } catch (adErr) {
+            fastify.log.error(`Error creating AD user ${adErr.message}`);
+            // remove api key so we can do reqular authentication
+            delete obj.API_KEY;
+          }
+        }
+      }
       if (obj) {
         reply.code(200).send(obj);
       }
@@ -2057,25 +2126,44 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('search', (request, reply) => {
+  fastify.decorate('search', async (request, reply) => {
     try {
       const params = {};
       const queryObj = { ...request.query, ...request.body };
-      if (queryObj.project) {
-        params.project = queryObj.project;
-        delete queryObj.project;
-      }
-      if (queryObj.subject) {
-        params.subject = queryObj.subject;
-        delete queryObj.subject;
-      }
-      if (queryObj.study) {
-        params.study = queryObj.study;
-        delete queryObj.study;
-      }
-      if (queryObj.series) {
-        params.series = queryObj.series;
-        delete queryObj.series;
+      if (queryObj.query) {
+        if (queryObj.query.includes('project')) {
+          const qryParts = queryObj.query.split(' ');
+          for (let i = 0; i < qryParts.length; i += 1) {
+            if (qryParts[i].startsWith('project')) {
+              const projectId = qryParts[i].split(':')[1];
+              if (fastify.isCollaborator(projectId, request.epadAuth)) {
+                queryObj.query += ` AND user:"${request.epadAuth.username}"`;
+                break;
+              }
+            }
+          }
+        } else {
+          // if there is no project filter get accessible projects and add to query
+          const { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
+            request.epadAuth
+          );
+          let rightsFilter = '';
+          if (collaboratorProjIds) {
+            for (let i = 0; i < collaboratorProjIds.length; i += 1) {
+              rightsFilter += ` ${rightsFilter === '' ? '' : ' OR'} (project:"${
+                collaboratorProjIds[i]
+              }" AND user:"${request.epadAuth.username}")`;
+            }
+          }
+          if (aimAccessProjIds) {
+            for (let i = 0; i < aimAccessProjIds.length; i += 1) {
+              rightsFilter += ` ${rightsFilter === '' ? '' : ' OR'} (project:"${
+                aimAccessProjIds[i]
+              }")`;
+            }
+          }
+          if (rightsFilter) queryObj.query += ` AND (${rightsFilter})`;
+        }
       }
       fastify
         .getAimsInternal('summary', params, queryObj, request.epadAuth, request.query.bookmark)

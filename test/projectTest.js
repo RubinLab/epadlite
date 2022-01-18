@@ -27,25 +27,38 @@ beforeEach(() => {
   const segBuffer = fs.readFileSync('test/data/testseg.dcm');
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=0023.2015.09.28.3&includefield=StudyDescription`
+      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=0023.2015.09.28.3&includefield=StudyDescription&includefield=00201206&includefield=00201208`
     )
     .reply(200, studiesResponse);
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=56547547373&includefield=StudyDescription`
+      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=56547547373&includefield=StudyDescription&includefield=00201206&includefield=00201208`
     )
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=100&includefield=StudyDescription`)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies?includefield=StudyDescription&includefield=00201206&includefield=00201208`
+    )
     .reply(200, studiesResponse);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=3&includefield=StudyDescription`)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies?limit=100&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+    )
     .reply(200, studiesResponse);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=7&includefield=StudyDescription`)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=3&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+    )
+    .reply(200, studiesResponse);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=7&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+    )
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
-    .get(`${config.dicomWebConfig.qidoSubPath}/studies?PatientID=4&includefield=StudyDescription`)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=4&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+    )
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
     .get(
@@ -4398,6 +4411,26 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should fail creating testassoc2 project again ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .send({
+          projectId: 'testassoc2',
+          projectName: 'testassoc2',
+          projectDescription: 'testassoc2desc',
+          defaultTemplate: '', // giving default template automatically adds the template to the project
+          type: 'private',
+        })
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(409);
           done();
         })
         .catch((e) => {

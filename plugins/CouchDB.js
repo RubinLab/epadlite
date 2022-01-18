@@ -344,7 +344,11 @@ async function couchdb(fastify, options) {
                     if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
                     else fastify.log.info(`${dir} deleted`);
                   });
-                  resolve(`/download/annotations_${timestamp}.zip`);
+                  resolve(
+                    `${
+                      config.prefix ? `/${config.prefix}` : ''
+                    }/download/annotations_${timestamp}.zip`
+                  );
                 } else {
                   const readStream = fs.createReadStream(`${dir}/annotations.zip`);
                   // delete tmp folder after the file is sent
@@ -402,11 +406,11 @@ async function couchdb(fastify, options) {
     if (params.series) qryParts.push(`series_uid:"${params.series}"`);
     else if (params.series === '') qryParts.push(`series_uid:"noseries"`);
     if (fastify.isCollaborator(params.project, epadAuth))
-      qryParts.push(`user:${epadAuth.username}`);
+      qryParts.push(`user:"${epadAuth.username}"`);
     if (filter) {
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(filter)) {
-        if (key === 'template') qryParts.push(`template_code:${value}`);
+        if (key === 'template') qryParts.push(`template_code:"${value}"`);
         else if (key === 'aims') qryParts.push(`(${value.join(' OR ')})`);
         else if (validQryParams.includes(key)) qryParts.push(`${key}:${value}`);
       }
@@ -423,12 +427,12 @@ async function couchdb(fastify, options) {
       // add collaborator filtering
       const projectFilter = [];
       if (aimAccessProjIds.length > 0)
-        projectFilter.push(`project:(${aimAccessProjIds.join(' OR ')})`);
+        projectFilter.push(`project:("${aimAccessProjIds.join('" OR "')}")`);
       if (collaboratorProjIds.length > 0)
         projectFilter.push(
-          `(project:${collaboratorProjIds.join(
-            ` AND user:${epadAuth.username}) OR (project:`
-          )} AND user:${epadAuth.username})`
+          `(project:"${collaboratorProjIds.join(
+            `" AND user:"${epadAuth.username}") OR (project:"`
+          )}" AND user:"${epadAuth.username}")`
         );
       qryParts.push(`( ${projectFilter.join(' OR ')})`);
     }
@@ -462,6 +466,7 @@ async function couchdb(fastify, options) {
                     patientName: body.rows[i].fields.patient_name,
                     studyDate: body.rows[i].fields.study_date,
                     comment: body.rows[i].fields.programmed_comment,
+                    userComment: body.rows[i].fields.comment,
                     templateType: body.rows[i].fields.template_name,
                     color: 'NA',
                     dsoFrameNo: 'NA',

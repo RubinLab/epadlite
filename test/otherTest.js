@@ -1,4 +1,3 @@
-/*
 const chai = require('chai');
 const chaiHttp = require('chai-http');
 // const fs = require('fs');
@@ -7,7 +6,92 @@ chai.use(chaiHttp);
 const { expect } = chai;
 
 describe('Other Tests', () => {
-  it('dcm upload should be successful ', done => {
+  it('set an api key ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/apikeys')
+      .send({ appid: 'epad', apikey: 'aaaa-bbbbb-cccc-dddd', validIPs: ['127.0.0.1'] })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('get api key for epad ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/apikeys/epad')
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.text).to.equal('aaaa-bbbbb-cccc-dddd');
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('update api key with new ips ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/apikeys')
+      .send({
+        appid: 'epad',
+        apikey: 'aaaa-bbbbb-cccc-dddd',
+        validIPs: ['127.0.0.1', '1.2.3.4'],
+      })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('get api key for epad again', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/apikeys/epad')
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.text).to.equal('aaaa-bbbbb-cccc-dddd');
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('update api key with new ips ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/apikeys')
+      .send({
+        appid: 'epad',
+        apikey: 'aaaa-bbbbb-cccc-dddd',
+        validIPs: ['1.2.3.4', '2.3.4.5'],
+      })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('fail getting api key for epad ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/apikeys/epad')
+      .then((res) => {
+        expect(res.statusCode).to.equal(403);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  /* it('dcm upload should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/projects/lite/files')
@@ -269,6 +353,5 @@ describe('Other Tests', () => {
         done(e);
       });
   });
+  */
 });
-
-*/

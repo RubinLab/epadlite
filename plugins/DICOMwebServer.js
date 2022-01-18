@@ -4,6 +4,7 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
+const dimse = require('dicom-dimse-native');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -265,7 +266,7 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(
             this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription`,
+              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
               header
             )
           );
@@ -430,7 +431,10 @@ async function dicomwebserver(fastify) {
           // use admin username
           const epadAuth = { username: 'admin', admin: true };
           const updateStudyPromises = [];
-          const values = await this.request.get(`/studies?includefield=StudyDescription`, header);
+          const values = await this.request.get(
+            `/studies?includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+            header
+          );
           const studyUids = await fastify.getDBStudies();
           for (let i = 0; i < values.data.length; i += 1) {
             const value = values.data[i];
@@ -554,17 +558,49 @@ async function dicomwebserver(fastify) {
     ) =>
       new Promise((resolve, reject) => {
         try {
+          const promisses = [];
+          const qryIncludes =
+            '&includefield=StudyDescription&includefield=00201206&includefield=00201208';
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
-          if (params.study) query = `?StudyInstanceUID=${params.study}`;
-          else if (params.subject) query = `?PatientID=${params.subject}`;
-          const promisses = [];
-          promisses.push(
-            this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription`,
-              header
-            )
-          );
+          if (filter && config.pullStudyIds) {
+            let studyUidsStr = filter.join(',');
+            const maxLength = 2048 - qryIncludes.length - '?StudyInstanceUID='.length;
+            while (studyUidsStr.length > maxLength) {
+              for (let j = maxLength; j > 0; j -= 1) {
+                if (studyUidsStr[j] === ',') {
+                  promisses.push(
+                    this.request.get(
+                      `${
+                        config.dicomWebConfig.qidoSubPath
+                      }/studies?StudyInstanceUID=${studyUidsStr.substring(0, j)}${qryIncludes}`,
+                      header
+                    )
+                  );
+                  studyUidsStr = studyUidsStr.substring(j + 1);
+                  break;
+                }
+              }
+            }
+            if (studyUidsStr.length > 0) {
+              promisses.push(
+                this.request.get(
+                  `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=${studyUidsStr}${qryIncludes}`,
+                  header
+                )
+              );
+            }
+          } else {
+            if (params.study) query = `?StudyInstanceUID=${params.study}`;
+            else if (params.subject) query = `?PatientID=${params.subject}`;
+
+            promisses.push(
+              this.request.get(
+                `${config.dicomWebConfig.qidoSubPath}/studies${query}${qryIncludes}`,
+                header
+              )
+            );
+          }
           // get aims for a specific patient
           if (!noStats)
             promisses.push(
@@ -580,19 +616,18 @@ async function dicomwebserver(fastify) {
 
           Promise.all(promisses)
             .then(async (values) => {
+              let studies = values[0].data;
+              for (let i = 1; i < (!noStats ? values.length - 1 : values.length); i += 1) {
+                studies = studies.concat(values[i].data);
+              }
               // handle success
               // filter the results if patient id filter is given
               // eslint-disable-next-line prefer-const
-              let { filteredStudies } = await fastify.filter(
-                values[0].data,
-                [],
-                filter,
-                tag,
-                aimField,
-                negateFilter
-              );
+              let { filteredStudies } = config.pullStudyIds
+                ? { filteredStudies: studies }
+                : await fastify.filter(studies, [], filter, tag, aimField, negateFilter);
               // populate an aim counts map containing each study
-              const aimsCountMap = values[1] ? values[1] : [];
+              const aimsCountMap = !noStats ? values[values.length - 1] : [];
 
               if (
                 filteredStudies.length === 0 ||
@@ -724,7 +759,7 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const studies = await this.request.get(
-            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription`,
+            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
             header
           );
           const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);
@@ -755,17 +790,99 @@ async function dicomwebserver(fastify) {
   });
 
   fastify.decorate(
+    'getStudySeriesDIMSE',
+    (studyUID) =>
+      new Promise((resolve, reject) => {
+        dimse.findScu(
+          JSON.stringify({
+            source: {
+              aet: 'FINDSCU',
+              ip: '127.0.0.1',
+              port: '9999',
+            },
+            target: {
+              aet: config.dimse.aet,
+              ip: config.dimse.ip,
+              port: config.dimse.port,
+            },
+            tags: [
+              {
+                key: '0020000D',
+                value: studyUID,
+              },
+              {
+                key: '00080052',
+                value: 'SERIES',
+              },
+              {
+                key: '00080021',
+                value: '',
+              },
+              {
+                key: '0008103E',
+                value: '',
+              },
+              {
+                key: '0020000E',
+                value: '',
+              },
+              {
+                key: '00080060',
+                value: '',
+              },
+              {
+                key: '00080050',
+                value: '',
+              },
+              {
+                key: '00201209',
+                value: '',
+              },
+              {
+                key: '00201209',
+                value: '',
+              },
+              {
+                key: '00200011',
+                value: '',
+              },
+            ],
+          }),
+          (result) => {
+            try {
+              const jsonResult = JSON.parse(result);
+              const map = {};
+              const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
+              res.forEach((item) => {
+                if (item['0020000E'])
+                  map[item['0020000E'].Value[0]] = item['0008103E']
+                    ? item['0008103E'].Value[0]
+                    : '';
+              });
+              resolve({ data: res });
+            } catch (err) {
+              console.log(err);
+              reject(err);
+            }
+          }
+        );
+      })
+  );
+
+  fastify.decorate(
     'getStudySeriesInternal',
     (params, query, epadAuth, noStats) =>
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          promisses.push(
-            this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
-              header
-            )
-          );
+          if (config.dimse) promisses.push(fastify.getStudySeriesDIMSE(params.study));
+          else
+            promisses.push(
+              this.request.get(
+                `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
+                header
+              )
+            );
           promisses.push(
             fastify
               .getSignificantSeriesInternal(params.project, params.subject, params.study)
@@ -823,7 +940,9 @@ async function dicomwebserver(fastify) {
                 seriesUID: value['0020000E'].Value[0],
                 seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
                 seriesDescription:
-                  value['0008103E'] && value['0008103E'].Value ? value['0008103E'].Value[0] : '',
+                  value['0008103E'] && value['0008103E'].Value && value['0008103E'].Value[0]
+                    ? value['0008103E'].Value[0]
+                    : '',
                 examType:
                   value['00080060'] && value['00080060'].Value ? value['00080060'].Value[0] : '',
                 bodyPart: '', // TODO
