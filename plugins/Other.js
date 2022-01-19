@@ -2118,30 +2118,53 @@ async function other(fastify) {
     }
   });
 
-  fastify.decorate('search', (request, reply) => {
+  fastify.decorate('search', async (request, reply) => {
     try {
       const params = {};
       const queryObj = { ...request.query, ...request.body };
-      if (queryObj.project) {
-        params.project = queryObj.project;
-        delete queryObj.project;
+      if (queryObj.query) {
+        if (queryObj.query.includes('project')) {
+          const qryParts = queryObj.query.split(' ');
+          for (let i = 0; i < qryParts.length; i += 1) {
+            if (qryParts[i].startsWith('project')) {
+              const projectId = qryParts[i].split(':')[1];
+              if (fastify.isCollaborator(projectId, request.epadAuth)) {
+                queryObj.query += ` AND user:"${request.epadAuth.username}"`;
+                break;
+              }
+            }
+          }
+        } else {
+          // if there is no project filter get accessible projects and add to query
+          const { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
+            request.epadAuth
+          );
+          let rightsFilter = '';
+          if (collaboratorProjIds) {
+            for (let i = 0; i < collaboratorProjIds.length; i += 1) {
+              rightsFilter += ` ${rightsFilter === '' ? '' : ' OR'} (project:"${
+                collaboratorProjIds[i]
+              }" AND user:"${request.epadAuth.username}")`;
+            }
+          }
+          if (aimAccessProjIds) {
+            for (let i = 0; i < aimAccessProjIds.length; i += 1) {
+              rightsFilter += ` ${rightsFilter === '' ? '' : ' OR'} (project:"${
+                aimAccessProjIds[i]
+              }")`;
+            }
+          }
+          if (rightsFilter) queryObj.query += ` AND (${rightsFilter})`;
+        }
       }
-      if (queryObj.subject) {
-        params.subject = queryObj.subject;
-        delete queryObj.subject;
-      }
-      if (queryObj.study) {
-        params.study = queryObj.study;
-        delete queryObj.study;
-      }
-      if (queryObj.series) {
-        params.series = queryObj.series;
-        delete queryObj.series;
-      }
-      fastify
-        .getAimsInternal('summary', params, queryObj, request.epadAuth, request.query.bookmark)
-        .then((result) => reply.code(200).send(result))
-        .catch((err) => reply.send(err));
+      const result = await fastify.getAimsInternal(
+        'summary',
+        params,
+        queryObj,
+        request.epadAuth,
+        request.query.bookmark
+      );
+      reply.code(200).send(result);
     } catch (err) {
       reply.send(new InternalError(`Search ${JSON.stringify(request.query)}`, err));
     }
