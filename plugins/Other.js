@@ -2136,6 +2136,10 @@ async function other(fastify) {
           for (let i = 0; i < qryParts.length; i += 1) {
             if (qryParts[i].startsWith('project')) {
               const projectId = qryParts[i].split(':')[1];
+              if (!fastify.hasRoleInProject(projectId, request.epadAuth)) {
+                reply.code(200).send({ total_rows: 0, rows: [] });
+                return;
+              }
               if (fastify.isCollaborator(projectId, request.epadAuth)) {
                 queryObj.query += ` AND user:"${request.epadAuth.username}"`;
                 break;
