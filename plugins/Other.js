@@ -1919,9 +1919,13 @@ async function other(fastify) {
               break;
             case 'PUT': // check permissions
               if (
-                !request.raw.url.startsWith(`/${config.prefix}/search`) &&
+                !request.raw.url.startsWith(
+                  config.prefix ? `/${config.prefix}/search` : '/search'
+                ) &&
                 !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
-                !request.raw.url.startsWith(`/${config.prefix}/decrypt`) &&
+                !request.raw.url.startsWith(
+                  config.prefix ? `/${config.prefix}/decrypt` : '/decrypt'
+                ) &&
                 reqInfo.level !== 'ontology' &&
                 (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
                 !(
@@ -2092,7 +2096,7 @@ async function other(fastify) {
   fastify.decorate('decrypt', async (request, reply) => {
     try {
       const obj = await fastify.decryptInternal(request.query.arg);
-      const projectID = obj.projectID ? obj.projectID : 'lite';
+      obj.projectID = obj.projectID || 'lite';
       if (obj.user) {
         // check if user exists
         try {
@@ -2101,7 +2105,11 @@ async function other(fastify) {
           try {
             // if not get user info and create user
             if (userErr instanceof ResourceNotFoundError && config.ad) {
-              await fastify.createADUser(obj.user, projectID, request.epadAuth);
+              await fastify.createADUser(
+                obj.user,
+                obj.projectID,
+                request.epadAuth || { username: obj.user }
+              );
             }
           } catch (adErr) {
             fastify.log.error(`Error creating AD user ${adErr.message}`);
