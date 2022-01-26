@@ -10544,7 +10544,7 @@ async function epaddb(fastify, options, done) {
               await fastify.pq.addAll(segWritePromises);
             }
           }
-          resolve(isThereDataToWrite);
+          resolve({ isThereDataToWrite, data, header });
         } catch (err) {
           reject(err);
         }
@@ -10559,7 +10559,7 @@ async function epaddb(fastify, options, done) {
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
           // create the header base
-          const header = [
+          let header = [
             // Date_Created	Patient_Name	Patient_ID	Reviewer	Name Comment	Points	Study_UID	Series_UID	Image_UID
             { id: 'aimUid', title: 'Aim_UID' },
             { id: 'date', title: 'Date_Created' },
@@ -10575,7 +10575,7 @@ async function epaddb(fastify, options, done) {
             { id: 'seriesUid', title: 'Series_UID' },
             { id: 'imageUid', title: 'Image_UID' },
           ];
-          const data = [];
+          let data = [];
           const aims = aimsResult.rows;
           if (aims.length < aimsResult.total_rows) {
             fastify.log.info(
@@ -10586,16 +10586,18 @@ async function epaddb(fastify, options, done) {
             let totalAimCount = aims.length;
             let { bookmark } = aimsResult;
             // put the first batch
-            isThereDataToWrite =
-              (await fastify.prepAimDownloadOneBatch(
-                dataDir,
-                params,
-                downloadParams,
-                aims,
-                header,
-                data,
-                archive
-              )) || isThereDataToWrite;
+            let batchReturn = await fastify.prepAimDownloadOneBatch(
+              dataDir,
+              params,
+              downloadParams,
+              aims,
+              header,
+              data,
+              archive
+            );
+            isThereDataToWrite = batchReturn.isThereDataToWrite || isThereDataToWrite;
+            header = batchReturn.header;
+            data = batchReturn.data;
             fastify.log.info('Downloaded first batch');
             let i = 2;
             // get batches and put them in download dir till we get all aims
@@ -10608,9 +10610,9 @@ async function epaddb(fastify, options, done) {
                 epadAuth,
                 bookmark
               );
-              isThereDataToWrite =
+              batchReturn =
                 // eslint-disable-next-line no-await-in-loop
-                (await fastify.prepAimDownloadOneBatch(
+                await fastify.prepAimDownloadOneBatch(
                   dataDir,
                   params,
                   downloadParams,
@@ -10618,7 +10620,10 @@ async function epaddb(fastify, options, done) {
                   header,
                   data,
                   archive
-                )) || isThereDataToWrite;
+                );
+              isThereDataToWrite = batchReturn.isThereDataToWrite || isThereDataToWrite;
+              header = batchReturn.header;
+              data = batchReturn.data;
               // eslint-disable-next-line prefer-destructuring
               bookmark = newResult.bookmark;
               totalAimCount += newResult.rows.length;
@@ -10627,7 +10632,7 @@ async function epaddb(fastify, options, done) {
               i += 1;
             }
           } else {
-            isThereDataToWrite = await fastify.prepAimDownloadOneBatch(
+            const batchReturn = await fastify.prepAimDownloadOneBatch(
               dataDir,
               params,
               downloadParams,
@@ -10636,6 +10641,9 @@ async function epaddb(fastify, options, done) {
               data,
               archive
             );
+            isThereDataToWrite = batchReturn.isThereDataToWrite || isThereDataToWrite;
+            header = batchReturn.header;
+            data = batchReturn.data;
           }
           // TODO archive
           if (downloadParams.summary && downloadParams.summary.toLowerCase() === 'true') {
