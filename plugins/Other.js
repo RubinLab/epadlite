@@ -2174,7 +2174,9 @@ async function other(fastify) {
         params,
         queryObj,
         request.epadAuth,
-        request.query.bookmark
+        request.query.bookmark,
+        undefined,
+        true
       );
       reply.code(200).send(result);
     } catch (err) {
