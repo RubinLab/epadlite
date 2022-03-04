@@ -559,7 +559,7 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          const qryIncludes =
+          let qryIncludes =
             '&includefield=StudyDescription&includefield=00201206&includefield=00201208';
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
@@ -591,9 +591,13 @@ async function dicomwebserver(fastify) {
               );
             }
           } else {
-            if (params.study) query = `?StudyInstanceUID=${params.study}`;
-            else if (params.subject) query = `?PatientID=${params.subject}`;
+            if (params.study)
+              query = `${query}${query.length > 0 ? '?' : '&'}StudyInstanceUID=${params.study}`;
+            else if (params.subject)
+              query = `${query}${query.length > 0 ? '?' : '&'}PatientID=${params.subject}`;
 
+            // if there is nothing in the query (getting everything, for migration for example) change the & at the start to ?
+            if (query.length === 0) qryIncludes = `?${qryIncludes.substring(1)}`;
             promisses.push(
               this.request.get(
                 `${config.dicomWebConfig.qidoSubPath}/studies${query}${qryIncludes}`,
