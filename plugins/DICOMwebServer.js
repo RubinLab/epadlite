@@ -592,9 +592,9 @@ async function dicomwebserver(fastify) {
             }
           } else {
             if (params.study)
-              query = `${query}${query.length > 0 ? '?' : '&'}StudyInstanceUID=${params.study}`;
+              query = `${query}${query.length === 0 ? '?' : '&'}StudyInstanceUID=${params.study}`;
             else if (params.subject)
-              query = `${query}${query.length > 0 ? '?' : '&'}PatientID=${params.subject}`;
+              query = `${query}${query.length === 0 ? '?' : '&'}PatientID=${params.subject}`;
 
             // if there is nothing in the query (getting everything, for migration for example) change the & at the start to ?
             if (query.length === 0) qryIncludes = `?${qryIncludes.substring(1)}`;
