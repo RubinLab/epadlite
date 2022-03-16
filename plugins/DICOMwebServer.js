@@ -296,10 +296,11 @@ async function dicomwebserver(fastify) {
                   const modalities = _.reduce(
                     value,
                     (modalitiesCombined, val) => {
-                      val['00080061'].Value.forEach((modality) => {
-                        if (!modalitiesCombined.includes(modality))
-                          modalitiesCombined.push(modality);
-                      });
+                      if (val['00080061'] && val['00080061'].Value)
+                        val['00080061'].Value.forEach((modality) => {
+                          if (!modalitiesCombined.includes(modality))
+                            modalitiesCombined.push(modality);
+                        });
                       return modalitiesCombined;
                     },
                     []
