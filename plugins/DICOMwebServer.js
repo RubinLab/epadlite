@@ -433,7 +433,9 @@ async function dicomwebserver(fastify) {
           const epadAuth = { username: 'admin', admin: true };
           const updateStudyPromises = [];
           const values = await this.request.get(
-            `/studies?includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+            `/studies?${
+              config.limitStudies ? `limit=${config.limitStudies}&` : ''
+            }includefield=StudyDescription&includefield=00201206&includefield=00201208`,
             header
           );
           const studyUids = await fastify.getDBStudies();
@@ -592,10 +594,9 @@ async function dicomwebserver(fastify) {
               );
             }
           } else {
-            if (params.study)
-              query = `${query}${query.length === 0 ? '?' : '&'}StudyInstanceUID=${params.study}`;
-            else if (params.subject)
-              query = `${query}${query.length === 0 ? '?' : '&'}PatientID=${params.subject}`;
+            // if there is a study or patient filter ignore the limit
+            if (params.study) query = `?StudyInstanceUID=${params.study}`;
+            else if (params.subject) query = `?PatientID=${params.subject}`;
 
             // if there is nothing in the query (getting everything, for migration for example) change the & at the start to ?
             if (query.length === 0) qryIncludes = `?${qryIncludes.substring(1)}`;
