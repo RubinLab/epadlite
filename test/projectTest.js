@@ -37,11 +37,6 @@ beforeEach(() => {
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?includefield=StudyDescription&includefield=00201206&includefield=00201208`
-    )
-    .reply(200, studiesResponse);
-  nock(config.dicomWebConfig.baseUrl)
-    .get(
       `${config.dicomWebConfig.qidoSubPath}/studies?limit=100&includefield=StudyDescription&includefield=00201206&includefield=00201208`
     )
     .reply(200, studiesResponse);
