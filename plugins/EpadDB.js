@@ -3273,7 +3273,7 @@ async function epaddb(fastify, options, done) {
       const result = [];
       return new Promise(async (resolve, reject) => {
         let transposedCsv = {};
-        if (pluginParameters.pluginnameid === 'pyradiomics') {
+        if (pluginParameters.pluginnameid.includes('pyradiomics')) {
           try {
             transposedCsv = await fastify.pluginTransposeCsv(csvFileParam.path, csvFileParam.file);
           } catch (err) {
@@ -3292,7 +3292,7 @@ async function epaddb(fastify, options, done) {
               result.push(data);
             })
             .on('end', () => {
-              if (pluginParameters.pluginnameid === 'pyradiomics') {
+              if (pluginParameters.pluginnameid.includes('pyradiomics')) {
                 resolve({
                   resultobj: result,
                   rownumobj: transposedCsv.rownum,
@@ -4122,7 +4122,7 @@ async function epaddb(fastify, options, done) {
               );
 
               // Add if additional input files will be prepared before starting plugin ? (adding for pyradiomics for now)
-              if (pluginParameters.pluginnameid === 'pyradiomics') {
+              if (pluginParameters.pluginnameid.includes('pyradiomics')) {
                 fastify.log.info(`running plugin is an instance of pyradiomics plugin`);
                 // eslint-disable-next-line no-await-in-loop
                 await fastify.createPluginPyradiomicsDsoListInternal(pluginParameters);
@@ -4143,7 +4143,7 @@ async function epaddb(fastify, options, done) {
                   addsegmentationentitytoaim = true;
                 }
               }
-              if (pluginParameters.pluginnameid === 'pyradiomics') {
+              if (pluginParameters.pluginnameid.includes('pyradiomics')) {
                 // this if block is only to verify if dsoList.csv is created before the container starts.Its purpose is just to write to console.It can be removed if no debugging is necessary
                 fastify.log.info(
                   ` plugin dsolist file created before the pyradiomics container starts : ${pluginParameters.relativeServerFolder}/dicoms/dsoList.csv`
@@ -4268,9 +4268,11 @@ async function epaddb(fastify, options, done) {
 
                 if (csvArray.length > 0) {
                   let csvfound = null;
+                  let pyradiomicsFeatureValuesFile = null;
                   for (let cntCsvArray = 0; cntCsvArray < csvArray.length; cntCsvArray += 1) {
                     if (csvArray[cntCsvArray].file === `${outputFileParam}`) {
                       csvfound = cntCsvArray;
+                      pyradiomicsFeatureValuesFile = csvArray[cntCsvArray].file;
                       break;
                     }
                   }
@@ -4282,7 +4284,7 @@ async function epaddb(fastify, options, done) {
                       true
                     ).notify(fastify);
                     fastify.log.info(
-                      `plugin is processing csv file from output folder ${pluginParameters.relativeServerFolder}/output`
+                      `plugin is processing csv file ${pyradiomicsFeatureValuesFile} from output folder ${pluginParameters.relativeServerFolder}/output`
                     );
                     const tempFileObject = csvArray[csvfound];
                     let calcObj = null;
@@ -4309,7 +4311,9 @@ async function epaddb(fastify, options, done) {
                       ).notify(fastify);
                     }
                     fastify.log.info(
-                      `parseCsvForPluginCalculationsInternal -> after the transposition will be decided to continue or not. calcObj : ${calcObj}`
+                      `parseCsvForPluginCalculationsInternal -> after the transposition will be decided to continue or not. calcObj : ${JSON.stringify(
+                        calcObj
+                      )}`
                     );
                     if (calcObj) {
                       const resObj = calcObj.resultobj;
@@ -4330,7 +4334,7 @@ async function epaddb(fastify, options, done) {
                         let foundSegEntity = null;
                         let mergedaimFileLocation = null;
                         // find the aim id from the dso id -> if the plugin is pyradiomics
-                        if (pluginParameters.pluginnameid === 'pyradiomics') {
+                        if (pluginParameters.pluginnameid.includes('pyradiomics')) {
                           try {
                             fastify.log.info(
                               `finding the aim for the dso: ${
