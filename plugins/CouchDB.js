@@ -434,7 +434,7 @@ async function couchdb(fastify, options) {
             `" AND user:"${epadAuth.username}") OR (project:"`
           )}" AND user:"${epadAuth.username}")`
         );
-      qryParts.push(`( ${projectFilter.join(' OR ')})`);
+      if (projectFilter.length > 0) qryParts.push(`( ${projectFilter.join(' OR ')})`);
     }
     if (qryParts.length === 0) return '*:*';
     return qryParts.join(' AND ');

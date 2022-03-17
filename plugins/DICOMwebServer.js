@@ -296,10 +296,11 @@ async function dicomwebserver(fastify) {
                   const modalities = _.reduce(
                     value,
                     (modalitiesCombined, val) => {
-                      val['00080061'].Value.forEach((modality) => {
-                        if (!modalitiesCombined.includes(modality))
-                          modalitiesCombined.push(modality);
-                      });
+                      if (val['00080061'] && val['00080061'].Value)
+                        val['00080061'].Value.forEach((modality) => {
+                          if (!modalitiesCombined.includes(modality))
+                            modalitiesCombined.push(modality);
+                        });
                       return modalitiesCombined;
                     },
                     []
@@ -432,7 +433,9 @@ async function dicomwebserver(fastify) {
           const epadAuth = { username: 'admin', admin: true };
           const updateStudyPromises = [];
           const values = await this.request.get(
-            `/studies?includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+            `/studies?${
+              config.limitStudies ? `limit=${config.limitStudies}&` : ''
+            }includefield=StudyDescription&includefield=00201206&includefield=00201208`,
             header
           );
           const studyUids = await fastify.getDBStudies();
@@ -559,7 +562,7 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          const qryIncludes =
+          let qryIncludes =
             '&includefield=StudyDescription&includefield=00201206&includefield=00201208';
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
@@ -591,9 +594,12 @@ async function dicomwebserver(fastify) {
               );
             }
           } else {
+            // if there is a study or patient filter ignore the limit
             if (params.study) query = `?StudyInstanceUID=${params.study}`;
             else if (params.subject) query = `?PatientID=${params.subject}`;
 
+            // if there is nothing in the query (getting everything, for migration for example) change the & at the start to ?
+            if (query.length === 0) qryIncludes = `?${qryIncludes.substring(1)}`;
             promisses.push(
               this.request.get(
                 `${config.dicomWebConfig.qidoSubPath}/studies${query}${qryIncludes}`,

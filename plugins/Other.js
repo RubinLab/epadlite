@@ -1991,6 +1991,18 @@ async function other(fastify) {
                 { project: projectID },
                 epadAuth
               );
+              // create a private project by user id
+              // should we have a shorter name?
+              // get default template from config
+              await fastify.createProjectInternal(
+                `${adUser.givenName} ${adUser.sn}`,
+                `prj_${username}`,
+                `${adUser.givenName} ${adUser.sn}'s Private Folder`,
+                config.defaultTemplate,
+                'Private',
+                epadAuth
+              );
+
               resolve('User successfully added with member right');
             }
           } catch (err) {

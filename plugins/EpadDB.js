@@ -307,73 +307,87 @@ async function epaddb(fastify, options, done) {
   // PROJECTS
   fastify.decorate('createProject', (request, reply) => {
     const { projectName, projectId, projectDescription, defaultTemplate, type } = request.body;
-    if (projectId === 'lite') {
-      reply.send(
-        new BadRequestError(
-          'Creating lite project',
-          new Error('lite project id is reserved for system. Use another project id')
-        )
-      );
-    } else {
-      const validationErr = fastify.validateRequestBodyFields(projectName, projectId);
-      if (validationErr) {
-        reply.send(new BadRequestError('Creating project', new Error(validationErr)));
-      }
-
-      models.project
-        .create({
-          name: projectName,
-          projectid: projectId,
-          description: projectDescription,
-          defaulttemplate: defaultTemplate,
-          type,
-          updatetime: Date.now(),
-          createdtime: Date.now(),
-          creator: request.epadAuth.username,
-        })
-        .then(async (project) => {
-          // create relation as owner
-          try {
-            const userId = await fastify.findUserIdInternal(request.epadAuth.username);
-            const entry = {
-              project_id: project.id,
-              user_id: userId,
-              role: 'Owner',
-              createdtime: Date.now(),
-              updatetime: Date.now(),
-              creator: request.epadAuth.username,
-            };
-            await models.project_user.create(entry);
-            // if there is default template add that template to project
-            await fastify.tryAddDefaultTemplateToProject(
-              defaultTemplate,
-              project,
-              request.epadAuth
-            );
-
-            fastify.log.info(`Project with id ${project.id} is created successfully`);
-            reply.code(200).send(`Project with id ${project.id} is created successfully`);
-          } catch (errPU) {
-            reply.send(
-              new InternalError(
-                'Getting user info for project owner and creating project owner relationship',
-                errPU
-              )
-            );
-          }
-        })
-        .catch((err) => {
-          if (
-            err.errors &&
-            err.errors[0] &&
-            err.errors[0].type &&
-            err.errors[0].type === 'unique violation'
-          )
-            reply.send(new ResourceAlreadyExistsError('Project', projectId));
-          else reply.send(new InternalError('Creating project', err));
-        });
-    }
+    fastify
+      .createProjectInternal(
+        projectName,
+        projectId,
+        projectDescription,
+        defaultTemplate,
+        type,
+        request.epadAuth
+      )
+      .then((res) => reply.code(200).send(res))
+      .catch((err) => reply.send(err));
   });
+
+  fastify.decorate(
+    'createProjectInternal',
+    (projectName, projectId, projectDescription, defaultTemplate, type, epadAuth) =>
+      new Promise((resolve, reject) => {
+        if (projectId === 'lite') {
+          reject(
+            new BadRequestError(
+              'Creating lite project',
+              new Error('lite project id is reserved for system. Use another project id')
+            )
+          );
+        } else {
+          const validationErr = fastify.validateRequestBodyFields(projectName, projectId);
+          if (validationErr) {
+            reject(new BadRequestError('Creating project', new Error(validationErr)));
+          }
+
+          models.project
+            .create({
+              name: projectName,
+              projectid: projectId,
+              description: projectDescription,
+              defaulttemplate: defaultTemplate,
+              type,
+              updatetime: Date.now(),
+              createdtime: Date.now(),
+              creator: epadAuth.username,
+            })
+            .then(async (project) => {
+              // create relation as owner
+              try {
+                const userId = await fastify.findUserIdInternal(epadAuth.username);
+                const entry = {
+                  project_id: project.id,
+                  user_id: userId,
+                  role: 'Owner',
+                  createdtime: Date.now(),
+                  updatetime: Date.now(),
+                  creator: epadAuth.username,
+                };
+                await models.project_user.create(entry);
+                // if there is default template add that template to project
+                await fastify.tryAddDefaultTemplateToProject(defaultTemplate, project, epadAuth);
+
+                fastify.log.info(`Project with id ${project.id} is created successfully`);
+                resolve(`Project with id ${project.id} is created successfully`);
+              } catch (errPU) {
+                reject(
+                  new InternalError(
+                    'Getting user info for project owner and creating project owner relationship',
+                    errPU
+                  )
+                );
+              }
+            })
+            .catch((err) => {
+              if (
+                err.errors &&
+                err.errors[0] &&
+                err.errors[0].type &&
+                err.errors[0].type === 'unique violation'
+              )
+                reject(new ResourceAlreadyExistsError('Project', projectId));
+              else reject(new InternalError('Creating project', err));
+            });
+        }
+      })
+  );
 
   fastify.decorate(
     'tryAddDefaultTemplateToProject',

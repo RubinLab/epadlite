@@ -111,4 +111,6 @@ config.ad = config.ad
     }
   : null;
 
+config.defaultTemplate = process.env.DEFAULT_TEMPLATE || config.defaultTemplate || 'ROI';
+
 module.exports = config;
