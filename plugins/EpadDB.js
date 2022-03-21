@@ -1987,24 +1987,33 @@ async function epaddb(fastify, options, done) {
           });
         })
         .then(() => {
-          models.plugin_queue
+          // delete plugin subquue rows which contain plugin_queue id
+          models.plugin_subqueue
             .destroy({
               where: {
-                id: idsToDelete,
+                parent_qid: idsToDelete,
               },
             })
             .then(() => {
-              reply.code(200).send(idsToDelete);
-            })
-            .catch((err) => {
-              reply
-                .code(500)
-                .send(
-                  new InternalError(
-                    'Something went wrong while deleting the process from queue',
-                    err
-                  )
-                );
+              models.plugin_queue
+                .destroy({
+                  where: {
+                    id: idsToDelete,
+                  },
+                })
+                .then(() => {
+                  reply.code(200).send(idsToDelete);
+                })
+                .catch((err) => {
+                  reply
+                    .code(500)
+                    .send(
+                      new InternalError(
+                        'Something went wrong while deleting the process from queue',
+                        err
+                      )
+                    );
+                });
             });
         })
         .catch(
