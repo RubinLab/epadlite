@@ -573,110 +573,118 @@ async function other(fastify) {
   fastify.decorate(
     'processFolder',
     (zipDir, params, query, epadAuth, filesOnly = false, zipFilesToIgnore = []) =>
-      new Promise((resolve, reject) => {
+      new Promise(async (resolve, reject) => {
         fastify.log.info(`Processing folder ${zipDir} filesonly: ${filesOnly}`);
         const datasets = [];
         // success variable is to check if there was at least one successful processing
         const result = { success: false, errors: [] };
         const studies = new Set();
-        fs.readdir(zipDir, async (err, files) => {
-          if (err) {
-            reject(new InternalError(`Reading directory ${zipDir}`, err));
-          } else {
-            try {
-              if (!filesOnly) {
-                // keep track of processing
-                for (let i = 0; i < files.length; i += 1) {
-                  if (files[i] !== '__MACOSX')
-                    if (fs.statSync(path.join(zipDir, files[i])).isDirectory() === true)
-                      // eslint-disable-next-line no-await-in-loop
-                      await fastify.addProcessing(
-                        params,
-                        query,
-                        path.join(zipDir, files[i]),
-                        false,
-                        1,
-                        '',
-                        epadAuth
-                      );
-                }
-                await fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
-              }
-              const promisses = [];
+        try {
+          let files = await fs.promises.readdir(zipDir);
+          try {
+            if (!filesOnly) {
+              // sort by timestamp but only if it is not files only
+              // so that we can handle migrating old dcm4chee files and update the segmentation objects with newer versions
+              files = files
+                .map((fileName) => ({
+                  name: fileName,
+                  time: fs.statSync(`${zipDir}/${fileName}`).mtime.getTime(),
+                }))
+                .sort((a, b) => a.time - b.time)
+                .map((file) => file.name);
+              // keep track of processing
               for (let i = 0; i < files.length; i += 1) {
                 if (files[i] !== '__MACOSX')
-                  if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
-                    try {
-                      if (!filesOnly) {
-                        // eslint-disable-next-line no-await-in-loop
-                        const subdirResult = await fastify.processFolder(
-                          path.join(zipDir, files[i]),
-                          params,
-                          query,
-                          epadAuth
-                        );
-                        if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
-                          result.errors = result.errors.concat(subdirResult.errors);
-                        }
-                        if (subdirResult && subdirResult.success) {
-                          result.success = result.success || subdirResult.success;
-                        }
-                      }
-                    } catch (folderErr) {
-                      reject(folderErr);
-                    }
-                  else {
-                    promisses.push(() =>
-                      fastify
-                        .processFile(
-                          zipDir,
-                          files[i],
-                          datasets,
-                          params,
-                          query,
-                          studies,
-                          epadAuth,
-                          zipFilesToIgnore
-                        )
-                        .catch((error) => {
-                          result.errors.push(error);
-                        })
+                  if (fs.statSync(path.join(zipDir, files[i])).isDirectory() === true)
+                    // eslint-disable-next-line no-await-in-loop
+                    await fastify.addProcessing(
+                      params,
+                      query,
+                      path.join(zipDir, files[i]),
+                      false,
+                      1,
+                      '',
+                      epadAuth
                     );
-                  }
               }
-              pq.addAll(promisses).then(async (values) => {
-                try {
-                  for (let i = 0; i < values.length; i += 1) {
-                    if (values[i] && values[i].success) {
-                      // one success is enough
-                      result.success = true;
-                      // I cannot break because of errors accumulation, I am not sure about performance
-                      // break;
-                    }
-                    if (values[i] && values[i].errors && values[i].errors.length > 0)
-                      result.errors = result.errors.concat(values[i].errors);
-                  }
-                  if (datasets.length > 0) {
-                    pqDicoms
-                      .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
-                      .then(async () => {
-                        await fastify.removeProcessing(params, query, zipDir);
-                        resolve(result);
-                      })
-                      .catch((error) => reject(error));
-                  } else {
-                    await fastify.removeProcessing(params, query, zipDir);
-                    resolve(result);
-                  }
-                } catch (saveDicomErr) {
-                  reject(saveDicomErr);
-                }
-              });
-            } catch (errDir) {
-              reject(errDir);
+              await fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
             }
+            const promisses = [];
+            for (let i = 0; i < files.length; i += 1) {
+              if (files[i] !== '__MACOSX')
+                if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
+                  try {
+                    if (!filesOnly) {
+                      // eslint-disable-next-line no-await-in-loop
+                      const subdirResult = await fastify.processFolder(
+                        path.join(zipDir, files[i]),
+                        params,
+                        query,
+                        epadAuth
+                      );
+                      if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
+                        result.errors = result.errors.concat(subdirResult.errors);
+                      }
+                      if (subdirResult && subdirResult.success) {
+                        result.success = result.success || subdirResult.success;
+                      }
+                    }
+                  } catch (folderErr) {
+                    reject(folderErr);
+                  }
+                else {
+                  promisses.push(() =>
+                    fastify
+                      .processFile(
+                        zipDir,
+                        files[i],
+                        datasets,
+                        params,
+                        query,
+                        studies,
+                        epadAuth,
+                        zipFilesToIgnore
+                      )
+                      .catch((error) => {
+                        result.errors.push(error);
+                      })
+                  );
+                }
+            }
+            pq.addAll(promisses).then(async (values) => {
+              try {
+                for (let i = 0; i < values.length; i += 1) {
+                  if (values[i] && values[i].success) {
+                    // one success is enough
+                    result.success = true;
+                    // I cannot break because of errors accumulation, I am not sure about performance
+                    // break;
+                  }
+                  if (values[i] && values[i].errors && values[i].errors.length > 0)
+                    result.errors = result.errors.concat(values[i].errors);
+                }
+                if (datasets.length > 0) {
+                  pqDicoms
+                    .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
+                    .then(async () => {
+                      await fastify.removeProcessing(params, query, zipDir);
+                      resolve(result);
+                    })
+                    .catch((error) => reject(error));
+                } else {
+                  await fastify.removeProcessing(params, query, zipDir);
+                  resolve(result);
+                }
+              } catch (saveDicomErr) {
+                reject(saveDicomErr);
+              }
+            });
+          } catch (errDir) {
+            reject(errDir);
           }
-        });
+        } catch (err) {
+          reject(new InternalError(`Reading directory ${zipDir}`, err));
+        }
       })
   );
 
