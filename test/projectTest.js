@@ -2620,6 +2620,176 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    // set up again with fake aim
+    it('aim save to project testaim should be successful ', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim_fake.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim/aims')
+        .send(jsonBuffer)
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim3 should have no studies ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/studies')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim3 should have no aims ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/aims')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows.length).to.be.eql(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should copy 2.25.211702350959705566747388843359605362 to testaim3 project (adding the study to project too', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim3/aims/copy')
+        .query({ username: 'admin' })
+        .send(['2.25.211702350959705566747388843359605362'])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim3 should have 1 study ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/studies')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim3 should have 1 aim ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/aims')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows.length).to.be.eql(1);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should delete aim 2.25.211702350959705566747388843359605362 of system in bulk', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim3/aims/delete?all=true')
+        .query({ username: 'admin' })
+        .send(['2.25.211702350959705566747388843359605362'])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim should have no aim ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows.length).to.be.eql(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim2 should have no aim ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim2/aims')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows.length).to.be.eql(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim3 should not have aim 2.25.211702350959705566747388843359605362 but should have another', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/aims')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows.length).to.be.eql(1);
+          expect(res.body.rows[0].ImageAnnotationCollection.uniqueIdentifier.root).to.be.not.eql(
+            '2.25.211702350959705566747388843359605362'
+          );
+          chai
+            .request(`http://${process.env.host}:${process.env.port}`)
+            .post('/projects/testaim3/aims/delete?all=true')
+            .query({ username: 'admin' })
+            .send([res.body.rows[0].ImageAnnotationCollection.uniqueIdentifier.root])
+            .then((resDel) => {
+              expect(resDel.statusCode).to.equal(200);
+              done();
+            })
+            .catch((e) => {
+              done(e);
+            });
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim3 should have no aim ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows.length).to.be.eql(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
   });
   describe('Project File Tests', () => {
     before(async () => {

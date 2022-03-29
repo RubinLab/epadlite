@@ -869,6 +869,47 @@ async function couchdb(fastify, options) {
       .catch((err) => reply.send(err));
   });
 
+  fastify.decorate('copyAimsWithUIDs', (request, reply) => {
+    // we are trying to copy aims, we need only the aims. no need to get query from user
+    // will not copy the segmentation. will create another aim referencing to the same DSO
+    fastify
+      .getAimsFromUIDsInternal({ aim: true }, request.body)
+      .then(async (res) => {
+        const studyUIDs = [];
+        for (let i = 0; i < res.length; i += 1) {
+          const aim = res[i];
+          const studyUID =
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root;
+          const patientID = aim.ImageAnnotationCollection.person.id.value;
+          const params = { project: request.params.project, subject: patientID, study: studyUID };
+          // put the study in the project if it's not already been put
+          if (!studyUIDs.includes(studyUID)) {
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.addPatientStudyToProjectInternal(params, request.epadAuth);
+            studyUIDs.push(studyUID);
+          }
+          // create a copy the aim with a new uid
+          aim.ImageAnnotationCollection.uniqueIdentifier.root = fastify.generateUidInternal();
+          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier.root = fastify.generateUidInternal();
+
+          // add the new aim to the project
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.saveAimJsonWithProjectRef(aim, params, request.epadAuth);
+        }
+        reply
+          .code(200)
+          .send(
+            `Copied aim uids ${request.body.join(',')} and added study uids ${studyUIDs.join(
+              ','
+            )} to project ${request.params.project}`
+          );
+      })
+      .catch((err) => {
+        reply.send(err);
+      });
+  });
+
   fastify.decorate('saveAim', (request, reply) => {
     // get the uid from the json and check if it is same with param, then put as id in couch document
     if (
