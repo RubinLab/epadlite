@@ -1609,6 +1609,17 @@ async function couchdb(fastify, options) {
     }
   });
 
+  fastify.decorate('getTemplate', (request, reply) => {
+    try {
+      const db = fastify.couch.db.use(config.db);
+      db.get(request.params.uid).then((doc) => {
+        reply.code(200).send(doc.template);
+      });
+    } catch (err) {
+      reply.send(new InternalError('Getting templates with uids', err));
+    }
+  });
+
   fastify.decorate('getSummaryFromTemplate', (docTemplate) => {
     // this is basically what we have in the templates_summary view
     const summary = {};

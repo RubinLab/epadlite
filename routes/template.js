@@ -86,6 +86,16 @@ async function routes(fastify) {
 
     handler: fastify.getTemplatesFromUIDs,
   });
+
+  fastify.route({
+    method: 'GET',
+    url: '/templates/:uid',
+    schema: {
+      tags: ['template'],
+    },
+
+    handler: fastify.getTemplate,
+  });
 }
 
 module.exports = routes;
