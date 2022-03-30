@@ -1225,7 +1225,7 @@ async function couchdb(fastify, options) {
               couchDoc.projects = existing.projects;
             }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
-            if (config.auditLog === true) {
+            if (config.auditLog === true && existing.aim) {
               // add the old version to the couchdoc
               // add old aim
               attachments.push({
