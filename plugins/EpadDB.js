@@ -466,9 +466,11 @@ async function epaddb(fastify, options, done) {
     (dbProjectId, relationTable, uidField, projectId) =>
       new Promise(async (resolve, reject) => {
         try {
+          let whereJSON = { project_id: dbProjectId };
+          if (uidField === 'aim_uid') whereJSON = { ...whereJSON, ...fastify.qryNotDeleted() };
           const uidsToDeleteObjects = await models[relationTable].findAll({
             attributes: [uidField],
-            where: { project_id: dbProjectId },
+            where: whereJSON,
             order: [[uidField, 'ASC']],
           });
           const uidsToDelete = [];
@@ -479,10 +481,15 @@ async function epaddb(fastify, options, done) {
               const numDeleted = await models[relationTable].destroy({
                 where: { project_id: dbProjectId },
               });
+
+              let leftWhereJSON = { [uidField]: uidsToDelete };
+              if (uidField === 'aim_uid')
+                leftWhereJSON = { ...leftWhereJSON, ...fastify.qryNotDeleted() };
+
               const uidsLeftObjects = await models[relationTable].findAll({
                 attributes: [uidField],
                 distinct: true,
-                where: { [uidField]: uidsToDelete },
+                where: leftWhereJSON,
                 order: [[uidField, 'ASC']],
               });
               if (uidsToDelete.length === uidsLeftObjects.length) {
@@ -509,6 +516,7 @@ async function epaddb(fastify, options, done) {
                     i += 1;
                   } else if (uidsToDelete[i] > uidsLeftObjects[j][uidField]) {
                     // cannot happen!
+                    console.log('should not happen!');
                     // just in case
                     updateIfAim.push(uidsToDelete[i]);
                   }
