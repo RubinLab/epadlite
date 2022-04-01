@@ -197,6 +197,19 @@ describe('Template Tests', () => {
         done(e);
       });
   });
+  it('template get with uid 2.25.1210608360076368016275589430654744 should return 404', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/templates/2.25.1210608360076368016275589430654744')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(404);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
   it('template delete with uid 2.25.121060836007636801627558943005335 should be successful ', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
