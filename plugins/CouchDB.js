@@ -912,18 +912,15 @@ async function couchdb(fastify, options) {
             // eslint-disable-next-line no-await-in-loop
             const [segPart] = await fastify.getSeriesWadoMultipart(dsoParams);
             if (segPart) {
-              const segTags = dcmjs.data.DicomMessage.readFile(segPart);
-              const segDS = dcmjs.data.DicomMetaDictionary.naturalizeDataset(segTags.dict);
-              // eslint-disable-next-line no-underscore-dangle
-              segDS._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(segTags.meta);
+              const seg = dcmjs.data.DicomMessage.readFile(segPart);
               const seriesUID = fastify.generateUidInternal();
               const instanceUID = fastify.generateUidInternal();
-              segDS.SeriesInstanceUID = seriesUID;
-              segDS.SOPInstanceUID = instanceUID;
-              segDS.MediaStorageSOPInstanceUID = instanceUID;
+              seg.dict['0020000E'] = seriesUID;
+              seg.dict['00080018'] = instanceUID;
+              seg.dict['00020003'] = instanceUID;
 
               // save the updated DSO
-              const buffer = segDS.write();
+              const buffer = seg.write();
               const { data, boundary } = dcmjs.utilities.message.multipartEncode([
                 toArrayBuffer(buffer),
               ]);
