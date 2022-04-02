@@ -915,9 +915,10 @@ async function couchdb(fastify, options) {
               const seg = dcmjs.data.DicomMessage.readFile(segPart);
               const seriesUID = fastify.generateUidInternal();
               const instanceUID = fastify.generateUidInternal();
-              seg.dict['0020000E'] = seriesUID;
-              seg.dict['00080018'] = instanceUID;
-              seg.dict['00020003'] = instanceUID;
+              seg.dict['0020000E'].Value[0] = seriesUID;
+              seg.dict['00080018'].Value[0] = instanceUID;
+              if (seg.dict['00020003'] && seg.dict['00020003'].Value)
+                seg.dict['00020003'].Value[0] = instanceUID;
 
               // save the updated DSO
               const buffer = seg.write();
