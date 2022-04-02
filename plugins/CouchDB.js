@@ -915,12 +915,12 @@ async function couchdb(fastify, options) {
               const seg = dcmjs.data.DicomMessage.readFile(segPart);
               const seriesUID = fastify.generateUidInternal();
               const instanceUID = fastify.generateUidInternal();
-              seg.dict['0020000E'].Value[0] = seriesUID;
-              seg.dict['00080018'].Value[0] = instanceUID;
-              if (seg.dict['00020003'] && seg.dict['00020003'].Value)
-                seg.dict['00020003'].Value[0] = instanceUID;
-
+              const ds = dcmjs.data.DicomMetaDictionary.naturalizeDataset(seg.dict);
+              ds.SeriesInstanceUID = seriesUID;
+              ds.SOPInstanceUID = instanceUID;
+              ds.MediaStorageSOPInstanceUID = instanceUID;
               // save the updated DSO
+              seg.dict = dcmjs.data.DicomMetaDictionary.denaturalizeDataset(ds);
               const buffer = seg.write();
               const { data, boundary } = dcmjs.utilities.message.multipartEncode([
                 toArrayBuffer(buffer),

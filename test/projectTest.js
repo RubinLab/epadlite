@@ -140,7 +140,7 @@ beforeEach(() => {
       'content-length': '36767',
     });
   nock(config.dicomWebConfig.baseUrl)
-    .matchHeader('content-length', '36747')
+    .matchHeader('content-length', '36819')
     .matchHeader('content-type', (val) => val.includes('application/x-www-form-urlencoded'))
     .post(`${config.dicomWebConfig.qidoSubPath}/studies`)
     .reply(200);
@@ -2889,7 +2889,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should copy 2.25.595281743701167154152556092956228240212 to testaim3 project (adding the study to project too', (done) => {
+    it('should copy 2.25.595281743701167154152556092956228240212 to testaim3 project (adding the study to project too)', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testaim3/aims/copy')
