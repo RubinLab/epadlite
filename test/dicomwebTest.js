@@ -25,14 +25,14 @@ beforeEach(() => {
 });
 
 describe('Subject Tests', () => {
-  it('we should have 1 subject in the system', (done) => {
+  it('we should have 2 subjects in the system', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects')
       .query({ username: 'admin' })
       .then((res) => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(1);
+        expect(res.body.length).to.be.eql(2);
         done();
       })
       .catch((e) => {

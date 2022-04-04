@@ -7,6 +7,10 @@ const atob = require('atob');
 const path = require('path');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const dateFormatter = require('date-format');
+// eslint-disable-next-line no-global-assign
+window = {};
+const dcmjs = require('dcmjs');
+const toArrayBuffer = require('to-array-buffer');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 const {
@@ -869,6 +873,82 @@ async function couchdb(fastify, options) {
       .catch((err) => reply.send(err));
   });
 
+  fastify.decorate('copyAimsWithUIDs', (request, reply) => {
+    // we are trying to copy aims, we need only the aims. no need to get query from user
+    // will not copy the segmentation. will create another aim referencing to the same DSO
+    fastify
+      .getAimsFromUIDsInternal({ aim: true }, request.body)
+      .then(async (res) => {
+        const studyUIDs = [];
+        for (let i = 0; i < res.length; i += 1) {
+          const aim = res[i];
+          const studyUID =
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root;
+          const patientID = aim.ImageAnnotationCollection.person.id.value;
+          const params = { project: request.params.project, subject: patientID, study: studyUID };
+          // put the study in the project if it's not already been put
+          if (!studyUIDs.includes(studyUID)) {
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.addPatientStudyToProjectInternal(params, request.epadAuth);
+            studyUIDs.push(studyUID);
+          }
+          // create a copy the aim with a new uid
+          aim.ImageAnnotationCollection.uniqueIdentifier.root = fastify.generateUidInternal();
+          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier.root = fastify.generateUidInternal();
+
+          // if aim has a segmentation, create  copy of the segmentation and update the references in the aim
+          const segEntity =
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .segmentationEntityCollection;
+          // this is a segmentation aim
+          if (segEntity) {
+            const dsoParams = {
+              project: request.params.project,
+              subject: patientID,
+              study: studyUID,
+              series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
+            };
+            // eslint-disable-next-line no-await-in-loop
+            const [segPart] = await fastify.getSeriesWadoMultipart(dsoParams);
+            if (segPart) {
+              const seg = dcmjs.data.DicomMessage.readFile(segPart);
+              const seriesUID = fastify.generateUidInternal();
+              const instanceUID = fastify.generateUidInternal();
+              const ds = dcmjs.data.DicomMetaDictionary.naturalizeDataset(seg.dict);
+              ds.SeriesInstanceUID = seriesUID;
+              ds.SOPInstanceUID = instanceUID;
+              ds.MediaStorageSOPInstanceUID = instanceUID;
+              // save the updated DSO
+              seg.dict = dcmjs.data.DicomMetaDictionary.denaturalizeDataset(ds);
+              const buffer = seg.write();
+              const { data, boundary } = dcmjs.utilities.message.multipartEncode([
+                toArrayBuffer(buffer),
+              ]);
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.saveDicomsInternal(data, boundary);
+              // update the aim
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root = seriesUID;
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].sopInstanceUid.root = instanceUID;
+            }
+          }
+          // add the new aim to the project
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.saveAimJsonWithProjectRef(aim, params, request.epadAuth);
+        }
+        reply
+          .code(200)
+          .send(
+            `Copied aim uids ${request.body.join(',')} and added study uids ${studyUIDs.join(
+              ','
+            )} to project ${request.params.project}`
+          );
+      })
+      .catch((err) => {
+        reply.send(err);
+      });
+  });
+
   fastify.decorate('saveAim', (request, reply) => {
     // get the uid from the json and check if it is same with param, then put as id in couch document
     if (
@@ -1184,7 +1264,7 @@ async function couchdb(fastify, options) {
               couchDoc.projects = existing.projects;
             }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
-            if (config.auditLog === true) {
+            if (config.auditLog === true && existing.aim) {
               // add the old version to the couchdoc
               // add old aim
               attachments.push({

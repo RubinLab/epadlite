@@ -261,6 +261,34 @@ async function routes(fastify) {
     handler: fastify.deleteAimsFromProject,
   });
 
+  // POST {s}/projects/:project/aims/copy
+  // copies the study that aim belongs to and the aim to the new project (:project) for each aim
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/aims/copy',
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+      // response: {
+      //   200: 'aim_schema#',
+      // },
+    },
+    handler: fastify.copyAimsWithUIDs,
+  });
+
   fastify.route({
     method: 'GET',
     url: '/projects/:project/aims/changes',
