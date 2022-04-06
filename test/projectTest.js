@@ -8,6 +8,7 @@ const studiesResponse = require('./data/studiesResponse.json');
 const studiesResponse3 = require('./data/studiesResponse3.json');
 const studiesResponse7 = require('./data/studiesResponse7.json');
 const seriesResponse = require('./data/seriesResponse.json');
+const seriesResponse7 = require('./data/seriesResponse7.json');
 const config = require('../config/index');
 
 chai.use(chaiHttp);
@@ -64,6 +65,11 @@ beforeEach(() => {
     .reply(200, seriesResponse);
   nock(config.dicomWebConfig.baseUrl)
     .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.2.752.24.7.19011385.453825/series?includefield=SeriesDescription`
+    )
+    .reply(200, seriesResponse7);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(
       `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=1.2.752.24.7.19011385.453825&seriesUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.3.1.1000&objectUID=1.3.6.1.4.1.5962.99.1.3988.9480.1511522532838.2.1.1.1000.1`
     )
     .reply(200, segBuffer);
@@ -91,9 +97,9 @@ beforeEach(() => {
         query.numOfProjects === '3' &&
         query.numOfPatients === '2' &&
         query.numOfStudies === '2' &&
-        query.numOfSeries === '1' &&
+        query.numOfSeries === '6' &&
         query.numOfAims === '0' &&
-        query.numOfDSOs === '1' &&
+        query.numOfDSOs === '2' &&
         query.numOfWorkLists === '0' &&
         query.numOfFiles === '0' &&
         query.numOfPlugins === '0' &&
@@ -441,9 +447,9 @@ describe('Project Tests', () => {
             numOfProjects: 3,
             numOfPatients: 2,
             numOfStudies: 2,
-            numOfSeries: 1,
+            numOfSeries: 6,
             numofAims: 0,
-            numOfDSOs: 1,
+            numOfDSOs: 2,
             numOfPacs: 0,
             numOfAutoQueries: 0,
             numOfWorkLists: 0,

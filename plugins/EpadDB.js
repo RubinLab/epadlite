@@ -9860,19 +9860,21 @@ async function epaddb(fastify, options, done) {
             resolve({ result: [], error: `${err.message}` });
           }
         });
-        Promise.all([dicomPromise, nondicomPromise]).then((results) => {
-          const combinedResult = results[0].result.concat(results[1].result);
-          if (results[0].error && results[1].error)
-            rejectMain(
-              new InternalError(
-                'Retrieving series',
-                new Error(
-                  `Failed from dicomweb with ${results[0].error} and from nondicom with ${results[1].error}`
+        Promise.all([dicomPromise, nondicomPromise])
+          .then((results) => {
+            const combinedResult = results[0].result.concat(results[1].result);
+            if (results[0].error && results[1].error)
+              rejectMain(
+                new InternalError(
+                  'Retrieving series',
+                  new Error(
+                    `Failed from dicomweb with ${results[0].error} and from nondicom with ${results[1].error}`
+                  )
                 )
-              )
-            );
-          resolveMain(combinedResult);
-        });
+              );
+            resolveMain(combinedResult);
+          })
+          .catch((err) => rejectMain(new InternalError('Retrieving series', err)));
       })
   );
 
