@@ -2166,20 +2166,28 @@ async function other(fastify) {
           let rightsFilter = '';
           if (collaboratorProjIds) {
             for (let i = 0; i < collaboratorProjIds.length; i += 1) {
-              rightsFilter += ` ${rightsFilter === '' ? '' : ' OR'} (project:"${
+              rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${
                 collaboratorProjIds[i]
               }" AND user:"${request.epadAuth.username}")`;
             }
           }
           if (aimAccessProjIds) {
             for (let i = 0; i < aimAccessProjIds.length; i += 1) {
-              rightsFilter += ` ${rightsFilter === '' ? '' : ' OR'} (project:"${
+              rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${
                 aimAccessProjIds[i]
               }")`;
             }
           }
           if (rightsFilter) queryObj.query += ` AND (${rightsFilter})`;
         }
+      } else if (queryObj.fields || queryObj.filter) {
+        queryObj.query = await fastify.createFieldsQuery(queryObj, request.epadAuth);
+        // returns null if user has no rights to the project
+        if (!queryObj.query) {
+          reply.code(200).send({ total_rows: 0, rows: [] });
+          return;
+        }
+        // make sure you return extra columns
       }
       const result = await fastify.getAimsInternal(
         'summary',
@@ -2192,6 +2200,93 @@ async function other(fastify) {
     } catch (err) {
       reply.send(new InternalError(`Search ${JSON.stringify(request.query)}`, err));
     }
+  });
+
+  fastify.decorate('createFieldsQuery', async (queryObj, epadAuth) => {
+    // const sample = {
+    //   fields: {
+    //     subSpecialty: [],
+    //     modality: [],
+    //     diagnosis: [],
+    //     anatomy: [],
+    //     myCases: true,
+    //     teachingFiles: true,
+    //     query: '',
+    //     project: '',
+    //   },
+    //   filter: { name: 'Lesion' },
+    //   sort: ['-name_sort<string>'],
+    // };
+
+    // fields for filter and sort
+    // Returning fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_date, template_name, template_code, user, user_name, comment
+
+    // Sorting fields: patient_name_sort, patient_id, accession_number, name_sort, age, sex, modality, study_date, anatomy_sort, observation_sort, creation_date, template_name_sort, template_code, user, user_name_sort
+
+    // Different sort fields only: patient_name_sort, name_sort, anatomy_sort, observation_sort, template_name_sort, user_name_sort
+
+    const queryParts = [];
+    if (queryObj.fields && queryObj.fields.query) queryParts.push(`"${queryObj.fields.query}"`);
+    // add filters
+    if (queryObj.filter) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const [key, value] of Object.entries(queryObj.filter)) {
+        queryParts.push(`${key}:${value.replace(' ', '\\ ')}*`);
+      }
+    }
+    if (queryObj.fields) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const [key, value] of Object.entries(queryObj.fields)) {
+        if (Array.isArray(value) && !(queryObj.filter && queryObj.filter[`${key}`]))
+          queryParts.push(fastify.createPartFromArray(key, value));
+      }
+      if (queryObj.fields.myCases) {
+        queryParts.push(`user:"${epadAuth.username}"`);
+      }
+      if (queryObj.fields.teachingFiles) {
+        queryParts.push(`template_code:"99EPAD_15"`);
+      }
+    }
+    if (queryObj.fields && queryObj.fields.project) {
+      if (!fastify.hasRoleInProject(queryObj.fields.project, epadAuth)) {
+        return null;
+      }
+      queryParts.push(`project:"${queryObj.fields.project}"`);
+      if (fastify.isCollaborator(queryObj.fields.project, epadAuth) && !queryObj.fields.myCases) {
+        queryParts.push(`user:"${epadAuth.username}"`);
+      }
+    } else if (!epadAuth.admin) {
+      // handle different project rights
+      // if there is no project filter get accessible projects and add to query
+      const { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
+        epadAuth
+      );
+      let rightsFilter = '';
+      if (collaboratorProjIds) {
+        for (let i = 0; i < collaboratorProjIds.length; i += 1) {
+          rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${
+            collaboratorProjIds[i]
+          }" AND user:"${epadAuth.username}")`;
+        }
+      }
+      if (aimAccessProjIds) {
+        for (let i = 0; i < aimAccessProjIds.length; i += 1) {
+          rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${aimAccessProjIds[i]}")`;
+        }
+      }
+      if (rightsFilter) queryParts.push(`(${rightsFilter})`);
+    }
+
+    return queryParts.length > 0 ? queryParts.join(' AND ') : '';
+  });
+
+  fastify.decorate('createPartFromArray', (field, values) => {
+    let fieldToSearch = field;
+    if (Array.isArray(values)) {
+      if (['subSpecialty', 'diagnosis'].includes(field)) fieldToSearch = 'observation';
+      return `(${values.map((item) => `${fieldToSearch}:"${item}"`).join(' OR ')})`;
+    }
+    return '';
   });
 
   fastify.addHook('onError', (request, reply, error, done) => {

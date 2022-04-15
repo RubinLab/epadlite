@@ -379,4 +379,350 @@ describe('System AIM Tests', () => {
         done(e);
       });
   });
+
+  describe('Aim Search Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'testaim',
+          projectName: 'testaim',
+          projectDescription: 'testdesc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'testaim2',
+          projectName: 'testaim2',
+          projectDescription: 'test2desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/users')
+        .query({ username: 'admin' })
+        .send({
+          username: 'otheruser',
+          firstname: 'testCollaborator',
+          lastname: 'testCollaborator',
+          email: 'testCollaborator@gmail.com',
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testaim/users/otheruser')
+        .query({ username: 'admin' })
+        .send({ role: 'Collaborator' });
+
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/teaching_aim1.json'));
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim/aims')
+        .send(jsonBuffer)
+        .query({ username: 'otheruser' });
+
+      const jsonBuffer2 = JSON.parse(fs.readFileSync('test/data/teaching_aim2.json'));
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim2/aims')
+        .send(jsonBuffer2)
+        .query({ username: 'admin' });
+    });
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testaim')
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testaim2')
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/users/otheruser')
+        .query({ username: 'admin' });
+    });
+
+    it('search with subspecialty and modality ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({ fields: { subSpecialty: ['Body Imaging'], modality: ['MR', 'CT'] } })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          expect(res.body.rows[0].name).to.equal('Teaching File1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with diagnosis only ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            diagnosis: ['abdominal fat necrosis sign', 'interstitial fibrosis', 'pneumonia'],
+          },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File1');
+          expect(res.body.rows[1].name).to.equal('Teaching File2');
+
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with diagnosis and anatomy on mycases only ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            diagnosis: ['abdominal fat necrosis sign', 'interstitial fibrosis', 'pneumonia'],
+            anatomy: ['lung'],
+            myCases: true,
+          },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with anatomy on mycases only and teaching files ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: { anatomy: ['lung'], myCases: true, teachingFiles: true },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with modality on mycases only and teaching files and query ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: { modality: ['CT'], myCases: true, teachingFiles: true, query: 'lung' },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with modality on mycases only, teaching files, query and project (testaim2) ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            modality: ['CT'],
+            myCases: true,
+            teachingFiles: true,
+            query: 'lung',
+            project: 'testaim2',
+          },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with modality on mycases only, teaching files, query and project (testaim) with no result', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            modality: ['CT'],
+            myCases: true,
+            teachingFiles: true,
+            query: 'lung',
+            project: 'testaim',
+          },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with modality on mycases only, teaching files (false), query and project ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            modality: ['CT'],
+            myCases: true,
+            teachingFiles: false,
+            query: 'lung',
+            project: 'testaim2',
+          },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with modality for the collaborator', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'otheruser' })
+        .send({
+          fields: {
+            modality: ['CT'],
+          },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          expect(res.body.rows[0].name).to.equal('Teaching File1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('search with modality and filter ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            modality: ['CT'],
+          },
+          filter: { name_sort: 'Teaching File2' },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with filter and DESC sort', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          filter: { name_sort: 'Teaching File' },
+          sort: ['-name_sort<string>'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with modality and filter and DESC sort', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            modality: ['CT'],
+          },
+          filter: { name_sort: 'Teaching' },
+          sort: ['-name_sort<string>'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with modality and filter with modality and ASC sort', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            modality: ['CT', 'MR'],
+          },
+          filter: { modality: 'CT' },
+          sort: ['name_sort<string>'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File1');
+          expect(res.body.rows[1].name).to.equal('Teaching File2');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+  });
 });
