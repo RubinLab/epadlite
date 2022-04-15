@@ -481,6 +481,10 @@ async function couchdb(fastify, options) {
                     modality: body.rows[i].fields.modality,
                     anatomy: body.rows[i].fields.anatomy,
                     observation: body.rows[i].fields.observation,
+                    accessionNumber: body.rows[i].fields.accession_number,
+                    age: body.rows[i].fields.age,
+                    sex: body.rows[i].fields.sex,
+                    fullName: body.rows[i].fields.user_name,
                   });
                 }
                 resObj.rows = res;
