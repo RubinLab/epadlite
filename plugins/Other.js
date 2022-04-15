@@ -2138,6 +2138,44 @@ async function other(fastify) {
     }
   });
 
+  /** Supports query and fields search
+   * Uses both body and query
+   * fields should be a dictionary and can have following keys
+   * Sample
+   *   fields: {
+   *       subSpecialty: [],
+   *       modality: [],
+   *       diagnosis: [],
+   *       anatomy: [],
+   *       myCases: true,
+   *       teachingFiles: true,
+   *       query: '',
+   *       project: '',
+   *     };
+   * filter should be a dictionary of column names to be filtered
+   * Sample filter value
+   *   filter: { name: 'Lesion' }
+   *
+   * filter should be an array of column names to be sorted by. - in the beginning of the fieldname represents descending sort
+   * Sample sort value
+   *   sort: ['-name']
+   *
+   * Possible values for filter and sort are: patientName, subjectID, accessionNumber, name, age, sex, modality,
+   *       studyDate, anatomy, observation, date, templateType (template name), template, user, fullName,
+   *       comment, project
+   * Following fields are handled differently for filter and sort: patientName, name, anatomy, observation, templateType and fullName
+   * (patient_name, name, anatomy, observation, template_name and user_name in CouchDB)
+   *
+   * We created two indexes for each (for ex: patient_name and patient_name_sort). First (patient_name) is indexed using standard indexer (separates words)
+   * and second (patient_name_sort) is indexed as keyword (which lets us do wildcard searchs and sort)
+   *
+   * In filter, the spaces are escaped and filters through both the regular index and sort specific index
+   * The sample filter value below is added to the query as: (name:"Lesion\ 2" OR name_sort:Lesion\ 2*)
+   * This lets us to be able to get anything which has Lesion and 2 inside as words (it won't match Lesion 256) and anything that starts with "Lesion 2"
+   *
+   * ePAD handles the selection of the correct index for sorting
+   *
+   */
   fastify.decorate('search', async (request, reply) => {
     try {
       const params = {};
@@ -2189,6 +2227,8 @@ async function other(fastify) {
         }
         // make sure you return extra columns
       }
+      // handle sort fieldnames with sort
+      if (queryObj.sort) queryObj.sort = queryObj.sort.map((item) => fastify.replaceSorts(item));
       const result = await fastify.getAimsInternal(
         'summary',
         params,
@@ -2203,42 +2243,29 @@ async function other(fastify) {
   });
 
   fastify.decorate('createFieldsQuery', async (queryObj, epadAuth) => {
-    // const sample = {
-    //   fields: {
-    //     subSpecialty: [],
-    //     modality: [],
-    //     diagnosis: [],
-    //     anatomy: [],
-    //     myCases: true,
-    //     teachingFiles: true,
-    //     query: '',
-    //     project: '',
-    //   },
-    //   filter: { name: 'Lesion' },
-    //   sort: ['-name_sort<string>'],
-    // };
-
-    // fields for filter and sort
-    // Returning fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_date, template_name, template_code, user, user_name, comment
-
-    // Sorting fields: patient_name_sort, patient_id, accession_number, name_sort, age, sex, modality, study_date, anatomy_sort, observation_sort, creation_date, template_name_sort, template_code, user, user_name_sort
-
-    // Different sort fields only: patient_name_sort, name_sort, anatomy_sort, observation_sort, template_name_sort, user_name_sort
-
     const queryParts = [];
     if (queryObj.fields && queryObj.fields.query) queryParts.push(`"${queryObj.fields.query}"`);
     // add filters
     if (queryObj.filter) {
+      // name:"Lesion\ 2" OR name_sort:Lesion\ 2*
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(queryObj.filter)) {
-        queryParts.push(`${key}:${value.replace(' ', '\\ ')}*`);
+        if (fastify.isSortExtra(fastify.getFieldName(key))) {
+          queryParts.push(
+            `${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}" OR ${fastify.getFieldName(
+              key
+            )}_sort:${value.replace(' ', '\\ ')}*`
+          );
+        } else {
+          queryParts.push(`${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}"`);
+        }
       }
     }
     if (queryObj.fields) {
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(queryObj.fields)) {
         if (Array.isArray(value) && !(queryObj.filter && queryObj.filter[`${key}`]))
-          queryParts.push(fastify.createPartFromArray(key, value));
+          queryParts.push(fastify.createPartFromArray(fastify.getFieldName(key), value));
       }
       if (queryObj.fields.myCases) {
         queryParts.push(`user:"${epadAuth.username}"`);
@@ -2278,6 +2305,51 @@ async function other(fastify) {
     }
 
     return queryParts.length > 0 ? queryParts.join(' AND ') : '';
+  });
+
+  // fields for filter and sort
+  // CouchDB fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_date, template_name, template_code, user, user_name, comment, project
+  // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project
+
+  // Sorting fields: patient_name_sort, patient_id, accession_number, name_sort, age, sex, modality, study_date, anatomy_sort, observation_sort, creation_date, template_name_sort, template_code, user, user_name_sort, project
+
+  // Different sort fields only: patient_name_sort, name_sort, anatomy_sort, observation_sort, template_name_sort, user_name_sort
+
+  const sortExtras = [
+    'patient_name',
+    'name',
+    'anatomy',
+    'observation',
+    'template_name',
+    'user_name',
+  ];
+
+  fastify.decorate('isSortExtra', (key) => sortExtras.includes(key));
+
+  fastify.decorate('replaceSorts', (item) => {
+    let sortItem = item;
+    for (let i = 0; i < sortExtras.length; i += 1) {
+      sortItem = sortItem.replace(sortExtras[i], `${sortExtras[i]}_sort`);
+    }
+    sortItem += '<string>';
+    return sortItem;
+  });
+
+  fastify.decorate('getFieldName', (key) => {
+    const columnNameMap = {
+      subjectID: 'patient_id',
+      patientName: 'patient_name',
+      accessionNumber: 'accession_number',
+      studyDate: 'study_date',
+      date: 'creation_date',
+      template: 'template_code',
+      userName: 'user',
+      projectID: 'project',
+      templateType: 'template_name',
+      fullName: 'user_name',
+    };
+    if (columnNameMap[key]) return columnNameMap[key];
+    return key;
   });
 
   fastify.decorate('createPartFromArray', (field, values) => {

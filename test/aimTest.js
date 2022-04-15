@@ -646,7 +646,7 @@ describe('System AIM Tests', () => {
           fields: {
             modality: ['CT'],
           },
-          filter: { name_sort: 'Teaching File2' },
+          filter: { name: 'Teaching File2' },
         })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
@@ -664,8 +664,8 @@ describe('System AIM Tests', () => {
         .put('/search')
         .query({ username: 'admin' })
         .send({
-          filter: { name_sort: 'Teaching File' },
-          sort: ['-name_sort<string>'],
+          filter: { name: 'Teaching File' },
+          sort: ['-name'],
         })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
@@ -687,8 +687,8 @@ describe('System AIM Tests', () => {
           fields: {
             modality: ['CT'],
           },
-          filter: { name_sort: 'Teaching' },
-          sort: ['-name_sort<string>'],
+          filter: { name: 'Teaching' },
+          sort: ['-name'],
         })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
@@ -711,13 +711,36 @@ describe('System AIM Tests', () => {
             modality: ['CT', 'MR'],
           },
           filter: { modality: 'CT' },
-          sort: ['name_sort<string>'],
+          sort: ['name'],
         })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
           expect(res.body.rows[0].name).to.equal('Teaching File1');
           expect(res.body.rows[1].name).to.equal('Teaching File2');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with modality and filter with modality and DESC sort project', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            modality: ['CT', 'MR'],
+          },
+          filter: { modality: 'CT' },
+          sort: ['-project'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[1].name).to.equal('Teaching File1');
           done();
         })
         .catch((e) => {
