@@ -359,6 +359,79 @@ async function otherRoutes(fastify) {
     method: 'PUT',
     url: '/search',
     handler: fastify.search,
+    description: 'Supports query and fields search using both body and query',
+    schema: {
+      tags: ['aim'],
+      body: {
+        type: 'object',
+        properties: {
+          fields: {
+            type: 'object',
+            properties: {
+              subSpecialty: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                },
+              },
+              modality: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                },
+              },
+              diagnosis: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                },
+              },
+              anatomy: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                },
+              },
+              myCases: { type: 'boolean' },
+              teachingFiles: { type: 'boolean' },
+              query: { type: 'string' },
+              project: { type: 'string' },
+            },
+          },
+          filter: {
+            type: 'object',
+            properties: {
+              patientName: { type: 'string' },
+              subjectID: { type: 'string' },
+              accessionNumber: { type: 'string' },
+              name: { type: 'string' },
+              age: { type: 'string' },
+              sex: { type: 'string' },
+              modality: { type: 'string' },
+              studyDate: { type: 'string' },
+              anatomy: { type: 'string' },
+              observation: { type: 'string' },
+              date: { type: 'string' }, // does not filter time
+              templateType: { type: 'string' },
+              template: { type: 'string' },
+              userName: { type: 'string' },
+              fullName: { type: 'string' },
+              comment: { type: 'string' },
+              project: { type: 'string' },
+            },
+            description: `A dictionary of sort fields. Sample value: { name: 'Lesion' }`,
+          },
+          sort: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description: `An array of sort fields. Sample value: ['-name<string>']`,
+          },
+          query: { type: 'string' },
+        },
+      },
+    },
   });
 
   fastify.route({

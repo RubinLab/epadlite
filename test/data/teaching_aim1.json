@@ -1,0 +1,217 @@
+{
+    "ImageAnnotationCollection": {
+        "xmlns": "gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM",
+        "xmlns:rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "aimVersion": "AIMv4_2",
+        "xsi:schemaLocation": "gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM AIM_v4.2_rv2_XML.xsd",
+        "uniqueIdentifier": {
+            "root": "2.25.617519783067437872865662828516092252470"
+        },
+        "studyInstanceUid": {
+            "root": "1.2.840.114350.2.171.2.798268.2.712221001.1"
+        },
+        "seriesInstanceUid": {
+            "root": "2.25.837612701689606581906989080486630924653"
+        },
+        "accessionNumber": {
+            "value": "18858353"
+        },
+        "dateTime": {
+            "value": "20211027161849"
+        },
+        "user": {
+            "name": {
+                "value": "otheruser"
+            },
+            "loginName": {
+                "value": "otheruser"
+            }
+        },
+        "equipment": {
+            "manufacturerName": {
+                "value": "GE MEDICAL SYSTEMS"
+            },
+            "manufacturerModelName": {
+                "value": "Revolution CT"
+            },
+            "softwareVersion": {
+                "value": "revo_ct_21b.32"
+            }
+        },
+        "person": {
+            "name": {
+                "value": "STELLA^DEMO1"
+            },
+            "id": {
+                "value": "STELLA001"
+            },
+            "birthDate": {
+                "value": "19500101"
+            },
+            "sex": {
+                "value": "F"
+            }
+        },
+        "imageAnnotations": {
+            "ImageAnnotation": [
+                {
+                    "uniqueIdentifier": {
+                        "root": "2.25.212651107725530115911387285301788373023"
+                    },
+                    "trackingUniqueIdentifier": {
+                        "root": "2.25.286644996485405073177573296289506078781"
+                    },
+                    "typeCode": [
+                        {
+                            "code": "99EPAD_15",
+                            "codeSystemName": "99EPAD",
+                            "iso:displayName": {
+                                "xmlns:iso": "uri:iso.org:21090",
+                                "value": "Teaching file"
+                            }
+                        }
+                    ],
+                    "dateTime": {
+                        "value": "20211027161849"
+                    },
+                    "name": {
+                        "value": "Teaching File1"
+                    },
+                    "comment": {
+                        "value": "CT / 2MM CORONAL  PORTAL VENOUS / / 601~~Test lesion"
+                    },
+                    "precedentReferencedAnnotationUid": {
+                        "root": ""
+                    },
+                    "imagingPhysicalEntityCollection": {
+                        "ImagingPhysicalEntity": [
+                            {
+                                "typeCode": [
+                                    {
+                                        "code": "RID56",
+                                        "codeSystemName": "Radlex",
+                                        "iso:displayName": {
+                                            "value": "abdomen",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Anatomy Core"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.124572998334029223891026760656880949470"
+                                }
+                            }
+                        ]
+                    },
+                    "calculationEntityCollection": {
+                        "CalculationEntity": []
+                    },
+                    "imageAnnotationStatementCollection": {
+                        "ImageAnnotationStatement": []
+                    },
+                    "imagingObservationEntityCollection": {
+                        "ImagingObservationEntity": [
+                            {
+                                "typeCode": [
+                                    {
+                                        "code": "99EPAD_1",
+                                        "codeSystemName": "99EPAD",
+                                        "iso:displayName": {
+                                            "value": "Body Imaging",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Radiology Specialty"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.957678749056672560850681168681538572806"
+                                }
+                            },
+                            {
+                                "typeCode": [
+                                    {
+                                        "code": "RID34991",
+                                        "codeSystemName": "Radlex",
+                                        "iso:displayName": {
+                                            "value": "abdominal fat necrosis sign",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Findings and Diagnosis"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.231732727216856331322830827965784719346"
+                                }
+                            }
+                        ]
+                    },
+                    "imageReferenceEntityCollection": {
+                        "ImageReferenceEntity": [
+                            {
+                                "xsi:type": "DicomImageReferenceEntity",
+                                "uniqueIdentifier": {
+                                    "root": "2.25.462357409757322998429171724063346839687"
+                                },
+                                "imageStudy": {
+                                    "instanceUid": {
+                                        "root": "1.2.840.114350.2.171.2.798268.2.712221001.1"
+                                    },
+                                    "startDate": {
+                                        "value": "20210901"
+                                    },
+                                    "startTime": {
+                                        "value": "181214"
+                                    },
+                                    "accessionNumber": {
+                                        "value": "18858353"
+                                    },
+                                    "imageSeries": {
+                                        "instanceUid": {
+                                            "root": ""
+                                        },
+                                        "modality": {
+                                            "code": "99EPADM0",
+                                            "codeSystemName": "99EPAD",
+                                            "iso:displayName": {
+                                                "xmlns:iso": "uri:iso.org:21090",
+                                                "value": "NA"
+                                            }
+                                        },
+                                        "imageCollection": {
+                                            "Image": [
+                                                {
+                                                    "sopClassUid": {
+                                                        "root": ""
+                                                    },
+                                                    "sopInstanceUid": {
+                                                        "root": ""
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
