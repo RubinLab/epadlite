@@ -2271,7 +2271,7 @@ async function other(fastify) {
         queryParts.push(`user:"${epadAuth.username}"`);
       }
       if (queryObj.fields.teachingFiles) {
-        queryParts.push(`template_code:"99EPAD_15"`);
+        queryParts.push(`template_code:${config.teachingTemplate}`);
       }
     }
     if (queryObj.fields && queryObj.fields.project) {
