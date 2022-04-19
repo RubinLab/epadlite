@@ -388,7 +388,7 @@ describe('System AIM Tests', () => {
         .query({ username: 'admin' })
         .send({
           projectId: 'testaim',
-          projectName: 'testaim',
+          projectName: 'testaimName',
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -399,7 +399,7 @@ describe('System AIM Tests', () => {
         .query({ username: 'admin' })
         .send({
           projectId: 'testaim2',
-          projectName: 'testaim2',
+          projectName: 'testaim2Name',
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
@@ -459,6 +459,8 @@ describe('System AIM Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
           expect(res.body.rows[0].name).to.equal('Teaching File1');
+          expect(res.body.rows[0].projectID).to.equal('testaim');
+          expect(res.body.rows[0].projectName).to.equal('testaimName');
           done();
         })
         .catch((e) => {

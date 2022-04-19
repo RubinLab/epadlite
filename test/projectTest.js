@@ -5527,7 +5527,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .send({
           projectId: 'reporting',
-          projectName: 'reporting',
+          projectName: 'reportingName',
           projectDescription: 'reporting desc',
           defaultTemplate: 'ROI',
           type: 'private',

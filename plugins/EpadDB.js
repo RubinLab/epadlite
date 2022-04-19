@@ -621,6 +621,25 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('getProjectNameMap', async () => {
+    try {
+      const projects = await models.project.findAll({
+        where: config.mode === 'lite' ? { projectid: 'lite' } : {},
+        attributes: ['projectid', 'name'],
+        raw: true,
+      });
+      const projectNameMap = {};
+      if (projects) {
+        projects.forEach((prj) => {
+          projectNameMap[prj.projectid] = prj.name;
+        });
+      }
+      return projectNameMap;
+    } catch (err) {
+      throw new InternalError(`Getting project name map`, err);
+    }
+  });
+
   fastify.decorate('getProjects', async (request, reply) => {
     try {
       const projects = await models.project.findAll({
