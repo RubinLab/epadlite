@@ -640,6 +640,39 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  fastify.decorate('getAccessibleProjectIdsByName', async (name, epadAuth) => {
+    try {
+      const projects = await models.project.findAll({
+        where: {
+          ...(config.mode === 'lite' ? { projectid: 'lite' } : {}),
+          name: Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('name')), 'LIKE', `%${name}%`),
+        },
+        attributes: ['projectid', 'name'],
+        raw: true,
+      });
+
+      if (projects) {
+        const projectIds = projects.map((prj) => prj.projectid);
+        if (!epadAuth.admin) {
+          let { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
+            epadAuth
+          );
+          collaboratorProjIds = collaboratorProjIds.reduce((id) => projectIds.includes(id), []);
+
+          aimAccessProjIds = aimAccessProjIds.reduce((id) => projectIds.includes(id), []);
+          return {
+            collaboratorProjIds,
+            aimAccessProjIds,
+          };
+        }
+        return { collaboratorProjIds: [], aimAccessProjIds: projectIds };
+      }
+      return { collaboratorProjIds: [], aimAccessProjIds: [] };
+    } catch (err) {
+      throw new InternalError(`Getting accessible project ids by project name`, err);
+    }
+  });
+
   fastify.decorate('getProjects', async (request, reply) => {
     try {
       const projects = await models.project.findAll({

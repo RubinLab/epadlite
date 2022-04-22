@@ -749,5 +749,45 @@ describe('System AIM Tests', () => {
           done(e);
         });
     });
+    it('filter with projectName', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          filter: { projectName: 'testaim' },
+          sort: ['-name'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with projectName', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: { projectName: 'testaim' },
+          sort: ['-name'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
   });
 });
