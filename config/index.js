@@ -112,5 +112,6 @@ config.ad = config.ad
   : null;
 
 config.defaultTemplate = process.env.DEFAULT_TEMPLATE || config.defaultTemplate || 'ROI';
+config.teachingTemplate = process.env.TEACHING_TEMPLATE || config.teachingTemplate || '99EPAD_947';
 
 module.exports = config;

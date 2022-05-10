@@ -447,7 +447,8 @@ async function couchdb(fastify, options) {
   fastify.decorate(
     'getAimsCouchInternal',
     (db, searchQry, format, bookmark) =>
-      new Promise((resolve, reject) => {
+      new Promise(async (resolve, reject) => {
+        const projectNameMap = await fastify.getProjectNameMap();
         const dbFilter = { ...searchQry, bookmark };
         db.search('search', 'aimSearch', dbFilter, async (error, body) => {
           try {
@@ -478,6 +479,7 @@ async function couchdb(fastify, options) {
                     originalSubjectID: body.rows[i].fields.patient_id,
                     userName: body.rows[i].fields.user,
                     projectID: body.rows[i].fields.project,
+                    projectName: projectNameMap[body.rows[i].fields.project],
                     modality: body.rows[i].fields.modality,
                     anatomy: body.rows[i].fields.anatomy,
                     observation: body.rows[i].fields.observation,

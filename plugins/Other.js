@@ -2250,7 +2250,12 @@ async function other(fastify) {
       // name:"Lesion\ 2" OR name_sort:Lesion\ 2*
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(queryObj.filter)) {
-        if (fastify.isSortExtra(fastify.getFieldName(key))) {
+        // special filtering for projectName. we need to get the projectIds from mariadb first
+        if (key === 'projectName') {
+          // eslint-disable-next-line no-await-in-loop
+          const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
+          if (rightsFilter) queryParts.push(`(${rightsFilter})`);
+        } else if (fastify.isSortExtra(fastify.getFieldName(key))) {
           queryParts.push(
             `${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}" OR ${fastify.getFieldName(
               key
@@ -2271,7 +2276,7 @@ async function other(fastify) {
         queryParts.push(`user:"${epadAuth.username}"`);
       }
       if (queryObj.fields.teachingFiles) {
-        queryParts.push(`template_code:"99EPAD_15"`);
+        queryParts.push(`template_code:${config.teachingTemplate}`);
       }
     }
     if (queryObj.fields && queryObj.fields.project) {
@@ -2282,29 +2287,39 @@ async function other(fastify) {
       if (fastify.isCollaborator(queryObj.fields.project, epadAuth) && !queryObj.fields.myCases) {
         queryParts.push(`user:"${epadAuth.username}"`);
       }
-    } else if (!epadAuth.admin) {
-      // handle different project rights
-      // if there is no project filter get accessible projects and add to query
-      const { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
-        epadAuth
-      );
-      let rightsFilter = '';
-      if (collaboratorProjIds) {
-        for (let i = 0; i < collaboratorProjIds.length; i += 1) {
-          rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${
-            collaboratorProjIds[i]
-          }" AND user:"${epadAuth.username}")`;
-        }
-      }
-      if (aimAccessProjIds) {
-        for (let i = 0; i < aimAccessProjIds.length; i += 1) {
-          rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${aimAccessProjIds[i]}")`;
-        }
-      }
+    } else if (!epadAuth.admin || (queryObj.fields && queryObj.fields.projectName)) {
+      const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
       if (rightsFilter) queryParts.push(`(${rightsFilter})`);
     }
 
     return queryParts.length > 0 ? queryParts.join(' AND ') : '';
+  });
+
+  fastify.decorate('getRightsFilter', async (queryObj, epadAuth) => {
+    // handle different project rights
+    // if there is no project filter get accessible projects and add to query
+    // if there is projectName, do a like query to the db to get the ids first
+    let projectName;
+    if (queryObj.fields && queryObj.fields.projectName) projectName = queryObj.fields.projectName;
+    // filter overrides fields
+    if (queryObj.filter && queryObj.filter.projectName) projectName = queryObj.filter.projectName;
+    const { collaboratorProjIds, aimAccessProjIds } = projectName
+      ? await fastify.getAccessibleProjectIdsByName(projectName, epadAuth)
+      : await fastify.getAccessibleProjects(epadAuth);
+    let rightsFilter = '';
+    if (collaboratorProjIds) {
+      for (let i = 0; i < collaboratorProjIds.length; i += 1) {
+        rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${
+          collaboratorProjIds[i]
+        }" AND user:"${epadAuth.username}")`;
+      }
+    }
+    if (aimAccessProjIds) {
+      for (let i = 0; i < aimAccessProjIds.length; i += 1) {
+        rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${aimAccessProjIds[i]}")`;
+      }
+    }
+    return rightsFilter;
   });
 
   // fields for filter and sort
