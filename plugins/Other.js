@@ -2003,6 +2003,14 @@ async function other(fastify) {
                 epadAuth
               );
 
+              // add teaching template to the project
+              await fastify.addProjectTemplateRelInternal(
+                config.teachingTemplateUID,
+                `prj_${username}`,
+                {},
+                epadAuth
+              );
+
               resolve('User successfully added with member right');
             }
           } catch (err) {
