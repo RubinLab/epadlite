@@ -2170,7 +2170,7 @@ async function other(fastify) {
    *
    * Possible values for filter and sort are: patientName, subjectID, accessionNumber, name, age, sex, modality,
    *       studyDate, anatomy, observation, date, templateType (template name), template, user, fullName,
-   *       comment, project
+   *       comment, project, projectName (uses project instead)
    * Following fields are handled differently for filter and sort: patientName, name, anatomy, observation, templateType and fullName
    * (patient_name, name, anatomy, observation, template_name and user_name in CouchDB)
    *
@@ -2236,7 +2236,11 @@ async function other(fastify) {
         // make sure you return extra columns
       }
       // handle sort fieldnames with sort
-      if (queryObj.sort) queryObj.sort = queryObj.sort.map((item) => fastify.replaceSorts(item));
+      // use epad fieldnames in sort
+      if (queryObj.sort)
+        queryObj.sort = queryObj.sort.map((item) =>
+          fastify.replaceSorts(fastify.getFieldName(item))
+        );
       const result = await fastify.getAimsInternal(
         'summary',
         params,
@@ -2332,9 +2336,9 @@ async function other(fastify) {
 
   // fields for filter and sort
   // CouchDB fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_date, template_name, template_code, user, user_name, comment, project
-  // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project
+  // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project, projectName (additional, no couchdb)
 
-  // Sorting fields: patient_name_sort, patient_id, accession_number, name_sort, age, sex, modality, study_date, anatomy_sort, observation_sort, creation_date, template_name_sort, template_code, user, user_name_sort, project
+  // Sorting fields: patient_name_sort, patient_id, accession_number, name_sort, age, sex, modality, study_date, anatomy_sort, observation_sort, creation_date, template_name_sort, template_code, user, user_name_sort, project, projectName (additional, no couchdb uses project instead)
 
   // Different sort fields only: patient_name_sort, name_sort, anatomy_sort, observation_sort, template_name_sort, user_name_sort
 
@@ -2354,6 +2358,8 @@ async function other(fastify) {
     for (let i = 0; i < sortExtras.length; i += 1) {
       sortItem = sortItem.replace(sortExtras[i], `${sortExtras[i]}_sort`);
     }
+    // replace projectName with project for now. sort with projectName is not supported (projectName is not in couchdb)
+    sortItem = sortItem.replace('projectName', 'project');
     sortItem += '<string>';
     return sortItem;
   });

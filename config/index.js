@@ -113,9 +113,12 @@ config.ad = config.ad
 
 config.defaultTemplate = process.env.DEFAULT_TEMPLATE || config.defaultTemplate || 'ROI';
 config.teachingTemplate = process.env.TEACHING_TEMPLATE || config.teachingTemplate || '99EPAD_947';
+
 config.teachingTemplateUID =
   process.env.TEACHING_TEMPLATE_UID ||
   config.teachingTemplateUID ||
   '2.25.182468981370271895711046628549377576999';
+config.projOnTop = process.env.PROJ_ON_TOP || config.projOnTop || undefined;
+
 
 module.exports = config;

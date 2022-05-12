@@ -733,8 +733,12 @@ async function epaddb(fastify, options, done) {
           request.epadAuth.admin ||
           obj.loginNames.includes(request.epadAuth.username) ||
           obj.type.toLowerCase() === 'public'
-        )
-          result.push(obj);
+        ) {
+          // if config liteOnTop, move lite to the top
+          if (config.projOnTop && config.projOnTop === project.dataValues.projectid)
+            result.unshift(obj);
+          else result.push(obj);
+        }
       }
       reply.code(200).send(result);
     } catch (err) {
