@@ -113,5 +113,6 @@ config.ad = config.ad
 
 config.defaultTemplate = process.env.DEFAULT_TEMPLATE || config.defaultTemplate || 'ROI';
 config.teachingTemplate = process.env.TEACHING_TEMPLATE || config.teachingTemplate || '99EPAD_947';
+config.projOnTop = process.env.PROJ_ON_TOP || config.projOnTop || undefined;
 
 module.exports = config;
