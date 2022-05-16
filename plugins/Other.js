@@ -2303,8 +2303,7 @@ async function other(fastify) {
       const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
       if (rightsFilter) queryParts.push(`(${rightsFilter})`);
     }
-
-    return queryParts.length > 0 ? queryParts.join(' AND ') : '';
+    return queryParts.length > 0 ? queryParts.join(' AND ') : '*:*';
   });
 
   fastify.decorate('getRightsFilter', async (queryObj, epadAuth) => {
