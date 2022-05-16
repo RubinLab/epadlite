@@ -120,5 +120,4 @@ config.teachingTemplateUID =
   '2.25.182468981370271895711046628549377576999';
 config.projOnTop = process.env.PROJ_ON_TOP || config.projOnTop || undefined;
 
-
 module.exports = config;
