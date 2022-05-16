@@ -512,6 +512,73 @@ describe('System AIM Tests', () => {
           done(e);
         });
     });
+    it('search with diagnosis on mycases only ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            diagnosis: ['abdominal fat necrosis sign', 'interstitial fibrosis', 'pneumonia'],
+            myCases: true,
+          },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          expect(res.body.rows[0].name).to.equal('Teaching File2');
+
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with diagnosis on mycases = false ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            diagnosis: ['abdominal fat necrosis sign', 'interstitial fibrosis', 'pneumonia'],
+            myCases: false,
+          },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File1');
+          expect(res.body.rows[1].name).to.equal('Teaching File2');
+
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with diagnosis on no mycases  ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            diagnosis: ['abdominal fat necrosis sign', 'interstitial fibrosis', 'pneumonia'],
+          },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File1');
+          expect(res.body.rows[1].name).to.equal('Teaching File2');
+
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('search with anatomy on mycases only and teaching files ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -524,6 +591,25 @@ describe('System AIM Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
           expect(res.body.rows[0].name).to.equal('Teaching File2');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('no mycases  ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: { myCases: false },
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('Teaching File1');
+          expect(res.body.rows[1].name).to.equal('Teaching File2');
           done();
         })
         .catch((e) => {
