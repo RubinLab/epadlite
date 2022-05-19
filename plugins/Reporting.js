@@ -904,7 +904,7 @@ async function reporting(fastify) {
           }
           users[username].lesions.push(lesions[i]);
         }
-        const rrUsers = {};
+        let rrUsers = {};
         const usernames = Object.keys(users);
         for (let u = 0; u < usernames.length; u += 1) {
           // sort lists
@@ -959,6 +959,8 @@ async function reporting(fastify) {
           }
         }
         if (Object.keys(rrUsers).length > 0) {
+          // if there is metric and no data for a lesion (for that metric or none) on all timepoints. ignore that lesion
+          if (metric && metric !== true) rrUsers = fastify.removeNALesions(rrUsers, metric);
           if (!html) return rrUsers;
           // let filter = 'report=Longitudinal';
           let loadFilter = metric !== true ? `metric=${metric}` : '';
@@ -969,7 +971,7 @@ async function reporting(fastify) {
             request.params.project,
             'Longitudinal',
             rrUsers[request.query.user],
-            2,
+            fastify.numOfLongitudinalHeaderCols,
             [],
             loadFilter,
             1,
@@ -987,6 +989,48 @@ async function reporting(fastify) {
       return null;
     }
   );
+
+  fastify.decorate('removeNALesions', (rrUsers, metric) => {
+    try {
+      // for each user
+      const users = Object.keys(rrUsers);
+      for (let userIndex = 0; userIndex < users.length; userIndex += 1) {
+        const rowsToDelete = [];
+        // get tTable
+        for (let i = 0; i < rrUsers[users[userIndex]].tTable.length; i += 1) {
+          let numOfVals = 0;
+          for (
+            let j = fastify.numOfLongitudinalHeaderCols;
+            j < rrUsers[users[userIndex]].tTable[i].length;
+            j += 1
+          ) {
+            if (
+              rrUsers[users[userIndex]].tTable[i][j] &&
+              rrUsers[users[userIndex]].tTable[i][j] !== {} &&
+              rrUsers[users[userIndex]].tTable[i][j][metric]
+            )
+              numOfVals += 1;
+          }
+          // if empty after 2 to the end, we  should remove row
+          if (numOfVals === 0) {
+            rowsToDelete.push(i);
+          }
+        }
+        for (let k = rowsToDelete.length - 1; k >= 0; k -= 1) {
+          // remove from tTable
+          rrUsers[users[userIndex]].tTable.splice(rowsToDelete[k], 1);
+          // remove from tLesionNames
+          rrUsers[users[userIndex]].tLesionNames.splice(rowsToDelete[k], 1);
+          // remove from tUIDs
+          rrUsers[users[userIndex]].tUIDs.splice(rowsToDelete[k], 1);
+        }
+      }
+    } catch (err) {
+      fastify.log.error(`Error removing all NA lesions Error: ${err.message}`);
+      throw err;
+    }
+    return rrUsers;
+  });
 
   fastify.decorate('getLesionIndex', (index, mode, lesion) => {
     switch (mode) {
