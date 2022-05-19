@@ -2375,6 +2375,9 @@ async function other(fastify) {
       projectID: 'project',
       templateType: 'template_name',
       fullName: 'user_name',
+      age: 'patient_age',
+      sex: 'patient_sex',
+      birthDate: 'patient_birth_date',
     };
     if (columnNameMap[key]) return columnNameMap[key];
     return key;
