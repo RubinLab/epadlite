@@ -2256,7 +2256,13 @@ async function other(fastify) {
 
   fastify.decorate('createFieldsQuery', async (queryObj, epadAuth) => {
     const queryParts = [];
-    if (queryObj.fields && queryObj.fields.query) queryParts.push(`"${queryObj.fields.query}"`);
+    if (queryObj.fields && queryObj.fields.query) {
+      if (queryObj.fields.query.trim() !== '') {
+        const qp = queryObj.fields.query.trim().split(' ');
+        qp[qp.length - 1] = `"${qp[qp.length - 1]}*"`;
+        queryParts.push(`"${qp.join(' ')}"`);
+      }
+    }
     // add filters
     if (queryObj.filter) {
       // name:"Lesion\ 2" OR name_sort:Lesion\ 2*
