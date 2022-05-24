@@ -6106,8 +6106,19 @@ async function epaddb(fastify, options, done) {
       } else {
         // TODO if there are no requirements, the worklist completeness is not filled and adding progress to join makes the query to return nothing
         list = await models.worklist_study.findAll({
-          where: { worklist_id: worklistIdKey, '$progress.assignee$': request.epadAuth.username },
-          include: ['progress', models.subject, models.study],
+          where: {
+            worklist_id: worklistIdKey,
+          },
+          include: [
+            {
+              model: models.worklist_study_completeness,
+              as: 'progress',
+              required: false,
+              where: { assignee: request.epadAuth.username },
+            },
+            models.subject,
+            models.study,
+          ],
         });
         const manualProgressMap = await fastify.getManualProgressMap(worklist.dataValues.id);
         const result = [];
@@ -6160,8 +6171,12 @@ async function epaddb(fastify, options, done) {
               worklistDuedate,
               subjectName: list[i].dataValues.subject.dataValues.name,
               studyDescription: list[i].dataValues.study.dataValues.description,
-              completeness: list[i].dataValues.progress[0].dataValues.completeness, // I get only the specific user's progress
-              progressType: 'AUTO',
+              completeness:
+                list[i].dataValues.progress && list[i].dataValues.progress[0]
+                  ? list[i].dataValues.progress[0].dataValues.completeness
+                  : 0, // I get only the specific user's progress
+              progressType:
+                list[i].dataValues.progress && list[i].dataValues.progress[0] ? 'AUTO' : 'MANUAL',
             });
           }
         }
