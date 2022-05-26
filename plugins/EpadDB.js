@@ -10056,7 +10056,7 @@ async function epaddb(fastify, options, done) {
       .catch((err) => reply.send(err));
   });
 
-  fastify.decorate('createUser', async (request, reply) => {
+  fastify.decorate('createUser', (request, reply) => {
     fastify
       .createUserInternal(request.body, request.params, request.epadAuth)
       .then((result) => reply.code(200).send(result))
