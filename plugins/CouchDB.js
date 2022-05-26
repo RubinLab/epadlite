@@ -975,6 +975,7 @@ async function couchdb(fastify, options) {
             },
             request.epadAuth
           );
+          studyUIDs.push(studyUID);
         }
         if (studyUIDs.length === 0)
           reply.send(
