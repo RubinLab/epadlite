@@ -6897,7 +6897,12 @@ async function epaddb(fastify, options, done) {
             });
           }
           if (subject !== null) {
-            await fastify.deleteAimDB({ subject_uid: subject.subjectuid }, epadAuth.username);
+            await fastify.deleteAimsInternal(
+              { subject: subject.subjectuid },
+              epadAuth,
+              { all: true },
+              undefined
+            );
             // delete the subject
             await models.subject.destroy({
               where: { id: subject.id },
