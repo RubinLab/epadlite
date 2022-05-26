@@ -976,13 +976,21 @@ async function couchdb(fastify, options) {
             request.epadAuth
           );
         }
-        reply
-          .code(200)
-          .send(
-            `Added aim uids ${request.body.join(',')} and study uids ${studyUIDs.join(
-              ','
-            )} to worklist ${request.params.worklist}`
+        if (studyUIDs.length === 0)
+          reply.send(
+            new InternalError(
+              'Adding studies to worklist using aimUIDs',
+              new Error(`Couldn't retrieve aims for ${JSON.stringify(request.body)}`)
+            )
           );
+        else
+          reply
+            .code(200)
+            .send(
+              `Added aim uids ${request.body.join(',')} and study uids ${studyUIDs.join(
+                ','
+              )} to worklist ${request.params.worklist}`
+            );
       })
       .catch((err) => {
         reply.send(err);
