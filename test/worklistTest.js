@@ -502,6 +502,16 @@ describe('Worklist Tests', () => {
         });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/worklists?username=testProgressUser1@gmail.com')
+        .send({
+          name: 'testProgressWaim',
+          worklistId: 'testProgressWaim',
+          description: 'testdesc2',
+          duedate: '2019-12-01',
+          assignees: ['testProgressUser1@gmail.com', 'testProgressUser2@gmail.com'],
+        });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects?username=testProgressUser1@gmail.com')
         .send({
           projectId: 'testProgressP',
@@ -536,6 +546,10 @@ describe('Worklist Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/worklists/testProgressW')
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/worklists/testProgressWaim')
         .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -584,15 +598,17 @@ describe('Worklist Tests', () => {
           done(e);
         });
     });
-    it('should have 2 requiremets ', (done) => {
+    it('should have 2 requirements in testProgressW, no requirement in testProgressWaim ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/worklists')
         .query({ username: 'testProgressUser1@gmail.com' })
         .then((res) => {
-          expect(res.body.length).to.be.eql(1);
+          expect(res.body.length).to.be.eql(2);
           expect(res.body[0].workListID).to.be.eql('testProgressW');
           expect(res.body[0].requirements.length).to.be.eql(2);
+          expect(res.body[1].workListID).to.be.eql('testProgressWaim');
+          expect(res.body[1].requirements.length).to.be.eql(0);
           expect(res.statusCode).to.equal(200);
           done();
         })
@@ -627,6 +643,50 @@ describe('Worklist Tests', () => {
         .query({ username: 'testProgressUser1@gmail.com' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should add 2.25.211702350959705565754863799143359605362 to testProgressWaim worklist (adding the study to worklist too)', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/worklists/testProgressWaim/aims')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .send(['2.25.211702350959705565754863799143359605362'])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should get worklist studies for worklist testProgressWaim for user testProgressUser1@gmail.com with user testProgressUser1@gmail.com', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/worklists/testProgressWaim/users/testProgressUser1@gmail.com/studies')
+        .query({ username: 'testProgressUser1@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body).to.deep.include({
+            completionDate: null,
+            projectID: 'testProgressP',
+            sortOrder: null,
+            startDate: null,
+            subjectID: '3',
+            studyUID: '0023.2015.09.28.3',
+            studyDate: '2015-09-28',
+            workListID: 'testProgressWaim',
+            workListName: 'testProgressWaim',
+            worklistDuedate: '2019-12-01',
+            subjectName: 'Phantom',
+            studyDescription: 'Made up study desc',
+            completeness: 0,
+            progressType: 'MANUAL',
+          });
           done();
         })
         .catch((e) => {

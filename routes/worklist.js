@@ -363,5 +363,33 @@ async function routes(fastify) {
     },
     handler: fastify.getWorklistProgress,
   });
+
+  // POST {s}/worklists/:worklist/aims
+  // copies the study that aim belongs to and the aim to the new worklist (:worklist) for each aim
+  fastify.route({
+    method: 'POST',
+    url: '/worklists/:worklist/aims',
+    schema: {
+      tags: ['worklist', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          worklist: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+      // response: {
+      //   200: 'aim_schema#',
+      // },
+    },
+    handler: fastify.addWithAimsUIDsToWorklist,
+  });
 }
 module.exports = routes;

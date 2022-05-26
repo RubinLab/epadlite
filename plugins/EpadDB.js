@@ -5736,207 +5736,215 @@ async function epaddb(fastify, options, done) {
   });
 
   fastify.decorate('assignStudyToWorklist', (request, reply) => {
-    const ids = [];
-    const promises = [];
+    fastify
+      .assignStudyToWorklistInternal(request.query, request.params, request.epadAuth)
+      .then((res) => reply.code(200).send(res))
+      .catch((err) => reply.send(err));
+  });
 
-    promises.push(
-      models.worklist.findOne({
-        where: { worklistid: request.params.worklist },
-        attributes: ['id'],
-      })
-    );
-    promises.push(
-      models.project.findOne({
-        where: { projectid: request.params.project },
-        attributes: ['id'],
-      })
-    );
-    promises.push(
-      models.subject.findOne({
-        where: { subjectuid: request.params.subject },
-        attributes: ['id'],
-      })
-    );
-    promises.push(
-      models.study.findOne({
-        where: { studyuid: request.params.study },
-        attributes: ['id'],
-      })
-    );
-    promises.push(
-      models.user.findOne({
-        where: { username: request.epadAuth.username },
-        attributes: ['id'],
-      })
-    );
+  fastify.decorate(
+    'assignStudyToWorklistInternal',
+    (query, params, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        const ids = [];
+        const promises = [];
 
-    Promise.all(promises)
-      .then(async (result) => {
-        let missingData = false;
-        // result[i] can be null when subject is not created before, just tests
-        for (let i = 0; i < result.length; i += 1)
-          // eslint-disable-next-line no-unused-expressions
-          result[i] ? ids.push(result[i].dataValues.id) : (missingData = true);
-        if (missingData) {
-          reply.send(
-            new InternalError('Creating worklist study association', new Error('Missing data'))
-          );
-        } else if (request.query.annotationStatus !== undefined) {
-          // set annotation status
-          // NOT_STARTED(1), IN_PROGRESS(2), DONE(3), ERROR(4), DELETE(0)
-          // API should not accept ERROR(4)
-          if (request.query.annotationStatus < 0 || request.query.annotationStatus > 3) {
-            reply.send(
-              new InternalError(
-                'Setting annotation status ',
-                new Error(`Unknown status ${request.query.annotationStatus}`)
-              )
-            );
-          } else if (request.query.annotationStatus === 0) {
-            // I get the user from the authentication 'cause only I can say I'm done with a case
-            // delete the tuple so that we can go back to auto
-            models.project_subject_study_series_user_status
-              .destroy({
-                where: {
-                  worklist_id: ids[0],
-                  study_id: ids[3],
-                  subject_id: ids[2],
-                  project_id: ids[1],
-                  user_id: ids[4],
-                },
-              })
-              .then(() => reply.send('Annotation status deleted successfully'))
-              .catch((err) => reply.send(new InternalError('Deleting annotation status', err)));
-          } else {
-            fastify
-              .upsert(
-                models.project_subject_study_series_user_status,
-                {
-                  worklist_id: ids[0],
-                  study_id: ids[3],
-                  subject_id: ids[2],
-                  project_id: ids[1],
-                  user_id: ids[4],
-                  annotationStatus: request.query.annotationStatus,
-                  updatetime: Date.now(),
-                },
-                {
-                  worklist_id: ids[0],
-                  study_id: ids[3],
-                  subject_id: ids[2],
-                  project_id: ids[1],
-                  user_id: ids[4],
-                },
-                request.epadAuth.username
-              )
-              .then(() => reply.send('Annotation status updated successfully'))
-              .catch((err) => reply.send(new InternalError('Updating annotation status', err)));
-          }
-        } else {
-          const seriesArr = await fastify.getSeriesDicomOrNotInternal(
-            request.params,
-            { filterDSO: 'true' },
-            request.epadAuth
-          );
-          const sumOfImageCounts = _.reduce(
-            seriesArr,
-            (memo, series) => memo + series.numberOfImages,
-            0
-          );
-          // check if all assignees have right to the project, and add
-          const addedUserIds = await fastify.checkAndAddProjectRights(
-            ids[0],
-            ids[1],
-            request.epadAuth
-          );
-          fastify
-            .upsert(
-              models.worklist_study,
-              {
-                worklist_id: ids[0],
-                study_id: ids[3],
-                subject_id: ids[2],
-                project_id: ids[1],
-                updatetime: Date.now(),
-                numOfSeries: seriesArr.length,
-                numOfImages: sumOfImageCounts,
-              },
-              {
-                worklist_id: ids[0],
-                study_id: ids[3],
-                subject_id: ids[2],
-                project_id: ids[1],
-              },
-              request.epadAuth.username
-            )
-            .then(async () => {
-              try {
-                const userNamePromises = [];
-                // get user id's from worklist_user for the worklist
-                const userIds = await models.worklist_user.findAll({
-                  where: { worklist_id: ids[0] },
-                  attributes: ['user_id'],
-                });
-                // findUsernames by userid's
-                userIds.forEach((el) => {
-                  userNamePromises.push(fastify.findUserNameInternal(el.dataValues.user_id));
-                });
-                Promise.all(userNamePromises)
-                  .then((res) => {
-                    const updateCompPromises = [];
-                    // iterate over usernames array and updateCompleteness
-                    res.forEach((username) =>
-                      updateCompPromises.push(
-                        fastify.updateWorklistCompleteness(
-                          ids[1],
-                          request.params.subject,
-                          request.params.study,
-                          username,
-                          request.epadAuth
-                        )
-                      )
-                    );
-                    Promise.all(updateCompPromises)
-                      .then(() => {
-                        reply
-                          .code(200)
-                          .send(
-                            addedUserIds && addedUserIds.length > 0
-                              ? `Saving successful. Added users ${JSON.stringify(
-                                  addedUserIds
-                                )} to project ${ids[1]}`
-                              : `Saving successful`
+        promises.push(
+          models.worklist.findOne({
+            where: { worklistid: params.worklist },
+            attributes: ['id'],
+          })
+        );
+        promises.push(
+          models.project.findOne({
+            where: { projectid: params.project },
+            attributes: ['id'],
+          })
+        );
+        promises.push(
+          models.subject.findOne({
+            where: { subjectuid: params.subject },
+            attributes: ['id'],
+          })
+        );
+        promises.push(
+          models.study.findOne({
+            where: { studyuid: params.study },
+            attributes: ['id'],
+          })
+        );
+        promises.push(
+          models.user.findOne({
+            where: { username: epadAuth.username },
+            attributes: ['id'],
+          })
+        );
+
+        Promise.all(promises)
+          .then(async (result) => {
+            let missingData = false;
+            // result[i] can be null when subject is not created before, just tests
+            for (let i = 0; i < result.length; i += 1)
+              // eslint-disable-next-line no-unused-expressions
+              result[i] ? ids.push(result[i].dataValues.id) : (missingData = true);
+            if (missingData) {
+              reject(
+                new InternalError('Creating worklist study association', new Error('Missing data'))
+              );
+            } else if (query.annotationStatus !== undefined) {
+              // set annotation status
+              // NOT_STARTED(1), IN_PROGRESS(2), DONE(3), ERROR(4), DELETE(0)
+              // API should not accept ERROR(4)
+              if (query.annotationStatus < 0 || query.annotationStatus > 3) {
+                reject(
+                  new InternalError(
+                    'Setting annotation status ',
+                    new Error(`Unknown status ${query.annotationStatus}`)
+                  )
+                );
+              } else if (query.annotationStatus === 0) {
+                // I get the user from the authentication 'cause only I can say I'm done with a case
+                // delete the tuple so that we can go back to auto
+                models.project_subject_study_series_user_status
+                  .destroy({
+                    where: {
+                      worklist_id: ids[0],
+                      study_id: ids[3],
+                      subject_id: ids[2],
+                      project_id: ids[1],
+                      user_id: ids[4],
+                    },
+                  })
+                  .then(() => resolve('Annotation status deleted successfully'))
+                  .catch((err) => reject(new InternalError('Deleting annotation status', err)));
+              } else {
+                fastify
+                  .upsert(
+                    models.project_subject_study_series_user_status,
+                    {
+                      worklist_id: ids[0],
+                      study_id: ids[3],
+                      subject_id: ids[2],
+                      project_id: ids[1],
+                      user_id: ids[4],
+                      annotationStatus: query.annotationStatus,
+                      updatetime: Date.now(),
+                    },
+                    {
+                      worklist_id: ids[0],
+                      study_id: ids[3],
+                      subject_id: ids[2],
+                      project_id: ids[1],
+                      user_id: ids[4],
+                    },
+                    epadAuth.username
+                  )
+                  .then(() => resolve('Annotation status updated successfully'))
+                  .catch((err) => reject(new InternalError('Updating annotation status', err)));
+              }
+            } else {
+              const seriesArr = await fastify.getSeriesDicomOrNotInternal(
+                params,
+                { filterDSO: 'true' },
+                epadAuth
+              );
+              const sumOfImageCounts = _.reduce(
+                seriesArr,
+                (memo, series) => memo + series.numberOfImages,
+                0
+              );
+              // check if all assignees have right to the project, and add
+              const addedUserIds = await fastify.checkAndAddProjectRights(ids[0], ids[1], epadAuth);
+              fastify
+                .upsert(
+                  models.worklist_study,
+                  {
+                    worklist_id: ids[0],
+                    study_id: ids[3],
+                    subject_id: ids[2],
+                    project_id: ids[1],
+                    updatetime: Date.now(),
+                    numOfSeries: seriesArr.length,
+                    numOfImages: sumOfImageCounts,
+                  },
+                  {
+                    worklist_id: ids[0],
+                    study_id: ids[3],
+                    subject_id: ids[2],
+                    project_id: ids[1],
+                  },
+                  epadAuth.username
+                )
+                .then(async () => {
+                  try {
+                    const userNamePromises = [];
+                    // get user id's from worklist_user for the worklist
+                    const userIds = await models.worklist_user.findAll({
+                      where: { worklist_id: ids[0] },
+                      attributes: ['user_id'],
+                    });
+                    // findUsernames by userid's
+                    userIds.forEach((el) => {
+                      userNamePromises.push(fastify.findUserNameInternal(el.dataValues.user_id));
+                    });
+                    Promise.all(userNamePromises)
+                      .then((res) => {
+                        const updateCompPromises = [];
+                        // iterate over usernames array and updateCompleteness
+                        res.forEach((username) =>
+                          updateCompPromises.push(
+                            fastify.updateWorklistCompleteness(
+                              ids[1],
+                              params.subject,
+                              params.study,
+                              username,
+                              epadAuth
+                            )
+                          )
+                        );
+                        Promise.all(updateCompPromises)
+                          .then(() => {
+                            resolve(
+                              addedUserIds && addedUserIds.length > 0
+                                ? `Saving successful. Added users ${JSON.stringify(
+                                    addedUserIds
+                                  )} to project ${ids[1]}`
+                                : `Saving successful`
+                            );
+                          })
+                          .catch((err) =>
+                            reject(
+                              new InternalError(
+                                'Updating completeness in worklist study association',
+                                err
+                              )
+                            )
                           );
                       })
                       .catch((err) =>
-                        reply.send(
+                        reject(
                           new InternalError(
                             'Updating completeness in worklist study association',
                             err
                           )
                         )
                       );
-                  })
-                  .catch((err) =>
-                    reply.send(
+                  } catch (err) {
+                    reject(
                       new InternalError('Updating completeness in worklist study association', err)
-                    )
-                  );
-              } catch (err) {
-                reply.send(
-                  new InternalError('Updating completeness in worklist study association', err)
-                );
-              }
-            })
-            .catch((err) => {
-              reply.send(new InternalError('Creating worklist study association in db', err));
-            });
-        }
+                    );
+                  }
+                })
+                .catch((err) => {
+                  reject(new InternalError('Creating worklist study association in db', err));
+                });
+            }
+          })
+          .catch((err) => {
+            reject(new InternalError('Creating worklist study association', err));
+          });
       })
-      .catch((err) => {
-        reply.send(new InternalError('Creating worklist study association', err));
-      });
-  });
+  );
 
   fastify.decorate('findUserNameInternal', (userid) => {
     const query = new Promise(async (resolve, reject) => {
