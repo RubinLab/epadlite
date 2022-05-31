@@ -4,6 +4,7 @@ const chaiHttp = require('chai-http');
 
 chai.use(chaiHttp);
 const { expect } = chai;
+const appVersion = require('../package.json').version;
 
 describe('Other Tests', () => {
   it('set an api key ', (done) => {
@@ -85,6 +86,103 @@ describe('Other Tests', () => {
       .get('/apikeys/epad')
       .then((res) => {
         expect(res.statusCode).to.equal(403);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('get initial version ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/appVersion')
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        // in test it is initially null
+        expect(res.body.version).to.equal(undefined);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('fail updating version ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/appVersion')
+      .send({
+        version: '0.0.0',
+        branch: 'madeUpBranch',
+      })
+      .then((res) => {
+        expect(res.statusCode).to.equal(500);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('update version with branch', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/appVersion')
+      .send({
+        version: appVersion,
+        branch: 'madeUpBranch',
+      })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('get updated version with branch', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/appVersion')
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.version).to.equal(`v${appVersion}`);
+        const timeNow = Date.now();
+        // 1 min ago
+        const timeBefore = timeNow - 1 * 60000;
+        expect(Date.parse(res.body.date)).to.be.within(timeBefore, timeNow);
+        expect(res.body.branch).to.equal('madeUpBranch');
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('update version with no branch ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/appVersion')
+      .send({
+        version: appVersion,
+      })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('get updated version no branch ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/appVersion')
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.version).to.equal(`v${appVersion}`);
+        const timeNow = Date.now();
+        // 1 min ago
+        const timeBefore = timeNow - 1 * 60000;
+        expect(Date.parse(res.body.date)).to.be.within(timeBefore, timeNow);
+        expect(res.body.branch).to.equal(null);
         done();
       })
       .catch((e) => {

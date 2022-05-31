@@ -13713,6 +13713,15 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
             fastify.log.warn('response_cat is added to project_subject_report');
+
+            // db version audit
+            await fastify.orm.query(
+              `ALTER TABLE dbversion 
+                ADD COLUMN IF NOT EXISTS date timestamp NOT NULL AFTER version,
+                ADD COLUMN IF NOT EXISTS branch varchar(40) DEFAULT NULL AFTER date;`,
+              { transaction: t }
+            );
+            fastify.log.warn('date added to dbversion ');
           });
 
           // the db schema is updated successfully lets copy the files
@@ -14333,29 +14342,89 @@ async function epaddb(fastify, options, done) {
     () =>
       new Promise(async (resolve, reject) => {
         try {
+          const { version } = await fastify.getVersionInternal();
+          if (appVersion === '0.4.0' && version !== 'v0.4.0') await fastify.version0_4_0();
+          await fastify.updateVersionInternal(version);
+          resolve();
+        } catch (err) {
+          reject(new InternalError('Check and Migrate DB version', err));
+        }
+      })
+  );
+  fastify.decorate(
+    'getVersionInternal',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
           const dbVersionTuple = await models.dbversion.findOne({
-            attributes: ['version'],
             raw: true,
+            order: [['date', 'DESC']],
+            limit: 1,
           });
-          const dbVersion = dbVersionTuple ? dbVersionTuple.version : undefined;
-          if (appVersion === '0.4.0' && dbVersion !== 'v0.4.0') await fastify.version0_4_0();
-          if (dbVersion) {
+          if (dbVersionTuple) resolve(dbVersionTuple);
+          resolve({});
+        } catch (err) {
+          reject(new InternalError('Get db version', err));
+        }
+      })
+  );
+  fastify.decorate(
+    'updateVersionInternal',
+    (dbVersion, branch) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          if (!config.versionAudit && dbVersion)
             await models.dbversion.update(
-              { version: `v${appVersion}` },
+              { version: `v${appVersion}`, ...(branch ? { branch } : {}), date: Date.now() },
               {
                 where: {
                   version: dbVersion,
                 },
               }
             );
+          else {
+            await models.dbversion.create({
+              version: `v${appVersion}`,
+              ...(branch ? { branch } : {}),
+              date: Date.now(),
+            });
           }
+
           resolve();
         } catch (err) {
-          reject(new InternalError('afterDBReady', err));
+          reject(new InternalError('Update db version', err));
         }
       })
   );
+  fastify.decorate('updateVersion', async (request, reply) => {
+    try {
+      if (request.body.version !== appVersion)
+        reply.send(
+          new InternalError(
+            'Update version',
+            new Error(
+              `The version sent ${request.body.version} does not match app version in package.json ${appVersion}`
+            )
+          )
+        );
+      else {
+        const { version } = await fastify.getVersionInternal();
+        await fastify.updateVersionInternal(version, request.body.branch);
+        reply.code(200).send('DB Version updated');
+      }
+    } catch (err) {
+      reply.send(new InternalError('Update version', err));
+    }
+  });
 
+  fastify.decorate('getVersion', async (request, reply) => {
+    try {
+      const dbVersion = await fastify.getVersionInternal();
+      reply.code(200).send(dbVersion);
+    } catch (err) {
+      reply.send(new InternalError('Get version', err));
+    }
+  });
   // need to add hook for close to remove the db if test;
   fastify.decorate(
     'closeDB',

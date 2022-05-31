@@ -119,5 +119,9 @@ config.teachingTemplateUID =
   config.teachingTemplateUID ||
   '2.25.182468981370271895711046628549377576999';
 config.projOnTop = process.env.PROJ_ON_TOP || config.projOnTop || undefined;
+config.versionAudit =
+  (process.env.VERSION_AUDIT && process.env.VERSION_AUDIT === 'true') ||
+  config.versionAudit ||
+  false;
 
 module.exports = config;

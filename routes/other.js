@@ -461,5 +461,30 @@ async function otherRoutes(fastify) {
     url: '/apikeys',
     handler: fastify.setApiKey,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/appVersion',
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          version: {
+            type: 'string',
+          },
+          branch: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.updateVersion,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/appVersion',
+    handler: fastify.getVersion,
+  });
 }
 module.exports = otherRoutes;

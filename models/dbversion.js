@@ -8,6 +8,14 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.STRING(6),
         allowNull: true,
       },
+      date: {
+        type: DataTypes.DATE(3),
+        allowNull: false,
+      },
+      branch: {
+        type: DataTypes.STRING(40),
+        allowNull: true,
+      },
     },
     {
       tableName: 'dbversion',
