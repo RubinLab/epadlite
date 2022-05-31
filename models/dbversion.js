@@ -4,6 +4,12 @@ module.exports = function (sequelize, DataTypes) {
   return sequelize.define(
     'dbversion',
     {
+      id: {
+        type: DataTypes.INTEGER(10).UNSIGNED,
+        allowNull: false,
+        primaryKey: true,
+        autoIncrement: true,
+      },
       version: {
         type: DataTypes.STRING(6),
         allowNull: true,

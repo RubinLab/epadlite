@@ -13717,6 +13717,7 @@ async function epaddb(fastify, options, done) {
             // db version audit
             await fastify.orm.query(
               `ALTER TABLE dbversion 
+                ADD COLUMN IF NOT EXISTS id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 ADD COLUMN IF NOT EXISTS date timestamp NOT NULL AFTER version,
                 ADD COLUMN IF NOT EXISTS branch varchar(40) DEFAULT NULL AFTER date;`,
               { transaction: t }
