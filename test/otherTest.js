@@ -106,9 +106,9 @@ describe('Other Tests', () => {
         done(e);
       });
   });
-  it('fail updating version ', (done) => {
+  it('fail updating version different version', (done) => {
     chai
-      .request(`http://${process.env.host}:${process.env.port}`)
+      .request(`http://localhost:${process.env.port}`)
       .post('/appVersion')
       .send({
         version: '0.0.0',
@@ -122,9 +122,25 @@ describe('Other Tests', () => {
         done(e);
       });
   });
-  it('update version with branch', (done) => {
+  it('fail updating version not localhost', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/appVersion')
+      .send({
+        version: appVersion,
+        branch: 'madeUpBranch',
+      })
+      .then((res) => {
+        expect(res.statusCode).to.equal(500);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('update version with branch', (done) => {
+    chai
+      .request(`http://localhost:${process.env.port}`)
       .post('/appVersion')
       .send({
         version: appVersion,
@@ -158,7 +174,7 @@ describe('Other Tests', () => {
   });
   it('update version with no branch ', (done) => {
     chai
-      .request(`http://${process.env.host}:${process.env.port}`)
+      .request(`http://localhost:${process.env.port}`)
       .post('/appVersion')
       .send({
         version: appVersion,

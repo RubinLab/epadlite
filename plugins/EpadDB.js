@@ -14398,24 +14398,26 @@ async function epaddb(fastify, options, done) {
       })
   );
   fastify.decorate('updateVersion', async (request, reply) => {
-    try {
-      if (request.body.version !== appVersion)
-        reply.send(
-          new InternalError(
-            'Update version',
-            new Error(
-              `The version sent ${request.body.version} does not match app version in package.json ${appVersion}`
+    if (request.hostname.startsWith('localhost')) {
+      try {
+        if (request.body.version !== appVersion)
+          reply.send(
+            new InternalError(
+              'Update version',
+              new Error(
+                `The version sent ${request.body.version} does not match app version in package.json ${appVersion}`
+              )
             )
-          )
-        );
-      else {
-        const { version } = await fastify.getVersionInternal();
-        await fastify.updateVersionInternal(version, request.body.branch);
-        reply.code(200).send('DB Version updated');
+          );
+        else {
+          const { version } = await fastify.getVersionInternal();
+          await fastify.updateVersionInternal(version, request.body.branch);
+          reply.code(200).send('DB Version updated');
+        }
+      } catch (err) {
+        reply.send(new InternalError('Update version', err));
       }
-    } catch (err) {
-      reply.send(new InternalError('Update version', err));
-    }
+    } else reply.send(new InternalError('Update version', new Error('Only allowed in localhost')));
   });
 
   fastify.decorate('getVersion', async (request, reply) => {
