@@ -67,7 +67,7 @@ async function other(fastify) {
   //   );
   // });
   // eslint-disable-next-line global-require
-  fastify.register(require('fastify-multipart'));
+  fastify.register(require('@fastify/multipart'));
   fastify.decorate('getCombinedErrorText', (errors) => {
     let errMessagesText = null;
     if (errors.length > 0) {
