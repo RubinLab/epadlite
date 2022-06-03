@@ -956,6 +956,48 @@ async function couchdb(fastify, options) {
       });
   });
 
+  fastify.decorate('addWithAimsUIDsToWorklist', (request, reply) => {
+    fastify
+      .getAimsInternal('summary', {}, { aims: request.body }, request.epadAuth)
+      .then(async (res) => {
+        const studyUIDs = [];
+        for (let i = 0; i < res.rows.length; i += 1) {
+          const { studyUID, subjectID, projectID } = res.rows[i];
+          // add the new aim to the project
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.assignStudyToWorklistInternal(
+            {},
+            {
+              subject: subjectID,
+              study: studyUID,
+              project: projectID,
+              worklist: request.params.worklist,
+            },
+            request.epadAuth
+          );
+          studyUIDs.push(studyUID);
+        }
+        if (studyUIDs.length === 0)
+          reply.send(
+            new InternalError(
+              'Adding studies to worklist using aimUIDs',
+              new Error(`Couldn't retrieve aims for ${JSON.stringify(request.body)}`)
+            )
+          );
+        else
+          reply
+            .code(200)
+            .send(
+              `Added aim uids ${request.body.join(',')} and study uids ${studyUIDs.join(
+                ','
+              )} to worklist ${request.params.worklist}`
+            );
+      })
+      .catch((err) => {
+        reply.send(err);
+      });
+  });
+
   fastify.decorate('saveAim', (request, reply) => {
     // get the uid from the json and check if it is same with param, then put as id in couch document
     if (
