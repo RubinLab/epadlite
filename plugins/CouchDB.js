@@ -958,7 +958,7 @@ async function couchdb(fastify, options) {
 
   fastify.decorate('addWithAimsUIDsToWorklist', (request, reply) => {
     fastify
-      .getAimsInternal('summary', {}, { aims: [request.body] }, request.epadAuth)
+      .getAimsInternal('summary', {}, { aims: request.body }, request.epadAuth)
       .then(async (res) => {
         const studyUIDs = [];
         for (let i = 0; i < res.rows.length; i += 1) {

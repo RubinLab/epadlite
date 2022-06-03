@@ -5213,6 +5213,8 @@ async function epaddb(fastify, options, done) {
           );
         });
 
+        // TODO for each item in the worklist check if the user has access to the project and add user to project if (s)he doesn't
+
         // if already existing is not in new list remove it
         existingAssigneeArr.forEach((el) => {
           tablePromiseArray.push(
