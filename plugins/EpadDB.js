@@ -6925,7 +6925,7 @@ async function epaddb(fastify, options, done) {
             await fastify.deleteAimsInternal(
               { subject: subject.subjectuid },
               epadAuth,
-              { all: true },
+              { all: 'true' },
               undefined
             );
             // delete the subject
