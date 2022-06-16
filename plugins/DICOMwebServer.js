@@ -607,6 +607,10 @@ async function dicomwebserver(fastify) {
               )
             );
           }
+          if (promisses.length === 0) {
+            resolve([]);
+            return;
+          }
           // get aims for a specific patient
           if (!noStats)
             promisses.push(
