@@ -6933,7 +6933,8 @@ async function epaddb(fastify, options, done) {
               where: { id: subject.id },
             });
           }
-          await fastify.deleteSubjectInternal(params, epadAuth);
+          if (!config.disableDICOMSend) await fastify.deleteSubjectInternal(params, epadAuth);
+          else fastify.log.info('DICOM Send disabled. Skipping subject DICOM delete');
           resolve(
             `Subject deleted from system and removed from ${projectSubjects.length} projects`
           );
@@ -7045,7 +7046,9 @@ async function epaddb(fastify, options, done) {
                   await models.subject.destroy({
                     where: { id: subject.id },
                   });
-                  await fastify.deleteSubjectInternal(params, epadAuth);
+                  if (!config.disableDICOMSend)
+                    await fastify.deleteSubjectInternal(params, epadAuth);
+                  else fastify.log.info('DICOM Send disabled. Skipping subject DICOM delete');
                   resolve(`Subject deleted from system as it didn't exist in any other project`);
                 } else resolve(`Subject not deleted from system as it exists in other project`);
               } catch (deleteErr) {
@@ -9712,7 +9715,8 @@ async function epaddb(fastify, options, done) {
             }
           }
           try {
-            await fastify.deleteStudyInternal(params, epadAuth);
+            if (!config.disableDICOMSend) await fastify.deleteStudyInternal(params, epadAuth);
+            else fastify.log.info('DICOM Send disabled. Skipping study DICOM delete');
           } catch (err) {
             // ignore the error if the study has nondicom series
             if (deletedNonDicomSeries === 0) {
@@ -9874,7 +9878,9 @@ async function epaddb(fastify, options, done) {
                     });
                   }
                   try {
-                    await fastify.deleteStudyInternal(request.params, request.epadAuth);
+                    if (!config.disableDICOMSend)
+                      await fastify.deleteStudyInternal(request.params, request.epadAuth);
+                    else fastify.log.info('DICOM Send disabled. Skipping study DICOM delete');
                   } catch (err) {
                     // ignore the error if the study has nondicom series
                     if (deletedNonDicomSeries === 0) {
