@@ -7016,9 +7016,11 @@ async function epaddb(fastify, options, done) {
               await models.worklist_study.destroy({
                 where: { project_id: project.id, subject_id: subject.id },
               });
-              await fastify.deleteAimDB(
-                { project_id: project.id, subject_uid: subject.subjectuid },
-                epadAuth.username
+              await fastify.deleteAimsInternal(
+                { subject: subject.subjectuid, project: params.project },
+                epadAuth,
+                { all: 'true' },
+                undefined
               );
 
               // if delete from all or it doesn't exist in any other project, delete from system
@@ -7041,7 +7043,12 @@ async function epaddb(fastify, options, done) {
                   await models.worklist_study.destroy({
                     where: { project_id: project.id, subject_id: subject.id },
                   });
-                  await fastify.deleteAimDB({ subject_uid: subject.subjectuid }, epadAuth.username);
+                  await fastify.deleteAimsInternal(
+                    { subject: subject.subjectuid },
+                    epadAuth,
+                    { all: 'true' },
+                    undefined
+                  );
                   // delete the subject
                   await models.subject.destroy({
                     where: { id: subject.id },
