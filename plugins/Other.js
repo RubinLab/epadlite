@@ -2292,13 +2292,13 @@ async function other(fastify) {
         } else if (key === 'age') {
           // age is integer not string. maybe it should be string?
           queryParts.push(`(${fastify.getFieldName(key)}:${cleanedValue})`);
-        } else if (key === 'studyDate') {
+        } else if (key === 'studyDate' || key === 'date') {
           // replace -
           queryParts.push(
             `(${fastify.getFieldName(key)}:"${cleanedValue.replaceAll(
               '-',
               ''
-            )}"  OR ${fastify.getFieldName(key)}:"${cleanedValue.replaceAll(
+            )}" OR ${fastify.getFieldName(key)}:"${cleanedValue.replaceAll(
               '-',
               ''
             )}*" OR ${fastify.getFieldName(key)}:${cleanedValue.replaceAll('-', '')}*)`
