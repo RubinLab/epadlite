@@ -1201,24 +1201,29 @@ async function other(fastify) {
         .code(202)
         .send(`Subject ${request.params.subject} deletion request recieved. deleting..`);
     }
-    fastify
-      .deleteSubjectInternal(request.params, request.epadAuth)
-      .then((result) => {
-        if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
-            fastify
-          );
-        else reply.code(200).send(result);
-      })
-      .catch((err) => {
-        if (config.env !== 'test')
-          new EpadNotification(
-            request,
-            'Delete subject failed',
-            new Error(request.params.subject)
-          ).notify(fastify);
-        else reply.send(err);
-      });
+    if (!config.disableDICOMSend)
+      fastify
+        .deleteSubjectInternal(request.params, request.epadAuth)
+        .then((result) => {
+          if (config.env !== 'test')
+            new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
+              fastify
+            );
+          else reply.code(200).send(result);
+        })
+        .catch((err) => {
+          if (config.env !== 'test')
+            new EpadNotification(
+              request,
+              'Delete subject failed',
+              new Error(request.params.subject)
+            ).notify(fastify);
+          else reply.send(err);
+        });
+    else {
+      fastify.log.err('DICOMSend disabled');
+      reply.send(new InternalError('Subject delete from system', new Error('DICOMSend disabled')));
+    }
   });
 
   fastify.decorate(
@@ -1229,14 +1234,16 @@ async function other(fastify) {
         fastify
           .getPatientStudiesInternal(params, undefined, epadAuth, {}, true)
           .then((result) => {
-            result.forEach((study) => {
-              promisses.push(() =>
-                fastify.deleteStudyDicomsInternal({
-                  subject: params.subject,
-                  study: study.studyUID,
-                })
-              );
-            });
+            if (!config.disableDICOMSend)
+              result.forEach((study) => {
+                promisses.push(() =>
+                  fastify.deleteStudyDicomsInternal({
+                    subject: params.subject,
+                    study: study.studyUID,
+                  })
+                );
+              });
+            else fastify.log.info('DICOM Send disabled. Skipping subject DICOM delete');
             promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
             pq.addAll(promisses)
               .then(() => {
@@ -1262,24 +1269,29 @@ async function other(fastify) {
       );
       reply.code(202).send(`Study ${request.params.study} deletion request recieved. deleting..`);
     }
-    fastify
-      .deleteStudyInternal(request.params, request.epadAuth)
-      .then((result) => {
-        if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted study', request.params.study, true).notify(
-            fastify
-          );
-        else reply.code(200).send(result);
-      })
-      .catch((err) => {
-        if (config.env !== 'test')
-          new EpadNotification(
-            request,
-            'Delete study failed',
-            new Error(request.params.subject)
-          ).notify(fastify);
-        else reply.send(err);
-      });
+    if (!config.disableDICOMSend)
+      fastify
+        .deleteStudyInternal(request.params, request.epadAuth)
+        .then((result) => {
+          if (config.env !== 'test')
+            new EpadNotification(request, 'Deleted study', request.params.study, true).notify(
+              fastify
+            );
+          else reply.code(200).send(result);
+        })
+        .catch((err) => {
+          if (config.env !== 'test')
+            new EpadNotification(
+              request,
+              'Delete study failed',
+              new Error(request.params.subject)
+            ).notify(fastify);
+          else reply.send(err);
+        });
+    else {
+      fastify.log.err('DICOMSend disabled');
+      reply.send(new InternalError('Study delete from system', new Error('DICOMSend disabled')));
+    }
   });
 
   fastify.decorate(
