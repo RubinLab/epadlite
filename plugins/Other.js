@@ -2288,14 +2288,38 @@ async function other(fastify) {
           // eslint-disable-next-line no-await-in-loop
           const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
           if (rightsFilter) queryParts.push(`(${rightsFilter})`);
+        } else if (key === 'age') {
+          // age is integer not string. maybe it should be string?
+          queryParts.push(`${fastify.getFieldName(key)}:${value.replace(' ', '\\ ')}`);
+        } else if (key === 'studyDate') {
+          // replace -
+          queryParts.push(
+            `${fastify.getFieldName(key)}:"${value
+              .replace('-', '')
+              .replace(' ', '\\ ')}"  OR ${fastify.getFieldName(key)}:"${value
+              .replace('-', '')
+              .replace(' ', '\\ ')}*" OR ${fastify.getFieldName(key)}:${value
+              .replace('-', '')
+              .replace(' ', '\\ ')}`
+          );
         } else if (fastify.isSortExtra(fastify.getFieldName(key))) {
           queryParts.push(
             `${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}" OR ${fastify.getFieldName(
               key
-            )}_sort:${value.replace(' ', '\\ ')}*`
+            )}_sort:${value.replace(' ', '\\ ')}* OR ${fastify.getFieldName(key)}:"${value.replace(
+              ' ',
+              '\\ '
+            )}*" OR ${fastify.getFieldName(key)}:${value.replace(' ', '\\ ')}`
           );
         } else {
-          queryParts.push(`${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}"`);
+          queryParts.push(
+            `${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}"  OR ${fastify.getFieldName(
+              key
+            )}:"${value.replace(' ', '\\ ')}*" OR ${fastify.getFieldName(key)}:${value.replace(
+              ' ',
+              '\\ '
+            )}`
+          );
         }
       }
     }
