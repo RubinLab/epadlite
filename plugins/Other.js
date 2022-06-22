@@ -2283,6 +2283,7 @@ async function other(fastify) {
       // name:"Lesion\ 2" OR name_sort:Lesion\ 2*
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(queryObj.filter)) {
+        const cleanedValue = value.trim().replaceAll(' ', '\\ ');
         // special filtering for projectName. we need to get the projectIds from mariadb first
         if (key === 'projectName') {
           // eslint-disable-next-line no-await-in-loop
@@ -2290,35 +2291,31 @@ async function other(fastify) {
           if (rightsFilter) queryParts.push(`(${rightsFilter})`);
         } else if (key === 'age') {
           // age is integer not string. maybe it should be string?
-          queryParts.push(`${fastify.getFieldName(key)}:${value.replace(' ', '\\ ')}`);
+          queryParts.push(`(${fastify.getFieldName(key)}:${cleanedValue})`);
         } else if (key === 'studyDate') {
           // replace -
           queryParts.push(
-            `${fastify.getFieldName(key)}:"${value
-              .replace('-', '')
-              .replace(' ', '\\ ')}"  OR ${fastify.getFieldName(key)}:"${value
-              .replace('-', '')
-              .replace(' ', '\\ ')}*" OR ${fastify.getFieldName(key)}:${value
-              .replace('-', '')
-              .replace(' ', '\\ ')}`
+            `(${fastify.getFieldName(key)}:"${cleanedValue.replaceAll(
+              '-',
+              ''
+            )}"  OR ${fastify.getFieldName(key)}:"${cleanedValue.replaceAll(
+              '-',
+              ''
+            )}*" OR ${fastify.getFieldName(key)}:${cleanedValue.replaceAll('-', '')}*)`
           );
         } else if (fastify.isSortExtra(fastify.getFieldName(key))) {
           queryParts.push(
-            `${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}" OR ${fastify.getFieldName(
+            `(${fastify.getFieldName(key)}:"${cleanedValue}" OR ${fastify.getFieldName(
               key
-            )}_sort:${value.replace(' ', '\\ ')}* OR ${fastify.getFieldName(key)}:"${value.replace(
-              ' ',
-              '\\ '
-            )}*" OR ${fastify.getFieldName(key)}:${value.replace(' ', '\\ ')}`
+            )}_sort:${cleanedValue}* OR ${fastify.getFieldName(
+              key
+            )}:"${cleanedValue}*" OR ${fastify.getFieldName(key)}:${cleanedValue}*)`
           );
         } else {
           queryParts.push(
-            `${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}"  OR ${fastify.getFieldName(
+            `(${fastify.getFieldName(key)}:"${cleanedValue}"  OR ${fastify.getFieldName(
               key
-            )}:"${value.replace(' ', '\\ ')}*" OR ${fastify.getFieldName(key)}:${value.replace(
-              ' ',
-              '\\ '
-            )}`
+            )}:"${cleanedValue}*" OR ${fastify.getFieldName(key)}:${cleanedValue}*)`
           );
         }
       }
