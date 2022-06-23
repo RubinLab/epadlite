@@ -2289,9 +2289,6 @@ async function other(fastify) {
           // eslint-disable-next-line no-await-in-loop
           const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
           if (rightsFilter) queryParts.push(`(${rightsFilter})`);
-        } else if (key === 'age') {
-          // age is integer not string. maybe it should be string?
-          queryParts.push(`(${fastify.getFieldName(key)}:${cleanedValue})`);
         } else if (key === 'studyDate' || key === 'date') {
           // replace -
           queryParts.push(
