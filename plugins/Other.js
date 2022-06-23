@@ -2382,11 +2382,11 @@ async function other(fastify) {
 
   const sortExtras = [
     'patient_name',
-    'name',
     'anatomy',
     'observation',
     'template_name',
     'user_name',
+    'name',
   ];
 
   fastify.decorate('isSortExtra', (key) => sortExtras.includes(key));
@@ -2395,6 +2395,7 @@ async function other(fastify) {
     let sortItem = item;
     for (let i = 0; i < sortExtras.length; i += 1) {
       sortItem = sortItem.replace(sortExtras[i], `${sortExtras[i]}_sort`);
+      break;
     }
     // replace projectName with project for now. sort with projectName is not supported (projectName is not in couchdb)
     sortItem = sortItem.replace('projectName', 'project');
@@ -2419,6 +2420,8 @@ async function other(fastify) {
       birthDate: 'patient_birth_date',
     };
     if (columnNameMap[key]) return columnNameMap[key];
+    if (key.startsWith('-') && columnNameMap[key.replace('-', '')])
+      return `-${columnNameMap[key.replace('-', '')]}`;
     return key;
   });
 
