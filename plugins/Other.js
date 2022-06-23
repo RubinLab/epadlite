@@ -2394,8 +2394,10 @@ async function other(fastify) {
   fastify.decorate('replaceSorts', (item) => {
     let sortItem = item;
     for (let i = 0; i < sortExtras.length; i += 1) {
-      sortItem = sortItem.replace(sortExtras[i], `${sortExtras[i]}_sort`);
-      break;
+      if (sortItem.includes(sortExtras[i])) {
+        sortItem = sortItem.replace(sortExtras[i], `${sortExtras[i]}_sort`);
+        break;
+      }
     }
     // replace projectName with project for now. sort with projectName is not supported (projectName is not in couchdb)
     sortItem = sortItem.replace('projectName', 'project');
