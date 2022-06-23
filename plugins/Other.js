@@ -2186,7 +2186,7 @@ async function other(fastify) {
    * Possible values for filter and sort are: patientName, subjectID, accessionNumber, name, age, sex, modality,
    *       studyDate, anatomy, observation, date, templateType (template name), template, user, fullName,
    *       comment, project, projectName (uses project instead)
-   * Following fields are handled differently for filter and sort: patientName, name, anatomy, observation, templateType, fullName and age
+   * Following fields are handled differently for filter and sort: patientName, name, anatomy, observation, templateType, fullName, age and comment
    * (patient_name, name, anatomy, observation, template_name and user_name in CouchDB)
    *
    * We created two indexes for each (for ex: patient_name and patient_name_sort). First (patient_name) is indexed using standard indexer (separates words)
@@ -2386,6 +2386,7 @@ async function other(fastify) {
     'observation',
     'template_name',
     'user_name',
+    'comment',
     'name',
   ];
 
@@ -2420,6 +2421,8 @@ async function other(fastify) {
       age: 'patient_age',
       sex: 'patient_sex',
       birthDate: 'patient_birth_date',
+      userComment: 'comment',
+      comment: 'programmedComment',
     };
     if (columnNameMap[key]) return columnNameMap[key];
     if (key.startsWith('-') && columnNameMap[key.replace('-', '')])

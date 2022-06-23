@@ -32,6 +32,7 @@ module.exports.searchIndexes = {
         anatomy_sort: 'keyword',
         observation_sort: 'keyword',
         patient_age_sort: 'keyword',
+        comment_sort: 'keyword',
       },
     },
   },
