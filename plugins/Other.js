@@ -2273,9 +2273,8 @@ async function other(fastify) {
     const queryParts = [];
     if (queryObj.fields && queryObj.fields.query) {
       if (queryObj.fields.query.trim() !== '') {
-        const qp = queryObj.fields.query.trim().split(' ');
-        qp[qp.length - 1] = `"${qp[qp.length - 1]}*"`;
-        queryParts.push(`"${qp.join(' ')}"`);
+        const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
+        queryParts.push(`/.*${cleanedValue}.*/`);
       }
     }
     // add filters
@@ -2283,7 +2282,7 @@ async function other(fastify) {
       // name:"Lesion\ 2" OR name_sort:Lesion\ 2*
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(queryObj.filter)) {
-        const cleanedValue = value.trim().replaceAll(' ', '\\ ');
+        const cleanedValue = value.trim().toLowerCase().replaceAll(' ', '\\ ');
         // special filtering for projectName. we need to get the projectIds from mariadb first
         if (key === 'projectName') {
           // eslint-disable-next-line no-await-in-loop
