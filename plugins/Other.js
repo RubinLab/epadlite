@@ -2363,13 +2363,14 @@ async function other(fastify) {
   // Different sort fields only: patient_name_sort, name_sort, anatomy_sort, observation_sort, template_name_sort, user_name_sort
 
   const sortExtras = [
-    'patient_name',
-    'anatomy',
-    'observation',
-    'template_name',
-    'user_name',
-    'comment',
-    'name',
+    // 'patient_name',
+    // 'anatomy',
+    // 'observation',
+    // 'template_name',
+    // 'user_name',
+    // 'comment',
+    // 'name',
+    'patient_age',
   ];
 
   fastify.decorate('isSortExtra', (key) => sortExtras.includes(key));
