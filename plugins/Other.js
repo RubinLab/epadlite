@@ -2292,7 +2292,7 @@ async function other(fastify) {
         } else if (key === 'studyDate' || key === 'date') {
           // replace -
           queryParts.push(
-            `(${fastify.getFieldName(key)}:/.*${cleanedValue.replaceAll('-', '')}.*/")`
+            `(${fastify.getFieldName(key)}:/.*${cleanedValue.replaceAll('-', '')}.*/)`
           );
         } else {
           queryParts.push(`(${fastify.getFieldName(key)}:/.*${cleanedValue}.*/)`);
