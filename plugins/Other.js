@@ -2292,28 +2292,10 @@ async function other(fastify) {
         } else if (key === 'studyDate' || key === 'date') {
           // replace -
           queryParts.push(
-            `(${fastify.getFieldName(key)}:"${cleanedValue.replaceAll(
-              '-',
-              ''
-            )}" OR ${fastify.getFieldName(key)}:"${cleanedValue.replaceAll(
-              '-',
-              ''
-            )}*" OR ${fastify.getFieldName(key)}:${cleanedValue.replaceAll('-', '')}*)`
-          );
-        } else if (fastify.isSortExtra(fastify.getFieldName(key))) {
-          queryParts.push(
-            `(${fastify.getFieldName(key)}:"${cleanedValue}" OR ${fastify.getFieldName(
-              key
-            )}_sort:${cleanedValue}* OR ${fastify.getFieldName(
-              key
-            )}:"${cleanedValue}*" OR ${fastify.getFieldName(key)}:${cleanedValue}*)`
+            `(${fastify.getFieldName(key)}:/.*${cleanedValue.replaceAll('-', '')}.*/")`
           );
         } else {
-          queryParts.push(
-            `(${fastify.getFieldName(key)}:"${cleanedValue}"  OR ${fastify.getFieldName(
-              key
-            )}:"${cleanedValue}*" OR ${fastify.getFieldName(key)}:${cleanedValue}*)`
-          );
+          queryParts.push(`(${fastify.getFieldName(key)}:/.*${cleanedValue}.*/)`);
         }
       }
     }
