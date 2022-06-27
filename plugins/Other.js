@@ -2186,7 +2186,7 @@ async function other(fastify) {
    * Possible values for filter and sort are: patientName, subjectID, accessionNumber, name, age, sex, modality,
    *       studyDate, anatomy, observation, date, templateType (template name), template, user, fullName,
    *       comment, project, projectName (uses project instead)
-   * Following fields are handled differently for filter and sort: patientName, name, anatomy, observation, templateType and fullName
+   * Following fields are handled differently for filter and sort: patientName, name, anatomy, observation, templateType, fullName, age and comment
    * (patient_name, name, anatomy, observation, template_name and user_name in CouchDB)
    *
    * We created two indexes for each (for ex: patient_name and patient_name_sort). First (patient_name) is indexed using standard indexer (separates words)
@@ -2273,9 +2273,8 @@ async function other(fastify) {
     const queryParts = [];
     if (queryObj.fields && queryObj.fields.query) {
       if (queryObj.fields.query.trim() !== '') {
-        const qp = queryObj.fields.query.trim().split(' ');
-        qp[qp.length - 1] = `"${qp[qp.length - 1]}*"`;
-        queryParts.push(`"${qp.join(' ')}"`);
+        const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
+        queryParts.push(`/.*${cleanedValue}.*/`);
       }
     }
     // add filters
@@ -2283,19 +2282,19 @@ async function other(fastify) {
       // name:"Lesion\ 2" OR name_sort:Lesion\ 2*
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(queryObj.filter)) {
+        const cleanedValue = value.trim().toLowerCase().replaceAll(' ', '\\ ');
         // special filtering for projectName. we need to get the projectIds from mariadb first
         if (key === 'projectName') {
           // eslint-disable-next-line no-await-in-loop
           const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
           if (rightsFilter) queryParts.push(`(${rightsFilter})`);
-        } else if (fastify.isSortExtra(fastify.getFieldName(key))) {
+        } else if (key === 'studyDate' || key === 'date') {
+          // replace -
           queryParts.push(
-            `${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}" OR ${fastify.getFieldName(
-              key
-            )}_sort:${value.replace(' ', '\\ ')}*`
+            `(${fastify.getFieldName(key)}:/.*${cleanedValue.replaceAll('-', '')}.*/)`
           );
         } else {
-          queryParts.push(`${fastify.getFieldName(key)}:"${value.replace(' ', '\\ ')}"`);
+          queryParts.push(`(${fastify.getFieldName(key)}:/.*${cleanedValue}.*/)`);
         }
       }
     }
@@ -2363,12 +2362,14 @@ async function other(fastify) {
   // Different sort fields only: patient_name_sort, name_sort, anatomy_sort, observation_sort, template_name_sort, user_name_sort
 
   const sortExtras = [
-    'patient_name',
-    'name',
-    'anatomy',
-    'observation',
-    'template_name',
-    'user_name',
+    // 'patient_name',
+    // 'anatomy',
+    // 'observation',
+    // 'template_name',
+    // 'user_name',
+    // 'comment',
+    // 'name',
+    'patient_age',
   ];
 
   fastify.decorate('isSortExtra', (key) => sortExtras.includes(key));
@@ -2376,7 +2377,10 @@ async function other(fastify) {
   fastify.decorate('replaceSorts', (item) => {
     let sortItem = item;
     for (let i = 0; i < sortExtras.length; i += 1) {
-      sortItem = sortItem.replace(sortExtras[i], `${sortExtras[i]}_sort`);
+      if (sortItem.includes(sortExtras[i])) {
+        sortItem = sortItem.replace(sortExtras[i], `${sortExtras[i]}_sort`);
+        break;
+      }
     }
     // replace projectName with project for now. sort with projectName is not supported (projectName is not in couchdb)
     sortItem = sortItem.replace('projectName', 'project');
@@ -2399,8 +2403,12 @@ async function other(fastify) {
       age: 'patient_age',
       sex: 'patient_sex',
       birthDate: 'patient_birth_date',
+      userComment: 'comment',
+      comment: 'programmedComment',
     };
     if (columnNameMap[key]) return columnNameMap[key];
+    if (key.startsWith('-') && columnNameMap[key.replace('-', '')])
+      return `-${columnNameMap[key.replace('-', '')]}`;
     return key;
   });
 

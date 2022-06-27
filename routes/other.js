@@ -418,6 +418,8 @@ async function otherRoutes(fastify) {
               fullName: { type: 'string' },
               comment: { type: 'string' },
               project: { type: 'string' },
+              projectName: { type: 'string' },
+              userComment: { type: 'string' },
             },
             description: `A dictionary of sort fields. Sample value: { name: 'Lesion' }`,
           },
