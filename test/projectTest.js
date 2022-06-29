@@ -448,7 +448,7 @@ describe('Project Tests', () => {
             numOfPatients: 2,
             numOfStudies: 2,
             numOfSeries: 6,
-            numofAims: 0,
+            numOfAims: 0,
             numOfDSOs: 2,
             numOfPacs: 0,
             numOfAutoQueries: 0,
