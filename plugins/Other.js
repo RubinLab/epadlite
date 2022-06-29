@@ -2249,6 +2249,12 @@ async function other(fastify) {
           return;
         }
         // make sure you return extra columns
+      } else {
+        // eslint-disable-next-line no-restricted-syntax
+        for (const [key, value] of Object.entries(queryObj)) {
+          if (key !== 'project' && key !== 'template' && key !== 'user')
+            queryObj[key] = `/.*${value.trim().toLowerCase().replaceAll(' ', '\\ ')}.*/`;
+        }
       }
       // handle sort fieldnames with sort
       // use epad fieldnames in sort
@@ -2416,7 +2422,9 @@ async function other(fastify) {
     let fieldToSearch = field;
     if (Array.isArray(values)) {
       if (['subSpecialty', 'diagnosis'].includes(field)) fieldToSearch = 'observation';
-      return `(${values.map((item) => `${fieldToSearch}:"${item}"`).join(' OR ')})`;
+      return `(${values
+        .map((item) => `${fieldToSearch}:/.*${item.trim().toLowerCase().replaceAll(' ', '\\ ')}.*/`)
+        .join(' OR ')})`;
     }
     return '';
   });
