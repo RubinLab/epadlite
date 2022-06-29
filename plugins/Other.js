@@ -2001,7 +2001,7 @@ async function other(fastify) {
                   email: adUser.mail,
                   enabled: true,
                   admin: false,
-                  projects: [{ role: 'Member', project: projectID }],
+                  projects: [{ role: 'Owner', project: projectID }],
                 },
                 { project: projectID },
                 epadAuth
