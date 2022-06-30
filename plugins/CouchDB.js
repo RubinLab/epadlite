@@ -415,14 +415,13 @@ async function couchdb(fastify, options) {
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(filter)) {
         if (key === 'template') qryParts.push(`template_code:"${value}"`);
+        else if (key === 'project') qryParts.push(`project:"${value}"`);
         else if (key === 'aims') qryParts.push(`(${value.join(' OR ')})`);
         else if (validQryParams.includes(key)) qryParts.push(`${key}:${value}`);
       }
     }
     if (params.project) {
       qryParts.push(`project:"${params.project}"`);
-      if (qryParts.length === 0) return '*:*';
-      return qryParts.join(' AND ');
     }
     if (!epadAuth.admin) {
       const { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
