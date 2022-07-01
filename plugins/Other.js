@@ -1959,9 +1959,10 @@ async function other(fastify) {
                 !fastify.hasCreatePermission(request, reqInfo.level) &&
                 !(
                   reqInfo.level === 'worklist' &&
-                  request.body.assignees &&
-                  request.body.assignees.length === 1 &&
-                  request.body.assignees[0] === request.epadAuth.username
+                  ((request.body.assignees &&
+                    request.body.assignees.length === 1 &&
+                    request.body.assignees[0] === request.epadAuth.username) ||
+                    (await fastify.isCreatorOfObject(request, reqInfo)))
                 )
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
