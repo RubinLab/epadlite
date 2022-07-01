@@ -458,7 +458,7 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
-          expect(res.body.rows[0].name).to.equal('Teaching File1');
+          expect(res.body.rows[0].name).to.equal('teaching file1');
           expect(res.body.rows[0].projectID).to.equal('testaim');
           expect(res.body.rows[0].projectName).to.equal('testaimName');
           done();
@@ -480,8 +480,8 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File1');
-          expect(res.body.rows[1].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file1');
+          expect(res.body.rows[1].name).to.equal('teaching file2');
 
           done();
         })
@@ -504,7 +504,7 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
 
           done();
         })
@@ -526,7 +526,7 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
 
           done();
         })
@@ -548,8 +548,8 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File1');
-          expect(res.body.rows[1].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file1');
+          expect(res.body.rows[1].name).to.equal('teaching file2');
 
           done();
         })
@@ -570,8 +570,8 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File1');
-          expect(res.body.rows[1].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file1');
+          expect(res.body.rows[1].name).to.equal('teaching file2');
 
           done();
         })
@@ -590,7 +590,7 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
           done();
         })
         .catch((e) => {
@@ -608,8 +608,8 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File1');
-          expect(res.body.rows[1].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file1');
+          expect(res.body.rows[1].name).to.equal('teaching file2');
           done();
         })
         .catch((e) => {
@@ -627,7 +627,7 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
           done();
         })
         .catch((e) => {
@@ -651,7 +651,7 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
           done();
         })
         .catch((e) => {
@@ -717,7 +717,7 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
-          expect(res.body.rows[0].name).to.equal('Teaching File1');
+          expect(res.body.rows[0].name).to.equal('teaching file1');
           done();
         })
         .catch((e) => {
@@ -734,12 +734,12 @@ describe('System AIM Tests', () => {
           fields: {
             modality: ['CT'],
           },
-          filter: { name: 'Teaching File2' },
+          filter: { name: 'teaching file2' },
         })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(1);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
           done();
         })
         .catch((e) => {
@@ -752,14 +752,14 @@ describe('System AIM Tests', () => {
         .put('/search')
         .query({ username: 'admin' })
         .send({
-          filter: { name: 'Teaching File' },
+          filter: { name: 'teaching file' },
           sort: ['-name'],
         })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
-          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
           done();
         })
         .catch((e) => {
@@ -772,14 +772,14 @@ describe('System AIM Tests', () => {
         .put('/search')
         .query({ username: 'admin' })
         .send({
-          filter: { name: 'Teaching File' },
+          filter: { name: 'teaching file' },
           sort: ['-projectName'],
         })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
-          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
           done();
         })
         .catch((e) => {
@@ -801,8 +801,8 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
-          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
           done();
         })
         .catch((e) => {
@@ -824,8 +824,8 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File1');
-          expect(res.body.rows[1].name).to.equal('Teaching File2');
+          expect(res.body.rows[0].name).to.equal('teaching file1');
+          expect(res.body.rows[1].name).to.equal('teaching file2');
           done();
         })
         .catch((e) => {
@@ -847,8 +847,8 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
-          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
           done();
         })
         .catch((e) => {
@@ -867,8 +867,8 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
-          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
           done();
         })
         .catch((e) => {
@@ -887,8 +887,8 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(2);
-          expect(res.body.rows[0].name).to.equal('Teaching File2');
-          expect(res.body.rows[1].name).to.equal('Teaching File1');
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
           done();
         })
         .catch((e) => {

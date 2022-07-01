@@ -2249,6 +2249,11 @@ async function other(fastify) {
           return;
         }
         // make sure you return extra columns
+      } else {
+        // eslint-disable-next-line no-restricted-syntax
+        for (const [key, value] of Object.entries(queryObj)) {
+          if (key !== 'username') queryObj[key] = fastify.caseFormatVal(key, value);
+        }
       }
       // handle sort fieldnames with sort
       // use epad fieldnames in sort
@@ -2273,6 +2278,8 @@ async function other(fastify) {
     const queryParts = [];
     if (queryObj.fields && queryObj.fields.query) {
       if (queryObj.fields.query.trim() !== '') {
+        // query always case insensitive to handle search
+        // TODO how about ids? ids are not in the default index. ignoring for now
         const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
         queryParts.push(`/.*${cleanedValue}.*/`);
       }
@@ -2282,7 +2289,7 @@ async function other(fastify) {
       // name:"Lesion\ 2" OR name_sort:Lesion\ 2*
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(queryObj.filter)) {
-        const cleanedValue = value.trim().toLowerCase().replaceAll(' ', '\\ ');
+        const cleanedValue = value.trim().replaceAll(' ', '\\ ');
         // special filtering for projectName. we need to get the projectIds from mariadb first
         if (key === 'projectName') {
           // eslint-disable-next-line no-await-in-loop
@@ -2291,10 +2298,10 @@ async function other(fastify) {
         } else if (key === 'studyDate' || key === 'date') {
           // replace -
           queryParts.push(
-            `(${fastify.getFieldName(key)}:/.*${cleanedValue.replaceAll('-', '')}.*/)`
+            `(${fastify.getFieldName(key)}:/.*${cleanedValue.toLowerCase().replaceAll('-', '')}.*/)`
           );
         } else {
-          queryParts.push(`(${fastify.getFieldName(key)}:/.*${cleanedValue}.*/)`);
+          queryParts.push(fastify.caseQry(key, value));
         }
       }
     }
@@ -2371,6 +2378,23 @@ async function other(fastify) {
     // 'name',
     'patient_age',
   ];
+  fastify.decorate('caseFormatVal', (key, value) => {
+    const cleanedValue = value.trim().replaceAll(' ', '\\ ');
+    if (fastify.caseSensitive.includes(key)) return `${cleanedValue}`;
+    return `/.*${cleanedValue.toLowerCase()}.*/`;
+  });
+  fastify.decorate('caseQry', (key, value) => {
+    // for case both we index both case sensitive and lower case (patient_id and patient_id_sort)
+    // when coming from the filter we will use the sort one
+    if (fastify.caseBoth.includes(key))
+      return `(${fastify.getFieldName(key)}_sort:${fastify.caseFormatVal(key, value)})`;
+    return `(${fastify.getFieldName(key)}:${fastify.caseFormatVal(key, value)})`;
+  });
+  // id fields needs to be case sensitive
+  // and exact match!
+  fastify.decorate('caseSensitive', ['project', 'template', 'user']);
+  // uids that can be filtered
+  fastify.decorate('caseBoth', ['subjectID']);
 
   fastify.decorate('isSortExtra', (key) => sortExtras.includes(key));
 
@@ -2416,7 +2440,7 @@ async function other(fastify) {
     let fieldToSearch = field;
     if (Array.isArray(values)) {
       if (['subSpecialty', 'diagnosis'].includes(field)) fieldToSearch = 'observation';
-      return `(${values.map((item) => `${fieldToSearch}:"${item}"`).join(' OR ')})`;
+      return `(${values.map((item) => fastify.caseQry(fieldToSearch, item)).join(' OR ')})`;
     }
     return '';
   });
