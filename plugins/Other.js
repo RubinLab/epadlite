@@ -2003,6 +2003,7 @@ async function other(fastify) {
                   enabled: true,
                   admin: false,
                   projects: [{ role: 'Owner', project: projectID }],
+                  permissions: 'CreateWorklist,CreateProject',
                 },
                 { project: projectID },
                 epadAuth
