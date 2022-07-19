@@ -124,4 +124,9 @@ config.versionAudit =
   config.versionAudit ||
   false;
 
+config.deleteNoAimStudy =
+  (process.env.DELETE_NO_AIM_STUDY && process.env.DELETE_NO_AIM_STUDY === 'true') ||
+  config.deleteNoAimStudy ||
+  false;
+
 module.exports = config;
