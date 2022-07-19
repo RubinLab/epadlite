@@ -380,7 +380,7 @@ describe('System AIM Tests', () => {
       });
   });
 
-  describe('Aim Search Tests', () => {
+  describe.only('Aim Search Tests', () => {
     before(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -932,6 +932,48 @@ describe('System AIM Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.total_rows).to.equal(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with patient name when there is a space in the name', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            query: 'Stella Demo',
+          },
+          sort: ['-name'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('filter with patient name when there is a space in the name', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          filter: { patientName: 'Stella Demo' },
+          sort: ['-name'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
           done();
         })
         .catch((e) => {
