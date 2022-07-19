@@ -380,7 +380,7 @@ describe('System AIM Tests', () => {
       });
   });
 
-  describe.only('Aim Search Tests', () => {
+  describe('Aim Search Tests', () => {
     before(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
