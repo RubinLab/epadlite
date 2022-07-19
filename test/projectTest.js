@@ -5974,4 +5974,102 @@ describe('Project Tests', () => {
         });
     });
   });
+
+  describe('Project Delete on No Aim Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'studydelnoaim',
+          projectName: 'studydelnoaim',
+          projectDescription: 'studydelnoaim desc',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+      process.env.DELETE_NO_AIM_STUDY = true;
+      config.deleteNoAimStudy = true;
+    });
+    after(async () => {
+      process.env.DELETE_NO_AIM_STUDY = false;
+      config.deleteNoAimStudy = false;
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/studydelnoaim')
+        .query({ username: 'admin' });
+    });
+    it('add subject 3, study 0023.2015.09.28.3 to project studydelnoaim', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/studydelnoaim/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('save fake aim to project studydelnoaim ', (done) => {
+      // this is just fake data, I took the sample aim and changed patient
+      // TODO put meaningful data
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim_fake.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/studydelnoaim/aims')
+        .send(jsonBuffer)
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('get studies of project studydelnoaim', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/studydelnoaim/studies')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.equal(1);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('delete aim 2.25.211702350959705566747388843359605362 of system in bulk', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/studydelnoaim/aims/delete?all=true')
+        .query({ username: 'admin' })
+        .send(['2.25.211702350959705566747388843359605362'])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('get studies of project studydelnoaim again with no study', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/studydelnoaim/studies')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.equal(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+  });
 });
