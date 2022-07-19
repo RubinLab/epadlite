@@ -2384,6 +2384,8 @@ async function other(fastify) {
   fastify.decorate('caseFormatVal', (key, value) => {
     const cleanedValue = value.trim().replaceAll(' ', '\\ ');
     if (fastify.caseSensitive.includes(key)) return `${cleanedValue}`;
+    // search some columns with starts with instead of includes
+    if (fastify.startsWith.includes(key)) return `/${cleanedValue}.*/`;
     return `/.*${cleanedValue.toLowerCase()}.*/`;
   });
   fastify.decorate('caseQry', (key, value) => {
@@ -2398,6 +2400,8 @@ async function other(fastify) {
   fastify.decorate('caseSensitive', ['project', 'template', 'user']);
   // uids that can be filtered
   fastify.decorate('caseBoth', ['subjectID']);
+
+  fastify.decorate('startsWith', ['subjectID', 'accessionNumber', 'age']);
 
   fastify.decorate('isSortExtra', (key) => sortExtras.includes(key));
 
