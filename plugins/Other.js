@@ -2364,10 +2364,10 @@ async function other(fastify) {
   });
 
   // fields for filter and sort
-  // CouchDB fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_date, template_name, template_code, user, user_name, comment, project
+  // CouchDB fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_datetime, template_name, template_code, user, user_name, comment, project
   // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project, projectName (additional, no couchdb)
 
-  // Sorting fields: patient_name_sort, patient_id, accession_number, name_sort, age, sex, modality, study_date, anatomy_sort, observation_sort, creation_date, template_name_sort, template_code, user, user_name_sort, project, projectName (additional, no couchdb uses project instead)
+  // Sorting fields: patient_name_sort, patient_id, accession_number, name_sort, age, sex, modality, study_date, anatomy_sort, observation_sort, creation_datetime, template_name_sort, template_code, user, user_name_sort, project, projectName (additional, no couchdb uses project instead)
 
   // Different sort fields only: patient_name_sort, name_sort, anatomy_sort, observation_sort, template_name_sort, user_name_sort
 
@@ -2421,7 +2421,7 @@ async function other(fastify) {
       patientName: 'patient_name',
       accessionNumber: 'accession_number',
       studyDate: 'study_date',
-      date: 'creation_date',
+      date: 'creation_datetime',
       template: 'template_code',
       userName: 'user',
       projectID: 'project',
