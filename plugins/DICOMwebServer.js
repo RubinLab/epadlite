@@ -268,7 +268,7 @@ async function dicomwebserver(fastify) {
             this.request.get(
               `${config.dicomWebConfig.qidoSubPath}/studies${query}${
                 query ? '&' : '?'
-              }includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+              }includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
               header
             )
           );
@@ -437,7 +437,7 @@ async function dicomwebserver(fastify) {
           const values = await this.request.get(
             `/studies?${
               config.limitStudies ? `limit=${config.limitStudies}&` : ''
-            }includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+            }includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
             header
           );
           const studyUids = await fastify.getDBStudies();
@@ -565,7 +565,7 @@ async function dicomwebserver(fastify) {
         try {
           const promisses = [];
           let qryIncludes =
-            '&includefield=StudyDescription&includefield=00201206&includefield=00201208';
+            '&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061';
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
           if (filter && config.pullStudyIds) {
@@ -771,7 +771,7 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const studies = await this.request.get(
-            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
             header
           );
           const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);
