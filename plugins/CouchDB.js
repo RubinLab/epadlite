@@ -392,8 +392,7 @@ async function couchdb(fastify, options) {
     const validQryParams = [
       'patient_name',
       'user',
-      'creation_date',
-      'creation_time',
+      'creation_datetime',
       'unknown_creation_date',
       'name',
       'programmed_comment',
@@ -466,7 +465,7 @@ async function couchdb(fastify, options) {
                     instanceOrFrameNumber: 'NA',
                     name: body.rows[i].fields.name,
                     template: body.rows[i].fields.template_code,
-                    date: `${body.rows[i].fields.creation_date}${body.rows[i].fields.creation_time}`,
+                    date: `${body.rows[i].fields.creation_datetime}`,
                     patientName: body.rows[i].fields.patient_name,
                     studyDate: body.rows[i].fields.study_date,
                     comment: body.rows[i].fields.programmed_comment,
