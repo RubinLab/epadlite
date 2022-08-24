@@ -895,5 +895,90 @@ describe('System AIM Tests', () => {
           done(e);
         });
     });
+    it('search with modality and filter with accession number starts with', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            modality: ['CT', 'MR'],
+          },
+          filter: { accessionNumber: '18' },
+          sort: ['name'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(1);
+          expect(res.body.rows[0].name).to.equal('teaching file1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with modality and filter with accession number starts with should not return anything for mid word filter', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            modality: ['CT', 'MR'],
+          },
+          filter: { accessionNumber: '27' },
+          sort: ['name'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('search with patient name when there is a space in the name', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          fields: {
+            query: 'Stella Demo',
+          },
+          sort: ['-name'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('filter with patient name when there is a space in the name', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/search')
+        .query({ username: 'admin' })
+        .send({
+          filter: { patientName: 'Stella Demo' },
+          sort: ['-name'],
+        })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.total_rows).to.equal(2);
+          expect(res.body.rows[0].name).to.equal('teaching file2');
+          expect(res.body.rows[1].name).to.equal('teaching file1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
   });
 });
