@@ -266,7 +266,9 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(
             this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+              `${config.dicomWebConfig.qidoSubPath}/studies${query}${
+                query ? '&' : '?'
+              }includefield=StudyDescription&includefield=00201206&includefield=00201208`,
               header
             )
           );
