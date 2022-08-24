@@ -30,32 +30,32 @@ beforeEach(() => {
   const segBuffer = fs.readFileSync('test/data/testseg.dcm');
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=0023.2015.09.28.3&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=0023.2015.09.28.3&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
     )
     .reply(200, studiesResponse3);
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=56547547373&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=56547547373&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
     )
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?limit=100&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+      `${config.dicomWebConfig.qidoSubPath}/studies?limit=100&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
     )
     .reply(200, studiesResponse);
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=3&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=3&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
     )
     .reply(200, studiesResponse3);
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=7&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=7&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
     )
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=4&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=4&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
     )
     .reply(200, [{}]);
   nock(config.dicomWebConfig.baseUrl)
@@ -128,7 +128,7 @@ beforeEach(() => {
 
   nock(config.dicomWebConfig.baseUrl)
     .get(
-      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=1.2.752.24.7.19011385.453825&includefield=StudyDescription&includefield=00201206&includefield=00201208`
+      `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=1.2.752.24.7.19011385.453825&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
     )
     .reply(200, studiesResponse7);
   nock(config.dicomWebConfig.baseUrl)
