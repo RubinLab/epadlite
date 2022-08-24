@@ -2312,7 +2312,7 @@ async function other(fastify) {
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(queryObj.fields)) {
         if (Array.isArray(value) && !(queryObj.filter && queryObj.filter[`${key}`]))
-          queryParts.push(fastify.createPartFromArray(fastify.getFieldName(key), value));
+          queryParts.push(fastify.createPartFromArray(key, value));
       }
       if (queryObj.fields.myCases) {
         queryParts.push(`user:"${epadAuth.username}"`);
@@ -2381,9 +2381,13 @@ async function other(fastify) {
     // 'name',
     'patient_age',
   ];
+  // use epad fields
+  // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project, projectName (additional, no couchdb)
   fastify.decorate('caseFormatVal', (key, value) => {
     const cleanedValue = value.trim().replaceAll(' ', '\\ ');
     if (fastify.caseSensitive.includes(key)) return `${cleanedValue}`;
+    // search some columns with starts with instead of includes
+    if (fastify.startsWith.includes(key)) return `/${cleanedValue}.*/`;
     return `/.*${cleanedValue.toLowerCase()}.*/`;
   });
   fastify.decorate('caseQry', (key, value) => {
@@ -2398,6 +2402,8 @@ async function other(fastify) {
   fastify.decorate('caseSensitive', ['project', 'template', 'user']);
   // uids that can be filtered
   fastify.decorate('caseBoth', ['subjectID']);
+
+  fastify.decorate('startsWith', ['subjectID', 'accessionNumber', 'age']);
 
   fastify.decorate('isSortExtra', (key) => sortExtras.includes(key));
 
