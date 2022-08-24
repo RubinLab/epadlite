@@ -12947,7 +12947,7 @@ async function epaddb(fastify, options, done) {
           let numOfPatients = 0;
           if (config.env !== 'test' && config.mode === 'thick') {
             numOfPatients = await models.project_subject.count({
-              col: 'subject_uid',
+              col: 'subject_id',
               distinct: true,
             });
           } else {
@@ -12958,7 +12958,7 @@ async function epaddb(fastify, options, done) {
           let numOfStudies = 0;
           if (config.env !== 'test' && config.mode === 'thick') {
             numOfStudies = await models.project_subject_study.count({
-              col: 'study_uid',
+              col: 'study_id',
               distinct: true,
             });
           } else {
