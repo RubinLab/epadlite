@@ -10798,7 +10798,9 @@ async function epaddb(fastify, options, done) {
         (dateParts[7] === 'PM' ? Number(dateParts[4]) + 12 : Number(dateParts[4])) + tZOffset / 60;
       const min = Number(dateParts[5]) + (tZOffset % 60);
       return new Date(
-        `${dateParts[3]}-${dateParts[1]}-${dateParts[2]}T${hour}:${min}:${dateParts[6]}.000`
+        `${dateParts[3]}-${dateParts[1]}-${dateParts[2]}T${fastify.padZeros(
+          hour
+        )}:${fastify.padZeros(min)}:${dateParts[6]}.000`
       );
     }
     // DICOM format
@@ -10807,6 +10809,8 @@ async function epaddb(fastify, options, done) {
       `${dateParts[1]}-${dateParts[2]}-${dateParts[3]}T${dateParts[4]}:${dateParts[5]}:${dateParts[6]}.000`
     );
   });
+
+  fastify.decorate('padZeros', (number) => (number > 9 ? number : `0${number}`));
 
   fastify.decorate(
     'prepAimDownload',
