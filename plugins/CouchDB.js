@@ -6,7 +6,6 @@ const archiver = require('archiver');
 const atob = require('atob');
 const path = require('path');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const dateFormatter = require('date-format');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -1095,15 +1094,10 @@ async function couchdb(fastify, options) {
 
                 imageAnnotations.forEach((imageAnnotation) => {
                   const commentSplit = imageAnnotation.comment.value.split('~~');
+                  const aimDate = fastify.fixAimDate(imageAnnotation.dateTime.value);
                   const row = {
                     aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
-                    date: dateFormatter.asString(
-                      dateFormatter.ISO8601_FORMAT,
-                      dateFormatter.parse(
-                        'yyyyMMddhhmmssSSS',
-                        `${imageAnnotation.dateTime.value}000`
-                      )
-                    ),
+                    date: aimDate.toString(),
                     patientName: aim.ImageAnnotationCollection.person.name.value,
                     patientId: aim.ImageAnnotationCollection.person.id.value,
                     reviewer: aim.ImageAnnotationCollection.user.name.value,
