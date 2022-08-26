@@ -11,7 +11,6 @@ const archiver = require('archiver');
 const toArrayBuffer = require('to-array-buffer');
 const unzip = require('unzip-stream');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const dateFormatter = require('date-format');
 const csv = require('csv-parser');
 const { createOfflineAimSegmentation } = require('aimapi');
 // eslint-disable-next-line no-global-assign
@@ -10697,15 +10696,11 @@ async function epaddb(fastify, options, done) {
                   // eslint-disable-next-line no-param-reassign
                   header = fastify.arrayUnique(header, 'id');
                   // add values common to all annotations
+                  // if the format is old first convert it to the standard DICOM format
+                  const aimDate = fastify.fixAimDate(imageAnnotation.dateTime.value);
                   let row = {
                     aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
-                    date: dateFormatter.asString(
-                      dateFormatter.ISO8601_FORMAT,
-                      dateFormatter.parse(
-                        'yyyyMMddhhmmssSSS',
-                        `${imageAnnotation.dateTime.value}000`
-                      )
-                    ),
+                    date: aimDate.toString(),
                     patientName: aim.ImageAnnotationCollection.person.name.value,
                     patientId: aim.ImageAnnotationCollection.person.id.value,
                     reviewer: aim.ImageAnnotationCollection.user.name.value,
@@ -10790,6 +10785,28 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
+
+  fastify.decorate('fixAimDate', (date) => {
+    if (date.includes('GMT')) {
+      // 10.09.2018T03:51:41PM.Zone:GMT
+      // parse with regex. will return ['10.09.2018T03:51:41PM', '10', '09', '2018', '03', '51', '41', 'PM', index: 0, input: '10.09.2018T03:51:41PM', groups: undefined]
+      const tZOffset = new Date().getTimezoneOffset();
+      const dateParts = date
+        .replace('.Zone:GMT', '')
+        .match(/(\d\d)\.(\d\d)\.(\d\d\d\d)T(\d\d):(\d\d):(\d\d)(AM|PM)/);
+      const hour =
+        (dateParts[7] === 'PM' ? Number(dateParts[4]) + 12 : Number(dateParts[4])) + tZOffset / 60;
+      const min = Number(dateParts[5]) + (tZOffset % 60);
+      return new Date(
+        `${dateParts[3]}-${dateParts[1]}-${dateParts[2]}T${hour}:${min}:${dateParts[6]}.000`
+      );
+    }
+    // DICOM format
+    const dateParts = date.match(/(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)/);
+    return new Date(
+      `${dateParts[1]}-${dateParts[2]}-${dateParts[3]}T${dateParts[4]}:${dateParts[5]}:${dateParts[6]}.000`
+    );
+  });
 
   fastify.decorate(
     'prepAimDownload',

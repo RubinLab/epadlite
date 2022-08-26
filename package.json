@@ -14,7 +14,6 @@
     "concat-stream": "^2.0.0",
     "csv-parser": "^3.0.0",
     "csv-writer": "^1.6.0",
-    "date-format": "^3.0.0",
     "dcmjs": "^0.17.0",
     "deep-equal-in-any-order": "^1.0.28",
     "dicom-dimse-native": "^1.3.2",
