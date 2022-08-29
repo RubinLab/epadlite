@@ -1093,7 +1093,11 @@ async function couchdb(fastify, options) {
                   aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
 
                 imageAnnotations.forEach((imageAnnotation) => {
-                  const commentSplit = imageAnnotation.comment.value.split('~~');
+                  // handle no comment
+                  const commentSplit =
+                    imageAnnotation.comment && imageAnnotation.comment.value
+                      ? imageAnnotation.comment.value.split('~~')
+                      : [''];
                   const aimDate = fastify.fixAimDate(imageAnnotation.dateTime.value);
                   const row = {
                     aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
