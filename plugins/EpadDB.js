@@ -10676,7 +10676,11 @@ async function epaddb(fastify, options, done) {
                   aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
 
                 imageAnnotations.forEach((imageAnnotation) => {
-                  const commentSplit = imageAnnotation.comment.value.split('~~');
+                  // handle no comment
+                  const commentSplit =
+                    imageAnnotation.comment && imageAnnotation.comment.value
+                      ? imageAnnotation.comment.value.split('~~')
+                      : [''];
                   const points = [];
                   if (
                     imageAnnotation.markupEntityCollection &&
