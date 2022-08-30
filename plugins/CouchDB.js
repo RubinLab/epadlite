@@ -544,7 +544,12 @@ async function couchdb(fastify, options) {
                         if (resObj.total_rows !== resObj.rows.length) {
                           // get everything and send an email
                           fastify
-                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                            .downloadAims(
+                              { aim: 'true', summary: 'true' },
+                              resObj,
+                              epadAuth,
+                              params
+                            )
                             .then((result) => {
                               fastify.log.info(`Zip file ready in ${result}`);
                               // get the protocol and hostname from the request
