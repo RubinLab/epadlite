@@ -10714,7 +10714,12 @@ async function epaddb(fastify, options, done) {
                     points: `[${points}]`,
                     dsoSeriesUid:
                       imageAnnotation.segmentationEntityCollection &&
-                      imageAnnotation.segmentationEntityCollection.SegmentationEntity
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity &&
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity[0] &&
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                        .seriesInstanceUid &&
+                      imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
+                        .seriesInstanceUid.root
                         ? imageAnnotation.segmentationEntityCollection.SegmentationEntity[0]
                             .seriesInstanceUid.root
                         : '',
@@ -13670,10 +13675,11 @@ async function epaddb(fastify, options, done) {
             // TODO sort order moved as is. i.e: all studies of the subject has the same sortorder
             // TODO fill in numOfSeries and numOfImages
             await fastify.orm.query(
-              `INSERT INTO worklist_study (worklist_id, project_id, sortorder, status, startdate, completedate, creator, createdtime, updatetime, updated_by, study_id) 
-                SELECT ws.worklist_id, ws.project_id, ws.sortorder, ws.status, ws.startdate, ws.completedate, ws.creator, ws.createdtime, ws.updatetime, ws.updated_by, pss.study_id 
+              `INSERT INTO worklist_study (worklist_id, project_id, sortorder, status, startdate, completedate, creator, createdtime, updatetime, updated_by, study_id, subject_id) 
+                SELECT ws.worklist_id, ws.project_id, ws.sortorder, ws.status, ws.startdate, ws.completedate, ws.creator, ws.createdtime, ws.updatetime, ws.updated_by, pss.study_id, ps.subject_id 
                 FROM worklist_subject ws, project_subject ps, project_subject_study pss 
-                WHERE ws.project_id = ps.project_id AND ws.subject_id = ps.subject_id AND ps.id = pss.proj_subj_id;`,
+                WHERE ws.project_id = ps.project_id AND ws.subject_id = ps.subject_id AND ps.id = pss.proj_subj_id AND 
+                (SELECT COUNT(*) FROM worklist_study ws2 where worklist_id=ws.worklist_id AND project_id=ws.project_id AND study_id=pss.study_id)=0;`,
               { transaction: t }
             );
             fastify.log.warn('Migrated worklist_study');
