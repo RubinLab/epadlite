@@ -485,6 +485,7 @@ async function couchdb(fastify, options) {
                     age: body.rows[i].fields.patient_age,
                     sex: body.rows[i].fields.patient_sex,
                     fullName: body.rows[i].fields.user_name,
+                    fullNameSorted: body.rows[i].fields.user_name_sorted,
                   });
                 }
                 resObj.rows = res;
