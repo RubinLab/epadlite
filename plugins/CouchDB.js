@@ -476,7 +476,7 @@ async function couchdb(fastify, options) {
                     dsoFrameNo: 'NA',
                     isDicomSR: 'NA',
                     originalSubjectID: body.rows[i].fields.patient_id,
-                    userName: Array.isArray()
+                    userName: Array.isArray(body.rows[i].fields.user)
                       ? body.rows[i].fields.user
                       : [body.rows[i].fields.user],
                     projectID: body.rows[i].fields.project,
