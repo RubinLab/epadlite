@@ -23,7 +23,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -52,7 +52,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -81,7 +81,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -110,7 +110,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -139,7 +139,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -168,7 +168,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -197,7 +197,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -226,7 +226,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -255,7 +255,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -284,7 +284,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -313,7 +313,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"
@@ -342,7 +342,7 @@
     "projectName": "reportingName",
     "isDicomSR": "NA",
     "originalSubjectID": "7",
-    "userName": "admin",
+    "userName": ["admin"],
     "age": "77",
     "birthDate": "19441101000000",
     "sex": "m"

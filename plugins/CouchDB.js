@@ -425,17 +425,19 @@ async function couchdb(fastify, options) {
       const { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
         epadAuth
       );
-      // add collaborator filtering
-      const projectFilter = [];
-      if (aimAccessProjIds.length > 0)
-        projectFilter.push(`project:("${aimAccessProjIds.join('" OR "')}")`);
-      if (collaboratorProjIds.length > 0)
-        projectFilter.push(
-          `(project:"${collaboratorProjIds.join(
-            `" AND user:"${epadAuth.username}") OR (project:"`
-          )}" AND user:"${epadAuth.username}")`
-        );
-      if (projectFilter.length > 0) qryParts.push(`( ${projectFilter.join(' OR ')})`);
+      if (!params.project) {
+        // add collaborator filtering
+        const projectFilter = [];
+        if (aimAccessProjIds.length > 0)
+          projectFilter.push(`project:("${aimAccessProjIds.join('" OR "')}")`);
+        if (collaboratorProjIds.length > 0)
+          projectFilter.push(
+            `(project:"${collaboratorProjIds.join(
+              `" AND user:"${epadAuth.username}") OR (project:"`
+            )}" AND user:"${epadAuth.username}")`
+          );
+        if (projectFilter.length > 0) qryParts.push(`( ${projectFilter.join(' OR ')})`);
+      }
     }
     if (qryParts.length === 0) return '*:*';
     return qryParts.join(' AND ');
@@ -474,7 +476,9 @@ async function couchdb(fastify, options) {
                     dsoFrameNo: 'NA',
                     isDicomSR: 'NA',
                     originalSubjectID: body.rows[i].fields.patient_id,
-                    userName: body.rows[i].fields.user,
+                    userName: Array.isArray()
+                      ? body.rows[i].fields.user
+                      : [body.rows[i].fields.user],
                     projectID: body.rows[i].fields.project,
                     projectName: projectNameMap[body.rows[i].fields.project],
                     modality: body.rows[i].fields.modality,
