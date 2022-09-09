@@ -187,11 +187,7 @@ async function reporting(fastify) {
           aimJSONs[i].ImageAnnotationCollection.uniqueIdentifier.root
         );
 
-        fastify.fillColumn(
-          row,
-          'username',
-          aimJSONs[i].ImageAnnotationCollection.user.loginName.value
-        );
+        fastify.fillColumn(row, 'username', fastify.getAuthorString(aimJSONs[i]));
 
         if (
           aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]

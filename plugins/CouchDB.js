@@ -1114,7 +1114,7 @@ async function couchdb(fastify, options) {
                     date: aimDate.toString(),
                     patientName: aim.ImageAnnotationCollection.person.name.value,
                     patientId: aim.ImageAnnotationCollection.person.id.value,
-                    reviewer: aim.ImageAnnotationCollection.user.name.value,
+                    reviewer: fastify.getAuthorString(aim),
                     name: imageAnnotation.name.value.split('~')[0],
                     comment: commentSplit[0],
                     userComment: commentSplit.length > 1 ? commentSplit[1] : '',
@@ -2206,16 +2206,20 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('getAuthorString', (aim) =>
+    // eslint-disable-next-line no-nested-ternary
+    aim && aim.ImageAnnotationCollection.user
+      ? Array.isArray(aim.ImageAnnotationCollection.user)
+        ? aim.ImageAnnotationCollection.user.map((usr) => usr.loginName.value).join(',')
+        : aim.ImageAnnotationCollection.user.loginName.value
+      : ''
+  );
+
   fastify.decorate('getAimAuthorFromUID', async (aimUid) => {
     try {
       const db = fastify.couch.db.use(config.db);
       const doc = await db.get(aimUid);
-      // eslint-disable-next-line no-nested-ternary
-      return doc.aim && doc.aim.ImageAnnotationCollection.user
-        ? Array.isArray(doc.aim.ImageAnnotationCollection.user)
-          ? doc.aim.ImageAnnotationCollection.user.map((usr) => usr.loginName.value).join(',')
-          : doc.aim.ImageAnnotationCollection.user.loginName.value
-        : '';
+      return fastify.getAuthorString(doc.aim);
     } catch (err) {
       throw new InternalError('Getting author from aimuid', err);
     }
