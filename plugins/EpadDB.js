@@ -6668,7 +6668,10 @@ async function epaddb(fastify, options, done) {
     for (let i = 0; i < projectAims.length; i += 1) {
       // check if collaborator, then only his own
       const isCollaborator = fastify.isCollaborator(project, epadAuth);
-      if (projectAims[i].dataValues.user === epadAuth.username || !isCollaborator) {
+      if (
+        !isCollaborator ||
+        projectAims[i].dataValues.user.match(`(,|^)${epadAuth.username}(,|$)`)
+      ) {
         // add to the map or increment
         if (!aimsCountMap[projectAims[i].dataValues[field]])
           aimsCountMap[projectAims[i].dataValues[field]] = 0;
@@ -7513,8 +7516,11 @@ async function epaddb(fastify, options, done) {
         try {
           const aimUid = aim.ImageAnnotationCollection.uniqueIdentifier.root;
           const user =
+            // eslint-disable-next-line no-nested-ternary
             aim && aim.ImageAnnotationCollection.user
-              ? aim.ImageAnnotationCollection.user.loginName.value
+              ? Array.isArray(aim.ImageAnnotationCollection.user)
+                ? aim.ImageAnnotationCollection.user.map((usr) => usr.loginName.value).join(',')
+                : aim.ImageAnnotationCollection.user.loginName.value
               : '';
           const template =
             aim &&
@@ -7802,19 +7808,23 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  // gets possibly multiple users in a comma separated string
   fastify.decorate(
     'aimUpdateGateway',
     (projectId, subjectUid, studyUid, user, epadAuth, transaction, projectUid) =>
       new Promise(async (resolve, reject) => {
         try {
-          await fastify.updateWorklistCompleteness(
-            projectId,
-            subjectUid,
-            studyUid,
-            user,
-            epadAuth,
-            transaction
-          );
+          const users = user.split(',');
+          for (let i = 0; i < users.length; i += 1)
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.updateWorklistCompleteness(
+              projectId,
+              subjectUid,
+              studyUid,
+              users[i],
+              epadAuth,
+              transaction
+            );
           // give warning but do not fail if you cannot update the report (it fails if dicoms are not in db)
           try {
             await fastify.updateReports(projectId, projectUid, subjectUid, epadAuth, transaction);
@@ -8098,6 +8108,7 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  // gets a single username
   fastify.decorate(
     'updateWorklistCompleteness',
     (projectId, subjectUid, studyUid, user, epadAuth, transaction) =>
@@ -8262,7 +8273,7 @@ async function epaddb(fastify, options, done) {
         project_id: projectId,
         subject_uid: subjectUid,
         study_uid: studyUid,
-        user,
+        user: { [Sequelize.Op.regexp]: `((,|^)${user}(,|$))` },
         ...fastify.qryNotDeleted(),
       };
       // if the requirement is patient level, calculate patient level and update all studies
@@ -13469,6 +13480,7 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS frame_id int(11) DEFAULT NULL AFTER image_uid,
                 ADD COLUMN IF NOT EXISTS dso_series_uid varchar(256) DEFAULT NULL AFTER frame_id,
                 ADD COLUMN IF NOT EXISTS deleted int(11) DEFAULT NULL AFTER dso_series_uid,
+                MODIFY COLUMN user varchar(512) DEFAULT NULL,
                 DROP CONSTRAINT IF EXISTS project_aimuid_ind,
                 ADD CONSTRAINT project_aimuid_ind UNIQUE (project_id, aim_uid);`,
               { transaction: t }

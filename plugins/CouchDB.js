@@ -2210,7 +2210,12 @@ async function couchdb(fastify, options) {
     try {
       const db = fastify.couch.db.use(config.db);
       const doc = await db.get(aimUid);
-      return doc.aim.ImageAnnotationCollection.user.loginName.value;
+      // eslint-disable-next-line no-nested-ternary
+      return doc.aim && doc.aim.ImageAnnotationCollection.user
+        ? Array.isArray(doc.aim.ImageAnnotationCollection.user)
+          ? doc.aim.ImageAnnotationCollection.user.map((usr) => usr.loginName.value).join(',')
+          : doc.aim.ImageAnnotationCollection.user.loginName.value
+        : '';
     } catch (err) {
       throw new InternalError('Getting author from aimuid', err);
     }
