@@ -7515,7 +7515,7 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         try {
           const aimUid = aim.ImageAnnotationCollection.uniqueIdentifier.root;
-          const user = fastify.getAuthorString(aim);
+          const user = fastify.getAuthorUsernameString(aim);
           const template =
             aim &&
             aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code
@@ -10712,7 +10712,8 @@ async function epaddb(fastify, options, done) {
                     date: aimDate.toString(),
                     patientName: aim.ImageAnnotationCollection.person.name.value,
                     patientId: aim.ImageAnnotationCollection.person.id.value,
-                    reviewer: fastify.getAuthorString(aim),
+                    reviewer: fastify.getAuthorUsernameString(aim),
+                    reviewerNames: fastify.getAuthorNameString(aim),
                     name: imageAnnotation.name.value.split('~')[0],
                     comment: commentSplit[0],
                     userComment: commentSplit.length > 1 ? commentSplit[1] : '',
@@ -10836,6 +10837,7 @@ async function epaddb(fastify, options, done) {
             { id: 'patientName', title: 'Patient_Name' },
             { id: 'patientId', title: 'Patient_ID' },
             { id: 'reviewer', title: 'Reviewer' },
+            { id: 'reviewerNames', title: 'Reviewer Names' },
             { id: 'name', title: 'Name' },
             { id: 'comment', title: 'Comment' },
             { id: 'userComment', title: 'User_Comment' },

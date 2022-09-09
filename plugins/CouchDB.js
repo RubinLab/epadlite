@@ -1043,6 +1043,7 @@ async function couchdb(fastify, options) {
             { id: 'patientName', title: 'Patient_Name' },
             { id: 'patientId', title: 'Patient_ID' },
             { id: 'reviewer', title: 'Reviewer' },
+            { id: 'reviewerNames', title: 'Reviewer Names' },
             { id: 'name', title: 'Name' },
             { id: 'comment', title: 'Comment' },
             { id: 'userComment', title: 'User_Comment' },
@@ -1114,7 +1115,8 @@ async function couchdb(fastify, options) {
                     date: aimDate.toString(),
                     patientName: aim.ImageAnnotationCollection.person.name.value,
                     patientId: aim.ImageAnnotationCollection.person.id.value,
-                    reviewer: fastify.getAuthorString(aim),
+                    reviewer: fastify.getAuthorUsernameString(aim),
+                    reviewerNames: fastify.getAuthorNameString(aim),
                     name: imageAnnotation.name.value.split('~')[0],
                     comment: commentSplit[0],
                     userComment: commentSplit.length > 1 ? commentSplit[1] : '',
@@ -2206,7 +2208,7 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('getAuthorString', (aim) =>
+  fastify.decorate('getAuthorUsernameString', (aim) =>
     // eslint-disable-next-line no-nested-ternary
     aim && aim.ImageAnnotationCollection.user
       ? Array.isArray(aim.ImageAnnotationCollection.user)
@@ -2215,11 +2217,23 @@ async function couchdb(fastify, options) {
       : ''
   );
 
+  fastify.decorate('getAuthorNameString', (aim) =>
+    // eslint-disable-next-line no-nested-ternary
+    aim && aim.ImageAnnotationCollection.user
+      ? Array.isArray(aim.ImageAnnotationCollection.user)
+        ? aim.ImageAnnotationCollection.user
+            .map((usr) => usr.name.value)
+            .join(',')
+            .replace(/\^/g, ' ')
+        : aim.ImageAnnotationCollection.user.name.value.replace(/\^/g, ' ')
+      : ''
+  );
+
   fastify.decorate('getAimAuthorFromUID', async (aimUid) => {
     try {
       const db = fastify.couch.db.use(config.db);
       const doc = await db.get(aimUid);
-      return fastify.getAuthorString(doc.aim);
+      return fastify.getAuthorUsernameString(doc.aim);
     } catch (err) {
       throw new InternalError('Getting author from aimuid', err);
     }
