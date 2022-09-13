@@ -786,7 +786,8 @@ async function dicomwebserver(fastify) {
             );
             result = result.concat(studySeries);
           }
-
+          // order by series number
+          result = _.sortBy(result, 'seriesNo');
           resolve(result);
         } catch (err) {
           reject(new InternalError(`Getting all series`), err);
@@ -979,7 +980,15 @@ async function dicomwebserver(fastify) {
                   false,
                 isNonDicomSeries: false, // TODO
                 seriesNo:
-                  value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
+                  // eslint-disable-next-line no-nested-ternary
+                  value['00200011'] &&
+                  value['00200011'].Value &&
+                  value['00200011'].Value[0] &&
+                  Number.isInteger(value['00200011'].Value[0])
+                    ? Number(value['00200011'].Value[0])
+                    : value['00200011'] && value['00200011'].Value && value['00200011'].Value[0]
+                    ? value['00200011'].Value[0]
+                    : 0,
                 significanceOrder: seriesSignificanceMap[value['0020000E'].Value[0]]
                   ? seriesSignificanceMap[value['0020000E'].Value[0]]
                   : undefined,

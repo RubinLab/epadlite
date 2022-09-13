@@ -136,15 +136,15 @@ describe('Subject Tests', () => {
         expect(res.body[3].patientID).to.be.eql('7');
         expect(res.body[3].patientName).to.be.eql('7^3225^4503');
         expect(res.body[3].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
-        expect(res.body[3].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.11');
+        expect(res.body[3].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.7');
         expect(res.body[4].patientID).to.be.eql('7');
         expect(res.body[4].patientName).to.be.eql('7^3225^4503');
         expect(res.body[4].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
-        expect(res.body[4].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.15');
+        expect(res.body[4].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.11');
         expect(res.body[5].patientID).to.be.eql('7');
         expect(res.body[5].patientName).to.be.eql('7^3225^4503');
         expect(res.body[5].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
-        expect(res.body[5].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.7');
+        expect(res.body[5].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.15');
         expect(res.body[6].patientID).to.be.eql('7');
         expect(res.body[6].patientName).to.be.eql('7^3225^4503');
         expect(res.body[6].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
