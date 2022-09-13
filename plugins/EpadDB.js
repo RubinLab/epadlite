@@ -12365,8 +12365,8 @@ async function epaddb(fastify, options, done) {
             result = result.concat(nondicomStudySeries);
           }
           // TODO handle nondicom series
-
-          result = _.sortBy(result, ['patientName', 'seriesDescription']);
+          // sort by series order (was ['patientName', 'seriesDescription'])
+          result = _.sortBy(result, 'seriesNo');
           reply.code(200).send(result);
         }
       }
