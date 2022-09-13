@@ -786,7 +786,7 @@ async function dicomwebserver(fastify) {
             );
             result = result.concat(studySeries);
           }
-          // order by series order
+          // order by series number
           result = _.sortBy(result, 'seriesNo');
           resolve(result);
         } catch (err) {

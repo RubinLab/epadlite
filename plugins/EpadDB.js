@@ -10097,7 +10097,8 @@ async function epaddb(fastify, options, done) {
       fastify
         .getSeriesDicomOrNotInternal(request.params, request.query, request.epadAuth)
         .then((combinedResult) => {
-          reply.code(200).send(combinedResult);
+          // order by series number
+          reply.code(200).send(_.sortBy(combinedResult, 'seriesNo'));
         })
         .catch((err) => {
           reply.send(err);
@@ -12365,7 +12366,7 @@ async function epaddb(fastify, options, done) {
             result = result.concat(nondicomStudySeries);
           }
           // TODO handle nondicom series
-          // sort by series order (was ['patientName', 'seriesDescription'])
+          // sort by series number (was ['patientName', 'seriesDescription'])
           result = _.sortBy(result, 'seriesNo');
           reply.code(200).send(result);
         }
