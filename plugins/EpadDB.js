@@ -7077,57 +7077,6 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
-    'getAimUidsForProjectFilter',
-    (params, filter) =>
-      new Promise(async (resolve, reject) => {
-        try {
-          const project = await models.project.findOne(
-            params.project
-              ? {
-                  where: { projectid: params.project },
-                }
-              : {}
-          );
-          if (project === null)
-            reject(
-              new BadRequestError(
-                'Getting aims from project',
-                new ResourceNotFoundError('Project', params.project)
-              )
-            );
-          else {
-            let whereJSON = { project_id: project.id };
-            if (params.subject) {
-              whereJSON = { ...whereJSON, subject_uid: params.subject };
-              if (params.study) {
-                whereJSON = { ...whereJSON, study_uid: params.study };
-                if (params.series) {
-                  whereJSON = { ...whereJSON, series_uid: params.series };
-                }
-              }
-            }
-            whereJSON = {
-              ...whereJSON,
-              ...fastify.qryNotDeleted(),
-            };
-            if (filter) whereJSON = { ...whereJSON, ...filter };
-            const aimUids = [];
-            const projectAims = await models.project_aim.findAll({
-              where: whereJSON,
-            });
-            // projects will be an array of Project instances with the specified name
-            for (let i = 0; i < projectAims.length; i += 1) {
-              aimUids.push(projectAims[i].aim_uid);
-            }
-            resolve(aimUids);
-          }
-        } catch (err) {
-          reject(err);
-        }
-      })
-  );
-
-  fastify.decorate(
     'getFileUidsForProject',
     (params) =>
       new Promise(async (resolve, reject) => {
