@@ -7566,7 +7566,8 @@ async function epaddb(fastify, options, done) {
           const usersRelationArr = [];
           userIds.forEach((userId) => {
             usersRelationArr.push(
-              models.project_aim_user.upsert(
+              fastify.upsert(
+                models.project_aim_user,
                 {
                   project_aim_id: projectAimRec.dataValues.id,
                   user_id: userId,
@@ -10220,6 +10221,7 @@ async function epaddb(fastify, options, done) {
                   }
                   try {
                     await Promise.all(queries);
+                    await fastify.addOrphanAimsInternal(body.username, id);
                     resolve(`User succesfully created`);
                   } catch (err) {
                     reject(new InternalError('Create user project associations', err));
@@ -10228,12 +10230,76 @@ async function epaddb(fastify, options, done) {
                   reject(new InternalError('Create user project associations', err));
                 }
               } else {
+                await fastify.addOrphanAimsInternal(body.username, id);
                 resolve(`User succesfully created`);
               }
             } catch (err) {
               reject(new InternalError('Create user in db', err));
             }
           }
+        }
+      })
+  );
+
+  fastify.decorate(
+    'addOrphanAimsInternal',
+    (username, userIdIn) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          let userId = userIdIn;
+          fastify.log.info(`Checking if there are orphan aims for username ${username}`);
+          if (!userId) {
+            const dbUser = await models.user.findOne({
+              where: { username },
+              attributes: ['id'],
+              raw: true,
+            });
+            if (dbUser) userId = dbUser.id;
+          }
+          // get aims that belongs to this username
+          const aims = await fastify.getUserAIMsInternal(username, 'summary');
+          // for each aim
+          // find the project_aim and add a project_aim_user entry
+          const promises = [];
+          for (let i = 0; i < aims.length; i += 1) {
+            promises.push(
+              new Promise(async (resolveIn, rejectIn) => {
+                try {
+                  const args = await models.project_aim.findOne({
+                    where: {
+                      '$project.projectid$': aims[i].projectID,
+                      aim_uid: aims[i].aimID,
+                      ...fastify.qryNotDeleted(),
+                    },
+                    attributes: ['id'],
+                    include: [{ model: models.project }],
+                  });
+                  if (args !== null)
+                    await fastify.upsert(
+                      models.project_aim_user,
+                      {
+                        project_aim_id: args.dataValues.id,
+                        user_id: userId,
+                      },
+                      {
+                        project_aim_id: args.dataValues.id,
+                        user_id: userId,
+                      },
+                      username
+                    );
+                  resolveIn('Success');
+                } catch (err) {
+                  rejectIn(err);
+                }
+              })
+            );
+          }
+          await Promise.all(promises);
+          if (aims.length > 0) fastify.log.info(`Added ${aims.length} AIMs to ${username}`);
+          else fastify.log.info('No orphan AIMs');
+          resolve(`Added ${aims.length} AIMs to ${username}`);
+        } catch (err) {
+          reject(err);
         }
       })
   );
@@ -10454,7 +10520,8 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         models.user
           .update(rowsUpdated, { where: { username: params.user } })
-          .then(() => {
+          .then(async () => {
+            if (rowsUpdated.username) await fastify.addOrphanAimsInternal(rowsUpdated.username);
             resolve();
           })
           .catch((err) => {

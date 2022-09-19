@@ -2285,6 +2285,35 @@ async function couchdb(fastify, options) {
       .catch((err) => reply.send(err));
   });
 
+  // gets users all aims
+  fastify.decorate(
+    'getUserAIMsInternal',
+    (username, format) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const dbFilter = {
+            q: `user:${username}`,
+            limit: 200,
+          };
+          const aimsResult = await fastify.getAimsCouchInternal(db, dbFilter, format);
+          let aims = aimsResult.rows;
+          let totalAimCount = aims.length;
+          let { bookmark } = aimsResult;
+          while (totalAimCount < aimsResult.total_rows) {
+            // eslint-disable-next-line no-await-in-loop
+            const newResult = await fastify.getAimsCouchInternal(db, dbFilter, format, bookmark);
+            bookmark = newResult.bookmark;
+            totalAimCount += newResult.rows.length;
+            aims = aims.concat(newResult.rows);
+          }
+          resolve(aims);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate(
     'closeCouchDB',
     (instance) =>
