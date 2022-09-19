@@ -1848,9 +1848,9 @@ async function other(fastify) {
       if (!creator) {
         if (reqInfo.level === 'aim') {
           try {
-            const author = await fastify.getAimAuthorFromUID(reqInfo.objectId);
-            fastify.log.info(`Author is ${author}`);
-            if (author.match(`(,|^)${request.epadAuth.username}(,|$)`)) return true;
+            const authors = await fastify.getAimAuthorFromUID(reqInfo.objectId);
+            fastify.log.info(`Authors are ${authors.join(',')}`);
+            if (authors.includes(request.epadAuth.username)) return true;
             return false;
           } catch (err) {
             fastify.log.error(`Getting author from aim: ${err.message}`);

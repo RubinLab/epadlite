@@ -2455,7 +2455,7 @@ describe('Project Tests', () => {
     it('project aim deletion of aim 2.25.211702350959705565754863799143359605362 of system should be successful ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .delete('/projects/testaim/aims/2.25.211702350959705565754863799143359605362?all=true')
+        .delete('/projects/testaim3/aims/2.25.211702350959705565754863799143359605362?all=true')
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);

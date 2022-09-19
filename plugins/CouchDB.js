@@ -2208,14 +2208,16 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate('getAuthorUsernameString', (aim) =>
+  fastify.decorate('getAuthorUsernames', (aim) =>
     // eslint-disable-next-line no-nested-ternary
     aim && aim.ImageAnnotationCollection.user
       ? Array.isArray(aim.ImageAnnotationCollection.user)
-        ? aim.ImageAnnotationCollection.user.map((usr) => usr.loginName.value).join(',')
-        : aim.ImageAnnotationCollection.user.loginName.value
-      : ''
+        ? aim.ImageAnnotationCollection.user.map((usr) => usr.loginName.value)
+        : [aim.ImageAnnotationCollection.user.loginName.value]
+      : []
   );
+
+  fastify.decorate('getAuthorUsernameString', (aim) => fastify.getAuthorUsernames(aim).join(','));
 
   fastify.decorate('getAuthorNameString', (aim) =>
     // eslint-disable-next-line no-nested-ternary
@@ -2233,7 +2235,7 @@ async function couchdb(fastify, options) {
     try {
       const db = fastify.couch.db.use(config.db);
       const doc = await db.get(aimUid);
-      return fastify.getAuthorUsernameString(doc.aim);
+      return fastify.getAuthorUsernames(doc.aim);
     } catch (err) {
       throw new InternalError('Getting author from aimuid', err);
     }
