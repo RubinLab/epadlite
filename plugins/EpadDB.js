@@ -6668,7 +6668,10 @@ async function epaddb(fastify, options, done) {
           const projectAims = await models.project_aim.findAll({
             where: whereJSON,
             attributes: ['aim_uid', field],
-            include: [{ model: models.project }, { model: models.user, as: 'users' }],
+            include: [
+              { model: models.project },
+              { model: models.user, as: 'users', required: false }, // left outer, just in case
+            ],
           });
           // if there is a project and user has no role in project (public project)
           // TODO discuss Chris, Daniel
