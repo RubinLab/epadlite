@@ -187,8 +187,6 @@ async function reporting(fastify) {
           aimJSONs[i].ImageAnnotationCollection.uniqueIdentifier.root
         );
 
-        fastify.fillColumn(row, 'username', fastify.getAuthorUsernameString(aimJSONs[i]));
-
         if (
           aimJSONs[i].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
             .trackingUniqueIdentifier
@@ -412,7 +410,17 @@ async function reporting(fastify) {
             }
           });
         }
-        if (hasCalcs) table.push(row);
+        if (hasCalcs) {
+          // row is ready, see if the aim have multiple users
+          // if multiple users duplicate the row for each user
+          const users = fastify.getAuthorUsernames(aimJSONs[i]);
+
+          users.forEach((user) => {
+            const newRow = { ...row };
+            fastify.fillColumn(newRow, 'username', user);
+            table.push(newRow);
+          });
+        }
       }
       return table;
     } catch (err) {
@@ -1728,6 +1736,12 @@ async function reporting(fastify) {
       })
   );
 
+  fastify.decorate('getBestResponseVal', (rr) => {
+    const min = Math.min(...rr);
+    if (min === 0 && rr.length > 1) return rr[1];
+    return min;
+  });
+
   fastify.decorate('getBestResponse', (reportMultiUser, type, metric) => {
     try {
       // TODO how to support multiple readers in waterfall getting the first report for now
@@ -1754,9 +1768,7 @@ async function reporting(fastify) {
           break;
       }
 
-      const min = Math.min(...rr);
-      if (min === 0 && rr.length > 1) return rr[1];
-      return min;
+      return fastify.getBestResponseVal(rr);
     } catch (err) {
       fastify.log.error(
         `Error generating best response for report ${JSON.stringify(
