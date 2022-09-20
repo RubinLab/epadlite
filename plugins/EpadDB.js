@@ -7165,7 +7165,8 @@ async function epaddb(fastify, options, done) {
             return reportJson;
           }
         }
-        return { bestResponse: null, responseCat: null };
+        if (bestResponseType) return { bestResponse: null, responseCat: null };
+        return null;
       } catch (err) {
         throw new InternalError(
           `Getting report ${report} from params ${JSON.stringify(params)}`,
@@ -7987,10 +7988,10 @@ async function epaddb(fastify, options, done) {
               ? reportMultiUser[Object.keys(reportMultiUser)[0]]
               : reportMultiUser;
           const bestResponseBaseline = singleReport.tRRBaseline
-            ? Math.min(...singleReport.tRRBaseline)
+            ? fastify.getBestResponseVal(singleReport.tRRBaseline)
             : fastify.getBestResponse(reportMultiUser, 'BASELINE', metric);
           const bestResponseMin = singleReport.tRRMin
-            ? Math.min(...singleReport.tRRMin)
+            ? fastify.getBestResponseVal(singleReport.tRRMin)
             : fastify.getBestResponse(reportMultiUser, 'MIN', metric);
           const responseCatBaseline = fastify.getResponseCategory(
             reportMultiUser,
