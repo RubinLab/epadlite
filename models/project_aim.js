@@ -23,7 +23,7 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: false,
       },
       user: {
-        type: DataTypes.STRING(512),
+        type: DataTypes.STRING(128),
         allowNull: true,
       },
       template: {

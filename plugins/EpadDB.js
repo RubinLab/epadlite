@@ -13494,7 +13494,6 @@ async function epaddb(fastify, options, done) {
                 ADD COLUMN IF NOT EXISTS frame_id int(11) DEFAULT NULL AFTER image_uid,
                 ADD COLUMN IF NOT EXISTS dso_series_uid varchar(256) DEFAULT NULL AFTER frame_id,
                 ADD COLUMN IF NOT EXISTS deleted int(11) DEFAULT NULL AFTER dso_series_uid,
-                MODIFY COLUMN user varchar(512) DEFAULT NULL,
                 DROP CONSTRAINT IF EXISTS project_aimuid_ind,
                 ADD CONSTRAINT project_aimuid_ind UNIQUE (project_id, aim_uid);`,
               { transaction: t }
