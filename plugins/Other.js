@@ -1848,9 +1848,9 @@ async function other(fastify) {
       if (!creator) {
         if (reqInfo.level === 'aim') {
           try {
-            const author = await fastify.getAimAuthorFromUID(reqInfo.objectId);
-            fastify.log.info('Author is', author);
-            if (author === request.epadAuth.username) return true;
+            const authors = await fastify.getAimAuthorFromUID(reqInfo.objectId);
+            fastify.log.info(`Authors are ${authors.join(',')}`);
+            if (authors.includes(request.epadAuth.username)) return true;
             return false;
           } catch (err) {
             fastify.log.error(`Getting author from aim: ${err.message}`);
@@ -2364,12 +2364,10 @@ async function other(fastify) {
   });
 
   // fields for filter and sort
-  // CouchDB fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_datetime, template_name, template_code, user, user_name, comment, project
-  // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project, projectName (additional, no couchdb)
+  // CouchDB fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_datetime, template_name, template_code, user, user_name (by order in aim), comment, project, user_name_sorted (alphabetical)
+  // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName (by order in aim), comment, project, projectName (additional, no couchdb), fullNameSorted (alphabetical)
 
-  // Sorting fields: patient_name_sort, patient_id, accession_number, name_sort, age, sex, modality, study_date, anatomy_sort, observation_sort, creation_datetime, template_name_sort, template_code, user, user_name_sort, project, projectName (additional, no couchdb uses project instead)
-
-  // Different sort fields only: patient_name_sort, name_sort, anatomy_sort, observation_sort, template_name_sort, user_name_sort
+  // We do not need sorting_fields anymore. ePAD fields are received and replaceSorts replaces field names if necessary.
 
   const sortExtras = [
     // 'patient_name',
@@ -2433,6 +2431,7 @@ async function other(fastify) {
       projectID: 'project',
       templateType: 'template_name',
       fullName: 'user_name',
+      fullNameSorted: 'user_name_sorted',
       age: 'patient_age',
       sex: 'patient_sex',
       birthDate: 'patient_birth_date',

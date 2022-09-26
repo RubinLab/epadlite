@@ -5,6 +5,14 @@ const fs = require('fs');
 chai.use(chaiHttp);
 const { expect } = chai;
 
+function appendUser(userArr, newUser) {
+  if (Array.isArray(userArr) && !userArr.includes(newUser)) {
+    userArr.push(newUser);
+    return userArr;
+  }
+  return [userArr, newUser];
+}
+
 describe('User Rights Tests', () => {
   before(async () => {
     // create users
@@ -256,6 +264,7 @@ describe('User Rights Tests', () => {
         const aimName =
           jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value;
         jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testAdmin@gmail.com';
+        jsonBuffer.ImageAnnotationCollection.user.name.value = 'testAdmin testAdmin';
         jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testAdmin_${aimName}`;
         jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
           '2.25.3526547897685764352413254324135453';
@@ -266,6 +275,7 @@ describe('User Rights Tests', () => {
           .query({ username: 'testAdmin@gmail.com' });
 
         jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testOwner@gmail.com';
+        jsonBuffer.ImageAnnotationCollection.user.name.value = 'testOwner testOwner';
         jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testOwner_${aimName}`;
         jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
           '2.25.3526547897685764352413254324135454';
@@ -276,6 +286,7 @@ describe('User Rights Tests', () => {
           .query({ username: 'testOwner@gmail.com' });
 
         jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testMember@gmail.com';
+        jsonBuffer.ImageAnnotationCollection.user.name.value = 'testMember testMember';
         jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testMember_${aimName}`;
         jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
           '2.25.3526547897685764352413254324135455';
@@ -286,6 +297,7 @@ describe('User Rights Tests', () => {
           .query({ username: 'testMember@gmail.com' });
 
         jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testCollaborator@gmail.com';
+        jsonBuffer.ImageAnnotationCollection.user.name.value = 'testCollaborator testCollaborator';
         jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value = `testCollaborator_${aimName}`;
         jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
           '2.25.3526547897685764352413254324135456';
@@ -396,6 +408,7 @@ describe('User Rights Tests', () => {
           done(e);
         });
     });
+
     it('should succeed in editing testowner"s aim for admin ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -404,6 +417,10 @@ describe('User Rights Tests', () => {
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
             'admin_edited';
+          res.body.ImageAnnotationCollection.user = appendUser(
+            res.body.ImageAnnotationCollection.user,
+            { name: { value: 'admin' }, loginName: { value: 'admin' } }
+          );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
@@ -445,6 +462,10 @@ describe('User Rights Tests', () => {
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
             'admin_edited';
+          res.body.ImageAnnotationCollection.user = appendUser(
+            res.body.ImageAnnotationCollection.user,
+            { name: { value: 'admin' }, loginName: { value: 'admin' } }
+          );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
@@ -486,6 +507,10 @@ describe('User Rights Tests', () => {
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
             'admin_edited';
+          res.body.ImageAnnotationCollection.user = appendUser(
+            res.body.ImageAnnotationCollection.user,
+            { name: { value: 'admin' }, loginName: { value: 'admin' } }
+          );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
@@ -671,6 +696,10 @@ describe('User Rights Tests', () => {
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
             'owner_edited';
+          res.body.ImageAnnotationCollection.user = appendUser(
+            res.body.ImageAnnotationCollection.user,
+            { name: { value: 'testOwner testOwner' }, loginName: { value: 'testOwner@gmail.com' } }
+          );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
@@ -753,6 +782,10 @@ describe('User Rights Tests', () => {
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
             'owner_edited';
+          res.body.ImageAnnotationCollection.user = appendUser(
+            res.body.ImageAnnotationCollection.user,
+            { name: { value: 'testOwner testOwner' }, loginName: { value: 'testOwner@gmail.com' } }
+          );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')
@@ -794,6 +827,10 @@ describe('User Rights Tests', () => {
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
             'owner_edited';
+          res.body.ImageAnnotationCollection.user = appendUser(
+            res.body.ImageAnnotationCollection.user,
+            { name: { value: 'testOwner testOwner' }, loginName: { value: 'testOwner@gmail.com' } }
+          );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
@@ -885,6 +922,13 @@ describe('User Rights Tests', () => {
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
             'member_edited';
+          res.body.ImageAnnotationCollection.user = appendUser(
+            res.body.ImageAnnotationCollection.user,
+            {
+              name: { value: 'testMember testMember' },
+              loginName: { value: 'testMember@gmail.com' },
+            }
+          );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135455')

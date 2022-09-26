@@ -425,17 +425,19 @@ async function couchdb(fastify, options) {
       const { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
         epadAuth
       );
-      // add collaborator filtering
-      const projectFilter = [];
-      if (aimAccessProjIds.length > 0)
-        projectFilter.push(`project:("${aimAccessProjIds.join('" OR "')}")`);
-      if (collaboratorProjIds.length > 0)
-        projectFilter.push(
-          `(project:"${collaboratorProjIds.join(
-            `" AND user:"${epadAuth.username}") OR (project:"`
-          )}" AND user:"${epadAuth.username}")`
-        );
-      if (projectFilter.length > 0) qryParts.push(`( ${projectFilter.join(' OR ')})`);
+      if (!params.project) {
+        // add collaborator filtering
+        const projectFilter = [];
+        if (aimAccessProjIds.length > 0)
+          projectFilter.push(`project:("${aimAccessProjIds.join('" OR "')}")`);
+        if (collaboratorProjIds.length > 0)
+          projectFilter.push(
+            `(project:"${collaboratorProjIds.join(
+              `" AND user:"${epadAuth.username}") OR (project:"`
+            )}" AND user:"${epadAuth.username}")`
+          );
+        if (projectFilter.length > 0) qryParts.push(`( ${projectFilter.join(' OR ')})`);
+      }
     }
     if (qryParts.length === 0) return '*:*';
     return qryParts.join(' AND ');
@@ -474,7 +476,9 @@ async function couchdb(fastify, options) {
                     dsoFrameNo: 'NA',
                     isDicomSR: 'NA',
                     originalSubjectID: body.rows[i].fields.patient_id,
-                    userName: body.rows[i].fields.user,
+                    userName: Array.isArray(body.rows[i].fields.user)
+                      ? body.rows[i].fields.user
+                      : [body.rows[i].fields.user],
                     projectID: body.rows[i].fields.project,
                     projectName: projectNameMap[body.rows[i].fields.project],
                     modality: body.rows[i].fields.modality,
@@ -485,6 +489,7 @@ async function couchdb(fastify, options) {
                     age: body.rows[i].fields.patient_age,
                     sex: body.rows[i].fields.patient_sex,
                     fullName: body.rows[i].fields.user_name,
+                    fullNameSorted: body.rows[i].fields.user_name_sorted,
                   });
                 }
                 resObj.rows = res;
@@ -1038,6 +1043,7 @@ async function couchdb(fastify, options) {
             { id: 'patientName', title: 'Patient_Name' },
             { id: 'patientId', title: 'Patient_ID' },
             { id: 'reviewer', title: 'Reviewer' },
+            { id: 'reviewerNames', title: 'Reviewer Names' },
             { id: 'name', title: 'Name' },
             { id: 'comment', title: 'Comment' },
             { id: 'userComment', title: 'User_Comment' },
@@ -1109,7 +1115,8 @@ async function couchdb(fastify, options) {
                     date: aimDate.toString(),
                     patientName: aim.ImageAnnotationCollection.person.name.value,
                     patientId: aim.ImageAnnotationCollection.person.id.value,
-                    reviewer: aim.ImageAnnotationCollection.user.name.value,
+                    reviewer: fastify.getAuthorUsernameString(aim),
+                    reviewerNames: fastify.getAuthorNameString(aim),
                     name: imageAnnotation.name.value.split('~')[0],
                     comment: commentSplit[0],
                     userComment: commentSplit.length > 1 ? commentSplit[1] : '',
@@ -2201,11 +2208,34 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('getAuthorUsernames', (aim) =>
+    // eslint-disable-next-line no-nested-ternary
+    aim && aim.ImageAnnotationCollection.user
+      ? Array.isArray(aim.ImageAnnotationCollection.user)
+        ? aim.ImageAnnotationCollection.user.map((usr) => usr.loginName.value)
+        : [aim.ImageAnnotationCollection.user.loginName.value]
+      : []
+  );
+
+  fastify.decorate('getAuthorUsernameString', (aim) => fastify.getAuthorUsernames(aim).join(','));
+
+  fastify.decorate('getAuthorNameString', (aim) =>
+    // eslint-disable-next-line no-nested-ternary
+    aim && aim.ImageAnnotationCollection.user
+      ? Array.isArray(aim.ImageAnnotationCollection.user)
+        ? aim.ImageAnnotationCollection.user
+            .map((usr) => usr.name.value)
+            .join(',')
+            .replace(/\^/g, ' ')
+        : aim.ImageAnnotationCollection.user.name.value.replace(/\^/g, ' ')
+      : ''
+  );
+
   fastify.decorate('getAimAuthorFromUID', async (aimUid) => {
     try {
       const db = fastify.couch.db.use(config.db);
       const doc = await db.get(aimUid);
-      return doc.aim.ImageAnnotationCollection.user.loginName.value;
+      return fastify.getAuthorUsernames(doc.aim);
     } catch (err) {
       throw new InternalError('Getting author from aimuid', err);
     }
@@ -2254,6 +2284,35 @@ async function couchdb(fastify, options) {
       })
       .catch((err) => reply.send(err));
   });
+
+  // gets users all aims
+  fastify.decorate(
+    'getUserAIMsInternal',
+    (username, format) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const dbFilter = {
+            q: `user:${username}`,
+            limit: 200,
+          };
+          const aimsResult = await fastify.getAimsCouchInternal(db, dbFilter, format);
+          let aims = aimsResult.rows;
+          let totalAimCount = aims.length;
+          let { bookmark } = aimsResult;
+          while (totalAimCount < aimsResult.total_rows) {
+            // eslint-disable-next-line no-await-in-loop
+            const newResult = await fastify.getAimsCouchInternal(db, dbFilter, format, bookmark);
+            bookmark = newResult.bookmark;
+            totalAimCount += newResult.rows.length;
+            aims = aims.concat(newResult.rows);
+          }
+          resolve(aims);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate(
     'closeCouchDB',
