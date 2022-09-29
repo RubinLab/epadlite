@@ -14321,7 +14321,11 @@ async function epaddb(fastify, options, done) {
               const random = Math.random() * 1800 + 1;
               setTimeout(() => {
                 fastify.log.info(`Calculating and sending statistics at ${new Date()}`);
-                fastify.calcStats();
+                try {
+                  fastify.calcStats();
+                } catch (err) {
+                  fastify.log.error(`Could not send stats. Error: ${err.message}`);
+                }
               }, random * 1000);
             });
             if (config.pollDW) {
