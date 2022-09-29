@@ -18,6 +18,9 @@ async function reporting(fastify) {
         case 'multipoint':
           normShapes.push('multipoint');
           break;
+        case 'arrow':
+          normShapes.push('multipoint#arrow');
+          break;
         case 'poly':
         case 'polygon':
         case 'polyline':
@@ -42,7 +45,16 @@ async function reporting(fastify) {
     });
     for (let i = 0; i < markupEntityArray.length; i += 1) {
       for (let j = 0; j < normShapes.length; j += 1) {
-        if (markupEntityArray[i][`xsi:type`].toLowerCase().includes(normShapes[j].toLowerCase()))
+        const normShape = normShapes[j].toLowerCase().split('#');
+        // lineStyle can be Arrow
+        // filter line should see if multipoint and no linestyle (or not arrow)
+        if (
+          markupEntityArray[i][`xsi:type`].toLowerCase().includes(normShape[0]) &&
+          ((normShape.length === 1 && !markupEntityArray[i].lineStyle) ||
+            (markupEntityArray[i].lineStyle &&
+              normShape.length > 1 &&
+              markupEntityArray[i].lineStyle.toLowerCase() === normShape[1]))
+        )
           return true;
       }
     }
