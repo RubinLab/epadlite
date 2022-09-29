@@ -19,6 +19,8 @@ if (config.auth !== 'external') {
     process.env.AUTH_URL || config.authConfig.authServerUrl || 'http://hostname';
   config.authConfig.clientId =
     process.env.AUTH_CLIENT_ID || config.authConfig.clientId || 'epad-auth';
+  config.authConfig.clientSecret =
+    process.env.AUTH_CLIENT_SECRET || config.authConfig.clientSecret || undefined;
 } else {
   config.authConfig.userinfoUrl =
     process.env.AUTH_USERINFO_URL ||
