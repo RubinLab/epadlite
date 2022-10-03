@@ -6476,6 +6476,18 @@ async function epaddb(fastify, options, done) {
               subjectInfo.name = studies[0].patientName;
               subjectInfo.gender = studies[0].sex;
               subjectInfo.dob = studies[0].birthdate;
+            } else {
+              // check if the uid is in dicomweb
+              studies = await fastify.getPatientStudiesInternal(
+                { subject: subjectInfo.subjectuid },
+                undefined,
+                request.epadAuth,
+                { ...request.query, filterDSO: 'true' }
+              );
+              if (studies.length > 0) {
+                reply.send(new ResourceAlreadyExistsError('Subject', request.body.subjectUid));
+                return;
+              }
             }
             subject = await models.subject.create({
               subjectuid: subjectInfo.subjectuid.replace('\u0000', '').trim(),
