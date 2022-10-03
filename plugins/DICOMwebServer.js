@@ -421,7 +421,7 @@ async function dicomwebserver(fastify) {
     fastify.log.info(`Polling initiated by ${request.epadAuth.username}`);
     fastify
       .pollDWStudies()
-      .then(() => reply.code(200).send('Polled dicomweb successfully'))
+      .then((result) => reply.code(200).send(result))
       .catch((err) => reply.send(err));
   });
 
@@ -430,6 +430,11 @@ async function dicomwebserver(fastify) {
     () =>
       new Promise(async (resolve, reject) => {
         try {
+          if (!config.pollDW) {
+            fastify.log.info('Polling is not supported! Skipping..');
+            resolve('Polling is not supported!');
+            return;
+          }
           fastify.log.info(`Polling dicomweb ${new Date()}`);
           // use admin username
           const epadAuth = { username: 'admin', admin: true };
@@ -523,7 +528,7 @@ async function dicomwebserver(fastify) {
           }
           await fastify.pq.addAll(updateStudyPromises);
           fastify.log.info(`Finished Polling dicomweb ${new Date()}`);
-          resolve();
+          resolve('Polled dicomweb successfully');
         } catch (err) {
           reject(new InternalError('Polling patient studies', err));
         }
