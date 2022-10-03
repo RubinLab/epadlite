@@ -52,7 +52,7 @@ beforeEach(() => {
     .get(
       `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=7&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
     )
-    .reply(200, [{}]);
+    .reply(200, studiesResponse7);
   nock(config.dicomWebConfig.baseUrl)
     .get(
       `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=4&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`

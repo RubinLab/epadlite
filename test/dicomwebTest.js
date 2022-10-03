@@ -22,6 +22,11 @@ beforeEach(() => {
     .post('/studies')
     .reply(200);
   nock(config.dicomWebConfig.baseUrl).delete('/studies/0023.2015.09.28.3').reply(200);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=8&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
+    )
+    .reply(200, [{}]);
 });
 
 describe('Subject Tests', () => {
@@ -54,7 +59,7 @@ describe('Subject Tests', () => {
       });
   });
 
-  it('subject retrieval with subject id 3 should return subject 3 from  project testsubject', (done) => {
+  it('subject retrieval with subject id 3 should return subject 3 ', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects/3')
@@ -69,10 +74,10 @@ describe('Subject Tests', () => {
       });
   });
 
-  it('subject retrieval with subject id 7 should get 404  project', (done) => {
+  it('subject retrieval with subject id 8 should get 404', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/subjects/7')
+      .get('/subjects/8')
       .query({ username: 'admin' })
       .then((res) => {
         expect(res.statusCode).to.equal(404);
@@ -83,7 +88,7 @@ describe('Subject Tests', () => {
       });
   });
 
-  it('the study in the system should be 0023.2015.09.28.3', (done) => {
+  it('the studies in the system should be 0023.2015.09.28.3 and 1.2.752.24.7.19011385.453825', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/studies')
@@ -91,6 +96,7 @@ describe('Subject Tests', () => {
       .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+        expect(res.body[1].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
         done();
       })
       .catch((e) => {
