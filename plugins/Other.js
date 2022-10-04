@@ -27,6 +27,7 @@ if (config.auth !== 'external') {
     'auth-server-url': config.authConfig.authServerUrl, // required for verify
     client_id: config.authConfig.clientId,
     client_secret: config.authConfig.clientSecret,
+    'enable-pkce': config.authConfig.enablePkce,
   });
 }
 const EpadNotification = require('../utils/EpadNotification');
