@@ -22,7 +22,9 @@ if (config.auth !== 'external') {
   config.authConfig.clientSecret =
     process.env.AUTH_CLIENT_SECRET || config.authConfig.clientSecret || undefined;
   config.authConfig.enablePkce =
-    process.env.AUTH_PKCE === 'true' || config.authConfig.enablePkce || undefined;
+    (process.env.AUTH_PKCE && process.env.AUTH_PKCE === 'true') ||
+    config.authConfig.enablePkce ||
+    undefined;
 } else {
   config.authConfig.userinfoUrl =
     process.env.AUTH_USERINFO_URL ||
