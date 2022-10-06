@@ -534,7 +534,7 @@ async function couchdb(fastify, options) {
               .then((qry) => {
                 const dbFilter = {
                   q: qry,
-                  sort: (filter && filter.sort) || 'name_sort<string>',
+                  sort: (filter && filter.sort) || '-creation_datetime<string>',
                   limit: 200,
                 };
                 if (format !== 'summary') {
@@ -1190,7 +1190,7 @@ async function couchdb(fastify, options) {
       const dbFilter = {
         q: `project: ${request.params.project}`,
         deleted: true,
-        sort: 'name_sort<string>',
+        sort: '-creation_datetime<string>',
         limit: 200,
       };
       db.search('search', 'aimSearch', dbFilter, (error, body) => {
