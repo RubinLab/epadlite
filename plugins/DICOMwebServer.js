@@ -795,7 +795,7 @@ async function dicomwebserver(fastify) {
           result = _.sortBy(result, 'seriesNo');
           resolve(result);
         } catch (err) {
-          reject(new InternalError(`Getting all series`), err);
+          reject(new InternalError(`Getting all series`, err));
         }
       })
   );

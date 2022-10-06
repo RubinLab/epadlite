@@ -2254,6 +2254,128 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('return correct aim counts for study 1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110 with field series_uid', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
+        )
+        .query({ username: 'admin', field: 'series_uid', format: 'count' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql({
+            '1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313': 1,
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('return correct aim counts for study 1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110 with field image_uid', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
+        )
+        .query({ username: 'admin', field: 'image_uid', format: 'count' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql({
+            '1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184625010': 1,
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('return correct aim counts for study 1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110 with field subject_uid', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
+        )
+        .query({ username: 'admin', field: 'subject_uid', format: 'count' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql({
+            13116: 1,
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('return correct aim counts for study 1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/aims'
+        )
+        .query({ username: 'admin', format: 'count' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql({
+            '1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313': 1,
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('return correct aim counts for subject 13116 ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/subjects/13116/aims')
+        .query({ username: 'admin', format: 'count' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql({
+            '1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110': 1,
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('return correct aim counts for series 1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get(
+          '/projects/testaim/subjects/13116/studies/1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110/series/1.3.12.2.1107.5.8.2.484849.837749.68675556.2003110718442012313/aims'
+        )
+        .query({ username: 'admin', format: 'count' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql({
+            '1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184625010': 1,
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('return correct aim counts for project testaim', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .query({ username: 'admin', format: 'count' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql({
+            13116: 1,
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('aim returned for patient 13116 in project testaim should be Lesion1', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)

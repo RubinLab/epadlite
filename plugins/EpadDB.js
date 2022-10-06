@@ -7246,6 +7246,49 @@ async function epaddb(fastify, options, done) {
             fastify.log.info(`Report ${request.query.report} not in db. trying to generate`);
         }
       }
+      // if they just want counts, get it from mariadb don't bother couchdb
+      // would not have series with no aims
+      // it returns the counts of one level below, study aim counts for subject/aims, series aim counts for study/aims, image aim counts for series/aims
+      if (request.query.format === 'count') {
+        let { field } = request.query;
+        if (!field) {
+          if (
+            request.params.project &&
+            request.params.subject &&
+            request.params.study &&
+            request.params.series
+          )
+            field = 'image_uid';
+          if (
+            request.params.project &&
+            request.params.subject &&
+            request.params.study &&
+            !request.params.series
+          )
+            field = 'series_uid';
+          if (
+            request.params.project &&
+            request.params.subject &&
+            !request.params.study &&
+            !request.params.series
+          )
+            field = 'study_uid';
+          if (
+            request.params.project &&
+            !request.params.subject &&
+            !request.params.study &&
+            !request.params.series
+          )
+            field = 'subject_uid';
+        }
+        const aimCountMap = await fastify.getProjectAimCountMap(
+          request.params,
+          request.epadAuth,
+          field
+        );
+        reply.code(200).send(aimCountMap);
+        return;
+      }
       result = await fastify.getAimsInternal(
         request.query.format,
         request.params,
