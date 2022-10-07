@@ -1525,13 +1525,16 @@ async function other(fastify) {
             if (verifyToken.isExpired()) {
               res.send(new UnauthenticatedError('Token is expired'));
             } else {
-              username = verifyToken.content.preferred_username || verifyToken.content.email;
+              username =
+                verifyToken.content.preferred_username ||
+                verifyToken.content.uid ||
+                verifyToken.content.email;
               userInfo = verifyToken.content;
             }
           } else {
             // try getting userinfo from external auth server with userinfo endpoint
             const userinfo = await fastify.getUserInfoInternal(token);
-            username = userinfo.preferred_username || userinfo.email;
+            username = userinfo.preferred_username || userinfo.uid || userinfo.email;
             userInfo = userinfo;
           }
           if (username !== '' || userInfo !== '')
