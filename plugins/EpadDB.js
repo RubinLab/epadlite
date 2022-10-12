@@ -2,7 +2,7 @@
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
-const { Sequelize, QueryTypes } = require('sequelize');
+const { Sequelize, QueryTypes, Op } = require('sequelize');
 const _ = require('lodash');
 const Axios = require('axios');
 const os = require('os');
@@ -8276,6 +8276,36 @@ async function epaddb(fastify, options, done) {
           reject(
             new InternalError(`Checking DSO Aim existance ${dsoSeriesUid} in ${project}`, err)
           );
+        }
+      })
+  );
+
+  // support empty project and aimuid to exclude
+  fastify.decorate(
+    'getSegAims',
+    (dsoSeriesUid, project, aimuid) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const projectId = project ? await fastify.findProjectIdInternal(project) : undefined;
+          // TODO do I need to check if the user has access?
+          const aims = await models.project_aim.findAll({
+            where: {
+              ...(projectId ? { project_id: projectId } : {}),
+              dso_series_uid: dsoSeriesUid,
+              ...(aimuid ? { aim_uid: { [Op.ne]: aimuid } } : {}),
+              ...fastify.qryNotDeleted(),
+            },
+            raw: true,
+          });
+          console.log('aims', aims, dsoSeriesUid, project, aimuid, {
+            ...(projectId ? { project_id: projectId } : {}),
+            dso_series_uid: dsoSeriesUid,
+            ...(aimuid ? { aim_uid: { [Op.ne]: aimuid } } : {}),
+            ...fastify.qryNotDeleted(),
+          });
+          resolve(aims);
+        } catch (err) {
+          reject(new InternalError(`Getting DSO Aims ${dsoSeriesUid} in ${project}`, err));
         }
       })
   );
