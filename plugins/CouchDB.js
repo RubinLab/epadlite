@@ -1451,7 +1451,28 @@ async function couchdb(fastify, options) {
                 study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
                 series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
               };
-              promisses.push(fastify.deleteSeriesDicomsInternal(params));
+              // check if there are any other aims referring to this seg (in all projects)
+              promisses.push(
+                new Promise((resolveIn, rejectIn) => {
+                  fastify
+                    .getSegAims(
+                      segEntity.SegmentationEntity[0].seriesInstanceUid.root,
+                      undefined,
+                      aimuid
+                    )
+                    .then((existingAims) => {
+                      if (existingAims.length === 0)
+                        fastify
+                          .deleteSeriesDicomsInternal(params)
+                          .then(resolveIn())
+                          .catch((delError) => rejectIn(delError));
+                    })
+                    .catch((err) => {
+                      fastify.log.error(`Couldn't get segmentation aims. Error: ${err.message}`);
+                      rejectIn(err);
+                    });
+                })
+              );
             }
           }
 
