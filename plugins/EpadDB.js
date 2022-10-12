@@ -8297,12 +8297,6 @@ async function epaddb(fastify, options, done) {
             },
             raw: true,
           });
-          console.log('aims', aims, dsoSeriesUid, project, aimuid, {
-            ...(projectId ? { project_id: projectId } : {}),
-            dso_series_uid: dsoSeriesUid,
-            ...(aimuid ? { aim_uid: { [Op.ne]: aimuid } } : {}),
-            ...fastify.qryNotDeleted(),
-          });
           resolve(aims);
         } catch (err) {
           reject(new InternalError(`Getting DSO Aims ${dsoSeriesUid} in ${project}`, err));
