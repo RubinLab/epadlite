@@ -750,7 +750,16 @@ async function other(fastify) {
                   jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                     .typeCode[0].code &&
                   jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                    .typeCode[0].code !== 'SEG')
+                    .typeCode[0].code !== 'SEG') ||
+                (jsonBuffer.ImageAnnotationCollection &&
+                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .typeCode[0].code &&
+                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .typeCode[0].code === 'SEG' &&
+                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .calculationEntityCollection &&
+                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .calculationEntityCollection.CalculationEntity.length > 4) // if it has calculations other than the default 4, save it
               ) {
                 // aim saving via upload, ignore SEG Only annotations
                 fastify
