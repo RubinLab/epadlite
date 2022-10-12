@@ -1466,6 +1466,7 @@ async function couchdb(fastify, options) {
                           .deleteSeriesDicomsInternal(params)
                           .then(resolveIn())
                           .catch((delError) => rejectIn(delError));
+                      else resolveIn();
                     })
                     .catch((err) => {
                       fastify.log.error(`Couldn't get segmentation aims. Error: ${err.message}`);
