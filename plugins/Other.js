@@ -368,34 +368,36 @@ async function other(fastify) {
     (aimJson, params, epadAuth, filename) =>
       new Promise(async (resolve, reject) => {
         try {
-          // first check if it is a seg aim and if there is already a default aim, delete if there is
+          await fastify.saveAimInternal(aimJson, params.project);
+          await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
+          // check if it is a seg aim and if there is another aim pointing to that segmentation series (a default aim), delete if there is
           if (
-            aimJson.ImageAnnotationCollection.ImageAnnotation &&
-            aimJson.ImageAnnotationCollection.ImageAnnotation[0] &&
-            aimJson.ImageAnnotationCollection.ImageAnnotation[0].segmentationEntityCollection &&
-            aimJson.ImageAnnotationCollection.ImageAnnotation[0].segmentationEntityCollection
-              .SegmentationEntity &&
-            aimJson.ImageAnnotationCollection.ImageAnnotation[0].segmentationEntityCollection
-              .SegmentationEntity[0]
+            aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation &&
+            aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0] &&
+            aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .segmentationEntityCollection &&
+            aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .segmentationEntityCollection.SegmentationEntity &&
+            aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .segmentationEntityCollection.SegmentationEntity[0]
           ) {
             const existingAims = await fastify.getSegAims(
-              aimJson.ImageAnnotationCollection.ImageAnnotation[0].segmentationEntityCollection
-                .SegmentationEntity[0].seriesInstanceUid.root,
-              params.project
+              aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root,
+              params.project,
+              aimJson.ImageAnnotationCollection.uniqueIdentifier.root
             );
 
             // there is just one it should be default aim, delete it
             // TODO what if there is more than one
             if (existingAims && existingAims.length === 1) {
               fastify.log.info(
-                `There is a default aim for ${aimJson.ImageAnnotationCollection.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root}. Deleting aim with uid ${existingAims[0].aim_uid}`
+                `There is a default aim for ${aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root}. Deleting aim with uid ${existingAims[0].aim_uid}`
               );
               await fastify.deleteAimDB({ aim_uid: existingAims[0].aim_uid }, epadAuth.username);
               await fastify.deleteAimInternal(existingAims[0].aim_uid);
             }
           }
-          await fastify.saveAimInternal(aimJson, params.project);
-          await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
           if (filename) fastify.log.info(`Saving successful for ${filename}`);
           resolve({ success: true, errors: [] });
         } catch (err) {
