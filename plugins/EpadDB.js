@@ -9063,6 +9063,19 @@ async function epaddb(fastify, options, done) {
                 fastify.log.info(
                   `Deleting study ${studyInfos[i].study} from ${studyInfos[i].project} as there is no aim in the study and deleteNoAimStudy is set to true`
                 );
+                // delete significant series for the study
+                // eslint-disable-next-line no-await-in-loop
+                const deletedCount = await models.project_subject_study_series_significance.destroy(
+                  {
+                    where: {
+                      '$project.projectid$': studyInfos[i].project,
+                      '$study.studyuid$': studyInfos[i].study,
+                    },
+                  }
+                );
+                fastify.log.info(
+                  `Deleted ${deletedCount} significant series for study ${studyInfos[i].study} and project ${studyInfos[i].project}`
+                );
                 // eslint-disable-next-line no-await-in-loop
                 await fastify.deletePatientStudyFromProjectInternal({
                   params: studyInfos[i],
