@@ -9043,6 +9043,7 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         if (config.deleteNoAimStudy) {
           try {
+            const deletedStudies = [];
             // see if the study have any other aims
             // and deleteNoAimStudy true
             // get unique studyUIDs
@@ -9058,7 +9059,11 @@ async function epaddb(fastify, options, done) {
                 },
                 include: [{ model: models.project }],
               });
-              if (leftoversCount === 0) {
+              if (
+                leftoversCount === 0 &&
+                !deletedStudies.includes(`${studyInfos[i].project}-${studyInfos[i].study}`)
+              ) {
+                deletedStudies.push(`${studyInfos[i].project}-${studyInfos[i].study}`);
                 // delete study
                 fastify.log.info(
                   `Deleting study ${studyInfos[i].study} from ${studyInfos[i].project} as there is no aim in the study and deleteNoAimStudy is set to true`
