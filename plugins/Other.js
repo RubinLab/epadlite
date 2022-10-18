@@ -2389,7 +2389,10 @@ async function other(fastify) {
     const cleanedValue = value.trim().replaceAll(' ', '\\ ');
     if (fastify.caseSensitive.includes(key)) return `${cleanedValue}`;
     // search some columns with starts with instead of includes
-    if (fastify.startsWith.includes(key)) return `/${cleanedValue}.*/`;
+    if (fastify.startsWith.includes(key)) {
+      if (fastify.caseBoth.includes(key)) return `/${cleanedValue.toLowerCase()}.*/`; // as sort is indexed lowercase
+      return `/${cleanedValue}.*/`;
+    }
     return `/.*${cleanedValue.toLowerCase()}.*/`;
   });
   fastify.decorate('caseQry', (key, value) => {

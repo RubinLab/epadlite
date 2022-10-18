@@ -9043,6 +9043,7 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         if (config.deleteNoAimStudy) {
           try {
+            const deletedStudies = [];
             // see if the study have any other aims
             // and deleteNoAimStudy true
             // get unique studyUIDs
@@ -9058,10 +9059,31 @@ async function epaddb(fastify, options, done) {
                 },
                 include: [{ model: models.project }],
               });
-              if (leftoversCount === 0) {
+              if (
+                leftoversCount === 0 &&
+                !deletedStudies.includes(`${studyInfos[i].project}-${studyInfos[i].study}`)
+              ) {
+                deletedStudies.push(`${studyInfos[i].project}-${studyInfos[i].study}`);
                 // delete study
                 fastify.log.info(
                   `Deleting study ${studyInfos[i].study} from ${studyInfos[i].project} as there is no aim in the study and deleteNoAimStudy is set to true`
+                );
+                // delete significant series for the study
+                // eslint-disable-next-line no-await-in-loop
+                const idsToDelete = await models.project_subject_study_series_significance.findAll({
+                  where: {
+                    '$project.projectid$': studyInfos[i].project,
+                    '$study.studyuid$': studyInfos[i].study,
+                  },
+                  include: [models.project, models.study],
+                  attributes: ['id'],
+                });
+                // eslint-disable-next-line no-await-in-loop
+                await models.project_subject_study_series_significance.destroy({
+                  where: { id: { $in: idsToDelete.map((item) => item.dataValues.id) } },
+                });
+                fastify.log.info(
+                  `Deleted ${idsToDelete.length} significant series for study ${studyInfos[i].study} and project ${studyInfos[i].project}`
                 );
                 // eslint-disable-next-line no-await-in-loop
                 await fastify.deletePatientStudyFromProjectInternal({
