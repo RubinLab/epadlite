@@ -58,7 +58,8 @@ async function dicomwebserver(fastify) {
               for (let i = 0; i < files.length; i += 1) {
                 if (
                   files[i] !== '__MACOSX' &&
-                  !fs.statSync(`${config.trustPath}/${files[i]}`).isDirectory()
+                  !fs.statSync(`${config.trustPath}/${files[i]}`).isDirectory() &&
+                  (files[i].endsWith('cer') || files[i].endsWith('pem'))
                 ) {
                   const file = fs.readFileSync(`${config.trustPath}/${files[i]}`);
                   caFiles.push(file);
