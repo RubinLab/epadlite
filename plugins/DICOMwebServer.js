@@ -60,14 +60,14 @@ async function dicomwebserver(fastify) {
                   files[i] !== '__MACOSX' &&
                   !fs.statSync(`${config.trustPath}/${files[i]}`).isDirectory()
                 ) {
-                  const file = fs.readFileSync(files[i]);
+                  const file = fs.readFileSync(`${config.trustPath}/${files[i]}`);
                   caFiles.push(file);
                 }
               }
               httpsAgent = new https.Agent({ ca: caFiles });
             }
           } catch (err) {
-            console.log('CS trust err', err);
+            fastify.log.error(`Error adding Root certificates to trust. Error: ${err.message}`);
           }
           // see if we can authenticate
           if (config.dicomWebConfig.authServerUrl) {
