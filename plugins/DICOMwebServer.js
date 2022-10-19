@@ -5,6 +5,8 @@ const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
 const dimse = require('dicom-dimse-native');
+const https = require('https');
+const fs = require('fs');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -48,6 +50,25 @@ async function dicomwebserver(fastify) {
     () =>
       new Promise(async (resolve, reject) => {
         try {
+          let httpsAgent;
+          try {
+            const caFiles = [];
+            if (config.trustPath) {
+              const files = await fs.promises.readdir(config.trustPath);
+              for (let i = 0; i < files.length; i += 1) {
+                if (
+                  files[i] !== '__MACOSX' &&
+                  !fs.statSync(`${config.trustPath}/${files[i]}`).isDirectory()
+                ) {
+                  const file = fs.readFileSync(files[i]);
+                  caFiles.push(file);
+                }
+              }
+              httpsAgent = new https.Agent({ ca: caFiles });
+            }
+          } catch (err) {
+            console.log('CS trust err', err);
+          }
           // see if we can authenticate
           if (config.dicomWebConfig.authServerUrl) {
             accessToken = await keycloak.accessToken.get();
@@ -60,10 +81,12 @@ async function dicomwebserver(fastify) {
               this.request = Axios.create({
                 baseURL: config.dicomWebConfig.baseUrl,
                 headers: { ...header.headers, accept: 'application/json' },
+                httpsAgent,
               });
               this.wadoRequest = Axios.create({
                 baseURL: config.dicomWebConfig.baseUrl,
                 headers: header.headers,
+                httpsAgent,
               });
               this.request
                 .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
@@ -88,10 +111,12 @@ async function dicomwebserver(fastify) {
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
               headers: { ...header.headers },
+              httpsAgent,
             });
             this.wadoRequest = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
               headers: header.headers,
+              httpsAgent,
             });
             this.request
               .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
@@ -107,9 +132,11 @@ async function dicomwebserver(fastify) {
               headers: {
                 accept: 'application/json',
               },
+              httpsAgent,
             });
             this.wadoRequest = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
+              httpsAgent,
             });
             this.request
               .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)

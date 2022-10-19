@@ -135,4 +135,6 @@ config.deleteNoAimStudy =
   config.deleteNoAimStudy ||
   false;
 
+config.trustPath = process.env.TRUST_PATH || config.trustPath || undefined;
+
 module.exports = config;
