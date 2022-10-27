@@ -5729,6 +5729,23 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('subject 7 should have 12 aims', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/aims_summary.json`));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/reporting/subjects/7/aims?format=summary')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows).to.be.a('array');
+          expect(res.body.rows.length).to.be.eql(12);
+          expect(res.body.rows).to.deep.equalInAnyOrder(jsonBuffer);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('should return correct recist report', (done) => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/patient7_recist.json`));
       chai
