@@ -2390,8 +2390,8 @@ async function other(fastify) {
     if (fastify.caseSensitive.includes(key)) return `${cleanedValue}`;
     // search some columns with starts with instead of includes
     if (fastify.startsWith.includes(key)) {
-      if (fastify.caseBoth.includes(key)) return `/${cleanedValue.toLowerCase()}.*/`; // as sort is indexed lowercase
-      return `/${cleanedValue}.*/`;
+      // no need to check for case both this part is only used in search which needs to use the lowercase
+      return `/${cleanedValue.toLowerCase()}.*/`;
     }
     return `/.*${cleanedValue.toLowerCase()}.*/`;
   });
