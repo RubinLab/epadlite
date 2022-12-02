@@ -98,7 +98,23 @@ config.auditLog =
 config.dimse = config.dimse
   ? config.dimse
   : process.env.DIMSE_AET
-  ? { aet: process.env.DIMSE_AET, ip: process.env.DIMSE_IP, port: process.env.DIMSE_PORT }
+  ? {
+      aet: process.env.DIMSE_AET,
+      ip: process.env.DIMSE_IP,
+      port: process.env.DIMSE_PORT,
+      sourceIp: process.env.DIMSE_SOURCE_IP,
+    }
+  : null;
+// eslint-disable-next-line no-nested-ternary
+config.vnaDimse = config.vnaDimse
+  ? config.vnaDimse
+  : process.env.VNA_DIMSE_AET
+  ? {
+      aet: process.env.VNA_DIMSE_AET,
+      ip: process.env.VNA_DIMSE_IP,
+      port: process.env.VNA_DIMSE_PORT,
+      sourceIp: process.env.VNA_DIMSE_SOURCE_IP,
+    }
   : null;
 config.pullStudyIds =
   (process.env.PULL_STUDY_IDS && process.env.PULL_STUDY_IDS === 'true') ||
