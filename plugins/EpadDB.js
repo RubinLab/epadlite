@@ -9690,7 +9690,7 @@ async function epaddb(fastify, options, done) {
                         firstSeriesDateAcquired: '',
                         physicianName: '',
                         referringPhysicianName: nondicoms[i].study.dataValues.referring_physician,
-                        birthdate: nondicoms[i].subject.dataValues.dob,
+                        birthdate: fastify.getFormattedDate(nondicoms[i].subject.dataValues.dob),
                         sex: nondicoms[i].subject.dataValues.gender,
                         studyDescription: nondicoms[i].study.dataValues.description,
                         studyAccessionNumber: nondicoms[i].study.dataValues.accession_number,
