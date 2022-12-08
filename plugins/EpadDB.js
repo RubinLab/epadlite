@@ -9528,6 +9528,12 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('add0s', (val) => (val > 9 ? val : `0${val}`));
 
   fastify.decorate('getFormattedDate', (dateFromDB) => {
+    // dicom date
+    if (dateFromDB.length === 8) {
+      return `${dateFromDB.substring(0, 4)}-${dateFromDB.substring(4, 6)}-${dateFromDB.substring(
+        6
+      )}`;
+    }
     const dbDate = new Date(dateFromDB);
     const month = dbDate.getMonth() + 1;
     const date = dbDate.getDate();
