@@ -9527,6 +9527,16 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('add0s', (val) => (val > 9 ? val : `0${val}`));
 
+  fastify.decorate('getFormattedTime', (dateFromDB) => {
+    // dicom time
+    if (dateFromDB.length === 6) {
+      return `${dateFromDB.substring(0, 2)}:${dateFromDB.substring(2, 4)}:${dateFromDB.substring(
+        4
+      )}`;
+    }
+    return dateFromDB;
+  });
+
   fastify.decorate('getFormattedDate', (dateFromDB) => {
     // dicom date
     if (dateFromDB.length === 8) {
@@ -9712,7 +9722,9 @@ async function epaddb(fastify, options, done) {
                         // extra for flexview
                         studyID: nondicoms[i].study.dataValues.study_id,
                         studyDate: fastify.getFormattedDate(dbDate),
-                        studyTime: nondicoms[i].study.dataValues.study_time,
+                        studyTime: fastify.getFormattedTime(
+                          nondicoms[i].study.dataValues.study_time
+                        ),
                       });
                     }
                   } else

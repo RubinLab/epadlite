@@ -771,7 +771,7 @@ async function dicomwebserver(fastify) {
                             : '',
                         studyTime:
                           value['00080030'] && value['00080030'].Value
-                            ? value['00080030'].Value[0]
+                            ? fastify.getFormattedTime(value['00080030'].Value[0])
                             : '',
                       };
                     })
