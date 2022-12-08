@@ -722,7 +722,7 @@ async function dicomwebserver(fastify) {
                         studyUID: value['0020000D'].Value[0],
                         insertDate:
                           value['00080020'] && value['00080020'].Value
-                            ? value['00080020'].Value[0]
+                            ? fastify.getFormattedDate(value['00080020'].Value[0])
                             : '', // study date
                         firstSeriesUID: '', // TODO
                         firstSeriesDateAcquired: '', // TODO
@@ -733,7 +733,7 @@ async function dicomwebserver(fastify) {
                             : '',
                         birthdate:
                           value['00100030'] && value['00100030'].Value
-                            ? value['00100030'].Value[0]
+                            ? fastify.getFormattedDate(value['00100030'].Value[0])
                             : '',
                         sex:
                           value['00100040'] && value['00100040'].Value
@@ -767,7 +767,7 @@ async function dicomwebserver(fastify) {
                             : '',
                         studyDate:
                           value['00080020'] && value['00080020'].Value
-                            ? value['00080020'].Value[0]
+                            ? fastify.getFormattedDate(value['00080020'].Value[0])
                             : '',
                         studyTime:
                           value['00080030'] && value['00080030'].Value
