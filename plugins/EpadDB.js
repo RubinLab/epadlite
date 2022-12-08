@@ -9538,7 +9538,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getFormattedDateTime', (dateFromDB) => {
     const dbDate = new Date(dateFromDB);
     const hour = dbDate.getHours();
-    const minute = dbDate.getMin();
+    const minute = dbDate.getMinutes();
     const seconds = dbDate.getSeconds();
 
     return `${fastify.getFormattedDate(dateFromDB)} ${fastify.add0s(hour)}:${fastify.add0s(
