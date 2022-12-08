@@ -916,9 +916,9 @@ async function dicomwebserver(fastify) {
             // use vna if there is a successfull result from vna
             // it means the study is already archived
             // we assume the series data does not change one it is archived
-            const jsonResult = JSON.parse(
-              results[1].code === 0 && results[1].container ? results[1] : results[0]
-            );
+            const resultsJSON = results.map((item) => JSON.parse(item));
+            const jsonResult =
+              resultsJSON[1].code === 0 && resultsJSON[1].container ? resultsJSON[1] : results[0];
             const map = {};
             const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
             res.forEach((item) => {
