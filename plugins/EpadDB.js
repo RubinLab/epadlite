@@ -9531,7 +9531,19 @@ async function epaddb(fastify, options, done) {
     const dbDate = new Date(dateFromDB);
     const month = dbDate.getMonth() + 1;
     const date = dbDate.getDate();
-    return `${dbDate.getFullYear()}${fastify.add0s(month)}${fastify.add0s(date)}`;
+
+    return `${dbDate.getFullYear()}-${fastify.add0s(month)}-${fastify.add0s(date)}`;
+  });
+
+  fastify.decorate('getFormattedDateTime', (dateFromDB) => {
+    const dbDate = new Date(dateFromDB);
+    const hour = dbDate.getHours();
+    const minute = dbDate.getMin();
+    const seconds = dbDate.getSeconds();
+
+    return `${fastify.getFormattedDate(dateFromDB)} ${fastify.add0s(hour)}:${fastify.add0s(
+      minute
+    )}:${fastify.add0s(seconds)}`;
   });
 
   // whereJSON should include project_id, can also include subject_id
@@ -9605,7 +9617,7 @@ async function epaddb(fastify, options, done) {
                       );
                       createdTimes[
                         projectSubjects[j].dataValues.studies[i].dataValues.studyuid
-                      ] = fastify.getFormattedDate(dbDate);
+                      ] = fastify.getFormattedDateTime(dbDate);
                       // ASSUMPTION: nondicoms have no studydate
                       if (
                         !projectSubjects[j].dataValues.studies[i].dataValues.studydate ||
@@ -9688,12 +9700,12 @@ async function epaddb(fastify, options, done) {
                         numberOfImages: nondicoms[i].study.dataValues.num_of_images,
                         numberOfSeries: nondicoms[i].study.dataValues.num_of_series,
                         numberOfAnnotations: 0,
-                        createdTime: fastify.getFormattedDate(
+                        createdTime: fastify.getFormattedDateTime(
                           new Date(nondicoms[i].study.dataValues.createdtime)
                         ),
                         // extra for flexview
                         studyID: nondicoms[i].study.dataValues.study_id,
-                        studyDate: nondicoms[i].study.dataValues.studydate,
+                        studyDate: fastify.getFormattedDate(dbDate),
                         studyTime: nondicoms[i].study.dataValues.study_time,
                       });
                     }
