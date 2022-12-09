@@ -1003,7 +1003,8 @@ async function dicomwebserver(fastify) {
                     ? value['0020000D'].Value[0]
                     : params.study,
                 seriesUID: value['0020000E'].Value[0],
-                seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
+                seriesDate:
+                  value['00080021'] && value['00080021'].Value && value['00080021'].Value[0] ? value['00080021'].Value[0] : '',
                 seriesDescription:
                   value['0008103E'] && value['0008103E'].Value && value['0008103E'].Value[0]
                     ? value['0008103E'].Value[0]
