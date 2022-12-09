@@ -911,8 +911,6 @@ async function dicomwebserver(fastify) {
         ];
         Promise.all(dimsePromises).then((results) => {
           try {
-            console.log('Oputputs from the DIMSE calls');
-            console.log(results);
             // use vna if there is a successfull result from vna
             // it means the study is already archived
             // we assume the series data does not change one it is archived
@@ -927,7 +925,6 @@ async function dicomwebserver(fastify) {
             });
             resolve({ data: res });
           } catch (err) {
-            console.log(err);
             reject(err);
           }
         });
