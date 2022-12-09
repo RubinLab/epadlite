@@ -9529,7 +9529,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getFormattedTime', (dateFromDB) => {
     // dicom time
-    if (dateFromDB.length === 6) {
+    if (dateFromDB && dateFromDB.length === 6) {
       return `${dateFromDB.substring(0, 2)}:${dateFromDB.substring(2, 4)}:${dateFromDB.substring(
         4
       )}`;
@@ -9539,7 +9539,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getFormattedDate', (dateFromDB) => {
     // dicom date
-    if (dateFromDB.length === 8) {
+    if (dateFromDB && dateFromDB.length === 8) {
       return `${dateFromDB.substring(0, 4)}-${dateFromDB.substring(4, 6)}-${dateFromDB.substring(
         6
       )}`;
