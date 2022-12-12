@@ -836,20 +836,20 @@ async function dicomwebserver(fastify) {
   });
 
   fastify.decorate(
-    'getStudySeriesDIMSE',
-    (studyUID) =>
-      new Promise((resolve, reject) => {
+    'promisifyDIMSE',
+    (dimseConf, studyUID) =>
+      new Promise((resolve) => {
         dimse.findScu(
           JSON.stringify({
             source: {
               aet: 'FINDSCU',
-              ip: '127.0.0.1',
+              ip: dimseConf.sourceIp || '127.0.0.1',
               port: '9999',
             },
             target: {
-              aet: config.dimse.aet,
-              ip: config.dimse.ip,
-              port: config.dimse.port,
+              aet: dimseConf.aet,
+              ip: dimseConf.ip,
+              port: dimseConf.port,
             },
             tags: [
               {
@@ -895,23 +895,34 @@ async function dicomwebserver(fastify) {
             ],
           }),
           (result) => {
-            try {
-              const jsonResult = JSON.parse(result);
-              const map = {};
-              const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
-              res.forEach((item) => {
-                if (item['0020000E'])
-                  map[item['0020000E'].Value[0]] = item['0008103E']
-                    ? item['0008103E'].Value[0]
-                    : '';
-              });
-              resolve({ data: res });
-            } catch (err) {
-              console.log(err);
-              reject(err);
-            }
+            resolve(result);
           }
         );
+      })
+  );
+
+  fastify.decorate(
+    'getStudySeriesDIMSE',
+    (studyUID) =>
+      new Promise((resolve, reject) => {
+        const dimsePromises = [
+          fastify.promisifyDIMSE(config.dimse, studyUID),
+          fastify.promisifyDIMSE(config.vnaDimse, studyUID),
+        ];
+        Promise.all(dimsePromises).then((results) => {
+          try {
+            // use vna if there is a successfull result from vna
+            // it means the study is already archived
+            // we assume the series data does not change one it is archived
+            const resultsJSON = results.map((item) => JSON.parse(item));
+            const jsonResult =
+              resultsJSON[1].code === 0 && resultsJSON[1].container ? resultsJSON[1] : results[0];
+            const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
+            resolve({ data: res });
+          } catch (err) {
+            reject(err);
+          }
+        });
       })
   );
 
@@ -984,7 +995,10 @@ async function dicomwebserver(fastify) {
                     ? value['0020000D'].Value[0]
                     : params.study,
                 seriesUID: value['0020000E'].Value[0],
-                seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
+                seriesDate:
+                  value['00080021'] && value['00080021'].Value && value['00080021'].Value[0]
+                    ? value['00080021'].Value[0]
+                    : '',
                 seriesDescription:
                   value['0008103E'] && value['0008103E'].Value && value['0008103E'].Value[0]
                     ? value['0008103E'].Value[0]
