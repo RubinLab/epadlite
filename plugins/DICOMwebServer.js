@@ -917,12 +917,7 @@ async function dicomwebserver(fastify) {
             const resultsJSON = results.map((item) => JSON.parse(item));
             const jsonResult =
               resultsJSON[1].code === 0 && resultsJSON[1].container ? resultsJSON[1] : results[0];
-            const map = {};
             const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
-            res.forEach((item) => {
-              if (item['0020000E'])
-                map[item['0020000E'].Value[0]] = item['0008103E'] ? item['0008103E'].Value[0] : '';
-            });
             resolve({ data: res });
           } catch (err) {
             reject(err);
