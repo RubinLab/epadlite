@@ -25,6 +25,10 @@ if (config.auth !== 'external') {
     (process.env.AUTH_PKCE && process.env.AUTH_PKCE === 'true') ||
     config.authConfig.enablePkce ||
     undefined;
+  config.authConfig.legacyEndpoint =
+    (process.env.LEGACY_ENDPOINT && process.env.LEGACY_ENDPOINT === 'true') ||
+    config.authConfig.legacyEndpoint ||
+    undefined;
 } else {
   config.authConfig.userinfoUrl =
     process.env.AUTH_USERINFO_URL ||
@@ -49,6 +53,11 @@ config.dicomWebConfig.username =
   process.env.DICOMWEB_USERNAME || config.dicomWebConfig.username || undefined;
 config.dicomWebConfig.password =
   process.env.DICOMWEB_PASSWORD || config.dicomWebConfig.password || undefined;
+
+config.dicomWebConfig.legacyEndpoint =
+  (process.env.DICOMWEB_LEGACY_ENDPOINT && process.env.DICOMWEB_LEGACY_ENDPOINT === 'true') ||
+  config.dicomWebConfig.legacyEndpoint ||
+  undefined;
 
 config.mode = process.env.MODE || config.mode || 'lite'; // default lite
 config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';

@@ -17,11 +17,12 @@ const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 // eslint-disable-next-line import/order
 const keycloak = require('keycloak-backend')({
   realm: config.dicomWebConfig.realm, // required for verify
-  'auth-server-url': config.dicomWebConfig.authServerUrl, // required for verify
+  keycloak_base_url: config.dicomWebConfig.authServerUrl, // required for verify
   client_id: config.dicomWebConfig.clientId,
   client_secret: config.dicomWebConfig.clientSecret,
   username: config.dicomWebConfig.username,
   password: config.dicomWebConfig.password,
+  is_legacy_endpoint: config.dicomWebConfig.legacyEndpoint,
 });
 
 let accessToken = '';
