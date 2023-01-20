@@ -24,10 +24,11 @@ if (config.auth !== 'external') {
   // eslint-disable-next-line global-require
   keycloak = require('keycloak-backend')({
     realm: config.authConfig.realm, // required for verify
-    'auth-server-url': config.authConfig.authServerUrl, // required for verify
+    keycloak_base_url: config.authConfig.authServerUrl, // required for verify
     client_id: config.authConfig.clientId,
     client_secret: config.authConfig.clientSecret,
     'enable-pkce': config.authConfig.enablePkce,
+    is_legacy_endpoint: config.authConfig.legacyEndpoint,
   });
 }
 const EpadNotification = require('../utils/EpadNotification');
