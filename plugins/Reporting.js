@@ -5,6 +5,7 @@ const _ = require('lodash');
 const { InternalError } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
 const { renderTable } = require('../utils/recist.js');
+const config = require('../config/index');
 
 async function reporting(fastify) {
   fastify.decorate('numOfLongitudinalHeaderCols', 2);
@@ -605,9 +606,9 @@ async function reporting(fastify) {
           // calculate the rrs
           const tRRBaseline = fastify.calcRRBaseline(tSums, target.timepoints);
           const tRRMin = fastify.calcRRMin(tSums, target.timepoints);
-          // use rrmin not baseline
+          // starting from version 1 we are using baseline instead of rrmin
           const responseCats = fastify.calcResponseCat(
-            tRRMin,
+            tRRBaseline,
             target.timepoints,
             isThereNewLesion,
             tSums
@@ -1660,7 +1661,7 @@ async function reporting(fastify) {
                       timepoint += 1
                     )
                       sumsArray.push(sumMap[timepoint]);
-                    const { rr, rrAbs } = fastify.calcRRMin(
+                    const { rr, rrAbs } = fastify.calcRRBaseline(
                       sumsArray,
                       readerReport.stTimepoints,
                       true
@@ -1670,7 +1671,7 @@ async function reporting(fastify) {
                     if (recistReport && recistReport[reader] && exportCalc === 'recist') {
                       responseCats[exportCalc] = recistReport[reader].tResponseCats;
                     } else {
-                      // use rrmin not baseline
+                      // starting from version 1 we are using baseline instead of rrmin
                       const rc = fastify.calcResponseCat(
                         rr,
                         readerReport.stTimepoints,
@@ -1749,9 +1750,16 @@ async function reporting(fastify) {
   );
 
   fastify.decorate('getBestResponseVal', (rr) => {
-    const min = Math.min(...rr);
-    if (min === 0 && rr.length > 1) return rr[1];
-    return min;
+    if (config.bestResponse) {
+      // old method, calculates the best response
+      const min = Math.min(...rr);
+      if (min === 0 && rr.length > 1) return rr[1];
+      return min;
+    }
+    // new/default method, gets the last response
+    if (rr.length > 0) return rr[rr.length - 1];
+    // default, should never get here
+    return 0;
   });
 
   fastify.decorate('getBestResponse', (reportMultiUser, type, metric) => {
@@ -1802,7 +1810,8 @@ async function reporting(fastify) {
       let responseCats = report.tResponseCats;
       if (!rr || !responseCats) {
         const sums = fastify.calcSums(report.tTable, report.stTimepoints, metric);
-        rr = fastify.calcRRMin(sums, report.stTimepoints);
+        if (type === 'MIN') rr = fastify.calcRRMin(sums, report.stTimepoints);
+        else rr = fastify.calcRRBaseline(sums, report.stTimepoints);
 
         responseCats = fastify.calcResponseCat(
           rr,
@@ -1812,12 +1821,18 @@ async function reporting(fastify) {
         );
       }
 
-      const min = Math.min(...rr);
-      if (min === 0 && responseCats.length > 1) return responseCats[1];
+      if (config.bestResponse) {
+        // old method, calculates the best response
+        const min = Math.min(...rr);
+        if (min === 0 && responseCats.length > 1) return responseCats[1];
 
-      for (let i = rr.length - 1; i >= 0; i -= 1) {
-        if (rr[i] === min) return responseCats[i];
+        for (let i = rr.length - 1; i >= 0; i -= 1) {
+          if (rr[i] === min) return responseCats[i];
+        }
       }
+      // new/default method, gets the last response
+      if (responseCats.length > 0) return responseCats[responseCats.length - 1];
+      return null;
     } catch (err) {
       fastify.log.error(
         `Error generating best response for report ${JSON.stringify(
