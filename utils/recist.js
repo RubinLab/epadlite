@@ -574,7 +574,9 @@ function makeTable(data, filteredTable, modality, numofHeaderCols, hideCols) {
     .append(
       addRow(
         data,
-        'Sum Lesion Diameters (cm)',
+        // u24 data is mm. 
+        // TODO get it from the data
+        'Sum Lesion Diameters (mm)',
         data.tSums,
         '',
         numofHeaderCols,
@@ -591,16 +593,17 @@ function makeTable(data, filteredTable, modality, numofHeaderCols, hideCols) {
         hideCols
       )
     )
-    .append(
-      addRow(
-        data,
-        'RR from Minimum',
-        data.tRRMin,
-        '%',
-        numofHeaderCols,
-        hideCols
-      )
-    )
+    // removing rrmin
+    // .append(
+    //   addRow(
+    //     data,
+    //     'RR from Minimum',
+    //     data.tRRMin,
+    //     '%',
+    //     numofHeaderCols,
+    //     hideCols
+    //   )
+    // )
     .attr('border', 1)
     .css('background-color', '#666666')
     .css('color', '#d4dadd');
@@ -1057,9 +1060,10 @@ function fillInTables(
   if (data.tSums == null) {
     data.tSums = calcSums(filteredTable, data.stTimepoints, numofHeaderCols);
     data.tRRBaseline = calcRRBaseline(sums, data.stTimepoints);
-    data.tRRMin = calcRRMin(sums, data.stTimepoints);
+    // data.tRRMin = calcRRMin(sums, data.stTimepoints);
+    // use rrbaseline for response cats
     data.tResponseCats = calcResponseCat(
-      data.tRRMin,
+      data.tRRBaseline,
       data.stTimepoints,
       isThereANewLesion(data),
       sums
@@ -1155,12 +1159,13 @@ function makeCalcs(shrinkedData, numofHeaderCols) {
     shrinkedData.tSums,
     shrinkedData.stTimepoints
   );
-  shrinkedData.tRRMin = calcRRMin(
-    shrinkedData.tSums,
-    shrinkedData.stTimepoints
-  );
+  // shrinkedData.tRRMin = calcRRMin(
+  //   shrinkedData.tSums,
+  //   shrinkedData.stTimepoints
+  // );
+  // use rrbaseline for response cats
   shrinkedData.tResponseCats = calcResponseCat(
-    shrinkedData.tRRMin,
+    shrinkedData.tRRBaseline,
     shrinkedData.stTimepoints,
     isThereANewLesion(shrinkedData),
     shrinkedData.tSums

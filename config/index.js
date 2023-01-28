@@ -161,5 +161,10 @@ config.deleteNoAimStudy =
   false;
 
 config.trustPath = process.env.TRUST_PATH || config.trustPath || undefined;
+// the default is the last response starting version 1.0.0
+config.bestResponse =
+  (process.env.BEST_RESPONSE && process.env.BEST_RESPONSE === 'true') ||
+  config.bestResponse ||
+  false;
 
 module.exports = config;
