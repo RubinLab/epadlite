@@ -1062,7 +1062,7 @@ function fillInTables(
     data.tSums = calcSums(filteredTable, data.stTimepoints, numofHeaderCols);
     data.tRRBaseline = calcRRBaseline(sums, data.stTimepoints);
     data.tRRMin = calcRRMin(sums, data.stTimepoints);
-    // use rrbaseline for response cats
+    // use rrbaseline for response cats of not legacyReporting (rrmin and best response)
     data.tResponseCats = calcResponseCat(
       config.RCFromRRMin ? data.tRRMin : data.tRRBaseline,
       data.stTimepoints,
@@ -1164,7 +1164,7 @@ function makeCalcs(shrinkedData, numofHeaderCols) {
     shrinkedData.tSums,
     shrinkedData.stTimepoints
   );
-  // use rrbaseline for response cats
+  // use rrbaseline for response cats of not legacyReporting (rrmin and best response)
   shrinkedData.tResponseCats = calcResponseCat(
     config.RCFromRRMin ? shrinkedData.tRRMin : shrinkedData.tRRBaseline,
     shrinkedData.stTimepoints,
