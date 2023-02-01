@@ -606,9 +606,9 @@ async function reporting(fastify) {
           // calculate the rrs
           const tRRBaseline = fastify.calcRRBaseline(tSums, target.timepoints);
           const tRRMin = fastify.calcRRMin(tSums, target.timepoints);
-          // starting from version 1 we are using baseline instead of rrmin
+          // starting from version 1 we are using baseline instead of rrmin unless config.RCFromRRMin is set to true
           const responseCats = fastify.calcResponseCat(
-            tRRBaseline,
+            config.RCFromRRMin ? tRRMin : tRRBaseline,
             target.timepoints,
             isThereNewLesion,
             tSums
@@ -1661,17 +1661,15 @@ async function reporting(fastify) {
                       timepoint += 1
                     )
                       sumsArray.push(sumMap[timepoint]);
-                    const { rr, rrAbs } = fastify.calcRRBaseline(
-                      sumsArray,
-                      readerReport.stTimepoints,
-                      true
-                    );
+                    const { rr, rrAbs } = config.RCFromRRMin
+                      ? fastify.calcRRMin(sumsArray, readerReport.stTimepoints, true)
+                      : fastify.calcRRBaseline(sumsArray, readerReport.stTimepoints, true);
                     rrs[exportCalc] = rr;
                     rrAbss[exportCalc] = rrAbs;
                     if (recistReport && recistReport[reader] && exportCalc === 'recist') {
                       responseCats[exportCalc] = recistReport[reader].tResponseCats;
                     } else {
-                      // starting from version 1 we are using baseline instead of rrmin
+                      // starting from version 1 we are using baseline instead of rrmin unless config.RCFromRRMin is set to true
                       const rc = fastify.calcResponseCat(
                         rr,
                         readerReport.stTimepoints,
@@ -1810,7 +1808,7 @@ async function reporting(fastify) {
       let responseCats = report.tResponseCats;
       if (!rr || !responseCats) {
         const sums = fastify.calcSums(report.tTable, report.stTimepoints, metric);
-        if (type === 'MIN') rr = fastify.calcRRMin(sums, report.stTimepoints);
+        if (config.RCFromRRMin) rr = fastify.calcRRMin(sums, report.stTimepoints);
         else rr = fastify.calcRRBaseline(sums, report.stTimepoints);
 
         responseCats = fastify.calcResponseCat(

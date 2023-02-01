@@ -161,10 +161,26 @@ config.deleteNoAimStudy =
   false;
 
 config.trustPath = process.env.TRUST_PATH || config.trustPath || undefined;
+
+// use rrMin for response category and bestresponse for waterfall
+// this is just for being able to set bestResponse and RCFromRRMin together (overrides them)
+config.legacyReporting =
+  (process.env.LEGACY_REPORTING && process.env.LEGACY_REPORTING === 'true') ||
+  config.legacyReporting ||
+  false;
+
 // the default is the last response starting version 1.0.0
 config.bestResponse =
   (process.env.BEST_RESPONSE && process.env.BEST_RESPONSE === 'true') ||
   config.bestResponse ||
+  config.legacyReporting ||
+  false;
+
+// default is using RR baseline for response categories starting from 1.0.0
+config.RCFromRRMin =
+  (process.env.RC_FROM_RR_MIN && process.env.RC_FROM_RR_MIN === 'true') ||
+  config.RCFromRRMin ||
+  config.legacyReporting ||
   false;
 
 module.exports = config;
