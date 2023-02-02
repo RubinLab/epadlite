@@ -4,6 +4,7 @@ const jsdom = require("jsdom");
 const {JSDOM} = jsdom;
 const dom = new JSDOM('<html></html>');
 const $ = (require('jquery'))(dom.window);
+const config = require('../config/index');
 
 Number.prototype.times = function(fn) {
   for (var r = [], i = 0; i < this; i++) r.push(fn(i));
@@ -1060,10 +1061,10 @@ function fillInTables(
   if (data.tSums == null) {
     data.tSums = calcSums(filteredTable, data.stTimepoints, numofHeaderCols);
     data.tRRBaseline = calcRRBaseline(sums, data.stTimepoints);
-    // data.tRRMin = calcRRMin(sums, data.stTimepoints);
-    // use rrbaseline for response cats
+    data.tRRMin = calcRRMin(sums, data.stTimepoints);
+    // use rrbaseline for response cats of not legacyReporting (rrmin and best response)
     data.tResponseCats = calcResponseCat(
-      data.tRRBaseline,
+      config.RCFromRRMin ? data.tRRMin : data.tRRBaseline,
       data.stTimepoints,
       isThereANewLesion(data),
       sums
@@ -1159,13 +1160,13 @@ function makeCalcs(shrinkedData, numofHeaderCols) {
     shrinkedData.tSums,
     shrinkedData.stTimepoints
   );
-  // shrinkedData.tRRMin = calcRRMin(
-  //   shrinkedData.tSums,
-  //   shrinkedData.stTimepoints
-  // );
-  // use rrbaseline for response cats
+  shrinkedData.tRRMin = calcRRMin(
+    shrinkedData.tSums,
+    shrinkedData.stTimepoints
+  );
+  // use rrbaseline for response cats of not legacyReporting (rrmin and best response)
   shrinkedData.tResponseCats = calcResponseCat(
-    shrinkedData.tRRBaseline,
+    config.RCFromRRMin ? shrinkedData.tRRMin : shrinkedData.tRRBaseline,
     shrinkedData.stTimepoints,
     isThereANewLesion(shrinkedData),
     shrinkedData.tSums
