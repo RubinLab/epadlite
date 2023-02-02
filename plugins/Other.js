@@ -755,7 +755,7 @@ async function other(fastify) {
                     (jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                       .calculationEntityCollection &&
                       jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                        .calculationEntityCollection.CalculationEntity.length > 4)))
+                        .calculationEntityCollection.CalculationEntity.length > 6)))
               ) {
                 // aim saving via upload, ignore SEG Only annotations if they don't have calculations (like pyradiomics)
                 fastify
