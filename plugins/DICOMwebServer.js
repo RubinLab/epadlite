@@ -5,6 +5,8 @@ const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
 const dimse = require('dicom-dimse-native');
+const https = require('https');
+const fs = require('fs');
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -15,11 +17,12 @@ const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 // eslint-disable-next-line import/order
 const keycloak = require('keycloak-backend')({
   realm: config.dicomWebConfig.realm, // required for verify
-  'auth-server-url': config.dicomWebConfig.authServerUrl, // required for verify
+  keycloak_base_url: config.dicomWebConfig.authServerUrl, // required for verify
   client_id: config.dicomWebConfig.clientId,
   client_secret: config.dicomWebConfig.clientSecret,
   username: config.dicomWebConfig.username,
   password: config.dicomWebConfig.password,
+  is_legacy_endpoint: config.dicomWebConfig.legacyEndpoint,
 });
 
 let accessToken = '';
@@ -48,6 +51,26 @@ async function dicomwebserver(fastify) {
     () =>
       new Promise(async (resolve, reject) => {
         try {
+          let httpsAgent;
+          try {
+            const caFiles = [];
+            if (config.trustPath) {
+              const files = await fs.promises.readdir(config.trustPath);
+              for (let i = 0; i < files.length; i += 1) {
+                if (
+                  files[i] !== '__MACOSX' &&
+                  !fs.statSync(`${config.trustPath}/${files[i]}`).isDirectory() &&
+                  (files[i].endsWith('cer') || files[i].endsWith('pem'))
+                ) {
+                  const file = fs.readFileSync(`${config.trustPath}/${files[i]}`);
+                  caFiles.push(file);
+                }
+              }
+              httpsAgent = new https.Agent({ ca: caFiles });
+            }
+          } catch (err) {
+            fastify.log.error(`Error adding Root certificates to trust. Error: ${err.message}`);
+          }
           // see if we can authenticate
           if (config.dicomWebConfig.authServerUrl) {
             accessToken = await keycloak.accessToken.get();
@@ -60,10 +83,12 @@ async function dicomwebserver(fastify) {
               this.request = Axios.create({
                 baseURL: config.dicomWebConfig.baseUrl,
                 headers: { ...header.headers, accept: 'application/json' },
+                httpsAgent,
               });
               this.wadoRequest = Axios.create({
                 baseURL: config.dicomWebConfig.baseUrl,
                 headers: header.headers,
+                httpsAgent,
               });
               this.request
                 .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
@@ -88,10 +113,12 @@ async function dicomwebserver(fastify) {
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
               headers: { ...header.headers },
+              httpsAgent,
             });
             this.wadoRequest = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
               headers: header.headers,
+              httpsAgent,
             });
             this.request
               .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
@@ -107,9 +134,11 @@ async function dicomwebserver(fastify) {
               headers: {
                 accept: 'application/json',
               },
+              httpsAgent,
             });
             this.wadoRequest = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
+              httpsAgent,
             });
             this.request
               .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
@@ -266,7 +295,9 @@ async function dicomwebserver(fastify) {
           const promisses = [];
           promisses.push(
             this.request.get(
-              `${config.dicomWebConfig.qidoSubPath}/studies${query}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+              `${config.dicomWebConfig.qidoSubPath}/studies${query}${
+                query ? '&' : '?'
+              }includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
               header
             )
           );
@@ -296,10 +327,11 @@ async function dicomwebserver(fastify) {
                   const modalities = _.reduce(
                     value,
                     (modalitiesCombined, val) => {
-                      val['00080061'].Value.forEach((modality) => {
-                        if (!modalitiesCombined.includes(modality))
-                          modalitiesCombined.push(modality);
-                      });
+                      if (val['00080061'] && val['00080061'].Value)
+                        val['00080061'].Value.forEach((modality) => {
+                          if (!modalitiesCombined.includes(modality))
+                            modalitiesCombined.push(modality);
+                        });
                       return modalitiesCombined;
                     },
                     []
@@ -418,7 +450,7 @@ async function dicomwebserver(fastify) {
     fastify.log.info(`Polling initiated by ${request.epadAuth.username}`);
     fastify
       .pollDWStudies()
-      .then(() => reply.code(200).send('Polled dicomweb successfully'))
+      .then((result) => reply.code(200).send(result))
       .catch((err) => reply.send(err));
   });
 
@@ -427,12 +459,19 @@ async function dicomwebserver(fastify) {
     () =>
       new Promise(async (resolve, reject) => {
         try {
+          if (!config.pollDW) {
+            fastify.log.info('Polling is not supported! Skipping..');
+            resolve('Polling is not supported!');
+            return;
+          }
           fastify.log.info(`Polling dicomweb ${new Date()}`);
           // use admin username
           const epadAuth = { username: 'admin', admin: true };
           const updateStudyPromises = [];
           const values = await this.request.get(
-            `/studies?includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+            `/studies?${
+              config.limitStudies ? `limit=${config.limitStudies}&` : ''
+            }includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
             header
           );
           const studyUids = await fastify.getDBStudies();
@@ -518,7 +557,7 @@ async function dicomwebserver(fastify) {
           }
           await fastify.pq.addAll(updateStudyPromises);
           fastify.log.info(`Finished Polling dicomweb ${new Date()}`);
-          resolve();
+          resolve('Polled dicomweb successfully');
         } catch (err) {
           reject(new InternalError('Polling patient studies', err));
         }
@@ -559,8 +598,8 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          const qryIncludes =
-            '&includefield=StudyDescription&includefield=00201206&includefield=00201208';
+          let qryIncludes =
+            '&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061';
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           let query = limit;
           if (filter && config.pullStudyIds) {
@@ -591,15 +630,22 @@ async function dicomwebserver(fastify) {
               );
             }
           } else {
+            // if there is a study or patient filter ignore the limit
             if (params.study) query = `?StudyInstanceUID=${params.study}`;
             else if (params.subject) query = `?PatientID=${params.subject}`;
 
+            // if there is nothing in the query (getting everything, for migration for example) change the & at the start to ?
+            if (query.length === 0) qryIncludes = `?${qryIncludes.substring(1)}`;
             promisses.push(
               this.request.get(
                 `${config.dicomWebConfig.qidoSubPath}/studies${query}${qryIncludes}`,
                 header
               )
             );
+          }
+          if (promisses.length === 0) {
+            resolve([]);
+            return;
           }
           // get aims for a specific patient
           if (!noStats)
@@ -641,7 +687,7 @@ async function dicomwebserver(fastify) {
                     .map(async (value) => {
                       // update examptypes in db
                       // TODO we need to make sure it doesn't come there on pollDW
-                      if (value['0020000D'].Value && !config.pollDW)
+                      if (!config.pollDW && value['0020000D'] && value['0020000D'].Value)
                         await fastify.updateStudyExamType(
                           value['0020000D'].Value[0],
                           value['00080061'] && value['00080061'].Value
@@ -677,7 +723,7 @@ async function dicomwebserver(fastify) {
                         studyUID: value['0020000D'].Value[0],
                         insertDate:
                           value['00080020'] && value['00080020'].Value
-                            ? value['00080020'].Value[0]
+                            ? fastify.getFormattedDate(value['00080020'].Value[0])
                             : '', // study date
                         firstSeriesUID: '', // TODO
                         firstSeriesDateAcquired: '', // TODO
@@ -688,7 +734,7 @@ async function dicomwebserver(fastify) {
                             : '',
                         birthdate:
                           value['00100030'] && value['00100030'].Value
-                            ? value['00100030'].Value[0]
+                            ? fastify.getFormattedDate(value['00100030'].Value[0])
                             : '',
                         sex:
                           value['00100040'] && value['00100040'].Value
@@ -722,11 +768,11 @@ async function dicomwebserver(fastify) {
                             : '',
                         studyDate:
                           value['00080020'] && value['00080020'].Value
-                            ? value['00080020'].Value[0]
+                            ? fastify.getFormattedDate(value['00080020'].Value[0])
                             : '',
                         studyTime:
                           value['00080030'] && value['00080030'].Value
-                            ? value['00080030'].Value[0]
+                            ? fastify.getFormattedTime(value['00080030'].Value[0])
                             : '',
                       };
                     })
@@ -759,7 +805,7 @@ async function dicomwebserver(fastify) {
         try {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const studies = await this.request.get(
-            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription&includefield=00201206&includefield=00201208`,
+            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
             header
           );
           const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);
@@ -774,10 +820,11 @@ async function dicomwebserver(fastify) {
             );
             result = result.concat(studySeries);
           }
-
+          // order by series number
+          result = _.sortBy(result, 'seriesNo');
           resolve(result);
         } catch (err) {
-          reject(new InternalError(`Getting all series`), err);
+          reject(new InternalError(`Getting all series`, err));
         }
       })
   );
@@ -790,20 +837,20 @@ async function dicomwebserver(fastify) {
   });
 
   fastify.decorate(
-    'getStudySeriesDIMSE',
-    (studyUID) =>
-      new Promise((resolve, reject) => {
+    'promisifyDIMSE',
+    (dimseConf, studyUID) =>
+      new Promise((resolve) => {
         dimse.findScu(
           JSON.stringify({
             source: {
               aet: 'FINDSCU',
-              ip: '127.0.0.1',
+              ip: dimseConf.sourceIp || '127.0.0.1',
               port: '9999',
             },
             target: {
-              aet: config.dimse.aet,
-              ip: config.dimse.ip,
-              port: config.dimse.port,
+              aet: dimseConf.aet,
+              ip: dimseConf.ip,
+              port: dimseConf.port,
             },
             tags: [
               {
@@ -849,23 +896,34 @@ async function dicomwebserver(fastify) {
             ],
           }),
           (result) => {
-            try {
-              const jsonResult = JSON.parse(result);
-              const map = {};
-              const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
-              res.forEach((item) => {
-                if (item['0020000E'])
-                  map[item['0020000E'].Value[0]] = item['0008103E']
-                    ? item['0008103E'].Value[0]
-                    : '';
-              });
-              resolve({ data: res });
-            } catch (err) {
-              console.log(err);
-              reject(err);
-            }
+            resolve(result);
           }
         );
+      })
+  );
+
+  fastify.decorate(
+    'getStudySeriesDIMSE',
+    (studyUID) =>
+      new Promise((resolve, reject) => {
+        const dimsePromises = [
+          fastify.promisifyDIMSE(config.dimse, studyUID),
+          fastify.promisifyDIMSE(config.vnaDimse, studyUID),
+        ];
+        Promise.all(dimsePromises).then((results) => {
+          try {
+            // use vna if there is a successfull result from vna
+            // it means the study is already archived
+            // we assume the series data does not change one it is archived
+            const resultsJSON = results.map((item) => JSON.parse(item));
+            const jsonResult =
+              resultsJSON[1].code === 0 && resultsJSON[1].container ? resultsJSON[1] : results[0];
+            const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
+            resolve({ data: res });
+          } catch (err) {
+            reject(err);
+          }
+        });
       })
   );
 
@@ -938,7 +996,10 @@ async function dicomwebserver(fastify) {
                     ? value['0020000D'].Value[0]
                     : params.study,
                 seriesUID: value['0020000E'].Value[0],
-                seriesDate: value['00080021'] ? value['00080021'].Value[0] : '',
+                seriesDate:
+                  value['00080021'] && value['00080021'].Value && value['00080021'].Value[0]
+                    ? value['00080021'].Value[0]
+                    : '',
                 seriesDescription:
                   value['0008103E'] && value['0008103E'].Value && value['0008103E'].Value[0]
                     ? value['0008103E'].Value[0]
@@ -967,7 +1028,15 @@ async function dicomwebserver(fastify) {
                   false,
                 isNonDicomSeries: false, // TODO
                 seriesNo:
-                  value['00200011'] && value['00200011'].Value ? value['00200011'].Value[0] : '',
+                  // eslint-disable-next-line no-nested-ternary
+                  value['00200011'] &&
+                  value['00200011'].Value &&
+                  value['00200011'].Value[0] &&
+                  Number.isInteger(value['00200011'].Value[0])
+                    ? Number(value['00200011'].Value[0])
+                    : value['00200011'] && value['00200011'].Value && value['00200011'].Value[0]
+                    ? value['00200011'].Value[0]
+                    : 0,
                 significanceOrder: seriesSignificanceMap[value['0020000E'].Value[0]]
                   ? seriesSignificanceMap[value['0020000E'].Value[0]]
                   : undefined,

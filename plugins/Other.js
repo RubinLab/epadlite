@@ -24,9 +24,11 @@ if (config.auth !== 'external') {
   // eslint-disable-next-line global-require
   keycloak = require('keycloak-backend')({
     realm: config.authConfig.realm, // required for verify
-    'auth-server-url': config.authConfig.authServerUrl, // required for verify
+    keycloak_base_url: config.authConfig.authServerUrl, // required for verify
     client_id: config.authConfig.clientId,
     client_secret: config.authConfig.clientSecret,
+    'enable-pkce': config.authConfig.enablePkce,
+    is_legacy_endpoint: config.authConfig.legacyEndpoint,
   });
 }
 const EpadNotification = require('../utils/EpadNotification');
@@ -67,7 +69,7 @@ async function other(fastify) {
   //   );
   // });
   // eslint-disable-next-line global-require
-  fastify.register(require('fastify-multipart'));
+  fastify.register(require('@fastify/multipart'));
   fastify.decorate('getCombinedErrorText', (errors) => {
     let errMessagesText = null;
     if (errors.length > 0) {
@@ -746,12 +748,16 @@ async function other(fastify) {
               } else if (
                 (query.forceSave && query.forceSave === 'true') ||
                 (jsonBuffer.ImageAnnotationCollection &&
-                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  ((jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                     .typeCode[0].code &&
-                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                    .typeCode[0].code !== 'SEG')
+                    jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .typeCode[0].code !== 'SEG') ||
+                    (jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .calculationEntityCollection &&
+                      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                        .calculationEntityCollection.CalculationEntity.length > 6)))
               ) {
-                // aim saving via upload, ignore SEG Only annotations
+                // aim saving via upload, ignore SEG Only annotations if they don't have calculations (like pyradiomics)
                 fastify
                   .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                   .then((res) => {
@@ -1201,24 +1207,29 @@ async function other(fastify) {
         .code(202)
         .send(`Subject ${request.params.subject} deletion request recieved. deleting..`);
     }
-    fastify
-      .deleteSubjectInternal(request.params, request.epadAuth)
-      .then((result) => {
-        if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
-            fastify
-          );
-        else reply.code(200).send(result);
-      })
-      .catch((err) => {
-        if (config.env !== 'test')
-          new EpadNotification(
-            request,
-            'Delete subject failed',
-            new Error(request.params.subject)
-          ).notify(fastify);
-        else reply.send(err);
-      });
+    if (!config.disableDICOMSend)
+      fastify
+        .deleteSubjectInternal(request.params, request.epadAuth)
+        .then((result) => {
+          if (config.env !== 'test')
+            new EpadNotification(request, 'Deleted subject', request.params.subject, true).notify(
+              fastify
+            );
+          else reply.code(200).send(result);
+        })
+        .catch((err) => {
+          if (config.env !== 'test')
+            new EpadNotification(
+              request,
+              'Delete subject failed',
+              new Error(request.params.subject)
+            ).notify(fastify);
+          else reply.send(err);
+        });
+    else {
+      fastify.log.err('DICOMSend disabled');
+      reply.send(new InternalError('Subject delete from system', new Error('DICOMSend disabled')));
+    }
   });
 
   fastify.decorate(
@@ -1229,14 +1240,16 @@ async function other(fastify) {
         fastify
           .getPatientStudiesInternal(params, undefined, epadAuth, {}, true)
           .then((result) => {
-            result.forEach((study) => {
-              promisses.push(() =>
-                fastify.deleteStudyDicomsInternal({
-                  subject: params.subject,
-                  study: study.studyUID,
-                })
-              );
-            });
+            if (!config.disableDICOMSend)
+              result.forEach((study) => {
+                promisses.push(() =>
+                  fastify.deleteStudyDicomsInternal({
+                    subject: params.subject,
+                    study: study.studyUID,
+                  })
+                );
+              });
+            else fastify.log.info('DICOM Send disabled. Skipping subject DICOM delete');
             promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
             pq.addAll(promisses)
               .then(() => {
@@ -1262,24 +1275,29 @@ async function other(fastify) {
       );
       reply.code(202).send(`Study ${request.params.study} deletion request recieved. deleting..`);
     }
-    fastify
-      .deleteStudyInternal(request.params, request.epadAuth)
-      .then((result) => {
-        if (config.env !== 'test')
-          new EpadNotification(request, 'Deleted study', request.params.study, true).notify(
-            fastify
-          );
-        else reply.code(200).send(result);
-      })
-      .catch((err) => {
-        if (config.env !== 'test')
-          new EpadNotification(
-            request,
-            'Delete study failed',
-            new Error(request.params.subject)
-          ).notify(fastify);
-        else reply.send(err);
-      });
+    if (!config.disableDICOMSend)
+      fastify
+        .deleteStudyInternal(request.params, request.epadAuth)
+        .then((result) => {
+          if (config.env !== 'test')
+            new EpadNotification(request, 'Deleted study', request.params.study, true).notify(
+              fastify
+            );
+          else reply.code(200).send(result);
+        })
+        .catch((err) => {
+          if (config.env !== 'test')
+            new EpadNotification(
+              request,
+              'Delete study failed',
+              new Error(request.params.subject)
+            ).notify(fastify);
+          else reply.send(err);
+        });
+    else {
+      fastify.log.err('DICOMSend disabled');
+      reply.send(new InternalError('Study delete from system', new Error('DICOMSend disabled')));
+    }
   });
 
   fastify.decorate(
@@ -1512,13 +1530,16 @@ async function other(fastify) {
             if (verifyToken.isExpired()) {
               res.send(new UnauthenticatedError('Token is expired'));
             } else {
-              username = verifyToken.content.preferred_username || verifyToken.content.email;
+              username =
+                verifyToken.content.preferred_username ||
+                verifyToken.content.uid ||
+                verifyToken.content.email;
               userInfo = verifyToken.content;
             }
           } else {
             // try getting userinfo from external auth server with userinfo endpoint
             const userinfo = await fastify.getUserInfoInternal(token);
-            username = userinfo.preferred_username || userinfo.email;
+            username = userinfo.preferred_username || userinfo.uid || userinfo.email;
             userInfo = userinfo;
           }
           if (username !== '' || userInfo !== '')
@@ -1697,6 +1718,9 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decryptandgrantaccess?`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/apikeys`) &&
+      !(
+        req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/appVersion`) && req.method === 'POST'
+      ) &&
       req.method !== 'OPTIONS'
     ) {
       // if auth has been given in config, verify authentication
@@ -1833,9 +1857,9 @@ async function other(fastify) {
       if (!creator) {
         if (reqInfo.level === 'aim') {
           try {
-            const author = await fastify.getAimAuthorFromUID(reqInfo.objectId);
-            fastify.log.info('Author is', author);
-            if (author === request.epadAuth.username) return true;
+            const authors = await fastify.getAimAuthorFromUID(reqInfo.objectId);
+            fastify.log.info(`Authors are ${authors.join(',')}`);
+            if (authors.includes(request.epadAuth.username)) return true;
             return false;
           } catch (err) {
             fastify.log.error(`Getting author from aim: ${err.message}`);
@@ -1944,9 +1968,11 @@ async function other(fastify) {
                 !fastify.hasCreatePermission(request, reqInfo.level) &&
                 !(
                   reqInfo.level === 'worklist' &&
+                  request.body &&
                   request.body.assignees &&
-                  request.body.assignees.length === 1 &&
-                  request.body.assignees[0] === request.epadAuth.username
+                  ((request.body.assignees.length === 1 &&
+                    request.body.assignees[0] === request.epadAuth.username) ||
+                    (reqInfo.worklistid && (await fastify.isCreatorOfObject(request, reqInfo))))
                 )
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
@@ -1986,11 +2012,32 @@ async function other(fastify) {
                   email: adUser.mail,
                   enabled: true,
                   admin: false,
-                  projects: [{ role: 'Member', project: projectID }],
+                  projects: [{ role: 'Owner', project: projectID }],
+                  permissions: 'CreateWorklist,CreateProject',
                 },
                 { project: projectID },
                 epadAuth
               );
+              // create a private project by user id
+              // should we have a shorter name?
+              // get default template from config
+              await fastify.createProjectInternal(
+                `${adUser.givenName} ${adUser.sn}`,
+                `prj_${username}`,
+                `${adUser.givenName} ${adUser.sn}'s Private Folder`,
+                config.defaultTemplate,
+                'Private',
+                epadAuth
+              );
+
+              // add teaching template to the project
+              await fastify.addProjectTemplateRelInternal(
+                config.teachingTemplateUID,
+                `prj_${username}`,
+                {},
+                epadAuth
+              );
+
               resolve('User successfully added with member right');
             }
           } catch (err) {
@@ -2126,6 +2173,44 @@ async function other(fastify) {
     }
   });
 
+  /** Supports query and fields search
+   * Uses both body and query
+   * fields should be a dictionary and can have following keys
+   * Sample
+   *   fields: {
+   *       subSpecialty: [],
+   *       modality: [],
+   *       diagnosis: [],
+   *       anatomy: [],
+   *       myCases: true,
+   *       teachingFiles: true,
+   *       query: '',
+   *       project: '',
+   *     };
+   * filter should be a dictionary of column names to be filtered
+   * Sample filter value
+   *   filter: { name: 'Lesion' }
+   *
+   * filter should be an array of column names to be sorted by. - in the beginning of the fieldname represents descending sort
+   * Sample sort value
+   *   sort: ['-name']
+   *
+   * Possible values for filter and sort are: patientName, subjectID, accessionNumber, name, age, sex, modality,
+   *       studyDate, anatomy, observation, date, templateType (template name), template, user, fullName,
+   *       comment, project, projectName (uses project instead)
+   * Following fields are handled differently for filter and sort: patientName, name, anatomy, observation, templateType, fullName, age and comment
+   * (patient_name, name, anatomy, observation, template_name and user_name in CouchDB)
+   *
+   * We created two indexes for each (for ex: patient_name and patient_name_sort). First (patient_name) is indexed using standard indexer (separates words)
+   * and second (patient_name_sort) is indexed as keyword (which lets us do wildcard searchs and sort)
+   *
+   * In filter, the spaces are escaped and filters through both the regular index and sort specific index
+   * The sample filter value below is added to the query as: (name:"Lesion\ 2" OR name_sort:Lesion\ 2*)
+   * This lets us to be able to get anything which has Lesion and 2 inside as words (it won't match Lesion 256) and anything that starts with "Lesion 2"
+   *
+   * ePAD handles the selection of the correct index for sorting
+   *
+   */
   fastify.decorate('search', async (request, reply) => {
     try {
       const params = {};
@@ -2154,21 +2239,40 @@ async function other(fastify) {
           let rightsFilter = '';
           if (collaboratorProjIds) {
             for (let i = 0; i < collaboratorProjIds.length; i += 1) {
-              rightsFilter += ` ${rightsFilter === '' ? '' : ' OR'} (project:"${
+              rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${
                 collaboratorProjIds[i]
               }" AND user:"${request.epadAuth.username}")`;
             }
           }
           if (aimAccessProjIds) {
             for (let i = 0; i < aimAccessProjIds.length; i += 1) {
-              rightsFilter += ` ${rightsFilter === '' ? '' : ' OR'} (project:"${
+              rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${
                 aimAccessProjIds[i]
               }")`;
             }
           }
           if (rightsFilter) queryObj.query += ` AND (${rightsFilter})`;
         }
+      } else if (queryObj.fields || queryObj.filter) {
+        queryObj.query = await fastify.createFieldsQuery(queryObj, request.epadAuth);
+        // returns null if user has no rights to the project
+        if (!queryObj.query) {
+          reply.code(200).send({ total_rows: 0, rows: [] });
+          return;
+        }
+        // make sure you return extra columns
+      } else {
+        // eslint-disable-next-line no-restricted-syntax
+        for (const [key, value] of Object.entries(queryObj)) {
+          if (key !== 'username') queryObj[key] = fastify.caseFormatVal(key, value);
+        }
       }
+      // handle sort fieldnames with sort
+      // use epad fieldnames in sort
+      if (queryObj.sort)
+        queryObj.sort = queryObj.sort.map((item) =>
+          fastify.replaceSorts(fastify.getFieldName(item))
+        );
       const result = await fastify.getAimsInternal(
         'summary',
         params,
@@ -2180,6 +2284,185 @@ async function other(fastify) {
     } catch (err) {
       reply.send(new InternalError(`Search ${JSON.stringify(request.query)}`, err));
     }
+  });
+
+  fastify.decorate('createFieldsQuery', async (queryObj, epadAuth) => {
+    const queryParts = [];
+    if (queryObj.fields && queryObj.fields.query) {
+      if (queryObj.fields.query.trim() !== '') {
+        // query always case insensitive to handle search
+        // TODO how about ids? ids are not in the default index. ignoring for now
+        const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
+        queryParts.push(`/.*${cleanedValue}.*/`);
+      }
+    }
+    // add filters
+    if (queryObj.filter) {
+      // name:"Lesion\ 2" OR name_sort:Lesion\ 2*
+      // eslint-disable-next-line no-restricted-syntax
+      for (const [key, value] of Object.entries(queryObj.filter)) {
+        const cleanedValue = value.trim().replaceAll(' ', '\\ ');
+        // special filtering for projectName. we need to get the projectIds from mariadb first
+        if (key === 'projectName') {
+          // eslint-disable-next-line no-await-in-loop
+          const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
+          if (rightsFilter) queryParts.push(`(${rightsFilter})`);
+        } else if (key === 'studyDate' || key === 'date') {
+          // replace -
+          queryParts.push(
+            `(${fastify.getFieldName(key)}:/.*${cleanedValue.toLowerCase().replaceAll('-', '')}.*/)`
+          );
+        } else {
+          queryParts.push(fastify.caseQry(key, value));
+        }
+      }
+    }
+    if (queryObj.fields) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const [key, value] of Object.entries(queryObj.fields)) {
+        if (Array.isArray(value) && !(queryObj.filter && queryObj.filter[`${key}`]))
+          queryParts.push(fastify.createPartFromArray(key, value));
+      }
+      if (queryObj.fields.myCases) {
+        queryParts.push(`user:"${epadAuth.username}"`);
+      }
+      if (queryObj.fields.teachingFiles) {
+        queryParts.push(`template_code:${config.teachingTemplate}`);
+      }
+    }
+    if (queryObj.fields && queryObj.fields.project) {
+      if (!fastify.hasRoleInProject(queryObj.fields.project, epadAuth)) {
+        return null;
+      }
+      queryParts.push(`project:"${queryObj.fields.project}"`);
+      if (fastify.isCollaborator(queryObj.fields.project, epadAuth) && !queryObj.fields.myCases) {
+        queryParts.push(`user:"${epadAuth.username}"`);
+      }
+    } else if (!epadAuth.admin || (queryObj.fields && queryObj.fields.projectName)) {
+      const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
+      if (rightsFilter) queryParts.push(`(${rightsFilter})`);
+    }
+    return queryParts.length > 0 ? queryParts.join(' AND ') : '*:*';
+  });
+
+  fastify.decorate('getRightsFilter', async (queryObj, epadAuth) => {
+    // handle different project rights
+    // if there is no project filter get accessible projects and add to query
+    // if there is projectName, do a like query to the db to get the ids first
+    let projectName;
+    if (queryObj.fields && queryObj.fields.projectName) projectName = queryObj.fields.projectName;
+    // filter overrides fields
+    if (queryObj.filter && queryObj.filter.projectName) projectName = queryObj.filter.projectName;
+    const { collaboratorProjIds, aimAccessProjIds } = projectName
+      ? await fastify.getAccessibleProjectIdsByName(projectName, epadAuth)
+      : await fastify.getAccessibleProjects(epadAuth);
+    let rightsFilter = '';
+    if (collaboratorProjIds) {
+      for (let i = 0; i < collaboratorProjIds.length; i += 1) {
+        rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${
+          collaboratorProjIds[i]
+        }" AND user:"${epadAuth.username}")`;
+      }
+    }
+    if (aimAccessProjIds) {
+      for (let i = 0; i < aimAccessProjIds.length; i += 1) {
+        rightsFilter += `${rightsFilter === '' ? '' : ' OR '}(project:"${aimAccessProjIds[i]}")`;
+      }
+    }
+    return rightsFilter;
+  });
+
+  // fields for filter and sort
+  // CouchDB fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_datetime, template_name, template_code, user, user_name (by order in aim), comment, project, user_name_sorted (alphabetical)
+  // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName (by order in aim), comment, project, projectName (additional, no couchdb), fullNameSorted (alphabetical)
+
+  // We do not need sorting_fields anymore. ePAD fields are received and replaceSorts replaces field names if necessary.
+
+  const sortExtras = [
+    // 'patient_name',
+    // 'anatomy',
+    // 'observation',
+    // 'template_name',
+    // 'user_name',
+    // 'comment',
+    // 'name',
+    'patient_age',
+  ];
+  // use epad fields
+  // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project, projectName (additional, no couchdb)
+  fastify.decorate('caseFormatVal', (key, value) => {
+    const cleanedValue = value.trim().replaceAll(' ', '\\ ');
+    if (fastify.caseSensitive.includes(key)) return `${cleanedValue}`;
+    // search some columns with starts with instead of includes
+    if (fastify.startsWith.includes(key)) {
+      // no need to check for case both this part is only used in search which needs to use the lowercase
+      return `/${cleanedValue.toLowerCase()}.*/`;
+    }
+    return `/.*${cleanedValue.toLowerCase()}.*/`;
+  });
+  fastify.decorate('caseQry', (key, value) => {
+    // for case both we index both case sensitive and lower case (patient_id and patient_id_sort)
+    // when coming from the filter we will use the sort one
+    if (fastify.caseBoth.includes(key))
+      return `(${fastify.getFieldName(key)}_sort:${fastify.caseFormatVal(key, value)})`;
+    return `(${fastify.getFieldName(key)}:${fastify.caseFormatVal(key, value)})`;
+  });
+  // id fields needs to be case sensitive
+  // and exact match!
+  fastify.decorate('caseSensitive', ['project', 'template', 'user']);
+  // uids that can be filtered
+  fastify.decorate('caseBoth', ['subjectID']);
+
+  fastify.decorate('startsWith', ['subjectID', 'accessionNumber', 'age']);
+
+  fastify.decorate('isSortExtra', (key) => sortExtras.includes(key));
+
+  fastify.decorate('replaceSorts', (item) => {
+    let sortItem = item;
+    for (let i = 0; i < sortExtras.length; i += 1) {
+      if (sortItem.includes(sortExtras[i])) {
+        sortItem = sortItem.replace(sortExtras[i], `${sortExtras[i]}_sort`);
+        break;
+      }
+    }
+    // replace projectName with project for now. sort with projectName is not supported (projectName is not in couchdb)
+    sortItem = sortItem.replace('projectName', 'project');
+    sortItem += '<string>';
+    return sortItem;
+  });
+
+  fastify.decorate('getFieldName', (key) => {
+    const columnNameMap = {
+      subjectID: 'patient_id',
+      patientName: 'patient_name',
+      accessionNumber: 'accession_number',
+      studyDate: 'study_date',
+      date: 'creation_datetime',
+      template: 'template_code',
+      userName: 'user',
+      projectID: 'project',
+      templateType: 'template_name',
+      fullName: 'user_name',
+      fullNameSorted: 'user_name_sorted',
+      age: 'patient_age',
+      sex: 'patient_sex',
+      birthDate: 'patient_birth_date',
+      userComment: 'comment',
+      comment: 'programmedComment',
+    };
+    if (columnNameMap[key]) return columnNameMap[key];
+    if (key.startsWith('-') && columnNameMap[key.replace('-', '')])
+      return `-${columnNameMap[key.replace('-', '')]}`;
+    return key;
+  });
+
+  fastify.decorate('createPartFromArray', (field, values) => {
+    let fieldToSearch = field;
+    if (Array.isArray(values)) {
+      if (['subSpecialty', 'diagnosis'].includes(field)) fieldToSearch = 'observation';
+      return `(${values.map((item) => fastify.caseQry(fieldToSearch, item)).join(' OR ')})`;
+    }
+    return '';
   });
 
   fastify.addHook('onError', (request, reply, error, done) => {

@@ -5,6 +5,7 @@ const _ = require('lodash');
 const { InternalError } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
 const { renderTable } = require('../utils/recist.js');
+const config = require('../config/index');
 
 async function reporting(fastify) {
   fastify.decorate('numOfLongitudinalHeaderCols', 2);
@@ -17,6 +18,9 @@ async function reporting(fastify) {
         case 'line':
         case 'multipoint':
           normShapes.push('multipoint');
+          break;
+        case 'arrow':
+          normShapes.push('multipoint#arrow');
           break;
         case 'poly':
         case 'polygon':
@@ -42,7 +46,16 @@ async function reporting(fastify) {
     });
     for (let i = 0; i < markupEntityArray.length; i += 1) {
       for (let j = 0; j < normShapes.length; j += 1) {
-        if (markupEntityArray[i][`xsi:type`].toLowerCase().includes(normShapes[j].toLowerCase()))
+        const normShape = normShapes[j].toLowerCase().split('#');
+        // lineStyle can be Arrow
+        // filter line should see if multipoint and no linestyle (or not arrow)
+        if (
+          markupEntityArray[i][`xsi:type`].toLowerCase().includes(normShape[0]) &&
+          ((normShape.length === 1 && !markupEntityArray[i].lineStyle) ||
+            (markupEntityArray[i].lineStyle &&
+              normShape.length > 1 &&
+              markupEntityArray[i].lineStyle.toLowerCase() === normShape[1]))
+        )
           return true;
       }
     }
@@ -185,12 +198,6 @@ async function reporting(fastify) {
           row,
           'aimuid',
           aimJSONs[i].ImageAnnotationCollection.uniqueIdentifier.root
-        );
-
-        fastify.fillColumn(
-          row,
-          'username',
-          aimJSONs[i].ImageAnnotationCollection.user.loginName.value
         );
 
         if (
@@ -416,7 +423,17 @@ async function reporting(fastify) {
             }
           });
         }
-        if (hasCalcs) table.push(row);
+        if (hasCalcs) {
+          // row is ready, see if the aim have multiple users
+          // if multiple users duplicate the row for each user
+          const users = fastify.getAuthorUsernames(aimJSONs[i]);
+
+          users.forEach((user) => {
+            const newRow = { ...row };
+            fastify.fillColumn(newRow, 'username', user);
+            table.push(newRow);
+          });
+        }
       }
       return table;
     } catch (err) {
@@ -589,9 +606,9 @@ async function reporting(fastify) {
           // calculate the rrs
           const tRRBaseline = fastify.calcRRBaseline(tSums, target.timepoints);
           const tRRMin = fastify.calcRRMin(tSums, target.timepoints);
-          // use rrmin not baseline
+          // starting from version 1 we are using baseline instead of rrmin unless config.RCFromRRMin is set to true
           const responseCats = fastify.calcResponseCat(
-            tRRMin,
+            config.RCFromRRMin ? tRRMin : tRRBaseline,
             target.timepoints,
             isThereNewLesion,
             tSums
@@ -904,7 +921,7 @@ async function reporting(fastify) {
           }
           users[username].lesions.push(lesions[i]);
         }
-        const rrUsers = {};
+        let rrUsers = {};
         const usernames = Object.keys(users);
         for (let u = 0; u < usernames.length; u += 1) {
           // sort lists
@@ -959,6 +976,8 @@ async function reporting(fastify) {
           }
         }
         if (Object.keys(rrUsers).length > 0) {
+          // if there is metric and no data for a lesion (for that metric or none) on all timepoints. ignore that lesion
+          if (metric && metric !== true) rrUsers = fastify.removeNALesions(rrUsers, metric);
           if (!html) return rrUsers;
           // let filter = 'report=Longitudinal';
           let loadFilter = metric !== true ? `metric=${metric}` : '';
@@ -969,7 +988,7 @@ async function reporting(fastify) {
             request.params.project,
             'Longitudinal',
             rrUsers[request.query.user],
-            2,
+            fastify.numOfLongitudinalHeaderCols,
             [],
             loadFilter,
             1,
@@ -987,6 +1006,48 @@ async function reporting(fastify) {
       return null;
     }
   );
+
+  fastify.decorate('removeNALesions', (rrUsers, metric) => {
+    try {
+      // for each user
+      const users = Object.keys(rrUsers);
+      for (let userIndex = 0; userIndex < users.length; userIndex += 1) {
+        const rowsToDelete = [];
+        // get tTable
+        for (let i = 0; i < rrUsers[users[userIndex]].tTable.length; i += 1) {
+          let numOfVals = 0;
+          for (
+            let j = fastify.numOfLongitudinalHeaderCols;
+            j < rrUsers[users[userIndex]].tTable[i].length;
+            j += 1
+          ) {
+            if (
+              rrUsers[users[userIndex]].tTable[i][j] &&
+              rrUsers[users[userIndex]].tTable[i][j] !== {} &&
+              rrUsers[users[userIndex]].tTable[i][j][metric]
+            )
+              numOfVals += 1;
+          }
+          // if empty after 2 to the end, we  should remove row
+          if (numOfVals === 0) {
+            rowsToDelete.push(i);
+          }
+        }
+        for (let k = rowsToDelete.length - 1; k >= 0; k -= 1) {
+          // remove from tTable
+          rrUsers[users[userIndex]].tTable.splice(rowsToDelete[k], 1);
+          // remove from tLesionNames
+          rrUsers[users[userIndex]].tLesionNames.splice(rowsToDelete[k], 1);
+          // remove from tUIDs
+          rrUsers[users[userIndex]].tUIDs.splice(rowsToDelete[k], 1);
+        }
+      }
+    } catch (err) {
+      fastify.log.error(`Error removing all NA lesions Error: ${err.message}`);
+      throw err;
+    }
+    return rrUsers;
+  });
 
   fastify.decorate('getLesionIndex', (index, mode, lesion) => {
     switch (mode) {
@@ -1600,17 +1661,15 @@ async function reporting(fastify) {
                       timepoint += 1
                     )
                       sumsArray.push(sumMap[timepoint]);
-                    const { rr, rrAbs } = fastify.calcRRMin(
-                      sumsArray,
-                      readerReport.stTimepoints,
-                      true
-                    );
+                    const { rr, rrAbs } = config.RCFromRRMin
+                      ? fastify.calcRRMin(sumsArray, readerReport.stTimepoints, true)
+                      : fastify.calcRRBaseline(sumsArray, readerReport.stTimepoints, true);
                     rrs[exportCalc] = rr;
                     rrAbss[exportCalc] = rrAbs;
                     if (recistReport && recistReport[reader] && exportCalc === 'recist') {
                       responseCats[exportCalc] = recistReport[reader].tResponseCats;
                     } else {
-                      // use rrmin not baseline
+                      // starting from version 1 we are using baseline instead of rrmin unless config.RCFromRRMin is set to true
                       const rc = fastify.calcResponseCat(
                         rr,
                         readerReport.stTimepoints,
@@ -1688,6 +1747,19 @@ async function reporting(fastify) {
       })
   );
 
+  fastify.decorate('getBestResponseVal', (rr) => {
+    if (config.bestResponse) {
+      // old method, calculates the best response
+      const min = Math.min(...rr);
+      if (min === 0 && rr.length > 1) return rr[1];
+      return min;
+    }
+    // new/default method, gets the last response
+    if (rr.length > 0) return rr[rr.length - 1];
+    // default, should never get here
+    return 0;
+  });
+
   fastify.decorate('getBestResponse', (reportMultiUser, type, metric) => {
     try {
       // TODO how to support multiple readers in waterfall getting the first report for now
@@ -1714,9 +1786,7 @@ async function reporting(fastify) {
           break;
       }
 
-      const min = Math.min(...rr);
-      if (min === 0 && rr.length > 1) return rr[1];
-      return min;
+      return fastify.getBestResponseVal(rr);
     } catch (err) {
       fastify.log.error(
         `Error generating best response for report ${JSON.stringify(
@@ -1738,7 +1808,8 @@ async function reporting(fastify) {
       let responseCats = report.tResponseCats;
       if (!rr || !responseCats) {
         const sums = fastify.calcSums(report.tTable, report.stTimepoints, metric);
-        rr = fastify.calcRRMin(sums, report.stTimepoints);
+        if (config.RCFromRRMin) rr = fastify.calcRRMin(sums, report.stTimepoints);
+        else rr = fastify.calcRRBaseline(sums, report.stTimepoints);
 
         responseCats = fastify.calcResponseCat(
           rr,
@@ -1748,12 +1819,18 @@ async function reporting(fastify) {
         );
       }
 
-      const min = Math.min(...rr);
-      if (min === 0 && responseCats.length > 1) return responseCats[1];
+      if (config.bestResponse) {
+        // old method, calculates the best response
+        const min = Math.min(...rr);
+        if (min === 0 && responseCats.length > 1) return responseCats[1];
 
-      for (let i = rr.length - 1; i >= 0; i -= 1) {
-        if (rr[i] === min) return responseCats[i];
+        for (let i = rr.length - 1; i >= 0; i -= 1) {
+          if (rr[i] === min) return responseCats[i];
+        }
       }
+      // new/default method, gets the last response
+      if (responseCats.length > 0) return responseCats[responseCats.length - 1];
+      return null;
     } catch (err) {
       fastify.log.error(
         `Error generating best response for report ${JSON.stringify(

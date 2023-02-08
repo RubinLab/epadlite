@@ -57,6 +57,15 @@
       },
       "createdTime": {
         "type": "string"
+      },
+      "studyID": {
+        "type": "string"
+      },
+      "studyDate": {
+        "type": "string"
+      },
+      "studyTime": {
+        "type": "string"
       }
     },
     "required": [

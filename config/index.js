@@ -19,6 +19,16 @@ if (config.auth !== 'external') {
     process.env.AUTH_URL || config.authConfig.authServerUrl || 'http://hostname';
   config.authConfig.clientId =
     process.env.AUTH_CLIENT_ID || config.authConfig.clientId || 'epad-auth';
+  config.authConfig.clientSecret =
+    process.env.AUTH_CLIENT_SECRET || config.authConfig.clientSecret || undefined;
+  config.authConfig.enablePkce =
+    (process.env.AUTH_PKCE && process.env.AUTH_PKCE === 'true') ||
+    config.authConfig.enablePkce ||
+    undefined;
+  config.authConfig.legacyEndpoint =
+    (process.env.LEGACY_ENDPOINT && process.env.LEGACY_ENDPOINT === 'true') ||
+    config.authConfig.legacyEndpoint ||
+    undefined;
 } else {
   config.authConfig.userinfoUrl =
     process.env.AUTH_USERINFO_URL ||
@@ -43,6 +53,11 @@ config.dicomWebConfig.username =
   process.env.DICOMWEB_USERNAME || config.dicomWebConfig.username || undefined;
 config.dicomWebConfig.password =
   process.env.DICOMWEB_PASSWORD || config.dicomWebConfig.password || undefined;
+
+config.dicomWebConfig.legacyEndpoint =
+  (process.env.DICOMWEB_LEGACY_ENDPOINT && process.env.DICOMWEB_LEGACY_ENDPOINT === 'true') ||
+  config.dicomWebConfig.legacyEndpoint ||
+  undefined;
 
 config.mode = process.env.MODE || config.mode || 'lite'; // default lite
 config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';
@@ -92,7 +107,23 @@ config.auditLog =
 config.dimse = config.dimse
   ? config.dimse
   : process.env.DIMSE_AET
-  ? { aet: process.env.DIMSE_AET, ip: process.env.DIMSE_IP, port: process.env.DIMSE_PORT }
+  ? {
+      aet: process.env.DIMSE_AET,
+      ip: process.env.DIMSE_IP,
+      port: process.env.DIMSE_PORT,
+      sourceIp: process.env.DIMSE_SOURCE_IP,
+    }
+  : null;
+// eslint-disable-next-line no-nested-ternary
+config.vnaDimse = config.vnaDimse
+  ? config.vnaDimse
+  : process.env.VNA_DIMSE_AET
+  ? {
+      aet: process.env.VNA_DIMSE_AET,
+      ip: process.env.VNA_DIMSE_IP,
+      port: process.env.VNA_DIMSE_PORT,
+      sourceIp: process.env.VNA_DIMSE_SOURCE_IP,
+    }
   : null;
 config.pullStudyIds =
   (process.env.PULL_STUDY_IDS && process.env.PULL_STUDY_IDS === 'true') ||
@@ -110,5 +141,46 @@ config.ad = config.ad
       password: process.env.AD_PASSWORD,
     }
   : null;
+
+config.defaultTemplate = process.env.DEFAULT_TEMPLATE || config.defaultTemplate || 'ROI';
+config.teachingTemplate = process.env.TEACHING_TEMPLATE || config.teachingTemplate || '99EPAD_947';
+
+config.teachingTemplateUID =
+  process.env.TEACHING_TEMPLATE_UID ||
+  config.teachingTemplateUID ||
+  '2.25.182468981370271895711046628549377576999';
+config.projOnTop = process.env.PROJ_ON_TOP || config.projOnTop || undefined;
+config.versionAudit =
+  (process.env.VERSION_AUDIT && process.env.VERSION_AUDIT === 'true') ||
+  config.versionAudit ||
+  false;
+
+config.deleteNoAimStudy =
+  (process.env.DELETE_NO_AIM_STUDY && process.env.DELETE_NO_AIM_STUDY === 'true') ||
+  config.deleteNoAimStudy ||
+  false;
+
+config.trustPath = process.env.TRUST_PATH || config.trustPath || undefined;
+
+// use rrMin for response category and bestresponse for waterfall
+// this is just for being able to set bestResponse and RCFromRRMin together (overrides them)
+config.legacyReporting =
+  (process.env.LEGACY_REPORTING && process.env.LEGACY_REPORTING === 'true') ||
+  config.legacyReporting ||
+  false;
+
+// the default is the last response starting version 1.0.0
+config.bestResponse =
+  (process.env.BEST_RESPONSE && process.env.BEST_RESPONSE === 'true') ||
+  config.bestResponse ||
+  config.legacyReporting ||
+  false;
+
+// default is using RR baseline for response categories starting from 1.0.0
+config.RCFromRRMin =
+  (process.env.RC_FROM_RR_MIN && process.env.RC_FROM_RR_MIN === 'true') ||
+  config.RCFromRRMin ||
+  config.legacyReporting ||
+  false;
 
 module.exports = config;

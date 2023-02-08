@@ -91,10 +91,17 @@ async function routes(fastify) {
     },
     handler: fastify.deleteAimFromProject,
   });
+  // GET {s}/subjects/:subject/studies/:study/series/:series/aims
+  // format = count returns a map of image_uid: aim counts for images under that series (it won't have images with no aims)
   fastify.route({
     method: 'GET',
     url: '/projects/:project/subjects/:subject/studies/:study/series/:series/aims',
     schema: {
+      description: `no format returns a result with total count and rows having aims in json format.
+        format = returnTable returns a table to generate reports from. 
+        format = stream returns a stream for download. 
+        format = summary returns a result with total count and rows having an array of summary info about aims.
+        format = count returns a map of image_uid: aim counts for images under that series (it won't have images with no aims)`,
       tags: ['project', 'aim'],
       querystring: {
         format: { type: 'string' },
@@ -123,10 +130,16 @@ async function routes(fastify) {
     handler: fastify.getProjectAims,
   });
   // GET {s}/subjects/:subject/studies/:study/aims
+  // format = count returns a map of series_uid: aim counts for series under that study (it won't have series with no aims)
   fastify.route({
     method: 'GET',
     url: '/projects/:project/subjects/:subject/studies/:study/aims',
     schema: {
+      description: `no format returns a result with total count and rows having aims in json format.
+        format = returnTable returns a table to generate reports from. 
+        format = stream returns a stream for download. 
+        format = summary returns a result with total count and rows having an array of summary info about aims.
+        format = count returns a map of series_uid: aim counts for series under that study (it won't have series with no aims)`,
       tags: ['project', 'aim'],
       querystring: {
         format: { type: 'string' },
@@ -152,10 +165,16 @@ async function routes(fastify) {
     handler: fastify.getProjectAims,
   });
   // GET {s}/subjects/:subject/aims
+  // format = count returns a map of study_uid: aim counts for studies under that subject (it won't have studies with no aims)
   fastify.route({
     method: 'GET',
     url: '/projects/:project/subjects/:subject/aims',
     schema: {
+      description: `no format returns a result with total count and rows having aims in json format.
+        format = returnTable returns a table to generate reports from. 
+        format = stream returns a stream for download. 
+        format = summary returns a result with total count and rows having an array of summary info about aims.
+        format = count returns a map of study_uid: aim counts for studies under that subject (it won't have studies with no aims)`,
       tags: ['project', 'aim'],
       querystring: {
         format: { type: 'string' },
@@ -178,10 +197,17 @@ async function routes(fastify) {
     },
     handler: fastify.getProjectAims,
   });
+
+  // format = count returns a map of subject_uid: aim counts for subjects under that project (it won't have subjects with no aims)
   fastify.route({
     method: 'GET',
     url: '/projects/:project/aims',
     schema: {
+      description: `no format returns a result with total count and rows having aims in json format.
+        format = returnTable returns a table to generate reports from. 
+        format = stream returns a stream for download. 
+        format = summary returns a result with total count and rows having an array of summary info about aims.
+        format = count returns a map of subject_uid: aim counts for subjects under that project (it won't have subjects with no aims)`,
       tags: ['project', 'aim'],
       querystring: {
         format: { type: 'string' },
@@ -259,6 +285,34 @@ async function routes(fastify) {
       // },
     },
     handler: fastify.deleteAimsFromProject,
+  });
+
+  // POST {s}/projects/:project/aims/copy
+  // copies the study that aim belongs to and the aim to the new project (:project) for each aim
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/aims/copy',
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+      // response: {
+      //   200: 'aim_schema#',
+      // },
+    },
+    handler: fastify.copyAimsWithUIDs,
   });
 
   fastify.route({

@@ -22,17 +22,22 @@ beforeEach(() => {
     .post('/studies')
     .reply(200);
   nock(config.dicomWebConfig.baseUrl).delete('/studies/0023.2015.09.28.3').reply(200);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies?PatientID=8&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`
+    )
+    .reply(200, [{}]);
 });
 
 describe('Subject Tests', () => {
-  it('we should have 1 subject in the system', (done) => {
+  it('we should have 2 subjects in the system', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects')
       .query({ username: 'admin' })
       .then((res) => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(1);
+        expect(res.body.length).to.be.eql(2);
         done();
       })
       .catch((e) => {
@@ -54,7 +59,7 @@ describe('Subject Tests', () => {
       });
   });
 
-  it('subject retrieval with subject id 3 should return subject 3 from  project testsubject', (done) => {
+  it('subject retrieval with subject id 3 should return subject 3 ', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/subjects/3')
@@ -69,10 +74,10 @@ describe('Subject Tests', () => {
       });
   });
 
-  it('subject retrieval with subject id 7 should get 404  project', (done) => {
+  it('subject retrieval with subject id 8 should get 404', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/subjects/7')
+      .get('/subjects/8')
       .query({ username: 'admin' })
       .then((res) => {
         expect(res.statusCode).to.equal(404);
@@ -83,7 +88,7 @@ describe('Subject Tests', () => {
       });
   });
 
-  it('the study in the system should be 0023.2015.09.28.3', (done) => {
+  it('the studies in the system should be 0023.2015.09.28.3 and 1.2.752.24.7.19011385.453825', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/studies')
@@ -91,6 +96,7 @@ describe('Subject Tests', () => {
       .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+        expect(res.body[1].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
         done();
       })
       .catch((e) => {
@@ -113,14 +119,14 @@ describe('Subject Tests', () => {
       });
   });
 
-  it('system should have 1 series and it should be 0023.2015.09.28.3.3590', (done) => {
+  it('system should have 8 series and should be from patient 3 and patient 7', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/series')
       .query({ username: 'admin' })
       .then((res) => {
         expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(2);
+        expect(res.body.length).to.be.eql(8);
         expect(res.body[0].patientID).to.be.eql('3');
         expect(res.body[0].patientName).to.be.eql('Phantom');
         expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
@@ -129,6 +135,31 @@ describe('Subject Tests', () => {
         expect(res.body[1].patientName).to.be.eql('Phantom');
         expect(res.body[1].studyUID).to.be.eql('0023.2015.09.28.3');
         expect(res.body[1].seriesUID).to.be.eql('0023.2015.09.28.3.3590.111');
+        expect(res.body[2].patientID).to.be.eql('7');
+        expect(res.body[2].patientName).to.be.eql('7^3225^4503');
+        expect(res.body[2].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
+        expect(res.body[2].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207240880.3');
+        expect(res.body[3].patientID).to.be.eql('7');
+        expect(res.body[3].patientName).to.be.eql('7^3225^4503');
+        expect(res.body[3].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
+        expect(res.body[3].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.7');
+        expect(res.body[4].patientID).to.be.eql('7');
+        expect(res.body[4].patientName).to.be.eql('7^3225^4503');
+        expect(res.body[4].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
+        expect(res.body[4].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.11');
+        expect(res.body[5].patientID).to.be.eql('7');
+        expect(res.body[5].patientName).to.be.eql('7^3225^4503');
+        expect(res.body[5].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
+        expect(res.body[5].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.15');
+        expect(res.body[6].patientID).to.be.eql('7');
+        expect(res.body[6].patientName).to.be.eql('7^3225^4503');
+        expect(res.body[6].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
+        expect(res.body[6].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241369.23');
+        expect(res.body[7].patientID).to.be.eql('7');
+        expect(res.body[7].patientName).to.be.eql('7^3225^4503');
+        expect(res.body[7].studyUID).to.be.eql('1.2.752.24.7.19011385.453825');
+        expect(res.body[7].seriesUID).to.be.eql('2.25.792642314397553683275682748104452083500');
+
         done();
       })
       .catch((e) => {

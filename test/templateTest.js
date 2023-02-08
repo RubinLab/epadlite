@@ -183,6 +183,20 @@ describe('Template Tests', () => {
       });
   });
 
+  it('template get with uid 2.25.121060836007636801627558943005335 should be successful and it should be correct template', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/templates/2.25.121060836007636801627558943005335')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.TemplateContainer.Template[0].codeMeaning).to.be.eql('ROI Only2');
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
   it('template delete with uid 2.25.121060836007636801627558943005335 should be successful ', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

@@ -6,7 +6,10 @@ const archiver = require('archiver');
 const atob = require('atob');
 const path = require('path');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const dateFormatter = require('date-format');
+// eslint-disable-next-line no-global-assign
+window = {};
+const dcmjs = require('dcmjs');
+const toArrayBuffer = require('to-array-buffer');
 const config = require('../config/index');
 const viewsjs = require('../config/views');
 const {
@@ -388,8 +391,7 @@ async function couchdb(fastify, options) {
     const validQryParams = [
       'patient_name',
       'user',
-      'creation_date',
-      'creation_time',
+      'creation_datetime',
       'unknown_creation_date',
       'name',
       'programmed_comment',
@@ -411,30 +413,31 @@ async function couchdb(fastify, options) {
       // eslint-disable-next-line no-restricted-syntax
       for (const [key, value] of Object.entries(filter)) {
         if (key === 'template') qryParts.push(`template_code:"${value}"`);
+        else if (key === 'project') qryParts.push(`project:"${value}"`);
         else if (key === 'aims') qryParts.push(`(${value.join(' OR ')})`);
         else if (validQryParams.includes(key)) qryParts.push(`${key}:${value}`);
       }
     }
     if (params.project) {
       qryParts.push(`project:"${params.project}"`);
-      if (qryParts.length === 0) return '*:*';
-      return qryParts.join(' AND ');
     }
     if (!epadAuth.admin) {
       const { collaboratorProjIds, aimAccessProjIds } = await fastify.getAccessibleProjects(
         epadAuth
       );
-      // add collaborator filtering
-      const projectFilter = [];
-      if (aimAccessProjIds.length > 0)
-        projectFilter.push(`project:("${aimAccessProjIds.join('" OR "')}")`);
-      if (collaboratorProjIds.length > 0)
-        projectFilter.push(
-          `(project:"${collaboratorProjIds.join(
-            `" AND user:"${epadAuth.username}") OR (project:"`
-          )}" AND user:"${epadAuth.username}")`
-        );
-      qryParts.push(`( ${projectFilter.join(' OR ')})`);
+      if (!params.project) {
+        // add collaborator filtering
+        const projectFilter = [];
+        if (aimAccessProjIds.length > 0)
+          projectFilter.push(`project:("${aimAccessProjIds.join('" OR "')}")`);
+        if (collaboratorProjIds.length > 0)
+          projectFilter.push(
+            `(project:"${collaboratorProjIds.join(
+              `" AND user:"${epadAuth.username}") OR (project:"`
+            )}" AND user:"${epadAuth.username}")`
+          );
+        if (projectFilter.length > 0) qryParts.push(`( ${projectFilter.join(' OR ')})`);
+      }
     }
     if (qryParts.length === 0) return '*:*';
     return qryParts.join(' AND ');
@@ -443,7 +446,8 @@ async function couchdb(fastify, options) {
   fastify.decorate(
     'getAimsCouchInternal',
     (db, searchQry, format, bookmark) =>
-      new Promise((resolve, reject) => {
+      new Promise(async (resolve, reject) => {
+        const projectNameMap = await fastify.getProjectNameMap();
         const dbFilter = { ...searchQry, bookmark };
         db.search('search', 'aimSearch', dbFilter, async (error, body) => {
           try {
@@ -462,7 +466,7 @@ async function couchdb(fastify, options) {
                     instanceOrFrameNumber: 'NA',
                     name: body.rows[i].fields.name,
                     template: body.rows[i].fields.template_code,
-                    date: `${body.rows[i].fields.creation_date}${body.rows[i].fields.creation_time}`,
+                    date: `${body.rows[i].fields.creation_datetime}`,
                     patientName: body.rows[i].fields.patient_name,
                     studyDate: body.rows[i].fields.study_date,
                     comment: body.rows[i].fields.programmed_comment,
@@ -472,11 +476,20 @@ async function couchdb(fastify, options) {
                     dsoFrameNo: 'NA',
                     isDicomSR: 'NA',
                     originalSubjectID: body.rows[i].fields.patient_id,
-                    userName: body.rows[i].fields.user,
+                    userName: Array.isArray(body.rows[i].fields.user)
+                      ? body.rows[i].fields.user
+                      : [body.rows[i].fields.user],
                     projectID: body.rows[i].fields.project,
+                    projectName: projectNameMap[body.rows[i].fields.project],
                     modality: body.rows[i].fields.modality,
                     anatomy: body.rows[i].fields.anatomy,
                     observation: body.rows[i].fields.observation,
+                    accessionNumber: body.rows[i].fields.accession_number,
+                    birthDate: body.rows[i].fields.patient_birth_date,
+                    age: body.rows[i].fields.patient_age,
+                    sex: body.rows[i].fields.patient_sex,
+                    fullName: body.rows[i].fields.user_name,
+                    fullNameSorted: body.rows[i].fields.user_name_sorted,
                   });
                 }
                 resObj.rows = res;
@@ -519,7 +532,11 @@ async function couchdb(fastify, options) {
             fastify
               .generateSearchQuery(params, epadAuth, filter)
               .then((qry) => {
-                const dbFilter = { q: qry, sort: 'name<string>', limit: 200 };
+                const dbFilter = {
+                  q: qry,
+                  sort: (filter && filter.sort) || '-creation_datetime<string>',
+                  limit: 200,
+                };
                 if (format !== 'summary') {
                   dbFilter.include_docs = true;
                   dbFilter.attachments = true;
@@ -532,7 +549,12 @@ async function couchdb(fastify, options) {
                         if (resObj.total_rows !== resObj.rows.length) {
                           // get everything and send an email
                           fastify
-                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                            .downloadAims(
+                              { aim: 'true', summary: 'true' },
+                              resObj,
+                              epadAuth,
+                              params
+                            )
                             .then((result) => {
                               fastify.log.info(`Zip file ready in ${result}`);
                               // get the protocol and hostname from the request
@@ -865,6 +887,124 @@ async function couchdb(fastify, options) {
       .catch((err) => reply.send(err));
   });
 
+  fastify.decorate('copyAimsWithUIDs', (request, reply) => {
+    // we are trying to copy aims, we need only the aims. no need to get query from user
+    // will not copy the segmentation. will create another aim referencing to the same DSO
+    fastify
+      .getAimsFromUIDsInternal({ aim: true }, request.body)
+      .then(async (res) => {
+        const studyUIDs = [];
+        for (let i = 0; i < res.length; i += 1) {
+          const aim = res[i];
+          const studyUID =
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root;
+          const patientID = aim.ImageAnnotationCollection.person.id.value;
+          const params = { project: request.params.project, subject: patientID, study: studyUID };
+          // put the study in the project if it's not already been put
+          if (!studyUIDs.includes(studyUID)) {
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.addPatientStudyToProjectInternal(params, request.epadAuth);
+            studyUIDs.push(studyUID);
+          }
+          // create a copy the aim with a new uid
+          aim.ImageAnnotationCollection.uniqueIdentifier.root = fastify.generateUidInternal();
+          aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier.root = fastify.generateUidInternal();
+
+          // if aim has a segmentation, create  copy of the segmentation and update the references in the aim
+          const segEntity =
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .segmentationEntityCollection;
+          // this is a segmentation aim
+          if (segEntity) {
+            const dsoParams = {
+              project: request.params.project,
+              subject: patientID,
+              study: studyUID,
+              series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
+            };
+            // eslint-disable-next-line no-await-in-loop
+            const [segPart] = await fastify.getSeriesWadoMultipart(dsoParams);
+            if (segPart) {
+              const seg = dcmjs.data.DicomMessage.readFile(segPart);
+              const seriesUID = fastify.generateUidInternal();
+              const instanceUID = fastify.generateUidInternal();
+              const ds = dcmjs.data.DicomMetaDictionary.naturalizeDataset(seg.dict);
+              ds.SeriesInstanceUID = seriesUID;
+              ds.SOPInstanceUID = instanceUID;
+              ds.MediaStorageSOPInstanceUID = instanceUID;
+              // save the updated DSO
+              seg.dict = dcmjs.data.DicomMetaDictionary.denaturalizeDataset(ds);
+              const buffer = seg.write();
+              const { data, boundary } = dcmjs.utilities.message.multipartEncode([
+                toArrayBuffer(buffer),
+              ]);
+              // eslint-disable-next-line no-await-in-loop
+              await fastify.saveDicomsInternal(data, boundary);
+              // update the aim
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root = seriesUID;
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].sopInstanceUid.root = instanceUID;
+            }
+          }
+          // add the new aim to the project
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.saveAimJsonWithProjectRef(aim, params, request.epadAuth);
+        }
+        reply
+          .code(200)
+          .send(
+            `Copied aim uids ${request.body.join(',')} and added study uids ${studyUIDs.join(
+              ','
+            )} to project ${request.params.project}`
+          );
+      })
+      .catch((err) => {
+        reply.send(err);
+      });
+  });
+
+  fastify.decorate('addWithAimsUIDsToWorklist', (request, reply) => {
+    fastify
+      .getAimsInternal('summary', {}, { aims: request.body }, request.epadAuth)
+      .then(async (res) => {
+        const studyUIDs = [];
+        for (let i = 0; i < res.rows.length; i += 1) {
+          const { studyUID, subjectID, projectID } = res.rows[i];
+          // add the new aim to the project
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.assignStudyToWorklistInternal(
+            {},
+            {
+              subject: subjectID,
+              study: studyUID,
+              project: projectID,
+              worklist: request.params.worklist,
+            },
+            request.epadAuth
+          );
+          studyUIDs.push(studyUID);
+        }
+        if (studyUIDs.length === 0)
+          reply.send(
+            new InternalError(
+              'Adding studies to worklist using aimUIDs',
+              new Error(`Couldn't retrieve aims for ${JSON.stringify(request.body)}`)
+            )
+          );
+        else
+          reply
+            .code(200)
+            .send(
+              `Added aim uids ${request.body.join(',')} and study uids ${studyUIDs.join(
+                ','
+              )} to worklist ${request.params.worklist}`
+            );
+      })
+      .catch((err) => {
+        reply.send(err);
+      });
+  });
+
   fastify.decorate('saveAim', (request, reply) => {
     // get the uid from the json and check if it is same with param, then put as id in couch document
     if (
@@ -903,6 +1043,7 @@ async function couchdb(fastify, options) {
             { id: 'patientName', title: 'Patient_Name' },
             { id: 'patientId', title: 'Patient_ID' },
             { id: 'reviewer', title: 'Reviewer' },
+            { id: 'reviewerNames', title: 'Reviewer Names' },
             { id: 'name', title: 'Name' },
             { id: 'comment', title: 'Comment' },
             { id: 'userComment', title: 'User_Comment' },
@@ -963,19 +1104,19 @@ async function couchdb(fastify, options) {
                   aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation;
 
                 imageAnnotations.forEach((imageAnnotation) => {
-                  const commentSplit = imageAnnotation.comment.value.split('~~');
+                  // handle no comment
+                  const commentSplit =
+                    imageAnnotation.comment && imageAnnotation.comment.value
+                      ? imageAnnotation.comment.value.split('~~')
+                      : [''];
+                  const aimDate = fastify.fixAimDate(imageAnnotation.dateTime.value);
                   const row = {
                     aimUid: aim.ImageAnnotationCollection.uniqueIdentifier.root,
-                    date: dateFormatter.asString(
-                      dateFormatter.ISO8601_FORMAT,
-                      dateFormatter.parse(
-                        'yyyyMMddhhmmssSSS',
-                        `${imageAnnotation.dateTime.value}000`
-                      )
-                    ),
+                    date: aimDate.toString(),
                     patientName: aim.ImageAnnotationCollection.person.name.value,
                     patientId: aim.ImageAnnotationCollection.person.id.value,
-                    reviewer: aim.ImageAnnotationCollection.user.name.value,
+                    reviewer: fastify.getAuthorUsernameString(aim),
+                    reviewerNames: fastify.getAuthorNameString(aim),
                     name: imageAnnotation.name.value.split('~')[0],
                     comment: commentSplit[0],
                     userComment: commentSplit.length > 1 ? commentSplit[1] : '',
@@ -1049,7 +1190,7 @@ async function couchdb(fastify, options) {
       const dbFilter = {
         q: `project: ${request.params.project}`,
         deleted: true,
-        sort: 'name<string>',
+        sort: '-creation_datetime<string>',
         limit: 200,
       };
       db.search('search', 'aimSearch', dbFilter, (error, body) => {
@@ -1180,7 +1321,7 @@ async function couchdb(fastify, options) {
               couchDoc.projects = existing.projects;
             }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
-            if (config.auditLog === true) {
+            if (config.auditLog === true && existing.aim) {
               // add the old version to the couchdoc
               // add old aim
               attachments.push({
@@ -1599,6 +1740,17 @@ async function couchdb(fastify, options) {
           .downloadTemplates(res)
           .then((result) => reply.code(200).send(result))
           .catch((err) => reply.send(err));
+      });
+    } catch (err) {
+      reply.send(new InternalError('Getting templates with uids', err));
+    }
+  });
+
+  fastify.decorate('getTemplate', (request, reply) => {
+    try {
+      const db = fastify.couch.db.use(config.db);
+      db.get(request.params.uid).then((doc) => {
+        reply.code(200).send(doc.template);
       });
     } catch (err) {
       reply.send(new InternalError('Getting templates with uids', err));
@@ -2056,11 +2208,34 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('getAuthorUsernames', (aim) =>
+    // eslint-disable-next-line no-nested-ternary
+    aim && aim.ImageAnnotationCollection.user
+      ? Array.isArray(aim.ImageAnnotationCollection.user)
+        ? aim.ImageAnnotationCollection.user.map((usr) => usr.loginName.value)
+        : [aim.ImageAnnotationCollection.user.loginName.value]
+      : []
+  );
+
+  fastify.decorate('getAuthorUsernameString', (aim) => fastify.getAuthorUsernames(aim).join(','));
+
+  fastify.decorate('getAuthorNameString', (aim) =>
+    // eslint-disable-next-line no-nested-ternary
+    aim && aim.ImageAnnotationCollection.user
+      ? Array.isArray(aim.ImageAnnotationCollection.user)
+        ? aim.ImageAnnotationCollection.user
+            .map((usr) => usr.name.value)
+            .join(',')
+            .replace(/\^/g, ' ')
+        : aim.ImageAnnotationCollection.user.name.value.replace(/\^/g, ' ')
+      : ''
+  );
+
   fastify.decorate('getAimAuthorFromUID', async (aimUid) => {
     try {
       const db = fastify.couch.db.use(config.db);
       const doc = await db.get(aimUid);
-      return doc.aim.ImageAnnotationCollection.user.loginName.value;
+      return fastify.getAuthorUsernames(doc.aim);
     } catch (err) {
       throw new InternalError('Getting author from aimuid', err);
     }
@@ -2109,6 +2284,35 @@ async function couchdb(fastify, options) {
       })
       .catch((err) => reply.send(err));
   });
+
+  // gets users all aims
+  fastify.decorate(
+    'getUserAIMsInternal',
+    (username, format) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const dbFilter = {
+            q: `user:${username}`,
+            limit: 200,
+          };
+          const aimsResult = await fastify.getAimsCouchInternal(db, dbFilter, format);
+          let aims = aimsResult.rows;
+          let totalAimCount = aims.length;
+          let { bookmark } = aimsResult;
+          while (totalAimCount < aimsResult.total_rows) {
+            // eslint-disable-next-line no-await-in-loop
+            const newResult = await fastify.getAimsCouchInternal(db, dbFilter, format, bookmark);
+            bookmark = newResult.bookmark;
+            totalAimCount += newResult.rows.length;
+            aims = aims.concat(newResult.rows);
+          }
+          resolve(aims);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
 
   fastify.decorate(
     'closeCouchDB',

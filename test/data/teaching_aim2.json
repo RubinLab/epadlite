@@ -1,0 +1,259 @@
+{
+    "ImageAnnotationCollection": {
+        "xmlns": "gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM",
+        "xmlns:rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "aimVersion": "AIMv4_2",
+        "xsi:schemaLocation": "gme://caCORE.caCORE/4.4/edu.northwestern.radiology.AIM AIM_v4.2_rv2_XML.xsd",
+        "uniqueIdentifier": {
+            "root": "2.25.196033266344245780724364622116125952298"
+        },
+        "studyInstanceUid": {
+            "root": "1.2.840.114350.2.171.2.798268.2.741309627.1"
+        },
+        "seriesInstanceUid": {
+            "root": "2.25.166908457112988582735191527532516766711"
+        },
+        "accessionNumber": {
+            "value": "19220271"
+        },
+        "dateTime": {
+            "value": "20220124123757"
+        },
+        "user": {
+            "name": {
+                "value": "admin"
+            },
+            "loginName": {
+                "value": "admin"
+            }
+        },
+        "equipment": {
+            "manufacturerName": {
+                "value": "GE MEDICAL SYSTEMS"
+            },
+            "manufacturerModelName": {
+                "value": "Revolution CT"
+            },
+            "softwareVersion": {
+                "value": "revo_ct_21b.32"
+            }
+        },
+        "person": {
+            "name": {
+                "value": "Stella^Demo2"
+            },
+            "id": {
+                "value": "STELLA002"
+            },
+            "birthDate": {
+                "value": "19510102"
+            },
+            "sex": {
+                "value": "F"
+            }
+        },
+        "imageAnnotations": {
+            "ImageAnnotation": [
+                {
+                    "uniqueIdentifier": {
+                        "root": "2.25.874739797463990412639662111209216150572"
+                    },
+                    "trackingUniqueIdentifier": {
+                        "root": "2.25.315037507244486849042563557152803617491"
+                    },
+                    "typeCode": [
+                        {
+                            "code": "99EPAD_947",
+                            "codeSystemName": "99EPAD",
+                            "iso:displayName": {
+                                "xmlns:iso": "uri:iso.org:21090",
+                                "value": "Teaching file"
+                            }
+                        }
+                    ],
+                    "dateTime": {
+                        "value": "20220124123757"
+                    },
+                    "name": {
+                        "value": "teaching file2"
+                    },
+                    "comment": {
+                        "value": "CT / 5MM CHEST / / 305~~36 year old woman with shortness of breath.  She was unvaccinated and found to have COVID-19 pneumonia\n"
+                    },
+                    "precedentReferencedAnnotationUid": {
+                        "root": ""
+                    },
+                    "imagingPhysicalEntityCollection": {
+                        "ImagingPhysicalEntity": [
+                            {
+                                "typeCode": [
+                                    {
+                                        "code": "RID1301",
+                                        "codeSystemName": "Radlex",
+                                        "iso:displayName": {
+                                            "value": "lung",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Anatomy Core"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.879470614347454465762050551284289033240"
+                                }
+                            }
+                        ]
+                    },
+                    "calculationEntityCollection": {
+                        "CalculationEntity": []
+                    },
+                    "imageAnnotationStatementCollection": {
+                        "ImageAnnotationStatement": []
+                    },
+                    "imagingObservationEntityCollection": {
+                        "ImagingObservationEntity": [
+                            {
+                                "typeCode": [
+                                    {
+                                        "code": "99EPAD_6",
+                                        "codeSystemName": "99EPAD",
+                                        "iso:displayName": {
+                                            "value": "Thoracic Imaging",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Radiology Specialty"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.879470614347454465762050551284289033240"
+                                }
+                            },
+                            {
+                                "typeCode": [
+                                    {
+                                        "code": "RID3821",
+                                        "codeSystemName": "Radlex",
+                                        "iso:displayName": {
+                                            "value": "interstitial fibrosis",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Findings and Diagnosis"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.879470614347454465762050551284289033240"
+                                }
+                            },
+                            {
+                                "typeCode": [
+                                    {
+                                        "code": "RID5350",
+                                        "codeSystemName": "Radlex",
+                                        "iso:displayName": {
+                                            "value": "pneumonia",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Findings and Diagnosis"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.879470614347454465762050551284289033240"
+                                }
+                            },
+                            {
+                                "typeCode": [
+                                    {
+                                        "code": "99EPAD_12",
+                                        "codeSystemName": "99EPAD",
+                                        "iso:displayName": {
+                                            "value": "Pathologic Proof",
+                                            "xmlns:iso": "uri:iso.org:21090"
+                                        }
+                                    }
+                                ],
+                                "annotatorConfidence": {
+                                    "value": 0
+                                },
+                                "label": {
+                                    "value": "Level of Diagnostic Proof"
+                                },
+                                "uniqueIdentifier": {
+                                    "root": "2.25.879470614347454465762050551284289033240"
+                                }
+                            }
+                        ]
+                    },
+                    "imageReferenceEntityCollection": {
+                        "ImageReferenceEntity": [
+                            {
+                                "xsi:type": "DicomImageReferenceEntity",
+                                "uniqueIdentifier": {
+                                    "root": "2.25.150905643547690001754264872289567790326"
+                                },
+                                "imageStudy": {
+                                    "instanceUid": {
+                                        "root": "1.2.840.114350.2.171.2.798268.2.741309627.1"
+                                    },
+                                    "startDate": {
+                                        "value": "20210902"
+                                    },
+                                    "startTime": {
+                                        "value": "112729"
+                                    },
+                                    "accessionNumber": {
+                                        "value": "19220271"
+                                    },
+                                    "imageSeries": {
+                                        "instanceUid": {
+                                            "root": ""
+                                        },
+                                        "modality": {
+                                            "code": "99EPADM0",
+                                            "codeSystemName": "99EPAD",
+                                            "iso:displayName": {
+                                                "xmlns:iso": "uri:iso.org:21090",
+                                                "value": "NA"
+                                            }
+                                        },
+                                        "imageCollection": {
+                                            "Image": [
+                                                {
+                                                    "sopClassUid": {
+                                                        "root": ""
+                                                    },
+                                                    "sopInstanceUid": {
+                                                        "root": ""
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}

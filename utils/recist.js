@@ -4,6 +4,7 @@ const jsdom = require("jsdom");
 const {JSDOM} = jsdom;
 const dom = new JSDOM('<html></html>');
 const $ = (require('jquery'))(dom.window);
+const config = require('../config/index');
 
 Number.prototype.times = function(fn) {
   for (var r = [], i = 0; i < this; i++) r.push(fn(i));
@@ -574,7 +575,9 @@ function makeTable(data, filteredTable, modality, numofHeaderCols, hideCols) {
     .append(
       addRow(
         data,
-        'Sum Lesion Diameters (cm)',
+        // u24 data is mm. 
+        // TODO get it from the data
+        'Sum Lesion Diameters (mm)',
         data.tSums,
         '',
         numofHeaderCols,
@@ -591,16 +594,17 @@ function makeTable(data, filteredTable, modality, numofHeaderCols, hideCols) {
         hideCols
       )
     )
-    .append(
-      addRow(
-        data,
-        'RR from Minimum',
-        data.tRRMin,
-        '%',
-        numofHeaderCols,
-        hideCols
-      )
-    )
+    // removing rrmin
+    // .append(
+    //   addRow(
+    //     data,
+    //     'RR from Minimum',
+    //     data.tRRMin,
+    //     '%',
+    //     numofHeaderCols,
+    //     hideCols
+    //   )
+    // )
     .attr('border', 1)
     .css('background-color', '#666666')
     .css('color', '#d4dadd');
@@ -1058,8 +1062,9 @@ function fillInTables(
     data.tSums = calcSums(filteredTable, data.stTimepoints, numofHeaderCols);
     data.tRRBaseline = calcRRBaseline(sums, data.stTimepoints);
     data.tRRMin = calcRRMin(sums, data.stTimepoints);
+    // use rrbaseline for response cats of not legacyReporting (rrmin and best response)
     data.tResponseCats = calcResponseCat(
-      data.tRRMin,
+      config.RCFromRRMin ? data.tRRMin : data.tRRBaseline,
       data.stTimepoints,
       isThereANewLesion(data),
       sums
@@ -1159,8 +1164,9 @@ function makeCalcs(shrinkedData, numofHeaderCols) {
     shrinkedData.tSums,
     shrinkedData.stTimepoints
   );
+  // use rrbaseline for response cats of not legacyReporting (rrmin and best response)
   shrinkedData.tResponseCats = calcResponseCat(
-    shrinkedData.tRRMin,
+    config.RCFromRRMin ? shrinkedData.tRRMin : shrinkedData.tRRBaseline,
     shrinkedData.stTimepoints,
     isThereANewLesion(shrinkedData),
     shrinkedData.tSums
