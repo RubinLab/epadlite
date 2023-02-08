@@ -748,12 +748,16 @@ async function other(fastify) {
               } else if (
                 (query.forceSave && query.forceSave === 'true') ||
                 (jsonBuffer.ImageAnnotationCollection &&
-                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                  ((jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                     .typeCode[0].code &&
-                  jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                    .typeCode[0].code !== 'SEG')
+                    jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .typeCode[0].code !== 'SEG') ||
+                    (jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .calculationEntityCollection &&
+                      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                        .calculationEntityCollection.CalculationEntity.length > 6)))
               ) {
-                // aim saving via upload, ignore SEG Only annotations
+                // aim saving via upload, ignore SEG Only annotations if they don't have calculations (like pyradiomics)
                 fastify
                   .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                   .then((res) => {
