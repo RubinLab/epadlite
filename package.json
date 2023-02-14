@@ -4,7 +4,7 @@
   "description": "Lightweight ePad Backend",
   "main": "server.js",
   "dependencies": {
-    "@fastify/multipart": "^6.0.0",
+    "@fastify/multipart": "^6.0.1",
     "activedirectory2": "^2.1.0",
     "aimapi": "^0.1.12",
     "archiver": "^5.1.0",
