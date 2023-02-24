@@ -163,10 +163,6 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'plugin_id',
           });
           models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'plugin_id' });
-          // models.project_plugin.belongsTo(models.project, {
-          //   as: 'projectpluginrowbyrow',
-          //   foreignKey: 'project_id',
-          // });
           models.plugin_queue.belongsTo(models.plugin, {
             as: 'queueplugin',
             foreignKey: 'plugin_id',
@@ -628,7 +624,6 @@ async function epaddb(fastify, options, done) {
         reply.code(200).send(`Project ${request.params.project} deleted successfully`);
       }
     } catch (err) {
-      console.log(err);
       reply.send(new InternalError(`Deleting project ${request.params.project}`, err));
     }
   });
