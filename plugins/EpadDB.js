@@ -163,10 +163,10 @@ async function epaddb(fastify, options, done) {
             foreignKey: 'plugin_id',
           });
           models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'plugin_id' });
-          models.project_plugin.belongsTo(models.project, {
-            as: 'projectpluginrowbyrow',
-            foreignKey: 'project_id',
-          });
+          // models.project_plugin.belongsTo(models.project, {
+          //   as: 'projectpluginrowbyrow',
+          //   foreignKey: 'project_id',
+          // });
           models.plugin_queue.belongsTo(models.plugin, {
             as: 'queueplugin',
             foreignKey: 'plugin_id',
@@ -620,8 +620,6 @@ async function epaddb(fastify, options, done) {
           request.epadAuth
         );
 
-        await fastify.deleteRelationAndOrphanedPluginInternal(project.id, request.epadAuth);
-
         await models.project.destroy({
           where: {
             projectId: request.params.project,
@@ -766,37 +764,6 @@ async function epaddb(fastify, options, done) {
   });
 
   //  Plugin section
-  fastify.decorate('deleteRelationAndOrphanedPluginInternal', (projectId) => {
-    /*  this section removes necessary data from plugin related tables
-        1. remove the row which matches project_id from project_plugin table
-        2. remove the rows matching project_id from plugin_queue
-        3. remove the relation projectplugin_project
-    */
-    console.log(`Deleting project with id ${projectId}`);
-    models.plugin_queue
-      .destroy({
-        where: {
-          project_id: projectId,
-        },
-      })
-      .then(() => {
-        models.project_plugin
-          .destroy({
-            where: {
-              project_id: projectId,
-            },
-          })
-          .then(() => 0)
-          .catch(
-            (err) =>
-              new InternalError(`Deleting project relation from project_plugin ${projectId}`, err)
-          );
-      })
-      .catch(
-        (err) => new InternalError(`Deleting project relation from plugin_queue  ${projectId}`, err)
-      );
-  });
-
   fastify.decorate('getProjectsWithPkAsId', (request, reply) => {
     models.project
       .findAll({
@@ -14025,6 +13992,33 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
             fastify.log.warn('project_aim_user table is filled ');
+
+            await fastify.orm.query(
+              `ALTER TABLE project_plugin 
+                DROP FOREIGN KEY IF EXISTS project_plugin_ibfk_1,
+                DROP FOREIGN KEY IF EXISTS project_plugin_ibfk_2;`,
+              { transaction: t }
+            );
+            await fastify.orm.query(
+              `ALTER TABLE project_plugin 
+                ADD FOREIGN KEY IF NOT EXISTS project_plugin_ibfk_1 (project_id) REFERENCES project (id) ON DELETE CASCADE ON UPDATE CASCADE,
+                ADD FOREIGN KEY IF NOT EXISTS project_plugin_ibfk_2 (plugin_id) REFERENCES plugin (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
+              { transaction: t }
+            );
+
+            await fastify.orm.query(
+              `ALTER TABLE plugin_queue 
+                DROP FOREIGN KEY IF EXISTS plugin_queue_ibfk_1,
+                DROP FOREIGN KEY IF EXISTS plugin_queue_ibfk_2;`,
+              { transaction: t }
+            );
+            await fastify.orm.query(
+              `ALTER TABLE plugin_queue 
+                ADD FOREIGN KEY IF NOT EXISTS plugin_queue_ibfk_1 (plugin_id) REFERENCES plugin (id) ON DELETE CASCADE ON UPDATE CASCADE,
+                ADD FOREIGN KEY IF NOT EXISTS plugin_queue_ibfk_2 (project_id) REFERENCES project (id) ON DELETE CASCADE ON UPDATE CASCADE;`,
+              { transaction: t }
+            );
+            fastify.log.warn('plugin relation foreign keys fixed');
           });
 
           // the db schema is updated successfully lets copy the files
