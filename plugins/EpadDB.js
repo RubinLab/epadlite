@@ -527,7 +527,9 @@ async function epaddb(fastify, options, done) {
                     i += 1;
                   } else if (uidsToDelete[i] > uidsLeftObjects[j][uidField]) {
                     // cannot happen!
-                    console.log('should not happen!');
+                    console.log(
+                      `should not happen! uidsto delete ${uidsToDelete[i]}, uidsLeftObjects ${uidsLeftObjects[j][uidField]}, uidfield ${uidField}`
+                    );
                     // just in case
                     updateIfAim.push(uidsToDelete[i]);
                   }
@@ -628,6 +630,7 @@ async function epaddb(fastify, options, done) {
         reply.code(200).send(`Project ${request.params.project} deleted successfully`);
       }
     } catch (err) {
+      console.log(err);
       reply.send(new InternalError(`Deleting project ${request.params.project}`, err));
     }
   });
@@ -769,6 +772,7 @@ async function epaddb(fastify, options, done) {
         2. remove the rows matching project_id from plugin_queue
         3. remove the relation projectplugin_project
     */
+    console.log(`Deleting project with id ${projectId}`);
     models.plugin_queue
       .destroy({
         where: {
@@ -782,22 +786,7 @@ async function epaddb(fastify, options, done) {
               project_id: projectId,
             },
           })
-          .then(() => {
-            models.projectplugin_project
-              .destroy({
-                where: {
-                  project_id: projectId,
-                },
-              })
-              .catch(
-                (err) =>
-                  new InternalError(
-                    `Deleting project relation from projectplugin_project ${projectId}`,
-                    err
-                  )
-              );
-            return 0;
-          })
+          .then(() => 0)
           .catch(
             (err) =>
               new InternalError(`Deleting project relation from project_plugin ${projectId}`, err)
