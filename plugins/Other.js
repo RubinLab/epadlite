@@ -2292,8 +2292,8 @@ async function other(fastify) {
       if (queryObj.fields.query.trim() !== '') {
         // query always case insensitive to handle search
         // TODO how about ids? ids are not in the default index. ignoring for now
-        const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
-        queryParts.push(`/.*${cleanedValue}.*/`);
+        // const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
+        queryParts.push(`${cleanedValue}`);
       }
     }
     // add filters
@@ -2342,6 +2342,7 @@ async function other(fastify) {
       const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
       if (rightsFilter) queryParts.push(`(${rightsFilter})`);
     }
+    console.log(`Generated query is ${queryParts.length > 0 ? queryParts.join(' AND ') : '*:*'}`);
     return queryParts.length > 0 ? queryParts.join(' AND ') : '*:*';
   });
 
