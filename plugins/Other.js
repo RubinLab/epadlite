@@ -2286,13 +2286,116 @@ async function other(fastify) {
     }
   });
 
+  // inputString - a valid query string.
+  // Returns that query, parsed.
+  fastify.decorate('reformatQuery', (inputString) => {
+    let outputString = '';
+    // Replace fancy quotes with regular quotes
+    inputString = inputString.replace(/[\u201C\u201D]/g, '"').toLowerCase();
+    for (let i = 0; i < inputString.length; i += 1) {
+      const prevCharacter = outputString[outputString.length - 1]
+      const cha = inputString[i];
+      if (cha == '"') {
+        // We want `"some stuff"` to turn into the regex /.*some stuff.*/
+        // and we want `""thing""` to be whole-word matching, so it matches `thing`
+        // but not `something`.
+        let twoQuotes = (inputString[i+1] == '"');
+        if (twoQuotes) {
+          i += 1;
+        }
+        let j = i + 1;
+        while (j < inputString.length) {
+          if (inputString[j] == '"' && (!twoQuotes || inputString[j+1] == '"')) {
+            break;
+          }
+          j += 1;
+        }
+        if (![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
+          outputString += ' ';
+        }
+        let stuffInQuotes = inputString.substring(i + 1, j);
+        i = j;
+        stuffInQuotes = fastify.escapeCharacters(stuffInQuotes, true);
+        if (twoQuotes) {
+          // This is the best regex I could come up with for whole-word matching.
+          // stuffInQuotes:
+          //   Whole-string matches.
+          // '.*[^a-z0-9]' + stuffInQuotes:
+          //   Matches strings which end with stuffInQuotes
+          // stuffInQuotes + '[^a-z0-9].*'
+          //   Matches strings which start with stuffInQuotes
+          // '.*[^a-z0-9]' + stuffInQuotes + '[^a-z0-9].*'
+          //   Matches strings with stuffInQuotes in the middle.
+          outputString = '/.*[^a-z0-9]' + stuffInQuotes + '[^a-z0-9].*|' + stuffInQuotes;
+          outputString += '[^a-z0-9].*|.*[^a-z0-9]' + stuffInQuotes + '|' + stuffInQuotes + '/';
+          i += 1;
+        } else {
+          outputString += '/.*' + stuffInQuotes + '.*/';
+        }
+      } else { // We are not in quotation marks
+        if (cha == ' ') {
+          continue;
+        } else if (cha == '(' || cha == ')') {
+          if (cha == '(' && ![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
+            outputString += ' ';
+          }
+          outputString += cha;
+        } else { // We find the start of a word
+          let j = i + 1;
+          // This finds the end of the word
+          while (j < inputString.length) {
+            if ([' ', '(', ')', '"'].includes(inputString[j])) {
+              break;
+            }
+            j += 1;
+          }
+          let word = inputString.substring(i, j);
+          i = j - 1;
+          if (![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
+            outputString += ' ';
+          }
+          if (word == 'and' || word == 'or' || word == 'not') {
+            outputString += word.toUpperCase();
+          } else {
+            word = fastify.escapeCharacters(word, false);
+            outputString += '/.*' + word + '.*/';
+          }
+        }
+      }
+    }
+    if (outputString.length == 0) {
+      return '/.*/';
+    }
+    return outputString;
+  });
+
+  // Escapes any special characters that are inside quotation marks.
+  fastify.decorate('escapeCharacters', (inputString, escapeParentheses) => {
+    // Escapes any special characters in quotation marks
+    const charsToEscape = ['+', '-', '!', '{', '}', '[', ']', '^', '~',
+      '*', '?', ':', '\\', '/', '.', '$', '^']
+    if (escapeParentheses) {
+      charsToEscape.push('(');
+      charsToEscape.push(')');
+    }
+    for (let i = inputString.length - 1; i >= 0; i -= 1) {
+      let len2Escape = i < inputString.length - 1;
+      len2Escape = len2Escape && ['&', '|'].includes(inputString[i]);
+      len2Escape = len2Escape && ['&', '|'].includes(inputString[i + 1]);
+      if (charsToEscape.includes(inputString[i]) || len2Escape) {
+        inputString = inputString.slice(0, i) + '\\' + inputString.slice(i);
+      }
+    }
+    return inputString.toLowerCase();
+  });
+
   fastify.decorate('createFieldsQuery', async (queryObj, epadAuth) => {
     const queryParts = [];
     if (queryObj.fields && queryObj.fields.query) {
       if (queryObj.fields.query.trim() !== '') {
         // query always case insensitive to handle search
         // TODO how about ids? ids are not in the default index. ignoring for now
-        const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
+        const cleanedValue = fastify.reformatQuery(queryObj.fields.query).replaceAll(' ', '\\ ');
         queryParts.push(`${cleanedValue}`);
       }
     }
