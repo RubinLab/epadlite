@@ -762,7 +762,7 @@ async function reporting(fastify) {
         }
       }
     }
-    if (abs) return { rrBaseline, rrBaselineAbs };
+    if (abs) return { rr: rrBaseline, rrAbs: rrBaselineAbs };
     return rrBaseline;
   });
 
@@ -1491,7 +1491,13 @@ async function reporting(fastify) {
                 const recistReport = recistRequired ? fastify.getRecist(aimsRes.rows) : undefined;
                 const longitudinalReport = longitudinalRequired
                   ? // eslint-disable-next-line no-await-in-loop
-                    await fastify.getLongitudinal(aimsRes.rows, template, shapes, undefined, metric)
+                    await fastify.getLongitudinal(
+                      aimsRes.rows,
+                      template,
+                      shapes,
+                      undefined,
+                      undefined
+                    )
                   : undefined;
                 const report = longitudinalReport || recistReport;
                 // if both merge
