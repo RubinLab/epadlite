@@ -2292,7 +2292,7 @@ async function other(fastify) {
       if (queryObj.fields.query.trim() !== '') {
         // query always case insensitive to handle search
         // TODO how about ids? ids are not in the default index. ignoring for now
-        // const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
+        const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
         queryParts.push(`${cleanedValue}`);
       }
     }
