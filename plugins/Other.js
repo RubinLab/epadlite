@@ -2291,21 +2291,22 @@ async function other(fastify) {
   fastify.decorate('reformatQuery', (inputString) => {
     let outputString = '';
     // Replace fancy quotes with regular quotes
+    // eslint-disable-next-line no-param-reassign
     inputString = inputString.replace(/[\u201C\u201D]/g, '"').toLowerCase();
     for (let i = 0; i < inputString.length; i += 1) {
-      const prevCharacter = outputString[outputString.length - 1]
+      const prevCharacter = outputString[outputString.length - 1];
       const cha = inputString[i];
-      if (cha == '"') {
+      if (cha === '"') {
         // We want `"some stuff"` to turn into the regex /.*some stuff.*/
         // and we want `""thing""` to be whole-word matching, so it matches `thing`
         // but not `something`.
-        let twoQuotes = (inputString[i+1] == '"');
+        const twoQuotes = inputString[i + 1] === '"';
         if (twoQuotes) {
           i += 1;
         }
         let j = i + 1;
         while (j < inputString.length) {
-          if (inputString[j] == '"' && (!twoQuotes || inputString[j+1] == '"')) {
+          if (inputString[j] === '"' && (!twoQuotes || inputString[j + 1] === '"')) {
             break;
           }
           j += 1;
@@ -2326,44 +2327,45 @@ async function other(fastify) {
           //   Matches strings which start with stuffInQuotes
           // '.*[^a-z0-9]' + stuffInQuotes + '[^a-z0-9].*'
           //   Matches strings with stuffInQuotes in the middle.
-          outputString = '/.*[^a-z0-9]' + stuffInQuotes + '[^a-z0-9].*|' + stuffInQuotes;
-          outputString += '[^a-z0-9].*|.*[^a-z0-9]' + stuffInQuotes + '|' + stuffInQuotes + '/';
+          outputString = `/.*[^a-z0-9]${stuffInQuotes}[^a-z0-9].*|${stuffInQuotes}`;
+          outputString += `[^a-z0-9].*|.*[^a-z0-9]${stuffInQuotes}|${stuffInQuotes}/`;
           i += 1;
         } else {
-          outputString += '/.*' + stuffInQuotes + '.*/';
+          outputString += `/.*${stuffInQuotes}.*/`;
         }
-      } else { // We are not in quotation marks
-        if (cha == ' ') {
-          continue;
-        } else if (cha == '(' || cha == ')') {
-          if (cha == '(' && ![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
-            outputString += ' ';
+      }
+      // We are not in quotation marks
+      else if (cha === ' ') {
+        // nothing to do for space
+      } else if (cha === '(' || cha === ')') {
+        if (cha === '(' && ![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
+          outputString += ' ';
+        }
+        outputString += cha;
+      } else {
+        // We find the start of a word
+        let j = i + 1;
+        // This finds the end of the word
+        while (j < inputString.length) {
+          if ([' ', '(', ')', '"'].includes(inputString[j])) {
+            break;
           }
-          outputString += cha;
-        } else { // We find the start of a word
-          let j = i + 1;
-          // This finds the end of the word
-          while (j < inputString.length) {
-            if ([' ', '(', ')', '"'].includes(inputString[j])) {
-              break;
-            }
-            j += 1;
-          }
-          let word = inputString.substring(i, j);
-          i = j - 1;
-          if (![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
-            outputString += ' ';
-          }
-          if (word == 'and' || word == 'or' || word == 'not') {
-            outputString += word.toUpperCase();
-          } else {
-            word = fastify.escapeCharacters(word, false);
-            outputString += '/.*' + word + '.*/';
-          }
+          j += 1;
+        }
+        let word = inputString.substring(i, j);
+        i = j - 1;
+        if (![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
+          outputString += ' ';
+        }
+        if (word === 'and' || word === 'or' || word === 'not') {
+          outputString += word.toUpperCase();
+        } else {
+          word = fastify.escapeCharacters(word, false);
+          outputString += `/.*${word}.*/`;
         }
       }
     }
-    if (outputString.length == 0) {
+    if (outputString.length === 0) {
       return '/.*/';
     }
     return outputString;
@@ -2372,8 +2374,25 @@ async function other(fastify) {
   // Escapes any special characters that are inside quotation marks.
   fastify.decorate('escapeCharacters', (inputString, escapeParentheses) => {
     // Escapes any special characters in quotation marks
-    const charsToEscape = ['+', '-', '!', '{', '}', '[', ']', '^', '~',
-      '*', '?', ':', '\\', '/', '.', '$', '^']
+    const charsToEscape = [
+      '+',
+      '-',
+      '!',
+      '{',
+      '}',
+      '[',
+      ']',
+      '^',
+      '~',
+      '*',
+      '?',
+      ':',
+      '\\',
+      '/',
+      '.',
+      '$',
+      '^',
+    ];
     if (escapeParentheses) {
       charsToEscape.push('(');
       charsToEscape.push(')');
@@ -2383,7 +2402,8 @@ async function other(fastify) {
       len2Escape = len2Escape && ['&', '|'].includes(inputString[i]);
       len2Escape = len2Escape && ['&', '|'].includes(inputString[i + 1]);
       if (charsToEscape.includes(inputString[i]) || len2Escape) {
-        inputString = inputString.slice(0, i) + '\\' + inputString.slice(i);
+        // eslint-disable-next-line no-param-reassign
+        inputString = `${inputString.slice(0, i)}\\${inputString.slice(i)}`;
       }
     }
     return inputString.toLowerCase();
