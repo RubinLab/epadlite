@@ -2316,7 +2316,7 @@ async function other(fastify) {
         }
         let stuffInQuotes = inputString.substring(i + 1, j);
         i = j;
-        stuffInQuotes = fastify.escapeCharacters(stuffInQuotes, true);
+        stuffInQuotes = fastify.escapeCharacters(stuffInQuotes, true, true);
         if (twoQuotes) {
           // This is the best regex I could come up with for whole-word matching.
           // stuffInQuotes:
@@ -2327,7 +2327,7 @@ async function other(fastify) {
           //   Matches strings which start with stuffInQuotes
           // '.*[^a-z0-9]' + stuffInQuotes + '[^a-z0-9].*'
           //   Matches strings with stuffInQuotes in the middle.
-          outputString = `/.*[^a-z0-9]${stuffInQuotes}[^a-z0-9].*|${stuffInQuotes}`;
+          outputString += `/.*[^a-z0-9]${stuffInQuotes}[^a-z0-9].*|${stuffInQuotes}`;
           outputString += `[^a-z0-9].*|.*[^a-z0-9]${stuffInQuotes}|${stuffInQuotes}/`;
           i += 1;
         } else {
@@ -2360,7 +2360,7 @@ async function other(fastify) {
         if (word === 'and' || word === 'or' || word === 'not') {
           outputString += word.toUpperCase();
         } else {
-          word = fastify.escapeCharacters(word, false);
+          word = fastify.escapeCharacters(word, false, false);
           outputString += `/.*${word}.*/`;
         }
       }
@@ -2372,7 +2372,7 @@ async function other(fastify) {
   });
 
   // Escapes any special characters that are inside quotation marks.
-  fastify.decorate('escapeCharacters', (inputString, escapeParentheses) => {
+  fastify.decorate('escapeCharacters', (inputString, escapeParentheses, escapeSpaces) => {
     // Escapes any special characters in quotation marks
     const charsToEscape = [
       '+',
@@ -2397,6 +2397,9 @@ async function other(fastify) {
       charsToEscape.push('(');
       charsToEscape.push(')');
     }
+    if (escapeSpaces) {
+      charsToEscape.push(' ');
+    }
     for (let i = inputString.length - 1; i >= 0; i -= 1) {
       let len2Escape = i < inputString.length - 1;
       len2Escape = len2Escape && ['&', '|'].includes(inputString[i]);
@@ -2415,7 +2418,7 @@ async function other(fastify) {
       if (queryObj.fields.query.trim() !== '') {
         // query always case insensitive to handle search
         // TODO how about ids? ids are not in the default index. ignoring for now
-        const cleanedValue = fastify.reformatQuery(queryObj.fields.query).replaceAll(' ', '\\ ');
+        const cleanedValue = fastify.reformatQuery(queryObj.fields.query);
         queryParts.push(`${cleanedValue}`);
       }
     }
