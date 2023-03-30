@@ -893,9 +893,75 @@ async function dicomwebserver(fastify) {
                 key: '00200011',
                 value: '',
               },
+              {
+                key: '00080031',
+                value: '',
+              },
             ],
           }),
           (result) => {
+            console.log(
+              'dimseparams',
+              JSON.stringify({
+                source: {
+                  aet: 'FINDSCU',
+                  ip: dimseConf.sourceIp || '127.0.0.1',
+                  port: '9999',
+                },
+                target: {
+                  aet: dimseConf.aet,
+                  ip: dimseConf.ip,
+                  port: dimseConf.port,
+                },
+                tags: [
+                  {
+                    key: '0020000D',
+                    value: studyUID,
+                  },
+                  {
+                    key: '00080052',
+                    value: 'SERIES',
+                  },
+                  {
+                    key: '00080021',
+                    value: '',
+                  },
+                  {
+                    key: '0008103E',
+                    value: '',
+                  },
+                  {
+                    key: '0020000E',
+                    value: '',
+                  },
+                  {
+                    key: '00080060',
+                    value: '',
+                  },
+                  {
+                    key: '00080050',
+                    value: '',
+                  },
+                  {
+                    key: '00201209',
+                    value: '',
+                  },
+                  {
+                    key: '00201209',
+                    value: '',
+                  },
+                  {
+                    key: '00200011',
+                    value: '',
+                  },
+                  {
+                    key: '00080031',
+                    value: '',
+                  },
+                ],
+              })
+            );
+            console.log('dimseresult', JSON.stringify(result));
             resolve(result);
           }
         );
