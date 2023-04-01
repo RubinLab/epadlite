@@ -256,7 +256,7 @@ describe('User Rights Tests', () => {
         });
     });
   });
-  describe('Aim Access Tests', () => {
+  describe.only('Aim Access Tests', () => {
     before(async () => {
       // create aims for all 4 users
       try {
@@ -367,6 +367,111 @@ describe('User Rights Tests', () => {
           done(e);
         });
     });
+    // reporting tests start
+    it('should return correct longitudinal report for collaborator', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then((res) => {
+          console.log('report', JSON.stringify(res.body));
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.property('testcollaborator@gmail.com');
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+            'testcollaborator_lesion1'
+          );
+          expect(res.body).to.not.have.property('testmember@gmail.com');
+          expect(res.body).to.not.have.property('testowner@gmail.com');
+          expect(res.body).to.not.have.property('testadmin@gmail.com');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal report for member', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
+        .query({ username: 'testMember@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.property('testcollaborator@gmail.com');
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+            'testcollaborator_lesion1'
+          );
+          expect(res.body).to.have.property('testmember@gmail.com');
+          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('testmember_lesion1');
+          expect(res.body).to.have.property('testowner@gmail.com');
+          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('testowner_lesion1');
+          expect(res.body).to.have.property('testadmin@gmail.com');
+          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('testadmin_lesion1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal report for owner', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
+        .query({ username: 'testOwner@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.property('testcollaborator@gmail.com');
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+            'testcollaborator_lesion1'
+          );
+          expect(res.body).to.have.property('testmember@gmail.com');
+          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('testmember_lesion1');
+          expect(res.body).to.have.property('testowner@gmail.com');
+          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('testowner_lesion1');
+          expect(res.body).to.have.property('testadmin@gmail.com');
+          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('testadmin_lesion1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal report for admin', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
+        .query({ username: 'testAdmin@gmail.com' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.property('testcollaborator@gmail.com');
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+            'testcollaborator_lesion1'
+          );
+          expect(res.body).to.have.property('testmember@gmail.com');
+          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('testmember_lesion1');
+          expect(res.body).to.have.property('testowner@gmail.com');
+          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('testowner_lesion1');
+          expect(res.body).to.have.property('testadmin@gmail.com');
+          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('testadmin_lesion1');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    // reporting tests end
     it('should succeed in editing own aim for admin ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -419,7 +524,7 @@ describe('User Rights Tests', () => {
             'admin_edited';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
-            { name: { value: 'admin' }, loginName: { value: 'admin' } }
+            { name: { value: 'admin' }, loginName: { value: 'testAdmin@gmail.com' } }
           );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -464,7 +569,7 @@ describe('User Rights Tests', () => {
             'admin_edited';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
-            { name: { value: 'admin' }, loginName: { value: 'admin' } }
+            { name: { value: 'admin' }, loginName: { value: 'testAdmin@gmail.com' } }
           );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -509,7 +614,7 @@ describe('User Rights Tests', () => {
             'admin_edited';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
-            { name: { value: 'admin' }, loginName: { value: 'admin' } }
+            { name: { value: 'admin' }, loginName: { value: 'testAdmin@gmail.com' } }
           );
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
@@ -987,6 +1092,106 @@ describe('User Rights Tests', () => {
           done(e);
         });
     });
+    // reporting tests after edits start
+    it('should return correct longitudinal report for collaborator after edits', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
+        .query({ username: 'testCollaborator@gmail.com' })
+        .then((res) => {
+          console.log('report', JSON.stringify(res.body));
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.property('testcollaborator@gmail.com');
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.not.have.property('testmember@gmail.com');
+          expect(res.body).to.not.have.property('testowner@gmail.com');
+          expect(res.body).to.not.have.property('testadmin@gmail.com');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal report for member after edits', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
+        .query({ username: 'testMember@gmail.com' })
+        .then((res) => {
+          console.log('report', JSON.stringify(res.body));
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.property('testcollaborator@gmail.com');
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.have.property('testmember@gmail.com');
+          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('member_edited');
+          expect(res.body).to.have.property('testowner@gmail.com');
+          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.have.property('testadmin@gmail.com');
+          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal report for owner after edits', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
+        .query({ username: 'testOwner@gmail.com' })
+        .then((res) => {
+          console.log('report', JSON.stringify(res.body));
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.property('testcollaborator@gmail.com');
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.have.property('testmember@gmail.com');
+          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('member_edited');
+          expect(res.body).to.have.property('testowner@gmail.com');
+          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.have.property('testadmin@gmail.com');
+          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return correct longitudinal report for admin after edits', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
+        .query({ username: 'testAdmin@gmail.com' })
+        .then((res) => {
+          console.log('report', JSON.stringify(res.body));
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.property('testcollaborator@gmail.com');
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.have.property('testmember@gmail.com');
+          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('member_edited');
+          expect(res.body).to.have.property('testowner@gmail.com');
+          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.have.property('testadmin@gmail.com');
+          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    // reporting tests after edits end
     it(`bulk project aim deletion of collaborator's aim by member should fail`, (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
