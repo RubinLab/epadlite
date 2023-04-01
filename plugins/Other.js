@@ -2468,7 +2468,6 @@ async function other(fastify) {
       const rightsFilter = await fastify.getRightsFilter(queryObj, epadAuth);
       if (rightsFilter) queryParts.push(`(${rightsFilter})`);
     }
-    console.log(`Generated query is ${queryParts.length > 0 ? queryParts.join(' AND ') : '*:*'}`);
     return queryParts.length > 0 ? queryParts.join(' AND ') : '*:*';
   });
 
