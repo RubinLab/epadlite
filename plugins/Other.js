@@ -2419,7 +2419,7 @@ async function other(fastify) {
         // query always case insensitive to handle search
         // TODO how about ids? ids are not in the default index. ignoring for now
         const cleanedValue = fastify.reformatQuery(queryObj.fields.query);
-        queryParts.push(`${cleanedValue}`);
+        queryParts.push(`(${cleanedValue})`);
       }
     }
     // add filters
