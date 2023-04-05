@@ -914,11 +914,26 @@ async function dicomwebserver(fastify) {
           try {
             // use vna if there is a successfull result from vna
             // it means the study is already archived
-            // we assume the series data does not change one it is archived
-            const resultsJSON = results.map((item) => JSON.parse(item));
-            const jsonResult =
-              resultsJSON[1].code === 0 && resultsJSON[1].container ? resultsJSON[1] : results[0];
-            const res = jsonResult.container ? JSON.parse(jsonResult.container) : [];
+            // we assume the series data does not change once it is archived
+            const containerJSONs = results
+              .map((item) => JSON.parse(item))
+              .filter((item) => item.code === 0 && item.container) // sanity check for success in retrieval
+              .map((item) => JSON.parse(item.container)); // convert container to JSON
+            // get Sectra by default
+            let res = containerJSONs[0];
+            if (containerJSONs[1]) {
+              // check if VNA has series that are not SR
+              const filtered = containerJSONs[1].filter(
+                (item) =>
+                  item['00080060'] &&
+                  item['00080060'].Value &&
+                  item['00080060'].Value[0] &&
+                  item['00080060'].Value[0] !== 'SR'
+              );
+              // if VNA set is not empty after removing SR then return VNA instead
+              // eslint-disable-next-line prefer-destructuring
+              if (filtered.length > 0) res = containerJSONs[1];
+            }
             resolve({ data: res });
           } catch (err) {
             reject(err);
