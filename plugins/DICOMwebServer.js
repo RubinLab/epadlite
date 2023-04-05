@@ -919,12 +919,11 @@ async function dicomwebserver(fastify) {
               .map((item) => JSON.parse(item))
               .filter((item) => item.code === 0 && item.container) // sanity check for success in retrieval
               .map((item) => JSON.parse(item.container)); // convert container to JSON
-            console.log('containerJSONs', JSON.stringify(containerJSONs));
             // get Sectra by default
             let res = containerJSONs[0];
             if (containerJSONs[1]) {
               // check if VNA has series that are not SR
-              const filtered = res.filter(
+              const filtered = containerJSONs[1].filter(
                 (item) =>
                   item['00080060'] &&
                   item['00080060'].Value &&
