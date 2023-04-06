@@ -489,9 +489,20 @@ async function reporting(fastify) {
       const lesions = table.concat(tableV2);
       const targetTypes = ['target', 'target lesion', 'resolved lesion'];
       const users = {};
+      const collab = fastify.isCollaborator(request.params.project, request.epadAuth);
+
       // first pass fill in the lesion names and study dates (x and y axis of the table)
       for (let i = 0; i < lesions.length; i += 1) {
-        const username = lesions[i].username.value.toLowerCase();
+        // check if the user is a collaborator
+        // if so only get his/her username, ignore the rest
+        const username = lesions[i].username.value;
+        if (collab && username !== request.epadAuth.username) {
+          fastify.log.warn(
+            `Ignoring ${username}'s annotations for collaborator ${request.epadAuth.username}`
+          );
+          // eslint-disable-next-line no-continue
+          continue;
+        }
         if (!users[username]) {
           users[username] = {
             tLesionNames: [],
@@ -890,12 +901,22 @@ async function reporting(fastify) {
           shapes
         );
         if (lesions.length === 0) return null;
-
+        const collab = fastify.isCollaborator(request.params.project, request.epadAuth);
         // get targets
         const users = {};
         // first pass fill in the lesion names and study dates (x and y axis of the table)
         for (let i = 0; i < lesions.length; i += 1) {
-          const username = lesions[i].username.value.toLowerCase();
+          // check if the user is a collaborator
+          // if so only get his/her username, ignore the rest
+          const username = lesions[i].username.value;
+          if (collab && username !== request.epadAuth.username) {
+            fastify.log.warn(
+              `Ignoring ${username}'s annotations for collaborator ${request.epadAuth.username}`
+            );
+            // eslint-disable-next-line no-continue
+            continue;
+          }
+
           if (!users[username]) {
             users[username] = {
               tLesionNames: [],
