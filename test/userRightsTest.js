@@ -374,16 +374,15 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testCollaborator@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.have.property('testcollaborator@gmail.com');
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+          expect(res.body).to.have.property('testCollaborator@gmail.com');
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
             'testcollaborator_lesion1'
           );
-          expect(res.body).to.not.have.property('testmember@gmail.com');
-          expect(res.body).to.not.have.property('testowner@gmail.com');
-          expect(res.body).to.not.have.property('testadmin@gmail.com');
+          expect(res.body).to.not.have.property('testMember@gmail.com');
+          expect(res.body).to.not.have.property('testOwner@gmail.com');
+          expect(res.body).to.not.have.property('testAdmin@gmail.com');
           done();
         })
         .catch((e) => {
@@ -397,20 +396,20 @@ describe('User Rights Tests', () => {
         .query({ username: 'testMember@gmail.com' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.have.property('testcollaborator@gmail.com');
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+          expect(res.body).to.have.property('testCollaborator@gmail.com');
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
             'testcollaborator_lesion1'
           );
-          expect(res.body).to.have.property('testmember@gmail.com');
-          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('testmember_lesion1');
-          expect(res.body).to.have.property('testowner@gmail.com');
-          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('testowner_lesion1');
-          expect(res.body).to.have.property('testadmin@gmail.com');
-          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('testadmin_lesion1');
+          expect(res.body).to.have.property('testMember@gmail.com');
+          expect(res.body['testMember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testMember@gmail.com'].tLesionNames[0]).to.be.eql('testmember_lesion1');
+          expect(res.body).to.have.property('testOwner@gmail.com');
+          expect(res.body['testOwner@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testOwner@gmail.com'].tLesionNames[0]).to.be.eql('testowner_lesion1');
+          expect(res.body).to.have.property('testAdmin@gmail.com');
+          expect(res.body['testAdmin@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testAdmin@gmail.com'].tLesionNames[0]).to.be.eql('testadmin_lesion1');
           done();
         })
         .catch((e) => {
@@ -424,20 +423,20 @@ describe('User Rights Tests', () => {
         .query({ username: 'testOwner@gmail.com' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.have.property('testcollaborator@gmail.com');
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+          expect(res.body).to.have.property('testCollaborator@gmail.com');
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
             'testcollaborator_lesion1'
           );
-          expect(res.body).to.have.property('testmember@gmail.com');
-          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('testmember_lesion1');
-          expect(res.body).to.have.property('testowner@gmail.com');
-          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('testowner_lesion1');
-          expect(res.body).to.have.property('testadmin@gmail.com');
-          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('testadmin_lesion1');
+          expect(res.body).to.have.property('testMember@gmail.com');
+          expect(res.body['testMember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testMember@gmail.com'].tLesionNames[0]).to.be.eql('testmember_lesion1');
+          expect(res.body).to.have.property('testOwner@gmail.com');
+          expect(res.body['testOwner@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testOwner@gmail.com'].tLesionNames[0]).to.be.eql('testowner_lesion1');
+          expect(res.body).to.have.property('testAdmin@gmail.com');
+          expect(res.body['testAdmin@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testAdmin@gmail.com'].tLesionNames[0]).to.be.eql('testadmin_lesion1');
           done();
         })
         .catch((e) => {
@@ -451,20 +450,20 @@ describe('User Rights Tests', () => {
         .query({ username: 'testAdmin@gmail.com' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.have.property('testcollaborator@gmail.com');
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+          expect(res.body).to.have.property('testCollaborator@gmail.com');
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
             'testcollaborator_lesion1'
           );
-          expect(res.body).to.have.property('testmember@gmail.com');
-          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('testmember_lesion1');
-          expect(res.body).to.have.property('testowner@gmail.com');
-          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('testowner_lesion1');
-          expect(res.body).to.have.property('testadmin@gmail.com');
-          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('testadmin_lesion1');
+          expect(res.body).to.have.property('testMember@gmail.com');
+          expect(res.body['testMember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testMember@gmail.com'].tLesionNames[0]).to.be.eql('testmember_lesion1');
+          expect(res.body).to.have.property('testOwner@gmail.com');
+          expect(res.body['testOwner@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testOwner@gmail.com'].tLesionNames[0]).to.be.eql('testowner_lesion1');
+          expect(res.body).to.have.property('testAdmin@gmail.com');
+          expect(res.body['testAdmin@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testAdmin@gmail.com'].tLesionNames[0]).to.be.eql('testadmin_lesion1');
           done();
         })
         .catch((e) => {
@@ -479,7 +478,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testAdmin@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'admin_edited';
+            'admin_edited_admins';
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
@@ -506,7 +505,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('admin_edited');
+          ).to.equal('admin_edited_admins');
           done();
         })
         .catch((e) => {
@@ -521,7 +520,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testAdmin@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'admin_edited';
+            'admin_edited_owners';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
             { name: { value: 'admin' }, loginName: { value: 'testAdmin@gmail.com' } }
@@ -552,7 +551,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('admin_edited');
+          ).to.equal('admin_edited_owners');
           done();
         })
         .catch((e) => {
@@ -566,7 +565,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testAdmin@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'admin_edited';
+            'admin_edited_members';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
             { name: { value: 'admin' }, loginName: { value: 'testAdmin@gmail.com' } }
@@ -597,7 +596,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('admin_edited');
+          ).to.equal('admin_edited_members');
           done();
         })
         .catch((e) => {
@@ -611,7 +610,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testAdmin@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'admin_edited';
+            'admin_edited_collaborators';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
             { name: { value: 'admin' }, loginName: { value: 'testAdmin@gmail.com' } }
@@ -642,7 +641,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('admin_edited');
+          ).to.equal('admin_edited_collaborators');
           done();
         })
         .catch((e) => {
@@ -657,7 +656,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testCollaborator@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'collaborator_edited';
+            'collaborator_edited_collaborators';
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
@@ -684,7 +683,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('collaborator_edited');
+          ).to.equal('collaborator_edited_collaborators');
           done();
         })
         .catch((e) => {
@@ -708,7 +707,7 @@ describe('User Rights Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
       jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testAdmin@gmail.com';
       jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-        'collaborator_edited';
+        'collaborator_edited_admins';
       jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
         '2.25.3526547897685764352413254324135453';
 
@@ -742,7 +741,7 @@ describe('User Rights Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
       jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testOwner@gmail.com';
       jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-        'collaborator_edited';
+        'collaborator_edited_owners';
       jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
         '2.25.3526547897685764352413254324135454';
 
@@ -776,7 +775,7 @@ describe('User Rights Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
       jsonBuffer.ImageAnnotationCollection.user.loginName.value = 'testMember@gmail.com';
       jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-        'collaborator_edited';
+        'collaborator_edited_members';
       jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
         '2.25.3526547897685764352413254324135455';
 
@@ -800,7 +799,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testOwner@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'owner_edited';
+            'owner_edited_admins';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
             { name: { value: 'testOwner testOwner' }, loginName: { value: 'testOwner@gmail.com' } }
@@ -831,7 +830,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('owner_edited');
+          ).to.equal('owner_edited_admins');
           done();
         })
         .catch((e) => {
@@ -845,7 +844,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testOwner@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'owner_edited';
+            'owner_edited_owners';
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
@@ -872,7 +871,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('owner_edited');
+          ).to.equal('owner_edited_owners');
           done();
         })
         .catch((e) => {
@@ -886,7 +885,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testOwner@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'owner_edited';
+            'owner_edited_members';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
             { name: { value: 'testOwner testOwner' }, loginName: { value: 'testOwner@gmail.com' } }
@@ -917,7 +916,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('owner_edited');
+          ).to.equal('owner_edited_members');
           done();
         })
         .catch((e) => {
@@ -931,7 +930,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testOwner@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'owner_edited';
+            'owner_edited_collaborators';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
             { name: { value: 'testOwner testOwner' }, loginName: { value: 'testOwner@gmail.com' } }
@@ -962,7 +961,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('owner_edited');
+          ).to.equal('owner_edited_collaborators');
           done();
         })
         .catch((e) => {
@@ -976,7 +975,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testMember@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'member_edited';
+            'member_edited_admins';
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135453')
@@ -1001,7 +1000,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testMember@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'member_edited';
+            'member_edited_owners';
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135454')
@@ -1026,7 +1025,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testMember@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'member_edited';
+            'member_edited_members';
           res.body.ImageAnnotationCollection.user = appendUser(
             res.body.ImageAnnotationCollection.user,
             {
@@ -1060,7 +1059,7 @@ describe('User Rights Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(
             res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value
-          ).to.equal('member_edited');
+          ).to.equal('member_edited_members');
           done();
         })
         .catch((e) => {
@@ -1074,7 +1073,7 @@ describe('User Rights Tests', () => {
         .query({ username: 'testMember@gmail.com' })
         .then((res) => {
           res.body.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].name.value =
-            'member_edited';
+            'member_edited_collaborators';
           chai
             .request(`http://${process.env.host}:${process.env.port}`)
             .put('/projects/testRights1/aims/2.25.3526547897685764352413254324135456')
@@ -1099,14 +1098,15 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testCollaborator@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.have.property('testcollaborator@gmail.com');
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
-          expect(res.body).to.not.have.property('testmember@gmail.com');
-          expect(res.body).to.not.have.property('testowner@gmail.com');
-          expect(res.body).to.not.have.property('testadmin@gmail.com');
+          expect(res.body).to.have.property('testCollaborator@gmail.com');
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+            'owner_edited_collaborators'
+          );
+          expect(res.body).to.not.have.property('testMember@gmail.com');
+          expect(res.body).to.not.have.property('testOwner@gmail.com');
+          expect(res.body).to.not.have.property('testAdmin@gmail.com');
           done();
         })
         .catch((e) => {
@@ -1119,20 +1119,33 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testMember@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.have.property('testcollaborator@gmail.com');
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
-          expect(res.body).to.have.property('testmember@gmail.com');
-          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('member_edited');
-          expect(res.body).to.have.property('testowner@gmail.com');
-          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
-          expect(res.body).to.have.property('testadmin@gmail.com');
-          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.have.property('testCollaborator@gmail.com');
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+            'owner_edited_collaborators'
+          );
+          expect(res.body).to.have.property('testMember@gmail.com');
+          expect(res.body['testMember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testMember@gmail.com'].tLesionNames[0]).to.be.eql(
+            'member_edited_members'
+          );
+          expect(res.body).to.have.property('testOwner@gmail.com');
+          expect(res.body['testOwner@gmail.com'].tLesionNames.length).to.be.eql(4);
+          expect(res.body['testOwner@gmail.com'].tLesionNames).to.be.deep.eq([
+            'member_edited_members',
+            'owner_edited_admins',
+            'owner_edited_collaborators',
+            'owner_edited_owners',
+          ]);
+          expect(res.body).to.have.property('testAdmin@gmail.com');
+          expect(res.body['testAdmin@gmail.com'].tLesionNames.length).to.be.eql(4);
+          expect(res.body['testAdmin@gmail.com'].tLesionNames).to.be.deep.eq([
+            'member_edited_members',
+            'owner_edited_admins',
+            'owner_edited_collaborators',
+            'owner_edited_owners',
+          ]);
           done();
         })
         .catch((e) => {
@@ -1145,20 +1158,33 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testOwner@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.have.property('testcollaborator@gmail.com');
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
-          expect(res.body).to.have.property('testmember@gmail.com');
-          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('member_edited');
-          expect(res.body).to.have.property('testowner@gmail.com');
-          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
-          expect(res.body).to.have.property('testadmin@gmail.com');
-          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.have.property('testCollaborator@gmail.com');
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+            'owner_edited_collaborators'
+          );
+          expect(res.body).to.have.property('testMember@gmail.com');
+          expect(res.body['testMember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testMember@gmail.com'].tLesionNames[0]).to.be.eql(
+            'member_edited_members'
+          );
+          expect(res.body).to.have.property('testOwner@gmail.com');
+          expect(res.body['testOwner@gmail.com'].tLesionNames.length).to.be.eql(4);
+          expect(res.body['testOwner@gmail.com'].tLesionNames).to.be.deep.eq([
+            'member_edited_members',
+            'owner_edited_admins',
+            'owner_edited_collaborators',
+            'owner_edited_owners',
+          ]);
+          expect(res.body).to.have.property('testAdmin@gmail.com');
+          expect(res.body['testAdmin@gmail.com'].tLesionNames.length).to.be.eql(4);
+          expect(res.body['testAdmin@gmail.com'].tLesionNames).to.be.deep.eq([
+            'member_edited_members',
+            'owner_edited_admins',
+            'owner_edited_collaborators',
+            'owner_edited_owners',
+          ]);
           done();
         })
         .catch((e) => {
@@ -1171,20 +1197,33 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testAdmin@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
-          expect(res.body).to.have.property('testcollaborator@gmail.com');
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testcollaborator@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
-          expect(res.body).to.have.property('testmember@gmail.com');
-          expect(res.body['testmember@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testmember@gmail.com'].tLesionNames[0]).to.be.eql('member_edited');
-          expect(res.body).to.have.property('testowner@gmail.com');
-          expect(res.body['testowner@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testowner@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
-          expect(res.body).to.have.property('testadmin@gmail.com');
-          expect(res.body['testadmin@gmail.com'].tLesionNames.length).to.be.eql(1);
-          expect(res.body['testadmin@gmail.com'].tLesionNames[0]).to.be.eql('owner_edited');
+          expect(res.body).to.have.property('testCollaborator@gmail.com');
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testCollaborator@gmail.com'].tLesionNames[0]).to.be.eql(
+            'owner_edited_collaborators'
+          );
+          expect(res.body).to.have.property('testMember@gmail.com');
+          expect(res.body['testMember@gmail.com'].tLesionNames.length).to.be.eql(1);
+          expect(res.body['testMember@gmail.com'].tLesionNames[0]).to.be.eql(
+            'member_edited_members'
+          );
+          expect(res.body).to.have.property('testOwner@gmail.com');
+          expect(res.body['testOwner@gmail.com'].tLesionNames.length).to.be.eql(4);
+          expect(res.body['testOwner@gmail.com'].tLesionNames).to.be.deep.eq([
+            'member_edited_members',
+            'owner_edited_admins',
+            'owner_edited_collaborators',
+            'owner_edited_owners',
+          ]);
+          expect(res.body).to.have.property('testAdmin@gmail.com');
+          expect(res.body['testAdmin@gmail.com'].tLesionNames.length).to.be.eql(4);
+          expect(res.body['testAdmin@gmail.com'].tLesionNames).to.be.deep.eq([
+            'member_edited_members',
+            'owner_edited_admins',
+            'owner_edited_collaborators',
+            'owner_edited_owners',
+          ]);
           done();
         })
         .catch((e) => {
