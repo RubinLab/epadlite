@@ -13989,6 +13989,18 @@ async function epaddb(fastify, options, done) {
             fastify.log.warn('project_aim_user table is filled ');
 
             await fastify.orm.query(
+              `DELETE FROM project_plugin 
+                WHERE plugin_id NOT IN (SELECT ID FROM plugin);`,
+              { transaction: t }
+            );
+
+            await fastify.orm.query(
+              `DELETE FROM project_plugin 
+                WHERE project_id NOT IN (SELECT ID FROM project);`,
+              { transaction: t }
+            );
+
+            await fastify.orm.query(
               `ALTER TABLE project_plugin 
                 DROP FOREIGN KEY IF EXISTS project_plugin_ibfk_1,
                 DROP FOREIGN KEY IF EXISTS project_plugin_ibfk_2;`,
