@@ -444,7 +444,7 @@ async function reporting(fastify) {
     return [];
   });
 
-  fastify.decorate('getRecist', (aimJSONs, request) => {
+  fastify.decorate('getRecist', (aimJSONs, request, collab) => {
     try {
       const table = fastify.fillTable(aimJSONs, 'RECIST', [
         'Name',
@@ -489,7 +489,6 @@ async function reporting(fastify) {
       const lesions = table.concat(tableV2);
       const targetTypes = ['target', 'target lesion', 'resolved lesion'];
       const users = {};
-      const collab = fastify.isCollaborator(request.params.project, request.epadAuth);
 
       // first pass fill in the lesion names and study dates (x and y axis of the table)
       for (let i = 0; i < lesions.length; i += 1) {
@@ -877,7 +876,7 @@ async function reporting(fastify) {
 
   fastify.decorate(
     'getLongitudinal',
-    async (aims, template, shapes, request, metric = true, html = false) => {
+    async (aims, template, shapes, request, metric = true, html = false, collab) => {
       try {
         const lesions = fastify.fillTable(
           aims,
@@ -901,7 +900,6 @@ async function reporting(fastify) {
           shapes
         );
         if (lesions.length === 0) return null;
-        const collab = fastify.isCollaborator(request.params.project, request.epadAuth);
         // get targets
         const users = {};
         // first pass fill in the lesion names and study dates (x and y axis of the table)
@@ -1458,17 +1456,21 @@ async function reporting(fastify) {
               fastify.log.info(
                 `${aimsRes.rows.length} aims found for ${subjProjPairs[i].subjectID}`
               );
+              const collab = fastify.isCollaborator(params.project, epadAuth);
               if (!exportCalcs) {
+                // here
                 const report =
                   metric === 'RECIST'
-                    ? fastify.getRecist(aimsRes.rows)
+                    ? fastify.getRecist(aimsRes.rows, undefined, collab)
                     : // eslint-disable-next-line no-await-in-loop
                       await fastify.getLongitudinal(
                         aimsRes.rows,
                         template,
                         shapes,
                         undefined,
-                        metric
+                        metric,
+                        false,
+                        collab
                       );
                 if (report == null) {
                   fastify.log.warn(
@@ -1509,7 +1511,10 @@ async function reporting(fastify) {
                   if (exportCalcs[valNum].field === 'recist') recistRequired = true;
                   else longitudinalRequired = true;
                 }
-                const recistReport = recistRequired ? fastify.getRecist(aimsRes.rows) : undefined;
+                // here
+                const recistReport = recistRequired
+                  ? fastify.getRecist(aimsRes.rows, undefined, collab)
+                  : undefined;
                 const longitudinalReport = longitudinalRequired
                   ? // eslint-disable-next-line no-await-in-loop
                     await fastify.getLongitudinal(
@@ -1517,7 +1522,9 @@ async function reporting(fastify) {
                       template,
                       shapes,
                       undefined,
-                      undefined
+                      undefined,
+                      false,
+                      collab
                     )
                   : undefined;
                 const report = longitudinalReport || recistReport;
