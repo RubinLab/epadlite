@@ -72,81 +72,80 @@ async function dicomwebserver(fastify) {
             fastify.log.error(`Error adding Root certificates to trust. Error: ${err.message}`);
           }
           // see if we can authenticate
-          if (config.dicomWebConfig.authServerUrl) {
-            accessToken = await keycloak.accessToken.get();
-            if (accessToken) {
+          if (config.dicomWebConfig) {
+            if (config.dicomWebConfig.authServerUrl) {
+              accessToken = await keycloak.accessToken.get();
+              if (accessToken) {
+                header = {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                  },
+                };
+              }
+            } else if (config.dicomWebConfig.username) {
+              const encoded = btoa(
+                `${config.dicomWebConfig.username}:${config.dicomWebConfig.password}`
+              );
               header = {
                 headers: {
-                  Authorization: `Bearer ${accessToken}`,
+                  Authorization: `Basic ${encoded}`,
                 },
               };
-              this.request = Axios.create({
-                baseURL: config.dicomWebConfig.baseUrl,
-                headers: { ...header.headers, accept: 'application/json' },
-                httpsAgent,
-              });
-              this.wadoRequest = Axios.create({
-                baseURL: config.dicomWebConfig.baseUrl,
-                headers: header.headers,
-                httpsAgent,
-              });
-              this.request
-                .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
-                .then(() => {
-                  resolve();
-                })
-                .catch((err) => {
-                  reject(new InternalError('Retrieving studies with access token', err));
-                });
             }
-          } else if (config.dicomWebConfig.username) {
-            const encoded = btoa(
-              `${config.dicomWebConfig.username}:${config.dicomWebConfig.password}`
-            );
-            header = {
-              headers: {
-                Authorization: `Basic ${encoded}`,
-              },
-            };
-            // we have 2 separate as test VNA needed accept: 'application/json' in headers
-            // test sectra fails with it
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
-              headers: { ...header.headers },
-              httpsAgent,
-            });
-            this.wadoRequest = Axios.create({
-              baseURL: config.dicomWebConfig.baseUrl,
-              headers: header.headers,
+              headers: { ...header.headers, accept: 'application/json' },
               httpsAgent,
             });
             this.request
               .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
-              .then(() => {
-                resolve();
+              .then(async () => {
+                if (!config.archiveDicomWebConfig) resolve();
+                if (config.archiveDicomWebConfig.authServerUrl) {
+                  accessToken = await keycloak.accessToken.get();
+                  if (accessToken) {
+                    header = {
+                      headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                      },
+                    };
+                  }
+                } else if (config.archiveDicomWebConfig.username) {
+                  const encoded = btoa(
+                    `${config.archiveDicomWebConfig.username}:${config.archiveDicomWebConfig.password}`
+                  );
+                  header = {
+                    headers: {
+                      Authorization: `Basic ${encoded}`,
+                    },
+                  };
+                }
+                this.archiveRequest = Axios.create({
+                  baseURL: config.archiveDicomWebConfig.baseUrl,
+                  headers: { ...header.headers, accept: 'application/json' },
+                  httpsAgent,
+                });
+                this.archiveRequest
+                  .get(`${config.archiveDicomWebConfig.qidoSubPath}/studies?limit=1`)
+                  .then(() => {
+                    resolve();
+                  })
+                  .catch((err) => {
+                    reject(
+                      new InternalError(
+                        `Retrieving studies from archive pacs ${JSON.stringify(header.headers)}`,
+                        err
+                      )
+                    );
+                  });
               })
               .catch((err) => {
-                reject(new InternalError('Retrieving studies with basic auth', err));
-              });
-          } else {
-            this.request = Axios.create({
-              baseURL: config.dicomWebConfig.baseUrl,
-              headers: {
-                accept: 'application/json',
-              },
-              httpsAgent,
-            });
-            this.wadoRequest = Axios.create({
-              baseURL: config.dicomWebConfig.baseUrl,
-              httpsAgent,
-            });
-            this.request
-              .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
-              .then(() => {
-                resolve();
-              })
-              .catch((err) => {
-                reject(new InternalError('Retrieving studies without authorization', err));
+                reject(
+                  new InternalError(
+                    `Retrieving studies from main pacs ${JSON.stringify(header.headers)}`,
+                    err
+                  )
+                );
               });
           }
         } catch (err) {
@@ -161,7 +160,8 @@ async function dicomwebserver(fastify) {
     (studyUid, seriesUid, instanceUid) =>
       new Promise((resolve, reject) => {
         try {
-          let url = fastify.getWadoPath(studyUid, seriesUid, instanceUid);
+          // just purging for regular pacs, as that is the one I can upload to
+          let url = fastify.getWadoPath(studyUid, seriesUid, instanceUid, 'pacs');
           url = `${config.authConfig.authServerUrl.replace('/keycloak', '/api/wado')}${url}`;
           Axios({
             method: 'purge',
@@ -192,10 +192,10 @@ async function dicomwebserver(fastify) {
       })
   );
 
-  fastify.decorate('getWadoPath', (studyUid, seriesUid, instanceUid) =>
+  fastify.decorate('getWadoPath', (studyUid, seriesUid, instanceUid, source) =>
     config.wadoType && config.wadoType === 'RS'
-      ? `/studies/${studyUid}/series/${seriesUid}/instances/${instanceUid}`
-      : `/?requestType=WADO&studyUID=${studyUid}&seriesUID=${seriesUid}&objectUID=${instanceUid}`
+      ? `/${source}/studies/${studyUid}/series/${seriesUid}/instances/${instanceUid}` // add source to support multiple sources
+      : `/${source}/?requestType=WADO&studyUID=${studyUid}&seriesUID=${seriesUid}&objectUID=${instanceUid}`
   );
 
   // add accessor methods with decorate
@@ -908,7 +908,7 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         const dimsePromises = [
           fastify.promisifyDIMSE(config.dimse, studyUID),
-          fastify.promisifyDIMSE(config.vnaDimse, studyUID),
+          fastify.promisifyDIMSE(config.archiveDimse, studyUID),
         ];
         Promise.all(dimsePromises).then((results) => {
           try {
@@ -1074,20 +1074,53 @@ async function dicomwebserver(fastify) {
       .catch((err) => reply.send(err));
   });
 
+  // regular/first source is pacs
+  // vna is archive
+  fastify.decorate(
+    'queryQIDO',
+    (subPath, headerIn) =>
+      new Promise((resolve, reject) => {
+        try {
+          this.request.get(subPath, headerIn).then((response) => {
+            if (response.status === 200) resolve({ source: 'pacs', response });
+            else if (this.archiveRequest) {
+              this.archiveRequest
+                .get(subPath, headerIn)
+                .then((archiveResponse) =>
+                  resolve({ source: 'archive', response: archiveResponse })
+                );
+            } else {
+              // if there is no archive available just return what we have
+              resolve({ source: 'pacs', response });
+            }
+          });
+        } catch (err) {
+          reject(
+            new InternalError(
+              `Error querying request for subpath (${subPath}) and header (${headerIn}) for images`,
+              err
+            )
+          );
+        }
+      })
+  );
+
+  // TODO! query input param not used
   fastify.decorate(
     'getSeriesImagesInternal',
     (params) =>
       new Promise((resolve, reject) => {
         try {
-          this.request
-            .get(
+          // Get sectra, then vna with qidoSubPath
+          fastify
+            .queryQIDO(
               `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances?includefield=00280008`,
               header
             )
             .then(async (response) => {
               // handle success
               // map each instance to epadlite image object
-              const result = _.chain(response.data)
+              const result = _.chain(response.response.data)
                 .map((value) => ({
                   projectID: params.project ? params.project : projectID,
                   patientID:
@@ -1117,10 +1150,12 @@ async function dicomwebserver(fastify) {
                   //   value['00080018'].Value[0]
                   // }`,
                   // send wado-uri instead of wado-rs
+                  // Send the source when generating url
                   lossyImage: fastify.getWadoPath(
                     params.study,
                     params.series,
-                    value['00080018'].Value[0]
+                    value['00080018'].Value[0],
+                    response.source
                   ),
                   dicomElements: '', // TODO
                   defaultDICOMElements: '', // TODO
@@ -1155,11 +1190,13 @@ async function dicomwebserver(fastify) {
   );
 
   fastify.decorate('getWado', (request, reply) => {
+    // Define request according to params.source
     fastify
       .getWadoInternal({
         study: request.query.studyUID,
         series: request.query.seriesUID,
         image: request.query.objectUID,
+        source: request.params.source,
       })
       .then((result) => {
         reply.headers(result.headers);
@@ -1170,10 +1207,25 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getWadoRS', async (request, reply) => {
     try {
-      const result = await this.wadoRequest.get(
-        `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}`,
-        { responseType: 'stream' } // removed headers: request.headers, it was getting 401 from pacs
-      );
+      // Define request according to params.source
+      const result =
+        request.params.source === 'archive' && this.archiveRequest
+          ? await this.archiveRequest.get(
+              `${config.archiveDicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}`,
+              {
+                responseType: 'stream',
+                ...(config.archiveDicomWebConfig.requireHeaders
+                  ? { headers: request.headers }
+                  : {}),
+              }
+            )
+          : await this.request.get(
+              `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}`,
+              {
+                responseType: 'stream',
+                ...(config.dicomWebConfig.requireHeaders ? { headers: request.headers } : {}),
+              } // sectra doesn't want parameters, vna requires; added a setting
+            );
 
       const res = await fastify.getMultipartBuffer(result.data);
       const parts = dcmjs.utilities.message.multipartDecode(res);
@@ -1184,11 +1236,17 @@ async function dicomwebserver(fastify) {
     }
   });
 
+  // TODO I added WADO just for keeping support, not sure if headers are an issue like in WADORS
   fastify.decorate('getWadoInternal', (params) =>
-    this.wadoRequest.get(
-      `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${params.image}`,
-      { ...header, responseType: 'stream' }
-    )
+    params.source === 'archive' && this.archiveRequest
+      ? this.archiveRequest.get(
+          `${config.archiveDicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${params.image}`,
+          { ...header, responseType: 'stream' }
+        )
+      : this.request.get(
+          `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${params.image}`,
+          { ...header, responseType: 'stream' }
+        )
   );
 
   fastify.decorate('getPatient', (request, reply) => {

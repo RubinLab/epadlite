@@ -59,6 +59,26 @@ config.dicomWebConfig.legacyEndpoint =
   config.dicomWebConfig.legacyEndpoint ||
   undefined;
 
+config.dicomWebConfig.requireHeaders =
+  (process.env.DICOMWEB_REQUIRE_HEADERS && process.env.DICOMWEB_REQUIRE_HEADERS === 'true') ||
+  config.dicomWebConfig.requireHeaders ||
+  undefined;
+
+// eslint-disable-next-line no-nested-ternary
+config.archiveDicomWebConfig = config.archiveDicomWebConfig
+  ? config.archiveDicomWebConfig
+  : process.env.ARCHIVE_DICOMWEB_BASEURL
+  ? {
+      baseUrl: process.env.ARCHIVE_DICOMWEB_BASEURL,
+      wadoSubPath: process.env.ARCHIVE_DICOMWEB_WADOSUBPATH,
+      qidoSubPath: process.env.ARCHIVE_DICOMWEB_QIDOSUBPATH,
+      username: process.env.ARCHIVE_DICOMWEB_USERNAME,
+      password: process.env.ARCHIVE_DICOMWEB_PASSWORD,
+      legacyEndpoint: process.env.ARCHIVE_DICOMWEB_LEGACY_ENDPOINT,
+      requireHeaders: process.env.ARCHIVE_DICOMWEB_REQUIRE_HEADERS,
+    }
+  : null;
+
 config.mode = process.env.MODE || config.mode || 'lite'; // default lite
 config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';
 config.reportExt = process.env.REPORT_EXT || config.reportExt || 'txt|pdf';
@@ -115,14 +135,14 @@ config.dimse = config.dimse
     }
   : null;
 // eslint-disable-next-line no-nested-ternary
-config.vnaDimse = config.vnaDimse
-  ? config.vnaDimse
-  : process.env.VNA_DIMSE_AET
+config.archiveDimse = config.archiveDimse
+  ? config.archiveDimse
+  : process.env.ARCHIVE_DIMSE_AET
   ? {
-      aet: process.env.VNA_DIMSE_AET,
-      ip: process.env.VNA_DIMSE_IP,
-      port: process.env.VNA_DIMSE_PORT,
-      sourceIp: process.env.VNA_DIMSE_SOURCE_IP,
+      aet: process.env.ARCHIVE_DIMSE_AET,
+      ip: process.env.ARCHIVE_DIMSE_IP,
+      port: process.env.ARCHIVE_DIMSE_PORT,
+      sourceIp: process.env.ARCHIVE_DIMSE_SOURCE_IP,
     }
   : null;
 config.pullStudyIds =
