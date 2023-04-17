@@ -2289,7 +2289,7 @@ async function other(fastify) {
   // inputString - a valid query string.
   // Returns that query, parsed.
   fastify.decorate('reformatQuery', (inputString) => {
-    let outputArr = []
+    const outputArr = [];
     let outputString = '';
     // Replace fancy quotes with regular quotes
     // eslint-disable-next-line no-param-reassign
@@ -2332,7 +2332,7 @@ async function other(fastify) {
           let x = `/.*[^a-z0-9]${stuffInQuotes}[^a-z0-9].*|${stuffInQuotes}`;
           x += `[^a-z0-9].*|.*[^a-z0-9]${stuffInQuotes}|${stuffInQuotes}/`;
           outputString += x;
-          outputArr.push(x)
+          outputArr.push(x);
           i += 1;
         } else {
           outputString += `/.*${stuffInQuotes}.*/`;
@@ -2378,7 +2378,7 @@ async function other(fastify) {
     if (outputString.length === 0) {
       return '/.*/';
     }
-    addParensAround(outputArr);
+    fastify.addParensAroundAnd(outputArr);
     return outputArr.join('');
     // return outputString;
   });
@@ -2433,13 +2433,14 @@ async function other(fastify) {
         // where we want the output to be '((a OR b) AND c)' instead of
         // '(a OR (b) AND c)'
         let netParens = 0;
-        for (let j = i - 2; j >= 0; j -= 1) { // i-2 to skip the space before AND
+        for (let j = i - 2; j >= 0; j -= 1) {
+          // i-2 to skip the space before AND
           if (inputArr[j] === ')') {
             netParens -= 1;
           } else if (netParens === 0 && inputArr[j] !== ' ') {
             inputArr.splice(j, 0, '(');
             i += 1;
-            break
+            break;
           } else if (inputArr[j] === '(') {
             netParens += 1;
           }
@@ -2451,12 +2452,13 @@ async function other(fastify) {
         }
         // Same as before but searches forwards.
         netParens = 0;
-        for (let j = i + 2; j < inputArr.length; j += 1) { // i+2 to skip the space
+        for (let j = i + 2; j < inputArr.length; j += 1) {
+          // i+2 to skip the space
           if (inputArr[j] === '(') {
             netParens += 1;
           } else if (netParens === 0 && inputArr[j] !== ' ' && inputArr[j] !== 'NOT') {
             inputArr.splice(j + 1, 0, ')');
-            break
+            break;
           } else if (inputArr[j] === ')') {
             netParens -= 1;
           }
