@@ -921,18 +921,29 @@ async function dicomwebserver(fastify) {
               .map((item) => JSON.parse(item.container)); // convert container to JSON
             // get Sectra by default
             let res = containerJSONs[0];
-            if (containerJSONs[1]) {
-              // check if VNA has series that are not SR
-              const filtered = containerJSONs[1].filter(
-                (item) =>
-                  item['00080060'] &&
-                  item['00080060'].Value &&
-                  item['00080060'].Value[0] &&
-                  item['00080060'].Value[0] !== 'SR'
-              );
-              // if VNA set is not empty after removing SR then return VNA instead
-              // eslint-disable-next-line prefer-destructuring
-              if (filtered.length > 0) res = containerJSONs[1];
+            // check if the return value has series descriptions
+            // if it has no series description in the first 3 (to cover series with no description), we need to get the descriptions from vna
+            console.log('current res', res);
+            if (
+              ((res.length > 0 && !res[0]['0008103E']) ||
+                (res.length > 1 && !res[1]['0008103E']) ||
+                (res.length > 2 && !res[2]['0008103E'])) &&
+              containerJSONs[1]
+            ) {
+              // get a map of series descriptions from VNA
+              const map = containerJSONs[1].reduce((result, item) => {
+                // eslint-disable-next-line no-param-reassign
+                result[item['0020000E']] = item['0008103E'];
+                return result;
+              }, {});
+              console.log('map', map);
+              // fill in the series descriptions retrieved from Sectra
+              res = res.forEach((item) => {
+                // eslint-disable-next-line no-param-reassign
+                item['0020000E'] = { Value: [map[item['0020000E']]] };
+                return item;
+              });
+              console.log('Updated res', res);
             }
             resolve({ data: res });
           } catch (err) {
