@@ -917,12 +917,15 @@ async function dicomwebserver(fastify) {
     'getStudySeriesDIMSE',
     (studyUID) =>
       new Promise((resolve, reject) => {
+        console.time('dimse');
+        console.time('dimsecall');
         const dimsePromises = [
           fastify.promisifyDIMSE(config.dimse, studyUID),
           fastify.promisifyDIMSE(config.archiveDimse, studyUID),
         ];
         Promise.all(dimsePromises).then((results) => {
           try {
+            console.timeEnd('dimsecall');
             // use vna if there is a successfull result from vna
             // it means the study is already archived
             // we assume the series data does not change once it is archived
@@ -955,7 +958,7 @@ async function dicomwebserver(fastify) {
               }, {});
               console.log('map', map);
               // fill in the series descriptions retrieved from Sectra
-              res = res.forEach((item) => {
+              res = res.map((item) => {
                 if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
                   // eslint-disable-next-line no-param-reassign
                   item['0008103E'] = map[item['0020000E'].Value[0]];
@@ -963,6 +966,7 @@ async function dicomwebserver(fastify) {
               });
               console.log('Updated res', res);
             }
+            console.timeEnd('dimse');
             resolve({ data: res });
           } catch (err) {
             reject(err);
