@@ -95,7 +95,10 @@ async function dicomwebserver(fastify) {
             }
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
-              headers: { ...mainHeader.headers, accept: 'application/json' },
+              headers: {
+                ...mainHeader.headers,
+                ...(config.dicomWebConfig.requireJSONHeader ? { accept: 'application/json' } : {}),
+              },
               httpsAgent,
             });
             this.request
@@ -123,7 +126,12 @@ async function dicomwebserver(fastify) {
                 }
                 this.archiveRequest = Axios.create({
                   baseURL: config.archiveDicomWebConfig.baseUrl,
-                  headers: { ...archiveHeader.headers, accept: 'application/json' },
+                  headers: {
+                    ...archiveHeader.headers,
+                    ...(config.archiveDicomWebConfig.requireJSONHeader
+                      ? { accept: 'application/json' }
+                      : {}),
+                  },
                   httpsAgent,
                 });
                 this.archiveRequest

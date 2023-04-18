@@ -64,6 +64,12 @@ config.dicomWebConfig.requireHeaders =
   config.dicomWebConfig.requireHeaders ||
   undefined;
 
+config.dicomWebConfig.requireJSONHeader =
+  (process.env.DICOMWEB_REQUIRE_JSON_HEADER &&
+    process.env.DICOMWEB_REQUIRE_JSON_HEADER === 'true') ||
+  config.dicomWebConfig.requireJSONHeader ||
+  undefined;
+
 // eslint-disable-next-line no-nested-ternary
 config.archiveDicomWebConfig = config.archiveDicomWebConfig
   ? config.archiveDicomWebConfig
@@ -78,6 +84,9 @@ config.archiveDicomWebConfig = config.archiveDicomWebConfig
         process.env.VNA_DICOMWEB_LEGACY_ENDPOINT || process.env.ARCHIVE_DICOMWEB_LEGACY_ENDPOINT,
       requireHeaders:
         process.env.VNA_DICOMWEB_REQUIRE_HEADERS || process.env.ARCHIVE_DICOMWEB_REQUIRE_HEADERS,
+      requireJSONHeader:
+        process.env.VNA_DICOMWEB_REQUIRE_JSON_HEADER ||
+        process.env.ARCHIVE_DICOMWEB_REQUIRE_JSON_HEADER,
     }
   : null;
 
