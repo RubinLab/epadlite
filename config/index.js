@@ -81,12 +81,20 @@ config.archiveDicomWebConfig = config.archiveDicomWebConfig
       username: process.env.VNA_DICOMWEB_USERNAME || process.env.ARCHIVE_DICOMWEB_USERNAME,
       password: process.env.VNA_DICOMWEB_PASSWORD || process.env.ARCHIVE_DICOMWEB_PASSWORD,
       legacyEndpoint:
-        process.env.VNA_DICOMWEB_LEGACY_ENDPOINT || process.env.ARCHIVE_DICOMWEB_LEGACY_ENDPOINT,
+        (process.env.VNA_DICOMWEB_LEGACY_ENDPOINT &&
+          process.env.VNA_DICOMWEB_LEGACY_ENDPOINT === 'true') ||
+        (process.env.ARCHIVE_DICOMWEB_LEGACY_ENDPOINT &&
+          process.env.ARCHIVE_DICOMWEB_LEGACY_ENDPOINT === 'true'),
       requireHeaders:
-        process.env.VNA_DICOMWEB_REQUIRE_HEADERS || process.env.ARCHIVE_DICOMWEB_REQUIRE_HEADERS,
+        (process.env.VNA_DICOMWEB_REQUIRE_HEADERS &&
+          process.env.VNA_DICOMWEB_REQUIRE_HEADERS === 'true') ||
+        (process.env.ARCHIVE_DICOMWEB_REQUIRE_HEADERS &&
+          process.env.ARCHIVE_DICOMWEB_REQUIRE_HEADERS === 'true'),
       requireJSONHeader:
-        process.env.VNA_DICOMWEB_REQUIRE_JSON_HEADER ||
-        process.env.ARCHIVE_DICOMWEB_REQUIRE_JSON_HEADER,
+        (process.env.VNA_DICOMWEB_REQUIRE_JSON_HEADER &&
+          process.env.VNA_DICOMWEB_REQUIRE_JSON_HEADER === 'true') ||
+        (process.env.ARCHIVE_DICOMWEB_REQUIRE_JSON_HEADER &&
+          process.env.ARCHIVE_DICOMWEB_REQUIRE_JSON_HEADER === 'true'),
     }
   : null;
 
