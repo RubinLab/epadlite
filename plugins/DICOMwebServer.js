@@ -937,7 +937,6 @@ async function dicomwebserver(fastify) {
             let res = containerJSONs[0];
             // check if the return value has series descriptions
             // if it has no series description in the first 3 (to cover series with no description), we need to get the descriptions from vna
-            console.log('current res', res);
             if (
               ((res.length > 0 && !res[0]['0008103E']) ||
                 (res.length > 1 && !res[1]['0008103E']) ||
@@ -956,7 +955,6 @@ async function dicomwebserver(fastify) {
                   result[item['0020000E'].Value[0]] = item['0008103E'];
                 return result;
               }, {});
-              console.log('map', map);
               // fill in the series descriptions retrieved from Sectra
               res = res.map((item) => {
                 if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
@@ -964,7 +962,6 @@ async function dicomwebserver(fastify) {
                   item['0008103E'] = map[item['0020000E'].Value[0]];
                 return item;
               });
-              console.log('Updated res', res);
             }
             console.timeEnd('dimse');
             resolve({ data: res });
