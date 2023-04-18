@@ -26,7 +26,8 @@ const keycloak = require('keycloak-backend')({
 });
 
 let accessToken = '';
-let header = {};
+let mainHeader = {};
+let archiveHeader = {};
 const projectID = 'lite';
 
 async function dicomwebserver(fastify) {
@@ -76,7 +77,7 @@ async function dicomwebserver(fastify) {
             if (config.dicomWebConfig.authServerUrl) {
               accessToken = await keycloak.accessToken.get();
               if (accessToken) {
-                header = {
+                mainHeader = {
                   headers: {
                     Authorization: `Bearer ${accessToken}`,
                   },
@@ -86,7 +87,7 @@ async function dicomwebserver(fastify) {
               const encoded = btoa(
                 `${config.dicomWebConfig.username}:${config.dicomWebConfig.password}`
               );
-              header = {
+              mainHeader = {
                 headers: {
                   Authorization: `Basic ${encoded}`,
                 },
@@ -94,7 +95,7 @@ async function dicomwebserver(fastify) {
             }
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
-              headers: { ...header.headers, accept: 'application/json' },
+              headers: { ...mainHeader.headers, accept: 'application/json' },
               httpsAgent,
             });
             this.request
@@ -104,7 +105,7 @@ async function dicomwebserver(fastify) {
                 if (config.archiveDicomWebConfig.authServerUrl) {
                   accessToken = await keycloak.accessToken.get();
                   if (accessToken) {
-                    header = {
+                    archiveHeader = {
                       headers: {
                         Authorization: `Bearer ${accessToken}`,
                       },
@@ -114,7 +115,7 @@ async function dicomwebserver(fastify) {
                   const encoded = btoa(
                     `${config.archiveDicomWebConfig.username}:${config.archiveDicomWebConfig.password}`
                   );
-                  header = {
+                  archiveHeader = {
                     headers: {
                       Authorization: `Basic ${encoded}`,
                     },
@@ -122,7 +123,7 @@ async function dicomwebserver(fastify) {
                 }
                 this.archiveRequest = Axios.create({
                   baseURL: config.archiveDicomWebConfig.baseUrl,
-                  headers: { ...header.headers, accept: 'application/json' },
+                  headers: { ...archiveHeader.headers, accept: 'application/json' },
                   httpsAgent,
                 });
                 this.archiveRequest
@@ -133,7 +134,9 @@ async function dicomwebserver(fastify) {
                   .catch((err) => {
                     reject(
                       new InternalError(
-                        `Retrieving studies from archive pacs ${JSON.stringify(header.headers)}`,
+                        `Retrieving studies from archive pacs ${JSON.stringify(
+                          archiveHeader.headers
+                        )}`,
                         err
                       )
                     );
@@ -142,7 +145,7 @@ async function dicomwebserver(fastify) {
               .catch((err) => {
                 reject(
                   new InternalError(
-                    `Retrieving studies from main pacs ${JSON.stringify(header.headers)}`,
+                    `Retrieving studies from main pacs ${JSON.stringify(mainHeader.headers)}`,
                     err
                   )
                 );
@@ -208,7 +211,7 @@ async function dicomwebserver(fastify) {
             // TODO this headers attribute should be required. gives 'Request body larger than maxBodyLength limit' error
             // maybe related to cors. header is not populated properly with header anyway
             // headers: {
-            ...header.headers,
+            ...mainHeader.headers,
             ...{
               'Content-Type': `multipart/related; type=application/dicom; boundary=${boundary}`,
               maxContentLength: Buffer.byteLength(data) + 1,
@@ -298,7 +301,7 @@ async function dicomwebserver(fastify) {
               `${config.dicomWebConfig.qidoSubPath}/studies${query}${
                 query ? '&' : '?'
               }includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
-              header
+              mainHeader
             )
           );
           if (!noStats)
@@ -472,7 +475,7 @@ async function dicomwebserver(fastify) {
             `/studies?${
               config.limitStudies ? `limit=${config.limitStudies}&` : ''
             }includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
-            header
+            mainHeader
           );
           const studyUids = await fastify.getDBStudies();
           for (let i = 0; i < values.data.length; i += 1) {
@@ -570,7 +573,7 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         const query = `AccessionNumber=${accessionNumber}`;
         this.request
-          .get(`${config.dicomWebConfig.qidoSubPath}/studies?${query}`, header)
+          .get(`${config.dicomWebConfig.qidoSubPath}/studies?${query}`, mainHeader)
           .then((res) => {
             const patientStudyPairs = res.data.map((value) => ({
               patientID: fastify.replaceNull(value['00100020'].Value[0]),
@@ -613,7 +616,7 @@ async function dicomwebserver(fastify) {
                       `${
                         config.dicomWebConfig.qidoSubPath
                       }/studies?StudyInstanceUID=${studyUidsStr.substring(0, j)}${qryIncludes}`,
-                      header
+                      mainHeader
                     )
                   );
                   studyUidsStr = studyUidsStr.substring(j + 1);
@@ -625,7 +628,7 @@ async function dicomwebserver(fastify) {
               promisses.push(
                 this.request.get(
                   `${config.dicomWebConfig.qidoSubPath}/studies?StudyInstanceUID=${studyUidsStr}${qryIncludes}`,
-                  header
+                  mainHeader
                 )
               );
             }
@@ -639,7 +642,7 @@ async function dicomwebserver(fastify) {
             promisses.push(
               this.request.get(
                 `${config.dicomWebConfig.qidoSubPath}/studies${query}${qryIncludes}`,
-                header
+                mainHeader
               )
             );
           }
@@ -806,7 +809,7 @@ async function dicomwebserver(fastify) {
           const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
           const studies = await this.request.get(
             `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
-            header
+            mainHeader
           );
           const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);
           let result = [];
@@ -964,7 +967,7 @@ async function dicomwebserver(fastify) {
             promisses.push(
               this.request.get(
                 `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
-                header
+                mainHeader
               )
             );
           promisses.push(
@@ -1089,14 +1092,14 @@ async function dicomwebserver(fastify) {
   // vna is archive
   fastify.decorate(
     'queryQIDO',
-    (subPath, headerIn) =>
+    (subPath) =>
       new Promise((resolve, reject) => {
         try {
-          this.request.get(subPath, headerIn).then((response) => {
+          this.request.get(subPath, mainHeader).then((response) => {
             if (response.status === 200) resolve({ source: 'pacs', response });
             else if (this.archiveRequest) {
               this.archiveRequest
-                .get(subPath, headerIn)
+                .get(subPath, archiveHeader)
                 .then((archiveResponse) =>
                   resolve({ source: 'archive', response: archiveResponse })
                 );
@@ -1107,10 +1110,7 @@ async function dicomwebserver(fastify) {
           });
         } catch (err) {
           reject(
-            new InternalError(
-              `Error querying request for subpath (${subPath}) and header (${headerIn}) for images`,
-              err
-            )
+            new InternalError(`Error querying request for subpath (${subPath}) for images`, err)
           );
         }
       })
@@ -1125,8 +1125,7 @@ async function dicomwebserver(fastify) {
           // Get sectra, then vna with qidoSubPath
           fastify
             .queryQIDO(
-              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances?includefield=00280008`,
-              header
+              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances?includefield=00280008`
             )
             .then(async (response) => {
               // handle success
@@ -1252,11 +1251,11 @@ async function dicomwebserver(fastify) {
     params.source === 'archive' && this.archiveRequest
       ? this.archiveRequest.get(
           `${config.archiveDicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${params.image}`,
-          { ...header, responseType: 'stream' }
+          { ...archiveHeader, responseType: 'stream' }
         )
       : this.request.get(
           `${config.dicomWebConfig.wadoSubPath}/?requestType=WADO&studyUID=${params.study}&seriesUID=${params.series}&objectUID=${params.image}`,
-          { ...header, responseType: 'stream' }
+          { ...mainHeader, responseType: 'stream' }
         )
   );
 
@@ -1299,7 +1298,7 @@ async function dicomwebserver(fastify) {
           this.request
             .get(
               `/studies/${params.study}/series/${params.series}/instances/${params.instance}/metadata`,
-              header
+              mainHeader
             )
             .then(async (response) => {
               const metadata = response.data;
