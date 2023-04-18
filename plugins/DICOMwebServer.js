@@ -956,8 +956,9 @@ async function dicomwebserver(fastify) {
               console.log('map', map);
               // fill in the series descriptions retrieved from Sectra
               res = res.forEach((item) => {
-                // eslint-disable-next-line no-param-reassign
-                item['0020000E'] = map[item['0020000E']];
+                if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
+                  // eslint-disable-next-line no-param-reassign
+                  item['0008103E'] = map[item['0020000E'].Value[0]];
                 return item;
               });
               console.log('Updated res', res);
