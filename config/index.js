@@ -67,15 +67,17 @@ config.dicomWebConfig.requireHeaders =
 // eslint-disable-next-line no-nested-ternary
 config.archiveDicomWebConfig = config.archiveDicomWebConfig
   ? config.archiveDicomWebConfig
-  : process.env.ARCHIVE_DICOMWEB_BASEURL
+  : process.env.VNA_DICOMWEB_BASEURL || process.env.ARCHIVE_DICOMWEB_BASEURL
   ? {
-      baseUrl: process.env.ARCHIVE_DICOMWEB_BASEURL,
-      wadoSubPath: process.env.ARCHIVE_DICOMWEB_WADOSUBPATH,
-      qidoSubPath: process.env.ARCHIVE_DICOMWEB_QIDOSUBPATH,
-      username: process.env.ARCHIVE_DICOMWEB_USERNAME,
-      password: process.env.ARCHIVE_DICOMWEB_PASSWORD,
-      legacyEndpoint: process.env.ARCHIVE_DICOMWEB_LEGACY_ENDPOINT,
-      requireHeaders: process.env.ARCHIVE_DICOMWEB_REQUIRE_HEADERS,
+      baseUrl: process.env.VNA_DICOMWEB_BASEURL || process.env.ARCHIVE_DICOMWEB_BASEURL,
+      wadoSubPath: process.env.VNA_DICOMWEB_WADOSUBPATH || process.env.ARCHIVE_DICOMWEB_WADOSUBPATH,
+      qidoSubPath: process.env.VNA_DICOMWEB_QIDOSUBPATH || process.env.ARCHIVE_DICOMWEB_QIDOSUBPATH,
+      username: process.env.VNA_DICOMWEB_USERNAME || process.env.ARCHIVE_DICOMWEB_USERNAME,
+      password: process.env.VNA_DICOMWEB_PASSWORD || process.env.ARCHIVE_DICOMWEB_PASSWORD,
+      legacyEndpoint:
+        process.env.VNA_DICOMWEB_LEGACY_ENDPOINT || process.env.ARCHIVE_DICOMWEB_LEGACY_ENDPOINT,
+      requireHeaders:
+        process.env.VNA_DICOMWEB_REQUIRE_HEADERS || process.env.ARCHIVE_DICOMWEB_REQUIRE_HEADERS,
     }
   : null;
 
@@ -137,12 +139,12 @@ config.dimse = config.dimse
 // eslint-disable-next-line no-nested-ternary
 config.archiveDimse = config.archiveDimse
   ? config.archiveDimse
-  : process.env.ARCHIVE_DIMSE_AET
+  : process.env.VNA_DIMSE_AET || process.env.ARCHIVE_DIMSE_AET
   ? {
-      aet: process.env.ARCHIVE_DIMSE_AET,
-      ip: process.env.ARCHIVE_DIMSE_IP,
-      port: process.env.ARCHIVE_DIMSE_PORT,
-      sourceIp: process.env.ARCHIVE_DIMSE_SOURCE_IP,
+      aet: process.env.VNA_DIMSE_AET || process.env.ARCHIVE_DIMSE_AET,
+      ip: process.env.VNA_DIMSE_IP || process.env.ARCHIVE_DIMSE_IP,
+      port: process.env.VNA_DIMSE_PORT || process.env.ARCHIVE_DIMSE_PORT,
+      sourceIp: process.env.VNA_DIMSE_SOURCE_IP || process.env.ARCHIVE_DIMSE_SOURCE_IP,
     }
   : null;
 config.pullStudyIds =
