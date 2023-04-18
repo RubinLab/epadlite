@@ -943,15 +943,21 @@ async function dicomwebserver(fastify) {
             ) {
               // get a map of series descriptions from VNA
               const map = containerJSONs[1].reduce((result, item) => {
-                // eslint-disable-next-line no-param-reassign
-                result[item['0020000E']] = item['0008103E'];
+                if (
+                  item['0020000E'] &&
+                  item['0020000E'].Value &&
+                  item['0020000E'].Value[0] &&
+                  item['0008103E']
+                )
+                  // eslint-disable-next-line no-param-reassign
+                  result[item['0020000E'].Value[0]] = item['0008103E'];
                 return result;
               }, {});
               console.log('map', map);
               // fill in the series descriptions retrieved from Sectra
               res = res.forEach((item) => {
                 // eslint-disable-next-line no-param-reassign
-                item['0020000E'] = { Value: [map[item['0020000E']]] };
+                item['0020000E'] = map[item['0020000E']];
                 return item;
               });
               console.log('Updated res', res);
