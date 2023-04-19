@@ -374,7 +374,6 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testCollaborator@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.have.property('testCollaborator@gmail.com');
           expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
@@ -1099,7 +1098,6 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testCollaborator@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.have.property('testCollaborator@gmail.com');
           expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
@@ -1121,7 +1119,6 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testMember@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.have.property('testCollaborator@gmail.com');
           expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
@@ -1161,7 +1158,6 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testOwner@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.have.property('testCollaborator@gmail.com');
           expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
@@ -1201,7 +1197,6 @@ describe('User Rights Tests', () => {
         .get('/projects/testRights1/subjects/13116/aims?report=Longitudinal')
         .query({ username: 'testAdmin@gmail.com' })
         .then((res) => {
-          console.log('report', JSON.stringify(res.body));
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.have.property('testCollaborator@gmail.com');
           expect(res.body['testCollaborator@gmail.com'].tLesionNames.length).to.be.eql(1);
