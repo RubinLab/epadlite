@@ -7170,8 +7170,7 @@ async function epaddb(fastify, options, done) {
                   await fastify.updateReports(
                     projectId,
                     request.params.project,
-                    request.params.subject,
-                    request.epadAuth
+                    request.params.subject
                   );
                   result = await fastify.getReportFromDB(
                     request.params,
@@ -7253,7 +7252,8 @@ async function epaddb(fastify, options, done) {
         switch (request.query.report) {
           case 'RECIST':
             // should be one patient
-            if (request.params.subject) result = fastify.getRecist(result.rows, request, collab);
+            if (request.params.subject)
+              result = fastify.getRecist(result.rows, request, collab, request.epadAuth);
             else {
               reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
               return;
@@ -7268,7 +7268,8 @@ async function epaddb(fastify, options, done) {
                 request,
                 request.query.metric,
                 request.query.html,
-                collab
+                collab,
+                request.epadAuth
               );
             } else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
@@ -7808,7 +7809,7 @@ async function epaddb(fastify, options, done) {
             );
           // give warning but do not fail if you cannot update the report (it fails if dicoms are not in db)
           try {
-            await fastify.updateReports(projectId, projectUid, subjectUid, epadAuth, transaction);
+            await fastify.updateReports(projectId, projectUid, subjectUid, transaction);
           } catch (reportErr) {
             fastify.log.warn(
               `Could not update the report for patient ${subjectUid} Error: ${reportErr.message}`
@@ -7940,7 +7941,7 @@ async function epaddb(fastify, options, done) {
         try {
           const reportMultiUser =
             report === 'RECIST'
-              ? fastify.getRecist(result, undefined, collab)
+              ? fastify.getRecist(result, undefined, collab, epadAuth)
               : await fastify.getLongitudinal(
                   result,
                   template,
@@ -7948,7 +7949,8 @@ async function epaddb(fastify, options, done) {
                   undefined,
                   metric,
                   false,
-                  collab
+                  collab,
+                  epadAuth
                 );
           if (reportMultiUser && reportMultiUser !== {}) {
             await fastify.saveReport2DB(
@@ -8062,9 +8064,11 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'updateReports',
-    (projectId, projectUid, subjectUid, epadAuth, transaction) =>
+    (projectId, projectUid, subjectUid, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
+          // precompute reports should always be done by admin
+          const epadAuth = { admin: true, username: 'admin' };
           // check if we have the subject in db so that we don't attempt if not
           const subject = await models.subject.findOne(
             {
@@ -8083,7 +8087,7 @@ async function epaddb(fastify, options, done) {
               'json',
               { project: projectUid, subject: subjectUid },
               undefined,
-              { admin: true },
+              epadAuth,
               undefined,
               undefined,
               true

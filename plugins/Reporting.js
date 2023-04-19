@@ -444,7 +444,7 @@ async function reporting(fastify) {
     return [];
   });
 
-  fastify.decorate('getRecist', (aimJSONs, request, collab) => {
+  fastify.decorate('getRecist', (aimJSONs, request, collab, epadAuth) => {
     try {
       const table = fastify.fillTable(aimJSONs, 'RECIST', [
         'Name',
@@ -495,9 +495,9 @@ async function reporting(fastify) {
         // check if the user is a collaborator
         // if so only get his/her username, ignore the rest
         const username = lesions[i].username.value;
-        if (collab && username !== request.epadAuth.username) {
+        if (collab && username !== epadAuth.username) {
           fastify.log.warn(
-            `Ignoring ${username}'s annotations for collaborator ${request.epadAuth.username}`
+            `Ignoring ${username}'s annotations for collaborator ${epadAuth.username}`
           );
           // eslint-disable-next-line no-continue
           continue;
@@ -876,7 +876,7 @@ async function reporting(fastify) {
 
   fastify.decorate(
     'getLongitudinal',
-    async (aims, template, shapes, request, metric = true, html = false, collab) => {
+    async (aims, template, shapes, request, metric = true, html = false, collab, epadAuth) => {
       try {
         const lesions = fastify.fillTable(
           aims,
@@ -907,9 +907,9 @@ async function reporting(fastify) {
           // check if the user is a collaborator
           // if so only get his/her username, ignore the rest
           const username = lesions[i].username.value;
-          if (collab && username !== request.epadAuth.username) {
+          if (collab && username !== epadAuth.username) {
             fastify.log.warn(
-              `Ignoring ${username}'s annotations for collaborator ${request.epadAuth.username}`
+              `Ignoring ${username}'s annotations for collaborator ${epadAuth.username}`
             );
             // eslint-disable-next-line no-continue
             continue;
@@ -1460,7 +1460,7 @@ async function reporting(fastify) {
               if (!exportCalcs) {
                 const report =
                   metric === 'RECIST'
-                    ? fastify.getRecist(aimsRes.rows, undefined, collab)
+                    ? fastify.getRecist(aimsRes.rows, undefined, collab, epadAuth)
                     : // eslint-disable-next-line no-await-in-loop
                       await fastify.getLongitudinal(
                         aimsRes.rows,
@@ -1469,7 +1469,8 @@ async function reporting(fastify) {
                         undefined,
                         metric,
                         false,
-                        collab
+                        collab,
+                        epadAuth
                       );
                 if (report == null) {
                   fastify.log.warn(
@@ -1511,7 +1512,7 @@ async function reporting(fastify) {
                   else longitudinalRequired = true;
                 }
                 const recistReport = recistRequired
-                  ? fastify.getRecist(aimsRes.rows, undefined, collab)
+                  ? fastify.getRecist(aimsRes.rows, undefined, collab, epadAuth)
                   : undefined;
                 const longitudinalReport = longitudinalRequired
                   ? // eslint-disable-next-line no-await-in-loop
@@ -1522,7 +1523,8 @@ async function reporting(fastify) {
                       undefined,
                       undefined,
                       false,
-                      collab
+                      collab,
+                      epadAuth
                     )
                   : undefined;
                 const report = longitudinalReport || recistReport;
