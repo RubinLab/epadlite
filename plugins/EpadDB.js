@@ -7922,7 +7922,6 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
-  // here
   fastify.decorate(
     'getAndSaveReport',
     (

@@ -1458,7 +1458,6 @@ async function reporting(fastify) {
               );
               const collab = fastify.isCollaborator(params.project, epadAuth);
               if (!exportCalcs) {
-                // here
                 const report =
                   metric === 'RECIST'
                     ? fastify.getRecist(aimsRes.rows, undefined, collab)
@@ -1511,7 +1510,6 @@ async function reporting(fastify) {
                   if (exportCalcs[valNum].field === 'recist') recistRequired = true;
                   else longitudinalRequired = true;
                 }
-                // here
                 const recistReport = recistRequired
                   ? fastify.getRecist(aimsRes.rows, undefined, collab)
                   : undefined;
