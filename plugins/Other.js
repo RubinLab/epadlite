@@ -1714,6 +1714,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
+      !req.raw.url.startsWith(`/epad/statistics`) && // epad-public will not have prefix to provide backwards compatibility
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/decryptandgrantaccess?`) &&
@@ -1761,6 +1762,7 @@ async function other(fastify) {
       if (
         !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
         !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) &&
+        !req.raw.url.startsWith(`/epad/statistics`) &&
         req.method !== 'OPTIONS'
       )
         await fastify.epadThickRightsCheck(req, res);
