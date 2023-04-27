@@ -1758,7 +1758,11 @@ async function other(fastify) {
       }
     }
     try {
-      if (!req.raw.url.startsWith('/documentation') && req.method !== 'OPTIONS')
+      if (
+        !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
+        !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) &&
+        req.method !== 'OPTIONS'
+      )
         await fastify.epadThickRightsCheck(req, res);
     } catch (err) {
       res.send(err);
