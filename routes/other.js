@@ -109,9 +109,6 @@ async function otherRoutes(fastify) {
             type: 'integer',
           },
         },
-        body: {
-          type: 'string',
-        },
       },
     },
     handler: fastify.saveTemplateStats,
@@ -150,9 +147,6 @@ async function otherRoutes(fastify) {
           numOfAims: {
             type: 'integer',
           },
-        },
-        body: {
-          type: 'string',
         },
       },
     },
