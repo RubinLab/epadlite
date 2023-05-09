@@ -98,11 +98,15 @@ async function dicomwebserver(fastify) {
             fastify.register(require('@fastify/reply-from'), {
               base: `${config.dicomWebConfig.baseUrl}`,
             });
-            fastify.get('/studies/:study/series/:series/instances/:instance', (request, reply) => {
-              reply.from(
-                `${config.dicomWebConfig.wadoSubPath}/studies/:study/series/:series/instances/:instance`
-              );
-            });
+            fastify.get(
+              `/${config.prefix}/wadors/pacs/studies/:study/series/:series/instances/:instance`,
+              (request, reply) => {
+                const { study, series, instance } = request.params;
+                reply.from(
+                  `${config.dicomWebConfig.wadoSubPath}/studies/${study}/series/${series}/instances/${instance}`
+                );
+              }
+            );
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
               headers: {
