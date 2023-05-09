@@ -103,7 +103,12 @@ async function dicomwebserver(fastify) {
               (request, reply) => {
                 const { study, series, instance } = request.params;
                 reply.from(
-                  `${config.dicomWebConfig.wadoSubPath}/studies/${study}/series/${series}/instances/${instance}`
+                  `${config.dicomWebConfig.wadoSubPath}/studies/${study}/series/${series}/instances/${instance}`,
+                  {
+                    rewriteRequestHeaders: (originalReq, headers) => {
+                      Object.assign(headers, mainHeader.headers);
+                    },
+                  }
                 );
               }
             );
