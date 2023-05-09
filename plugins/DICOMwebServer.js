@@ -38,6 +38,7 @@ async function dicomwebserver(fastify) {
       return connect;
     } catch (err) {
       if (config.env !== 'test' || config.limitStudies) {
+        console.log(err);
         fastify.log.warn('Waiting for dicomweb server');
         setTimeout(fastify.initDicomWeb, 3000);
       } else throw err;
@@ -93,6 +94,15 @@ async function dicomwebserver(fastify) {
                 },
               };
             }
+            // define wado proxy for main pacs
+            fastify.register(require('@fastify/reply-from'), {
+              base: `${config.dicomWebConfig.baseUrl}`,
+            });
+            fastify.get('/studies/:study/series/:series/instances/:instance', (request, reply) => {
+              reply.from(
+                `${config.dicomWebConfig.wadoSubPath}/studies/:study/series/:series/instances/:instance`
+              );
+            });
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
               headers: {
@@ -104,7 +114,9 @@ async function dicomwebserver(fastify) {
             this.request
               .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
               .then(async () => {
-                if (!config.archiveDicomWebConfig) resolve();
+                if (!config.archiveDicomWebConfig) {
+                  resolve();
+                }
                 if (config.archiveDicomWebConfig.authServerUrl) {
                   accessToken = await keycloak.accessToken.get();
                   if (accessToken) {
@@ -160,6 +172,7 @@ async function dicomwebserver(fastify) {
               });
           }
         } catch (err) {
+          console.log(err);
           reject(new InternalError('Error connecting to DICOMweb server', err));
         }
       })
@@ -480,7 +493,7 @@ async function dicomwebserver(fastify) {
           const epadAuth = { username: 'admin', admin: true };
           const updateStudyPromises = [];
           const values = await this.request.get(
-            `/studies?${
+            `${config.dicomWebConfig.qidoSubPath}/studies?${
               config.limitStudies ? `limit=${config.limitStudies}&` : ''
             }includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
             mainHeader
@@ -1233,6 +1246,7 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getWadoRS', async (request, reply) => {
     try {
+      console.log('should not get here');
       // Define request according to params.source
       const result =
         request.params.source === 'archive' && this.archiveRequest
