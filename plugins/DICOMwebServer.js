@@ -94,28 +94,6 @@ async function dicomwebserver(fastify) {
                 },
               };
             }
-            // define wado proxy for main pacs
-            fastify.register(require('@fastify/reply-from'), {
-              base: `${config.dicomWebConfig.baseUrl}`,
-              disableCache: true,
-              cacheUrls: 0,
-            });
-            fastify.get(
-              `/${config.prefix}/wadors/pacs/studies/:study/series/:series/instances/:instance`,
-              (request, reply) => {
-                const { study, series, instance } = request.params;
-                reply.from(
-                  `${config.dicomWebConfig.wadoSubPath}/studies/${study}/series/${series}/instances/${instance}`,
-                  {
-                    rewriteRequestHeaders: (originalReq, headers) =>
-                      Object.assign(headers, mainHeader.headers),
-                    onResponse(req, rep, response) {
-                      rep.send(response.pipe());
-                    },
-                  }
-                );
-              }
-            );
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
               headers: {
@@ -1259,7 +1237,6 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getWadoRS', async (request, reply) => {
     try {
-      console.log('should not get here');
       // Define request according to params.source
       const result =
         request.params.source === 'archive' && this.archiveRequest
@@ -1283,6 +1260,9 @@ async function dicomwebserver(fastify) {
       const res = await fastify.getMultipartBuffer(result.data);
       const parts = dcmjs.utilities.message.multipartDecode(res);
       reply.headers(result.headers);
+      reply.trailer('relay', (_reply, _payload, done) => {
+        done(null, 'epad');
+      });
       reply.send(Buffer.from(parts[0]));
     } catch (err) {
       reply.send(new InternalError('WADO', err));
@@ -1403,7 +1383,7 @@ async function dicomwebserver(fastify) {
     }
 
     // need to add hook for close to remove the db if test;
-    fastify.addHook('onClose', (instance, done) => {
+    fastify.addHook('onClose', (_instance, done) => {
       if (config.env === 'test') {
         // TODO logout from dicomwebserver
         done();

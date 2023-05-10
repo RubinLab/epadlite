@@ -310,6 +310,32 @@ async function otherRoutes(fastify) {
   });
 
   fastify.route({
+    method: 'GET',
+    url: '/wadors/:source/studies/:study/series/:series/instances/:instance',
+    schema: {
+      tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          instance: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getWadoRS,
+  });
+
+  fastify.route({
     method: 'POST',
     url: '/polldw',
     handler: fastify.triggerPollDW,
