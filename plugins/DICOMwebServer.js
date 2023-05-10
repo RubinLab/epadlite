@@ -1260,9 +1260,8 @@ async function dicomwebserver(fastify) {
       const res = await fastify.getMultipartBuffer(result.data);
       const parts = dcmjs.utilities.message.multipartDecode(res);
       reply.headers(result.headers);
-      reply.trailer('relay', (_reply, _payload, done) => {
-        done(null, 'epad');
-      });
+      reply.removeHeader('content-type');
+      reply.removeHeader('transfer-encoding');
       reply.send(Buffer.from(parts[0]));
     } catch (err) {
       reply.send(new InternalError('WADO', err));
