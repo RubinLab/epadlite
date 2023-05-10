@@ -80,7 +80,7 @@ async function dicomwebserver(fastify) {
               if (accessToken) {
                 mainHeader = {
                   headers: {
-                    Authorization: `Bearer ${accessToken}`,
+                    authorization: `Bearer ${accessToken}`,
                   },
                 };
               }
@@ -90,13 +90,15 @@ async function dicomwebserver(fastify) {
               );
               mainHeader = {
                 headers: {
-                  Authorization: `Basic ${encoded}`,
+                  authorization: `Basic ${encoded}`,
                 },
               };
             }
             // define wado proxy for main pacs
             fastify.register(require('@fastify/reply-from'), {
               base: `${config.dicomWebConfig.baseUrl}`,
+              disableCache: true,
+              cacheUrls: 0,
             });
             fastify.get(
               `/${config.prefix}/wadors/pacs/studies/:study/series/:series/instances/:instance`,
@@ -105,8 +107,10 @@ async function dicomwebserver(fastify) {
                 reply.from(
                   `${config.dicomWebConfig.wadoSubPath}/studies/${study}/series/${series}/instances/${instance}`,
                   {
-                    rewriteRequestHeaders: (originalReq, headers) => {
-                      Object.assign(headers, mainHeader.headers);
+                    rewriteRequestHeaders: (originalReq, headers) =>
+                      Object.assign(headers, mainHeader.headers),
+                    onResponse(req, rep, response) {
+                      rep.send(response.pipe());
                     },
                   }
                 );
@@ -131,7 +135,7 @@ async function dicomwebserver(fastify) {
                   if (accessToken) {
                     archiveHeader = {
                       headers: {
-                        Authorization: `Bearer ${accessToken}`,
+                        authorization: `Bearer ${accessToken}`,
                       },
                     };
                   }
@@ -141,7 +145,7 @@ async function dicomwebserver(fastify) {
                   );
                   archiveHeader = {
                     headers: {
-                      Authorization: `Basic ${encoded}`,
+                      authorization: `Basic ${encoded}`,
                     },
                   };
                 }
