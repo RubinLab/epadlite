@@ -7,10 +7,6 @@ const btoa = require('btoa');
 const dimse = require('dicom-dimse-native');
 const https = require('https');
 const fs = require('fs');
-// wadors routes proxy
-const proxyFastify = require('fastify')({ logger: true });
-const proxy = require('@fastify/http-proxy');
-
 // eslint-disable-next-line no-global-assign
 window = {};
 const dcmjs = require('dcmjs');
@@ -49,8 +45,6 @@ async function dicomwebserver(fastify) {
     }
     return null;
   });
-
-  const host = process.env.host || '0.0.0.0';
 
   // connects to the DICOMweb server using the authentication method in config.dicomWebConfig
   // tests the connection with /studies endpoint after connection and rejects if unsuccessful
@@ -100,15 +94,28 @@ async function dicomwebserver(fastify) {
                 },
               };
             }
-            proxyFastify.register(proxy, {
-              upstream: `${config.dicomWebConfig.baseUrl}`,
-              prefix: `/${config.prefix}/wadors/pacs/studies/:study/series/:series/instances/:instance`,
-              rewritePrefix: `${config.dicomWebConfig.wadoSubPath}/studies/:study/series/:series/instances/:instance`,
-              wsClientOptions: {
-                rewriteRequestHeaders: (originalReq, headers) =>
-                  Object.assign(headers, mainHeader.headers),
-              },
+            // define wado proxy for main pacs
+            fastify.register(require('@fastify/reply-from'), {
+              base: `${config.dicomWebConfig.baseUrl}`,
+              disableCache: true,
+              cacheUrls: 0,
             });
+            fastify.get(
+              `/${config.prefix}/wadors/pacs/studies/:study/series/:series/instances/:instance`,
+              (request, reply) => {
+                const { study, series, instance } = request.params;
+                reply.from(
+                  `${config.dicomWebConfig.wadoSubPath}/studies/${study}/series/${series}/instances/${instance}`,
+                  {
+                    rewriteRequestHeaders: (originalReq, headers) =>
+                      Object.assign(headers, mainHeader.headers),
+                    onResponse(req, rep, response) {
+                      rep.send(response.pipe());
+                    },
+                  }
+                );
+              }
+            );
             this.request = Axios.create({
               baseURL: config.dicomWebConfig.baseUrl,
               headers: {
@@ -121,7 +128,6 @@ async function dicomwebserver(fastify) {
               .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
               .then(async () => {
                 if (!config.archiveDicomWebConfig) {
-                  proxyFastify.listen({ port: 8081, host });
                   resolve();
                 }
                 if (config.archiveDicomWebConfig.authServerUrl) {
@@ -153,17 +159,9 @@ async function dicomwebserver(fastify) {
                   },
                   httpsAgent,
                 });
-                // define wado proxy for archive pacs
-                // proxyFastify.register(proxy, {
-                //   upstream: `${config.archiveDicomWebConfig.baseUrl}${config.archiveDicomWebConfig.wadoSubPath}`,
-                //   prefix: '/wadors/archive/studies/:study/series/:series/instances/:instance',
-                //   rewritePrefix: '/studies/:study/series/:series/instances/:instance',
-                //   http2: false,
-                // });
                 this.archiveRequest
                   .get(`${config.archiveDicomWebConfig.qidoSubPath}/studies?limit=1`)
                   .then(() => {
-                    // proxyFastify.listen({ port: 8081, host });
                     resolve();
                   })
                   .catch((err) => {
