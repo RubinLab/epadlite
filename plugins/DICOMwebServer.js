@@ -105,9 +105,7 @@ async function dicomwebserver(fastify) {
             this.request
               .get(`${config.dicomWebConfig.qidoSubPath}/studies?limit=1`)
               .then(async () => {
-                if (!config.archiveDicomWebConfig) {
-                  resolve();
-                }
+                if (!config.archiveDicomWebConfig) resolve();
                 if (config.archiveDicomWebConfig.authServerUrl) {
                   accessToken = await keycloak.accessToken.get();
                   if (accessToken) {
@@ -1147,10 +1145,10 @@ async function dicomwebserver(fastify) {
             .queryQIDO(
               `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances?includefield=00280008`
             )
-            .then(async (response) => {
+            .then(async (res) => {
               // handle success
               // map each instance to epadlite image object
-              const result = _.chain(response.response.data)
+              const result = _.chain(res.response.data)
                 .map((value) => ({
                   projectID: params.project ? params.project : projectID,
                   patientID:
@@ -1185,7 +1183,7 @@ async function dicomwebserver(fastify) {
                     params.study,
                     params.series,
                     value['00080018'].Value[0],
-                    response.source
+                    res.source
                   ),
                   dicomElements: '', // TODO
                   defaultDICOMElements: '', // TODO
