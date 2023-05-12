@@ -59,6 +59,45 @@ config.dicomWebConfig.legacyEndpoint =
   config.dicomWebConfig.legacyEndpoint ||
   undefined;
 
+config.dicomWebConfig.requireHeaders =
+  (process.env.DICOMWEB_REQUIRE_HEADERS && process.env.DICOMWEB_REQUIRE_HEADERS === 'true') ||
+  config.dicomWebConfig.requireHeaders ||
+  undefined;
+
+config.dicomWebConfig.requireJSONHeader =
+  (process.env.DICOMWEB_REQUIRE_JSON_HEADER &&
+    process.env.DICOMWEB_REQUIRE_JSON_HEADER === 'true') ||
+  config.dicomWebConfig.requireJSONHeader ||
+  undefined;
+
+// eslint-disable-next-line no-nested-ternary
+config.archiveDicomWebConfig = config.archiveDicomWebConfig
+  ? config.archiveDicomWebConfig
+  : process.env.VNA_DICOMWEB_BASEURL || process.env.ARCHIVE_DICOMWEB_BASEURL
+  ? {
+      baseUrl: process.env.VNA_DICOMWEB_BASEURL || process.env.ARCHIVE_DICOMWEB_BASEURL,
+      wadoSubPath: process.env.VNA_DICOMWEB_WADOSUBPATH || process.env.ARCHIVE_DICOMWEB_WADOSUBPATH,
+      qidoSubPath: process.env.VNA_DICOMWEB_QIDOSUBPATH || process.env.ARCHIVE_DICOMWEB_QIDOSUBPATH,
+      username: process.env.VNA_DICOMWEB_USERNAME || process.env.ARCHIVE_DICOMWEB_USERNAME,
+      password: process.env.VNA_DICOMWEB_PASSWORD || process.env.ARCHIVE_DICOMWEB_PASSWORD,
+      legacyEndpoint:
+        (process.env.VNA_DICOMWEB_LEGACY_ENDPOINT &&
+          process.env.VNA_DICOMWEB_LEGACY_ENDPOINT === 'true') ||
+        (process.env.ARCHIVE_DICOMWEB_LEGACY_ENDPOINT &&
+          process.env.ARCHIVE_DICOMWEB_LEGACY_ENDPOINT === 'true'),
+      requireHeaders:
+        (process.env.VNA_DICOMWEB_REQUIRE_HEADERS &&
+          process.env.VNA_DICOMWEB_REQUIRE_HEADERS === 'true') ||
+        (process.env.ARCHIVE_DICOMWEB_REQUIRE_HEADERS &&
+          process.env.ARCHIVE_DICOMWEB_REQUIRE_HEADERS === 'true'),
+      requireJSONHeader:
+        (process.env.VNA_DICOMWEB_REQUIRE_JSON_HEADER &&
+          process.env.VNA_DICOMWEB_REQUIRE_JSON_HEADER === 'true') ||
+        (process.env.ARCHIVE_DICOMWEB_REQUIRE_JSON_HEADER &&
+          process.env.ARCHIVE_DICOMWEB_REQUIRE_JSON_HEADER === 'true'),
+    }
+  : null;
+
 config.mode = process.env.MODE || config.mode || 'lite'; // default lite
 config.imageExt = process.env.IMAGE_EXT || config.imageExt || 'jpg|jpeg|png';
 config.reportExt = process.env.REPORT_EXT || config.reportExt || 'txt|pdf';
@@ -115,14 +154,14 @@ config.dimse = config.dimse
     }
   : null;
 // eslint-disable-next-line no-nested-ternary
-config.vnaDimse = config.vnaDimse
-  ? config.vnaDimse
-  : process.env.VNA_DIMSE_AET
+config.archiveDimse = config.archiveDimse
+  ? config.archiveDimse
+  : process.env.VNA_DIMSE_AET || process.env.ARCHIVE_DIMSE_AET
   ? {
-      aet: process.env.VNA_DIMSE_AET,
-      ip: process.env.VNA_DIMSE_IP,
-      port: process.env.VNA_DIMSE_PORT,
-      sourceIp: process.env.VNA_DIMSE_SOURCE_IP,
+      aet: process.env.VNA_DIMSE_AET || process.env.ARCHIVE_DIMSE_AET,
+      ip: process.env.VNA_DIMSE_IP || process.env.ARCHIVE_DIMSE_IP,
+      port: process.env.VNA_DIMSE_PORT || process.env.ARCHIVE_DIMSE_PORT,
+      sourceIp: process.env.VNA_DIMSE_SOURCE_IP || process.env.ARCHIVE_DIMSE_SOURCE_IP,
     }
   : null;
 config.pullStudyIds =
