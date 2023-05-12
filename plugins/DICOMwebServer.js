@@ -818,9 +818,9 @@ async function dicomwebserver(fastify) {
     (query, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const limit = config.limitStudies ? `?limit=${config.limitStudies}` : '';
+          const limit = config.limitStudies ? `?limit=${config.limitStudies}&` : '?';
           const studies = await this.request.get(
-            `${config.dicomWebConfig.qidoSubPath}/studies${limit}&includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
+            `${config.dicomWebConfig.qidoSubPath}/studies${limit}includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
             mainHeader
           );
           const studyUids = _.map(studies.data, (value) => value['0020000D'].Value[0]);
