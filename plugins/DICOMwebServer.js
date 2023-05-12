@@ -917,15 +917,12 @@ async function dicomwebserver(fastify) {
     'getStudySeriesDIMSE',
     (studyUID) =>
       new Promise((resolve, reject) => {
-        console.time('dimse');
-        console.time('dimsecall');
         const dimsePromises = [
           fastify.promisifyDIMSE(config.dimse, studyUID),
           fastify.promisifyDIMSE(config.archiveDimse, studyUID),
         ];
         Promise.all(dimsePromises).then((results) => {
           try {
-            console.timeEnd('dimsecall');
             // use vna if there is a successfull result from vna
             // it means the study is already archived
             // we assume the series data does not change once it is archived
@@ -963,7 +960,6 @@ async function dicomwebserver(fastify) {
                 return item;
               });
             }
-            console.timeEnd('dimse');
             resolve({ data: res });
           } catch (err) {
             reject(err);
@@ -1143,10 +1139,10 @@ async function dicomwebserver(fastify) {
             .queryQIDO(
               `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances?includefield=00280008`
             )
-            .then(async (response) => {
+            .then(async (res) => {
               // handle success
               // map each instance to epadlite image object
-              const result = _.chain(response.response.data)
+              const result = _.chain(res.response.data)
                 .map((value) => ({
                   projectID: params.project ? params.project : projectID,
                   patientID:
@@ -1181,7 +1177,7 @@ async function dicomwebserver(fastify) {
                     params.study,
                     params.series,
                     value['00080018'].Value[0],
-                    response.source
+                    res.source
                   ),
                   dicomElements: '', // TODO
                   defaultDICOMElements: '', // TODO
