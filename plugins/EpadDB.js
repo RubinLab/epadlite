@@ -7170,8 +7170,7 @@ async function epaddb(fastify, options, done) {
                   await fastify.updateReports(
                     projectId,
                     request.params.project,
-                    request.params.subject,
-                    request.epadAuth
+                    request.params.subject
                   );
                   result = await fastify.getReportFromDB(
                     request.params,
@@ -7249,10 +7248,12 @@ async function epaddb(fastify, options, done) {
         request
       );
       if (request.query.report) {
+        const collab = fastify.isCollaborator(request.params.project, request.epadAuth);
         switch (request.query.report) {
           case 'RECIST':
             // should be one patient
-            if (request.params.subject) result = fastify.getRecist(result.rows, request);
+            if (request.params.subject)
+              result = fastify.getRecist(result.rows, request, collab, request.epadAuth);
             else {
               reply.send(new BadRequestError('Recist Report', new Error('Subject required')));
               return;
@@ -7266,7 +7267,9 @@ async function epaddb(fastify, options, done) {
                 undefined,
                 request,
                 request.query.metric,
-                request.query.html
+                request.query.html,
+                collab,
+                request.epadAuth
               );
             } else {
               reply.send(new BadRequestError('Longitudinal Report', new Error('Subject required')));
@@ -7806,7 +7809,7 @@ async function epaddb(fastify, options, done) {
             );
           // give warning but do not fail if you cannot update the report (it fails if dicoms are not in db)
           try {
-            await fastify.updateReports(projectId, projectUid, subjectUid, epadAuth, transaction);
+            await fastify.updateReports(projectId, projectUid, subjectUid, transaction);
           } catch (reportErr) {
             fastify.log.warn(
               `Could not update the report for patient ${subjectUid} Error: ${reportErr.message}`
@@ -7821,7 +7824,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'getAndSavePrecomputeReports',
-    (projectId, subjectId, result, epadAuth, transaction) =>
+    (projectId, subjectId, result, epadAuth, transaction, collab) =>
       new Promise(async (resolve, reject) => {
         try {
           // recist is default the rest should be added to the config
@@ -7839,7 +7842,8 @@ async function epaddb(fastify, options, done) {
                   pr.metric,
                   pr.template,
                   pr.shapes,
-                  transaction
+                  transaction,
+                  collab
                 )
                 .catch((err) =>
                   fastify.log.error(
@@ -7919,16 +7923,35 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
-
   fastify.decorate(
     'getAndSaveReport',
-    (projectId, subjectId, result, epadAuth, report, metric, template, shapes, transaction) =>
+    (
+      projectId,
+      subjectId,
+      result,
+      epadAuth,
+      report,
+      metric,
+      template,
+      shapes,
+      transaction,
+      collab
+    ) =>
       new Promise(async (resolve, reject) => {
         try {
           const reportMultiUser =
             report === 'RECIST'
-              ? fastify.getRecist(result)
-              : await fastify.getLongitudinal(result, template, shapes, undefined, metric);
+              ? fastify.getRecist(result, undefined, collab, epadAuth)
+              : await fastify.getLongitudinal(
+                  result,
+                  template,
+                  shapes,
+                  undefined,
+                  metric,
+                  false,
+                  collab,
+                  epadAuth
+                );
           if (reportMultiUser && reportMultiUser !== {}) {
             await fastify.saveReport2DB(
               projectId,
@@ -8041,9 +8064,11 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'updateReports',
-    (projectId, projectUid, subjectUid, epadAuth, transaction) =>
+    (projectId, projectUid, subjectUid, transaction) =>
       new Promise(async (resolve, reject) => {
         try {
+          // precompute reports should always be done by admin
+          const epadAuth = { admin: true, username: 'admin' };
           // check if we have the subject in db so that we don't attempt if not
           const subject = await models.subject.findOne(
             {
@@ -8062,7 +8087,7 @@ async function epaddb(fastify, options, done) {
               'json',
               { project: projectUid, subject: subjectUid },
               undefined,
-              { admin: true },
+              epadAuth,
               undefined,
               undefined,
               true
@@ -8072,7 +8097,8 @@ async function epaddb(fastify, options, done) {
               subject.id,
               result.rows,
               epadAuth,
-              transaction
+              transaction,
+              false // it is admin
             );
             resolve('Reports updated!');
           }
@@ -13149,7 +13175,7 @@ async function epaddb(fastify, options, done) {
             baseURL: config.statsEpad,
           });
           // generic stats url
-          const epadUrl = `/epad/statistics/?numOfUsers=${numOfUsers}&numOfProjects=${numOfProjects}&numOfPatients=${numOfPatients}&numOfStudies=${numOfStudies}&numOfSeries=${numOfSeries}&numOfAims=${numOfAims}&numOfDSOs=${numOfDSOs}&numOfWorkLists=${numOfWorkLists}&numOfFiles=${numOfFiles}&numOfPlugins=${numOfPlugins}&numOfTemplates=${numOfTemplates}&host=${hostname}`;
+          const epadUrl = `/api/epad/statistics/?numOfUsers=${numOfUsers}&numOfProjects=${numOfProjects}&numOfPatients=${numOfPatients}&numOfStudies=${numOfStudies}&numOfSeries=${numOfSeries}&numOfAims=${numOfAims}&numOfDSOs=${numOfDSOs}&numOfWorkLists=${numOfWorkLists}&numOfFiles=${numOfFiles}&numOfPlugins=${numOfPlugins}&numOfTemplates=${numOfTemplates}&host=${hostname}`;
 
           // send to statistics collector
           if (!config.disableStats) {
@@ -13197,7 +13223,7 @@ async function epaddb(fastify, options, done) {
               updatetime: Date.now(),
             });
             // template stats url
-            const templatesEpadUrl = `/epad/statistics/templates/?templateCode=${templateCode}&templateName=${templateName}&authors=${authors}&version=${version}&templateLevelType=${templateLevelType}&templateDescription=${templateDescription}&numOfAims=${numOfTemplateAims}&host=${hostname}`;
+            const templatesEpadUrl = `/api/epad/statistics/templates/?templateCode=${templateCode}&templateName=${templateName}&authors=${authors}&version=${version}&templateLevelType=${templateLevelType}&templateDescription=${templateDescription}&numOfAims=${numOfTemplateAims}&host=${hostname}`;
             // send to statistics collector
             if (!config.disableStats) {
               fastify.log.info(
@@ -13987,6 +14013,18 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
             fastify.log.warn('project_aim_user table is filled ');
+
+            await fastify.orm.query(
+              `DELETE FROM project_plugin 
+                WHERE plugin_id NOT IN (SELECT ID FROM plugin);`,
+              { transaction: t }
+            );
+
+            await fastify.orm.query(
+              `DELETE FROM project_plugin 
+                WHERE project_id NOT IN (SELECT ID FROM project);`,
+              { transaction: t }
+            );
 
             await fastify.orm.query(
               `ALTER TABLE project_plugin 
