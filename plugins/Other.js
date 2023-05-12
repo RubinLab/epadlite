@@ -1758,7 +1758,11 @@ async function other(fastify) {
       }
     }
     try {
-      if (!req.raw.url.startsWith('/documentation') && req.method !== 'OPTIONS')
+      if (
+        !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
+        !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) &&
+        req.method !== 'OPTIONS'
+      )
         await fastify.epadThickRightsCheck(req, res);
     } catch (err) {
       res.send(err);
@@ -2289,6 +2293,7 @@ async function other(fastify) {
   // inputString - a valid query string.
   // Returns that query, parsed.
   fastify.decorate('reformatQuery', (inputString) => {
+    const outputArr = [];
     let outputString = '';
     // Replace fancy quotes with regular quotes
     // eslint-disable-next-line no-param-reassign
@@ -2313,6 +2318,7 @@ async function other(fastify) {
         }
         if (![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
           outputString += ' ';
+          outputArr.push(' ');
         }
         let stuffInQuotes = inputString.substring(i + 1, j);
         i = j;
@@ -2327,11 +2333,14 @@ async function other(fastify) {
           //   Matches strings which start with stuffInQuotes
           // '.*[^a-z0-9]' + stuffInQuotes + '[^a-z0-9].*'
           //   Matches strings with stuffInQuotes in the middle.
-          outputString += `/.*[^a-z0-9]${stuffInQuotes}[^a-z0-9].*|${stuffInQuotes}`;
-          outputString += `[^a-z0-9].*|.*[^a-z0-9]${stuffInQuotes}|${stuffInQuotes}/`;
+          let x = `/.*[^a-z0-9]${stuffInQuotes}[^a-z0-9].*|${stuffInQuotes}`;
+          x += `[^a-z0-9].*|.*[^a-z0-9]${stuffInQuotes}|${stuffInQuotes}/`;
+          outputString += x;
+          outputArr.push(x);
           i += 1;
         } else {
           outputString += `/.*${stuffInQuotes}.*/`;
+          outputArr.push(`/.*${stuffInQuotes}.*/`);
         }
       }
       // We are not in quotation marks
@@ -2340,8 +2349,10 @@ async function other(fastify) {
       } else if (cha === '(' || cha === ')') {
         if (cha === '(' && ![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
           outputString += ' ';
+          outputArr.push(' ');
         }
         outputString += cha;
+        outputArr.push(cha);
       } else {
         // We find the start of a word
         let j = i + 1;
@@ -2356,19 +2367,24 @@ async function other(fastify) {
         i = j - 1;
         if (![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
           outputString += ' ';
+          outputArr.push(' ');
         }
         if (word === 'and' || word === 'or' || word === 'not') {
           outputString += word.toUpperCase();
+          outputArr.push(word.toUpperCase());
         } else {
           word = fastify.escapeCharacters(word, false, false);
           outputString += `/.*${word}.*/`;
+          outputArr.push(`/.*${word}.*/`);
         }
       }
     }
     if (outputString.length === 0) {
       return '/.*/';
     }
-    return outputString;
+    fastify.addParensAroundAnd(outputArr);
+    return outputArr.join('');
+    // return outputString;
   });
 
   // Escapes any special characters that are inside quotation marks.
@@ -2410,6 +2426,52 @@ async function other(fastify) {
       }
     }
     return inputString.toLowerCase();
+  });
+
+  // Mutates inputArr, doesn't return anything.
+  fastify.decorate('addParensAroundAnd', (inputArr) => {
+    for (let i = 0; i < inputArr.length; i += 1) {
+      if (inputArr[i] === 'AND') {
+        // Search backwards until # of '(', ')' match.
+        // This is only relevant for situations like '(a OR b) AND c',
+        // where we want the output to be '((a OR b) AND c)' instead of
+        // '(a OR (b) AND c)'
+        let netParens = 0;
+        for (let j = i - 2; j >= 0; j -= 1) {
+          // i-2 to skip the space before AND
+          if (inputArr[j] === ')') {
+            netParens -= 1;
+          } else if (netParens === 0 && inputArr[j] !== ' ') {
+            inputArr.splice(j, 0, '(');
+            i += 1;
+            break;
+          } else if (inputArr[j] === '(') {
+            netParens += 1;
+          }
+        }
+        // I am pretty confident that frontend validation will ensure that this
+        // error will never be thrown, but it never hurts to make sure.
+        if (netParens !== 0) {
+          throw new Error('Error parsing parentheses around AND');
+        }
+        // Same as before but searches forwards.
+        netParens = 0;
+        for (let j = i + 2; j < inputArr.length; j += 1) {
+          // i+2 to skip the space
+          if (inputArr[j] === '(') {
+            netParens += 1;
+          } else if (netParens === 0 && inputArr[j] !== ' ' && inputArr[j] !== 'NOT') {
+            inputArr.splice(j + 1, 0, ')');
+            break;
+          } else if (inputArr[j] === ')') {
+            netParens -= 1;
+          }
+        }
+        if (netParens !== 0) {
+          throw new Error('Error parsing parentheses around AND');
+        }
+      }
+    }
   });
 
   fastify.decorate('createFieldsQuery', async (queryObj, epadAuth) => {
