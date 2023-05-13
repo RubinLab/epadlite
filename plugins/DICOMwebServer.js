@@ -1238,8 +1238,8 @@ async function dicomwebserver(fastify) {
               `${config.archiveDicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}`,
               {
                 responseType: 'stream',
-                ...(config.archiveDicomWebConfig.requireHeaders
-                  ? { headers: request.headers }
+                ...(config.archiveDicomWebConfig.requireJSONHeader
+                  ? { headers: { accept: '*/*' } }
                   : {}),
               }
             )
@@ -1247,7 +1247,7 @@ async function dicomwebserver(fastify) {
               `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}`,
               {
                 responseType: 'stream',
-                ...(config.dicomWebConfig.requireHeaders ? { headers: request.headers } : {}),
+                ...(config.dicomWebConfig.requireJSONHeader ? { headers: { accept: '*/*' } } : {}),
               } // sectra doesn't want parameters, vna requires; added a setting
             );
 
