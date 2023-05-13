@@ -38,7 +38,6 @@ async function dicomwebserver(fastify) {
       return connect;
     } catch (err) {
       if (config.env !== 'test' || config.limitStudies) {
-        console.log(err);
         fastify.log.warn('Waiting for dicomweb server');
         setTimeout(fastify.initDicomWeb, 3000);
       } else throw err;
@@ -161,7 +160,6 @@ async function dicomwebserver(fastify) {
               });
           }
         } catch (err) {
-          console.log(err);
           reject(new InternalError('Error connecting to DICOMweb server', err));
         }
       })
@@ -919,15 +917,12 @@ async function dicomwebserver(fastify) {
     'getStudySeriesDIMSE',
     (studyUID) =>
       new Promise((resolve, reject) => {
-        console.time('dimse');
-        console.time('dimsecall');
         const dimsePromises = [
           fastify.promisifyDIMSE(config.dimse, studyUID),
           fastify.promisifyDIMSE(config.archiveDimse, studyUID),
         ];
         Promise.all(dimsePromises).then((results) => {
           try {
-            console.timeEnd('dimsecall');
             // use vna if there is a successfull result from vna
             // it means the study is already archived
             // we assume the series data does not change once it is archived
@@ -965,7 +960,6 @@ async function dicomwebserver(fastify) {
                 return item;
               });
             }
-            console.timeEnd('dimse');
             resolve({ data: res });
           } catch (err) {
             reject(err);
