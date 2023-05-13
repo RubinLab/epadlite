@@ -1107,19 +1107,21 @@ async function dicomwebserver(fastify) {
     (subPath) =>
       new Promise((resolve, reject) => {
         try {
-          this.request.get(subPath, mainHeader).then((response) => {
-            if (response.status === 200) resolve({ source: 'pacs', response });
-            else if (this.archiveRequest) {
-              this.archiveRequest
-                .get(subPath, archiveHeader)
-                .then((archiveResponse) =>
-                  resolve({ source: 'archive', response: archiveResponse })
-                );
-            } else {
-              // if there is no archive available just return what we have
-              resolve({ source: 'pacs', response });
-            }
-          });
+          this.request
+            .get(`${config.dicomWebConfig.qidoSubPath}${subPath}`, mainHeader)
+            .then((response) => {
+              if (response.status === 200) resolve({ source: 'pacs', response });
+              else if (this.archiveRequest) {
+                this.archiveRequest
+                  .get(`${config.archiveDicomWebConfig.qidoSubPath}${subPath}`, archiveHeader)
+                  .then((archiveResponse) =>
+                    resolve({ source: 'archive', response: archiveResponse })
+                  );
+              } else {
+                // if there is no archive available just return what we have
+                resolve({ source: 'pacs', response });
+              }
+            });
         } catch (err) {
           reject(
             new InternalError(`Error querying request for subpath (${subPath}) for images`, err)
@@ -1137,7 +1139,7 @@ async function dicomwebserver(fastify) {
           // Get sectra, then vna with qidoSubPath
           fastify
             .queryQIDO(
-              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances?includefield=00280008`
+              `/studies/${params.study}/series/${params.series}/instances?includefield=00280008`
             )
             .then(async (res) => {
               // handle success
