@@ -79,7 +79,7 @@ async function dicomwebserver(fastify) {
               if (accessToken) {
                 mainHeader = {
                   headers: {
-                    Authorization: `Bearer ${accessToken}`,
+                    authorization: `Bearer ${accessToken}`,
                   },
                 };
               }
@@ -89,7 +89,7 @@ async function dicomwebserver(fastify) {
               );
               mainHeader = {
                 headers: {
-                  Authorization: `Basic ${encoded}`,
+                  authorization: `Basic ${encoded}`,
                 },
               };
             }
@@ -110,7 +110,7 @@ async function dicomwebserver(fastify) {
                   if (accessToken) {
                     archiveHeader = {
                       headers: {
-                        Authorization: `Bearer ${accessToken}`,
+                        authorization: `Bearer ${accessToken}`,
                       },
                     };
                   }
@@ -120,7 +120,7 @@ async function dicomwebserver(fastify) {
                   );
                   archiveHeader = {
                     headers: {
-                      Authorization: `Basic ${encoded}`,
+                      authorization: `Basic ${encoded}`,
                     },
                   };
                 }
@@ -480,7 +480,7 @@ async function dicomwebserver(fastify) {
           const epadAuth = { username: 'admin', admin: true };
           const updateStudyPromises = [];
           const values = await this.request.get(
-            `/studies?${
+            `${config.dicomWebConfig.qidoSubPath}/studies?${
               config.limitStudies ? `limit=${config.limitStudies}&` : ''
             }includefield=StudyDescription&includefield=00201206&includefield=00201208&includefield=00080061`,
             mainHeader
@@ -1252,6 +1252,8 @@ async function dicomwebserver(fastify) {
       const res = await fastify.getMultipartBuffer(result.data);
       const parts = dcmjs.utilities.message.multipartDecode(res);
       reply.headers(result.headers);
+      reply.removeHeader('content-type');
+      reply.removeHeader('transfer-encoding');
       reply.send(Buffer.from(parts[0]));
     } catch (err) {
       reply.send(new InternalError('WADO', err));
@@ -1372,7 +1374,7 @@ async function dicomwebserver(fastify) {
     }
 
     // need to add hook for close to remove the db if test;
-    fastify.addHook('onClose', (instance, done) => {
+    fastify.addHook('onClose', (_instance, done) => {
       if (config.env === 'test') {
         // TODO logout from dicomwebserver
         done();

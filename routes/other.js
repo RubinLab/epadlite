@@ -109,9 +109,6 @@ async function otherRoutes(fastify) {
             type: 'integer',
           },
         },
-        body: {
-          type: 'string',
-        },
       },
     },
     handler: fastify.saveTemplateStats,
@@ -150,9 +147,6 @@ async function otherRoutes(fastify) {
           numOfAims: {
             type: 'integer',
           },
-        },
-        body: {
-          type: 'string',
         },
       },
     },
@@ -317,7 +311,6 @@ async function otherRoutes(fastify) {
 
   fastify.route({
     method: 'GET',
-    // here2 path
     url: '/wadors/:source/studies/:study/series/:series/instances/:instance',
     schema: {
       tags: ['wado'],

@@ -37,6 +37,7 @@ async function routes(fastify) {
           requirements: {
             type: 'array',
             items: {
+              type: 'object',
               properties: {
                 level: {
                   type: 'string',

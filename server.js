@@ -43,7 +43,7 @@ fastify.addSchema(epadliteSeriesSchema);
 fastify.addSchema(epadliteImagesSchema);
 fastify.addSchema(epadUsersSchema);
 // enable cors
-fastify.register(require('fastify-cors'), {
+fastify.register(require('@fastify/cors'), {
   origin: config.corsOrigin,
 });
 
@@ -70,7 +70,7 @@ const documentationPath =
 
 fastify.register(
   // eslint-disable-next-line import/no-dynamic-require
-  require('fastify-swagger'),
+  require('@fastify/swagger'),
   {
     routePrefix: documentationPath,
     exposeRoute: true,
@@ -143,12 +143,12 @@ if (config.notificationEmail) {
 // download folder required for static
 const downloadFolder = path.join(__dirname, '/download');
 if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
-fastify.register(require('fastify-static'), {
+fastify.register(require('@fastify/static'), {
   root: path.join(__dirname, 'download'),
   prefix: config.prefix ? `/${config.prefix}/download/` : '/download/',
 });
 // Run the server!
-fastify.listen(port, host);
+fastify.listen({ port, host });
 
 fastify.ready((err) => {
   if (err) throw err;
