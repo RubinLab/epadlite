@@ -1107,19 +1107,21 @@ async function dicomwebserver(fastify) {
     (subPath) =>
       new Promise((resolve, reject) => {
         try {
-          this.request.get(subPath, mainHeader).then((response) => {
-            if (response.status === 200) resolve({ source: 'pacs', response });
-            else if (this.archiveRequest) {
-              this.archiveRequest
-                .get(subPath, archiveHeader)
-                .then((archiveResponse) =>
-                  resolve({ source: 'archive', response: archiveResponse })
-                );
-            } else {
-              // if there is no archive available just return what we have
-              resolve({ source: 'pacs', response });
-            }
-          });
+          this.request
+            .get(`${config.dicomWebConfig.qidoSubPath}${subPath}`, mainHeader)
+            .then((response) => {
+              if (response.status === 200) resolve({ source: 'pacs', response });
+              else if (this.archiveRequest) {
+                this.archiveRequest
+                  .get(`${config.archiveDicomWebConfig.qidoSubPath}${subPath}`, archiveHeader)
+                  .then((archiveResponse) =>
+                    resolve({ source: 'archive', response: archiveResponse })
+                  );
+              } else {
+                // if there is no archive available just return what we have
+                resolve({ source: 'pacs', response });
+              }
+            });
         } catch (err) {
           reject(
             new InternalError(`Error querying request for subpath (${subPath}) for images`, err)
@@ -1137,7 +1139,7 @@ async function dicomwebserver(fastify) {
           // Get sectra, then vna with qidoSubPath
           fastify
             .queryQIDO(
-              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances?includefield=00280008`
+              `/studies/${params.study}/series/${params.series}/instances?includefield=00280008`
             )
             .then(async (res) => {
               // handle success
@@ -1236,8 +1238,8 @@ async function dicomwebserver(fastify) {
               `${config.archiveDicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}`,
               {
                 responseType: 'stream',
-                ...(config.archiveDicomWebConfig.requireHeaders
-                  ? { headers: request.headers }
+                ...(config.archiveDicomWebConfig.requireJSONHeader
+                  ? { headers: { accept: '*/*' } }
                   : {}),
               }
             )
@@ -1245,7 +1247,7 @@ async function dicomwebserver(fastify) {
               `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}`,
               {
                 responseType: 'stream',
-                ...(config.dicomWebConfig.requireHeaders ? { headers: request.headers } : {}),
+                ...(config.dicomWebConfig.requireJSONHeader ? { headers: { accept: '*/*' } } : {}),
               } // sectra doesn't want parameters, vna requires; added a setting
             );
 
