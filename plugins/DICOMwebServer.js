@@ -1142,7 +1142,6 @@ async function dicomwebserver(fastify) {
               `/studies/${params.study}/series/${params.series}/instances?includefield=00280008`
             )
             .then(async (res) => {
-              console.time('retrieve');
               // handle success
               // map each instance to epadlite image object
               // get everything that'ss not PR
@@ -1211,7 +1210,6 @@ async function dicomwebserver(fastify) {
                 }))
                 .sortBy('instanceNumber')
                 .value();
-              console.end('retrieve');
               resolve(result);
             })
             .catch((error) => {
