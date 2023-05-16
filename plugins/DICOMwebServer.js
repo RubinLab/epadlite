@@ -1144,7 +1144,7 @@ async function dicomwebserver(fastify) {
             .then(async (res) => {
               // handle success
               // map each instance to epadlite image object
-              // get everything that'ss not PR
+              // get everything that's not PR
               const result = _.chain(res.response.data)
                 .filter(
                   (value) =>
