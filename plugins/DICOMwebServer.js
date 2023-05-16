@@ -1142,9 +1142,20 @@ async function dicomwebserver(fastify) {
               `/studies/${params.study}/series/${params.series}/instances?includefield=00280008`
             )
             .then(async (res) => {
+              console.time('retrieve');
               // handle success
               // map each instance to epadlite image object
+              // get everything that'ss not PR
               const result = _.chain(res.response.data)
+                .filter(
+                  (value) =>
+                    !(
+                      value['00080060'] &&
+                      value['00080060'].Value &&
+                      value['00080060'].Value[0] &&
+                      value['00080060'].Value[0] === 'PR'
+                    )
+                )
                 .map((value) => ({
                   projectID: params.project ? params.project : projectID,
                   patientID:
@@ -1200,6 +1211,7 @@ async function dicomwebserver(fastify) {
                 }))
                 .sortBy('instanceNumber')
                 .value();
+              console.end('retrieve');
               resolve(result);
             })
             .catch((error) => {
