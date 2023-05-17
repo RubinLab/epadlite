@@ -1144,7 +1144,17 @@ async function dicomwebserver(fastify) {
             .then(async (res) => {
               // handle success
               // map each instance to epadlite image object
+              // get everything that's not PR
               const result = _.chain(res.response.data)
+                .filter(
+                  (value) =>
+                    !(
+                      value['00080060'] &&
+                      value['00080060'].Value &&
+                      value['00080060'].Value[0] &&
+                      value['00080060'].Value[0] === 'PR'
+                    )
+                )
                 .map((value) => ({
                   projectID: params.project ? params.project : projectID,
                   patientID:
