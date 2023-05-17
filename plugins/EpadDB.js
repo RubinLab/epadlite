@@ -14670,6 +14670,48 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  fastify.decorate('copySignificantSeries', async (studyUID, toProjectUID, fromProjectUID) => {
+    try {
+      const studyID = (
+        await models.study.findOne({
+          where: { studyuid: studyUID },
+          attributes: ['id'],
+        })
+      ).dataValues.id;
+
+      const toProjectID = (
+        await models.project.findOne({
+          where: { projectid: toProjectUID },
+          attributes: ['id'],
+        })
+      ).dataValues.id;
+
+      // copy from project lite (main teaching project) by default
+      const fromProjectID = (
+        await models.project.findOne({
+          where: { projectid: fromProjectUID || 'lite' },
+          attributes: ['id'],
+        })
+      ).dataValues.id;
+
+      const qry = { study_id: studyID, project_id: fromProjectID };
+      const significantSeries = await models.project_subject_study_series_significance.findAll({
+        where: qry,
+        raw: true,
+      });
+      significantSeries.map((item) => {
+        // eslint-disable-next-line no-param-reassign
+        item.project_id = toProjectID;
+        // eslint-disable-next-line no-param-reassign
+        delete item.id;
+        return item;
+      });
+      await models.project_subject_study_series_significance.bulkCreate(significantSeries);
+    } catch (err) {
+      throw new InternalError('Copying significant series', err);
+    }
+  });
+
   fastify.decorate('version0_4_0', () => fastify.addProjectIDToAims());
 
   fastify.decorate(

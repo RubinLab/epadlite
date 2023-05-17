@@ -289,6 +289,7 @@ async function routes(fastify) {
 
   // POST {s}/projects/:project/aims/copy
   // copies the study that aim belongs to and the aim to the new project (:project) for each aim
+  // assumes the fromProject is project lite and copies the significant series from project lite
   fastify.route({
     method: 'POST',
     url: '/projects/:project/aims/copy',
@@ -298,6 +299,36 @@ async function routes(fastify) {
         type: 'object',
         properties: {
           project: {
+            type: 'string',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'string',
+        },
+      },
+      // response: {
+      //   200: 'aim_schema#',
+      // },
+    },
+    handler: fastify.copyAimsWithUIDs,
+  });
+
+  // another route to get the project that the copy if performed from
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/fromprojects/:fromproject/aims/copy',
+    schema: {
+      tags: ['project', 'aim'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
+            type: 'string',
+          },
+          fromproject: {
             type: 'string',
           },
         },
