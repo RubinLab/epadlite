@@ -364,6 +364,7 @@ async function other(fastify) {
       })
   );
 
+  // filename is sent if it is an actual aim file from upload. it is empty if we created a default aim for segs
   fastify.decorate(
     'saveAimJsonWithProjectRef',
     (aimJson, params, epadAuth, filename) =>
@@ -373,6 +374,20 @@ async function other(fastify) {
             .saveAimInternal(aimJson, params.project)
             .then(async () => {
               try {
+                // if it is a segmentation aim and the DSO has a default aim created with createOfflineAimSegmentation other than this one then delete the default aim
+                if (
+                  !filename &&
+                  aimJson &&
+                  aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .segmentationEntityCollection
+                ) {
+                  const aimExist = await fastify.checkProjectSegAimExistence(
+                    aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root,
+                    params.project
+                  );
+                  // if (aimExist)
+                }
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
                 if (filename) fastify.log.info(`Saving successful for ${filename}`);
                 resolve({ success: true, errors: [] });

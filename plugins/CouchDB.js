@@ -1447,6 +1447,7 @@ async function couchdb(fastify, options) {
                 .segmentationEntityCollection;
             // this is a segmentation aim
             if (segEntity) {
+              // check if there are any other aims pointing to the DSO
               const params = {
                 study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
                 series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,

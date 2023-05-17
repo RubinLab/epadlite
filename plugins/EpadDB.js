@@ -8907,6 +8907,7 @@ async function epaddb(fastify, options, done) {
                 subject: dbAims[i].dataValues.subject_uid,
                 study: dbAims[i].dataValues.study_uid,
               });
+            // check if there are any aims pointing to the DSO
             if (dbAims[i].dataValues.dso_series_uid)
               segDeletePromises.push(
                 fastify.deleteSeriesDicomsInternal({
@@ -8978,6 +8979,7 @@ async function epaddb(fastify, options, done) {
                 for (let i = 0; i < deletedAims.length; i += 1) {
                   if (deletedAims[i].dso_series_uid) {
                     deletedAimUids.push(deletedAims[i].aim_uid);
+                    // check if there are any aims pointing to the DSO
                     segDeletePromises.push(
                       fastify.deleteSeriesDicomsInternal({
                         study: deletedAims[i].study_uid,
