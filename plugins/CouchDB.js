@@ -906,6 +906,17 @@ async function couchdb(fastify, options) {
             // eslint-disable-next-line no-await-in-loop
             await fastify.addPatientStudyToProjectInternal(params, request.epadAuth);
             studyUIDs.push(studyUID);
+            // copy significant series if teaching file
+            if (
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code ===
+              config.teachingTemplate
+            ) {
+              fastify.copySignificantSeries(
+                studyUID,
+                request.params.project,
+                request.params.fromproject
+              );
+            }
           }
           // create a copy the aim with a new uid
           aim.ImageAnnotationCollection.uniqueIdentifier.root = fastify.generateUidInternal();
