@@ -2441,12 +2441,13 @@ async function other(fastify) {
           // i-2 to skip the space before AND
           if (inputArr[j] === ')') {
             netParens -= 1;
-          } else if (netParens === 0 && inputArr[j] !== ' ') {
+          } else if (inputArr[j] === '(') {
+            netParens += 1;
+          }
+          if (netParens === 0 && inputArr[j] !== ' ') {
             inputArr.splice(j, 0, '(');
             i += 1;
             break;
-          } else if (inputArr[j] === '(') {
-            netParens += 1;
           }
         }
         // I am pretty confident that frontend validation will ensure that this
@@ -2460,11 +2461,12 @@ async function other(fastify) {
           // i+2 to skip the space
           if (inputArr[j] === '(') {
             netParens += 1;
-          } else if (netParens === 0 && inputArr[j] !== ' ' && inputArr[j] !== 'NOT') {
-            inputArr.splice(j + 1, 0, ')');
-            break;
           } else if (inputArr[j] === ')') {
             netParens -= 1;
+          }
+          if (netParens === 0 && inputArr[j] !== ' ' && inputArr[j] !== 'NOT') {
+            inputArr.splice(j + 1, 0, ')');
+            break;
           }
         }
         if (netParens !== 0) {
