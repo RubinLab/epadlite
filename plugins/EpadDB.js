@@ -9058,7 +9058,7 @@ async function epaddb(fastify, options, done) {
                 });
                 // eslint-disable-next-line no-await-in-loop
                 await models.project_subject_study_series_significance.destroy({
-                  where: { id: { $in: idsToDelete.map((item) => item.dataValues.id) } },
+                  where: { id: idsToDelete.map((item) => item.dataValues.id) },
                 });
                 fastify.log.info(
                   `Deleted ${idsToDelete.length} significant series for study ${studyInfos[i].study} and project ${studyInfos[i].project}`
