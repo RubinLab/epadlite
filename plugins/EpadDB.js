@@ -14672,6 +14672,13 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('copySignificantSeries', async (studyUID, toProjectUID, fromProjectUID) => {
     try {
+      // if I'm copying to lite, and from is empty, don't do anything
+      if (toProjectUID === 'lite' && !fromProjectUID) {
+        fastify.log.warn(
+          `From project is not given and to project is lite. Don't know where to copy from. Not doing anything to avoid duplication`
+        );
+        return;
+      }
       const studyID = (
         await models.study.findOne({
           where: { studyuid: studyUID },
@@ -14705,6 +14712,11 @@ async function epaddb(fastify, options, done) {
         // eslint-disable-next-line no-param-reassign
         delete item.id;
         return item;
+      });
+
+      // delete the existing significant series in the toProject to avoid duplication
+      await models.project_subject_study_series_significance.destroy({
+        where: { project_id: toProjectID },
       });
       await models.project_subject_study_series_significance.bulkCreate(significantSeries);
     } catch (err) {
