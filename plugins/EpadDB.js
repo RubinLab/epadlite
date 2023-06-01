@@ -370,6 +370,21 @@ async function epaddb(fastify, options, done) {
                 await models.project_user.create(entry);
                 // if there is default template add that template to project
                 await fastify.tryAddDefaultTemplateToProject(defaultTemplate, project, epadAuth);
+                // if teaching make sure both teeaching and significant image templates are added
+                if (config.mode === 'teaching') {
+                  if (defaultTemplate !== config.teachingTemplate)
+                    await fastify.tryAddDefaultTemplateToProject(
+                      config.teachingTemplate,
+                      project,
+                      epadAuth
+                    );
+                  if (defaultTemplate !== config.sigImageTemplate)
+                    await fastify.tryAddDefaultTemplateToProject(
+                      config.sigImageTemplate,
+                      project,
+                      epadAuth
+                    );
+                }
 
                 fastify.log.info(`Project with id ${project.id} is created successfully`);
                 resolve(`Project with id ${project.id} is created successfully`);
@@ -13081,7 +13096,7 @@ async function epaddb(fastify, options, done) {
           const numOfProjects = await models.project.count();
 
           let numOfPatients = 0;
-          if (config.env !== 'test' && config.mode === 'thick') {
+          if (config.env !== 'test' && config.mode !== 'lite') {
             numOfPatients = await models.project_subject.count({
               col: 'subject_id',
               distinct: true,
@@ -13092,7 +13107,7 @@ async function epaddb(fastify, options, done) {
           }
 
           let numOfStudies = 0;
-          if (config.env !== 'test' && config.mode === 'thick') {
+          if (config.env !== 'test' && config.mode !== 'lite') {
             numOfStudies = await models.project_subject_study.count({
               col: 'study_id',
               distinct: true,
@@ -13199,7 +13214,7 @@ async function epaddb(fastify, options, done) {
               : 'Image';
             const templateDescription = templates[i].TemplateContainer.Template[0].description;
             let numOfTemplateAims = 0;
-            if (config.env !== 'test' && config.mode === 'thick') {
+            if (config.env !== 'test' && config.mode !== 'lite') {
               // ???
               numOfTemplateAims = numOfTemplateAimsMap[templateCode].aimcount || 0;
             } else {
