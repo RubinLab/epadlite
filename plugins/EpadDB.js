@@ -6985,10 +6985,11 @@ async function epaddb(fastify, options, done) {
               await models.worklist_study.destroy({
                 where: { project_id: project.id, subject_id: subject.id },
               });
+              console.log('deleting aims', subject.subjectuid, params.project);
               await fastify.deleteAimsInternal(
                 { subject: subject.subjectuid, project: params.project },
                 epadAuth,
-                { all: 'true' },
+                { all: query.all },
                 undefined,
                 true
               );
@@ -7016,7 +7017,7 @@ async function epaddb(fastify, options, done) {
                   await fastify.deleteAimsInternal(
                     { subject: subject.subjectuid },
                     epadAuth,
-                    { all: 'true' },
+                    { all: query.all },
                     undefined,
                     true
                   );
@@ -8884,6 +8885,7 @@ async function epaddb(fastify, options, done) {
             query.all && query.all === 'true'
               ? aimQry
               : { '$project.projectid$': params.project, ...aimQry };
+          console.log('aimqry', aimQry, qry, query.all && query.all === 'true');
           const dbAims = await models.project_aim.findAll({
             where: qry,
             attributes: ['project_id', 'subject_uid', 'study_uid', 'aim_uid', 'dso_series_uid'],
@@ -8958,6 +8960,7 @@ async function epaddb(fastify, options, done) {
                 where: aimQry,
                 attributes: ['project_id', 'subject_uid', 'study_uid', 'aim_uid', 'dso_series_uid'],
               });
+              console.log('leftovers', leftovers);
               if (leftovers.length === 0) {
                 await fastify.deleteCouchDocsInternal(aimUids);
                 await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
@@ -8989,6 +8992,7 @@ async function epaddb(fastify, options, done) {
                     );
                   }
                 }
+                console.log('deleted', deletedAimUids);
                 await fastify.deleteCouchDocsInternal(deletedAimUids);
                 await fastify.aimUpdateGatewayInBulk(deletedAims, epadAuth, params.project);
                 await Promise.all(segDeletePromises);
@@ -9001,6 +9005,7 @@ async function epaddb(fastify, options, done) {
               }
             }
           } catch (deleteErr) {
+            console.log('err', deleteErr);
             reject(
               new InternalError(
                 `Aims ${JSON.stringify(aimUids)} deletion from system ${params.project}`,
