@@ -6983,7 +6983,6 @@ async function epaddb(fastify, options, done) {
               await models.worklist_study.destroy({
                 where: { project_id: project.id, subject_id: subject.id },
               });
-              console.log('deleting aims', subject.subjectuid, params.project);
               await fastify.deleteAimsInternal(
                 { subject: subject.subjectuid, project: params.project },
                 epadAuth,
