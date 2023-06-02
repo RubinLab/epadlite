@@ -489,15 +489,13 @@ async function epaddb(fastify, options, done) {
                 where: { project_id: dbProjectId },
               });
 
-              let leftWhereJSON = { [uidField]: uidsToDelete };
-              if (uidField === 'aim_uid')
-                leftWhereJSON = { ...leftWhereJSON, ...fastify.qryNotDeleted() };
-
-              const uidsLeftObjects = await models[relationTable].findAll({
-                attributes: [[Sequelize.fn('DISTINCT', Sequelize.col(uidField)), uidField]],
-                where: leftWhereJSON,
-                order: [[uidField, 'ASC']],
-              });
+              let leftQry = `SELECT distinct ${uidField} FROM ${relationTable} WHERE ${uidField} in ${JSON.stringify(
+                uidsToDelete
+              )}`;
+              if (uidField === 'aim_uid') leftQry += ` AND deleted is NULL `;
+              leftQry += ` ORDER BY ${uidField} ASC`;
+              console.log('leftQry', leftQry);
+              const uidsLeftObjects = await fastify.orm.query(leftQry, { type: QueryTypes.SELECT });
               console.log('dell', uidsToDelete, uidsLeftObjects);
               if (uidsToDelete.length === uidsLeftObjects.length) {
                 fastify.log.info(
