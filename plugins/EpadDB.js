@@ -6894,7 +6894,8 @@ async function epaddb(fastify, options, done) {
               { subject: subject.subjectuid },
               epadAuth,
               { all: 'true' },
-              undefined
+              undefined,
+              true
             );
             // delete the subject
             await models.subject.destroy({
@@ -6988,7 +6989,8 @@ async function epaddb(fastify, options, done) {
                 { subject: subject.subjectuid, project: params.project },
                 epadAuth,
                 { all: 'true' },
-                undefined
+                undefined,
+                true
               );
 
               // if delete from all or it doesn't exist in any other project, delete from system
@@ -7015,7 +7017,8 @@ async function epaddb(fastify, options, done) {
                     { subject: subject.subjectuid },
                     epadAuth,
                     { all: 'true' },
-                    undefined
+                    undefined,
+                    true
                   );
                   // delete the subject
                   await models.subject.destroy({
@@ -8863,7 +8866,7 @@ async function epaddb(fastify, options, done) {
   // segs
   fastify.decorate(
     'deleteAimsInternal',
-    (params, epadAuth, query, body) =>
+    (params, epadAuth, query, body, skipCheckAndDeleteNoAimStudies) =>
       new Promise(async (resolve, reject) => {
         try {
           let aimQry = {};
@@ -8947,7 +8950,8 @@ async function epaddb(fastify, options, done) {
               await fastify.deleteCouchDocsInternal(aimUids);
               await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
               await Promise.all(segDeletePromises);
-              await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+              if (!skipCheckAndDeleteNoAimStudies)
+                await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
               resolve(`Aims deleted from system and removed from ${numDeleted} projects`);
             } else {
               const leftovers = await models.project_aim.findAll({
@@ -8959,7 +8963,8 @@ async function epaddb(fastify, options, done) {
                 await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
 
                 await Promise.all(segDeletePromises);
-                await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                if (!skipCheckAndDeleteNoAimStudies)
+                  await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
                 resolve(`Aims deleted from system as they didn't exist in any other project`);
               } else {
                 const leftoverIds = [];
@@ -8988,7 +8993,8 @@ async function epaddb(fastify, options, done) {
                 await fastify.aimUpdateGatewayInBulk(deletedAims, epadAuth, params.project);
                 await Promise.all(segDeletePromises);
                 // it doesn't filter the not deleted ones. does an extra check
-                await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                if (!skipCheckAndDeleteNoAimStudies)
+                  await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
                 resolve(
                   `${leftovers.length} aims not deleted from system as they exist in other project`
                 );
