@@ -494,11 +494,11 @@ async function epaddb(fastify, options, done) {
                 leftWhereJSON = { ...leftWhereJSON, ...fastify.qryNotDeleted() };
 
               const uidsLeftObjects = await models[relationTable].findAll({
-                attributes: [uidField],
-                distinct: true,
+                attributes: [[Sequelize.fn('DISTINCT', Sequelize.col(uidField)), uidField]],
                 where: leftWhereJSON,
                 order: [[uidField, 'ASC']],
               });
+              console.log('dell', uidsToDelete, uidsLeftObjects);
               if (uidsToDelete.length === uidsLeftObjects.length) {
                 fastify.log.info(
                   `All ${relationTable} entries of project ${dbProjectId} are being used by other projects`
