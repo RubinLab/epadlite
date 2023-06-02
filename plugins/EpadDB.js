@@ -494,9 +494,7 @@ async function epaddb(fastify, options, done) {
               )}')`;
               if (uidField === 'aim_uid') leftQry += ` AND deleted is NULL `;
               leftQry += ` ORDER BY ${uidField} ASC`;
-              console.log('leftQry', leftQry);
               const uidsLeftObjects = await fastify.orm.query(leftQry, { type: QueryTypes.SELECT });
-              console.log('dell', uidsToDelete, uidsLeftObjects);
               if (uidsToDelete.length === uidsLeftObjects.length) {
                 fastify.log.info(
                   `All ${relationTable} entries of project ${dbProjectId} are being used by other projects`
@@ -8885,7 +8883,6 @@ async function epaddb(fastify, options, done) {
             query.all && query.all === 'true'
               ? aimQry
               : { '$project.projectid$': params.project, ...aimQry };
-          console.log('aimqry', aimQry, qry, query.all && query.all === 'true');
           const dbAims = await models.project_aim.findAll({
             where: qry,
             attributes: ['project_id', 'subject_uid', 'study_uid', 'aim_uid', 'dso_series_uid'],
@@ -8960,7 +8957,6 @@ async function epaddb(fastify, options, done) {
                 where: aimQry,
                 attributes: ['project_id', 'subject_uid', 'study_uid', 'aim_uid', 'dso_series_uid'],
               });
-              console.log('leftovers', leftovers);
               if (leftovers.length === 0) {
                 await fastify.deleteCouchDocsInternal(aimUids);
                 await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
@@ -8992,7 +8988,6 @@ async function epaddb(fastify, options, done) {
                     );
                   }
                 }
-                console.log('deleted', deletedAimUids);
                 await fastify.deleteCouchDocsInternal(deletedAimUids);
                 await fastify.aimUpdateGatewayInBulk(deletedAims, epadAuth, params.project);
                 await Promise.all(segDeletePromises);
@@ -9005,7 +9000,6 @@ async function epaddb(fastify, options, done) {
               }
             }
           } catch (deleteErr) {
-            console.log('err', deleteErr);
             reject(
               new InternalError(
                 `Aims ${JSON.stringify(aimUids)} deletion from system ${params.project}`,
