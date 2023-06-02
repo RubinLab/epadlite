@@ -183,6 +183,7 @@ config.ad = config.ad
 
 config.defaultTemplate = process.env.DEFAULT_TEMPLATE || config.defaultTemplate || 'ROI';
 config.teachingTemplate = process.env.TEACHING_TEMPLATE || config.teachingTemplate || '99EPAD_947';
+config.sigImageTemplate = process.env.SIG_IMAGE_TEMPLATE || config.sigImageTemplate || '99EPAD_948';
 
 config.teachingTemplateUID =
   process.env.TEACHING_TEMPLATE_UID ||
