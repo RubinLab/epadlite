@@ -489,9 +489,9 @@ async function epaddb(fastify, options, done) {
                 where: { project_id: dbProjectId },
               });
 
-              let leftQry = `SELECT distinct ${uidField} FROM ${relationTable} WHERE ${uidField} in (${uidsToDelete.join(
-                ','
-              )})`;
+              let leftQry = `SELECT distinct ${uidField} FROM ${relationTable} WHERE ${uidField} in ('${uidsToDelete.join(
+                `','`
+              )}')`;
               if (uidField === 'aim_uid') leftQry += ` AND deleted is NULL `;
               leftQry += ` ORDER BY ${uidField} ASC`;
               console.log('leftQry', leftQry);
@@ -9067,7 +9067,7 @@ async function epaddb(fastify, options, done) {
                   epadAuth,
                   query: {},
                 });
-                deleted.push(studyInfos);
+                deleted.push(studyInfos[i]);
               }
             }
             resolve(`Deleted ${JSON.stringify(deleted)}`);
