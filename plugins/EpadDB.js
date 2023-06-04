@@ -6889,7 +6889,7 @@ async function epaddb(fastify, options, done) {
           }
           if (subject !== null) {
             await fastify.deleteAimsInternal(
-              { subject: subject.subjectuid },
+              { subject: subject.subjectuid, project: params.project },
               epadAuth,
               { all: 'true' },
               undefined,
@@ -7012,7 +7012,7 @@ async function epaddb(fastify, options, done) {
                     where: { project_id: project.id, subject_id: subject.id },
                   });
                   await fastify.deleteAimsInternal(
-                    { subject: subject.subjectuid },
+                    { subject: subject.subjectuid, project: params.project },
                     epadAuth,
                     { all: query.all },
                     undefined,
@@ -8861,6 +8861,7 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  // params should always have the project. if we want to delete from all projects just send all:true query param
   // segs
   fastify.decorate(
     'deleteAimsInternal',
