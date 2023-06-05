@@ -1250,7 +1250,9 @@ async function other(fastify) {
                 );
               });
             else fastify.log.info('DICOM Send disabled. Skipping subject DICOM delete');
-            promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
+            promisses.push(() =>
+              fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }, undefined, true)
+            );
             pq.addAll(promisses)
               .then(() => {
                 fastify.log.info(`Subject ${params.subject} deletion is initiated successfully`);
@@ -1307,7 +1309,9 @@ async function other(fastify) {
         // delete study in dicomweb and annotations
         const promisses = [];
         promisses.push(() => fastify.deleteStudyDicomsInternal(params));
-        promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
+        promisses.push(() =>
+          fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }, undefined, true)
+        );
         pq.addAll(promisses)
           .then(() => {
             fastify.log.info(`Study ${params.study} deletion is initiated successfully`);

@@ -504,16 +504,12 @@ async function epaddb(fastify, options, done) {
                 where: { project_id: dbProjectId },
               });
 
-              let leftWhereJSON = { [uidField]: uidsToDelete };
-              if (uidField === 'aim_uid')
-                leftWhereJSON = { ...leftWhereJSON, ...fastify.qryNotDeleted() };
-
-              const uidsLeftObjects = await models[relationTable].findAll({
-                attributes: [uidField],
-                distinct: true,
-                where: leftWhereJSON,
-                order: [[uidField, 'ASC']],
-              });
+              let leftQry = `SELECT distinct ${uidField} FROM ${relationTable} WHERE ${uidField} in ('${uidsToDelete.join(
+                `','`
+              )}')`;
+              if (uidField === 'aim_uid') leftQry += ` AND deleted is NULL `;
+              leftQry += ` ORDER BY ${uidField} ASC`;
+              const uidsLeftObjects = await fastify.orm.query(leftQry, { type: QueryTypes.SELECT });
               if (uidsToDelete.length === uidsLeftObjects.length) {
                 fastify.log.info(
                   `All ${relationTable} entries of project ${dbProjectId} are being used by other projects`
@@ -6908,10 +6904,11 @@ async function epaddb(fastify, options, done) {
           }
           if (subject !== null) {
             await fastify.deleteAimsInternal(
-              { subject: subject.subjectuid },
+              { subject: subject.subjectuid, project: params.project },
               epadAuth,
               { all: 'true' },
-              undefined
+              undefined,
+              true
             );
             // delete the subject
             await models.subject.destroy({
@@ -7004,8 +7001,9 @@ async function epaddb(fastify, options, done) {
               await fastify.deleteAimsInternal(
                 { subject: subject.subjectuid, project: params.project },
                 epadAuth,
-                { all: 'true' },
-                undefined
+                { all: query.all },
+                undefined,
+                true
               );
 
               // if delete from all or it doesn't exist in any other project, delete from system
@@ -7029,10 +7027,11 @@ async function epaddb(fastify, options, done) {
                     where: { project_id: project.id, subject_id: subject.id },
                   });
                   await fastify.deleteAimsInternal(
-                    { subject: subject.subjectuid },
+                    { subject: subject.subjectuid, project: params.project },
                     epadAuth,
-                    { all: 'true' },
-                    undefined
+                    { all: query.all },
+                    undefined,
+                    true
                   );
                   // delete the subject
                   await models.subject.destroy({
@@ -8877,10 +8876,11 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  // params should always have the project. if we want to delete from all projects just send all:true query param
   // segs
   fastify.decorate(
     'deleteAimsInternal',
-    (params, epadAuth, query, body) =>
+    (params, epadAuth, query, body, skipCheckAndDeleteNoAimStudies) =>
       new Promise(async (resolve, reject) => {
         try {
           let aimQry = {};
@@ -8964,7 +8964,8 @@ async function epaddb(fastify, options, done) {
               await fastify.deleteCouchDocsInternal(aimUids);
               await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
               await Promise.all(segDeletePromises);
-              await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+              if (!skipCheckAndDeleteNoAimStudies)
+                await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
               resolve(`Aims deleted from system and removed from ${numDeleted} projects`);
             } else {
               const leftovers = await models.project_aim.findAll({
@@ -8976,7 +8977,8 @@ async function epaddb(fastify, options, done) {
                 await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
 
                 await Promise.all(segDeletePromises);
-                await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                if (!skipCheckAndDeleteNoAimStudies)
+                  await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
                 resolve(`Aims deleted from system as they didn't exist in any other project`);
               } else {
                 const leftoverIds = [];
@@ -9005,7 +9007,8 @@ async function epaddb(fastify, options, done) {
                 await fastify.aimUpdateGatewayInBulk(deletedAims, epadAuth, params.project);
                 await Promise.all(segDeletePromises);
                 // it doesn't filter the not deleted ones. does an extra check
-                await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                if (!skipCheckAndDeleteNoAimStudies)
+                  await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
                 resolve(
                   `${leftovers.length} aims not deleted from system as they exist in other project`
                 );
@@ -9084,7 +9087,7 @@ async function epaddb(fastify, options, done) {
                   epadAuth,
                   query: {},
                 });
-                deleted.push(studyInfos);
+                deleted.push(studyInfos[i]);
               }
             }
             resolve(`Deleted ${JSON.stringify(deleted)}`);
