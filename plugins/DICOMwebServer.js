@@ -1251,9 +1251,9 @@ async function dicomwebserver(fastify) {
             }`,
             {
               responseType: 'stream',
-              ...(config.archiveDicomWebConfig.requireHeaders
+              ...(config.archiveDicomWebConfig.requireJSONHeader
                 ? { headers: { accept: '*/*' } }
-                : { headers: {} }),
+                : {}),
             }
           )
         : this.request.get(
@@ -1264,15 +1264,9 @@ async function dicomwebserver(fastify) {
             }`,
             {
               responseType: 'stream',
-              transformRequest: [
-                (data, headers) => {
-                  // eslint-disable-next-line no-param-reassign
-                  delete headers.common.Accept;
-                  // eslint-disable-next-line no-param-reassign
-                  delete headers.common.accept;
-                  return data;
-                },
-              ],
+              ...(config.archiveDicomWebConfig.requireJSONHeader
+                ? { headers: { accept: '*/*' } }
+                : {}),
             }
           )
       )
