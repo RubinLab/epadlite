@@ -1281,7 +1281,7 @@ async function dicomwebserver(fastify) {
     }
   });
 
-  fastify.decorate('getWadoRSMetadata', async (request, reply) => {
+  fastify.decorate('getWadoRSMetadata', (request, reply) => {
     try {
       this.request
         .get(
