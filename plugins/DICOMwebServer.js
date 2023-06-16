@@ -1264,10 +1264,16 @@ async function dicomwebserver(fastify) {
             }`,
             {
               responseType: 'stream',
-              ...(config.dicomWebConfig.requireHeaders
-                ? { headers: { accept: '*/*' } }
-                : { headers: {} }),
-            } // sectra doesn't want parameters, vna requires; added a setting
+              transformRequest: [
+                (data, headers) => {
+                  // eslint-disable-next-line no-param-reassign
+                  delete headers.common.Accept;
+                  // eslint-disable-next-line no-param-reassign
+                  delete headers.common.accept;
+                  return data;
+                },
+              ],
+            }
           )
       )
         .then((result) => {
