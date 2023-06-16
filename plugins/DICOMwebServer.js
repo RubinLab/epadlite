@@ -1264,10 +1264,8 @@ async function dicomwebserver(fastify) {
             }`,
             {
               responseType: 'stream',
-              ...(config.archiveDicomWebConfig.requireJSONHeader
-                ? { headers: { accept: '*/*' } }
-                : {}),
-            }
+              ...(config.dicomWebConfig.requireJSONHeader ? { headers: { accept: '*/*' } } : {}),
+            } // sectra doesn't want parameters, vna requires; added a setting
           )
       )
         .then((result) => {
