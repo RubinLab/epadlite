@@ -1285,7 +1285,7 @@ async function dicomwebserver(fastify) {
     try {
       this.request
         .get(
-          `${config.dicomWebConfig.qidoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}/metadata`,
+          `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}/metadata`,
           mainHeader
         )
         .then((response) => {
