@@ -1272,7 +1272,10 @@ async function dicomwebserver(fastify) {
           reply.headers(result.headers);
           reply.code(200).send(result.data);
         })
-        .catch((err) => reply.send(new InternalError('WADORS', err)));
+        .catch((err) => {
+          console.log('err', err);
+          reply.send(new InternalError('WADORS', err));
+        });
     } catch (err) {
       reply.send(new InternalError('WADORS', err));
     }
