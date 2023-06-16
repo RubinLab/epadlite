@@ -1275,35 +1275,19 @@ async function dicomwebserver(fastify) {
 
   fastify.decorate('getWadoRSMetadata', async (request, reply) => {
     try {
-      // Define request according to params.source
-      const result =
-        request.params.source === 'archive' && this.archiveRequest
-          ? await this.archiveRequest.get(
-              `${config.archiveDicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}/metadata`,
-              {
-                responseType: 'stream',
-                ...(config.archiveDicomWebConfig.requireJSONHeader
-                  ? { headers: { accept: 'application/json' } }
-                  : {}),
-              }
-            )
-          : await this.request.get(
-              `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}/metadata`,
-              {
-                responseType: 'stream',
-                ...(config.dicomWebConfig.requireJSONHeader
-                  ? { headers: { accept: 'application/json' } }
-                  : {}),
-              } // sectra doesn't want parameters, vna requires; added a setting
-            );
-      console.log('metadata', result.data);
-      // const res = await fastify.getMultipartBuffer(result.data);
-      // const parts = dcmjs.utilities.message.multipartDecode(res);
-      // reply.headers(result.headers);
-      // reply.removeHeader('content-type');
-      // reply.removeHeader('transfer-encoding');
-      // reply.send(Buffer.from(parts[0]));
-      reply.send(result.data);
+      this.request
+        .get(
+          `${config.dicomWebConfig.qidoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}/metadata`,
+          mainHeader
+        )
+        .then((response) => {
+          console.log('metadata', response.data);
+          reply.send(response.data);
+        })
+        .catch((err) => {
+          console.log(err);
+          reply.send(err);
+        });
     } catch (err) {
       reply.send(new InternalError('WADO', err));
     }
