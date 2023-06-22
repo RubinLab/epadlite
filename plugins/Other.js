@@ -1,7 +1,7 @@
 /* eslint-disable no-async-promise-executor */
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
-const unzip = require('unzip-stream');
+const extractZip = require('extract-zip');
 const toArrayBuffer = require('to-array-buffer');
 const { default: PQueue } = require('p-queue');
 const path = require('path');
@@ -499,9 +499,8 @@ async function other(fastify) {
         try {
           fs.mkdirSync(zipDir);
           fastify.log.info(`Extracting ${dir}/${filename} to ${zipDir}`);
-          fs.createReadStream(`${dir}/${filename}`)
-            .pipe(unzip.Extract({ path: `${zipDir}` }))
-            .on('close', () => {
+          extractZip(`${dir}/${filename}`, `${zipDir}`)
+            .then(() => {
               fastify.log.info(`Extracted zip ${zipDir}`);
               // add extracted zip so we can skip
               fastify
@@ -524,7 +523,7 @@ async function other(fastify) {
                 })
                 .catch((errPrc) => reject(errPrc));
             })
-            .on('error', (error) => {
+            .catch((error) => {
               reject(new InternalError(`Extracting zip ${filename}`, error));
             });
         } catch (err) {
