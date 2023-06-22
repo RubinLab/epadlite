@@ -9,7 +9,6 @@ const https = require('https');
 const fs = require('fs');
 // eslint-disable-next-line no-global-assign
 window = {};
-const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
