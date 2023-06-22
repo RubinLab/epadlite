@@ -499,7 +499,7 @@ async function other(fastify) {
         try {
           fs.mkdirSync(zipDir);
           fastify.log.info(`Extracting ${dir}/${filename} to ${zipDir}`);
-          extractZip(`${dir}/${filename}`, `${zipDir}`)
+          extractZip(`${dir}/${filename}`, { dir: `${zipDir}` })
             .then(() => {
               fastify.log.info(`Extracted zip ${zipDir}`);
               // add extracted zip so we can skip

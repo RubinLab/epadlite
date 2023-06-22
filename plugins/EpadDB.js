@@ -2652,7 +2652,7 @@ async function epaddb(fastify, options, done) {
                       `Aims zip copied to aims folder ${inputfolder}annotations.zip`
                     );
 
-                    extractZip(`${inputfolder}annotations.zip`, `${inputfolder}`)
+                    extractZip(`${inputfolder}annotations.zip`, { dir: `${inputfolder}` })
                       .then(() => {
                         fastify.log.info(`${inputfolder}annotations.zip extracted`);
                         fs.remove(`${inputfolder}annotations.zip`, (error) => {
