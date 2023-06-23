@@ -13137,7 +13137,7 @@ async function epaddb(fastify, options, done) {
           const numOfSeries = series.length - numOfDSOs;
 
           let numOfAims = 0;
-          let numOfTemplateAimsMap = {};
+          const numOfTemplateAimsMap = {};
           if (config.env !== 'test') {
             const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
             numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
