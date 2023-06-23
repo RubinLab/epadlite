@@ -73,7 +73,11 @@ async function other(fastify) {
   //   );
   // });
   // eslint-disable-next-line global-require
-  fastify.register(require('@fastify/multipart'));
+  fastify.register(require('@fastify/multipart'), {
+    limits: {
+      fileSize: 2147483648, // 2GB
+    },
+  });
   fastify.decorate('getCombinedErrorText', (errors) => {
     let errMessagesText = null;
     if (errors.length > 0) {
