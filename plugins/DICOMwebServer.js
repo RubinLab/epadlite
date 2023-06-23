@@ -9,7 +9,6 @@ const https = require('https');
 const fs = require('fs');
 // eslint-disable-next-line no-global-assign
 window = {};
-const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
@@ -1285,7 +1284,9 @@ async function dicomwebserver(fastify) {
     try {
       this.request
         .get(
-          `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${request.params.series}/instances/${request.params.instance}/metadata`,
+          `${config.dicomWebConfig.wadoSubPath}/studies/${request.params.study}/series/${
+            request.params.series
+          }${request.params.instance ? `/instances/${request.params.instance}` : ''}/metadata`,
           mainHeader
         )
         .then((response) => {
