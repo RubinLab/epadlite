@@ -13213,8 +13213,9 @@ async function epaddb(fastify, options, done) {
             const templateDescription = templates[i].TemplateContainer.Template[0].description;
             let numOfTemplateAims = 0;
             if (config.env !== 'test' && config.mode !== 'lite') {
-              // ???
-              numOfTemplateAims = numOfTemplateAimsMap[templateCode].aimcount || 0;
+              numOfTemplateAims = numOfTemplateAimsMap[templateCode]
+                ? numOfTemplateAimsMap[templateCode].aimcount
+                : 0;
             } else {
               numOfTemplateAims = numOfTemplateAimsMap[templateCode] || 0;
             }
