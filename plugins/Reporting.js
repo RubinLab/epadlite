@@ -4,7 +4,7 @@ const _ = require('lodash');
 
 const { InternalError } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
-const { renderTable } = require('../utils/recist.js');
+const { renderTable } = require('../utils/recist');
 const config = require('../config/index');
 
 async function reporting(fastify) {
