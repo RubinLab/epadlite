@@ -13099,10 +13099,8 @@ async function epaddb(fastify, options, done) {
 
           let numOfPatients = 0;
           if (config.env !== 'test' && config.mode !== 'lite') {
-            numOfPatients = await models.project_subject.count({
-              col: 'subject_id',
-              distinct: true,
-            });
+            const qry = `SELECT COUNT(DISTINCT subject_id) AS count FROM project_subject;`;
+            numOfPatients = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
           } else {
             const patients = await fastify.getPatientsInternal({}, undefined, undefined, true);
             numOfPatients = patients.length;
@@ -13110,10 +13108,8 @@ async function epaddb(fastify, options, done) {
 
           let numOfStudies = 0;
           if (config.env !== 'test' && config.mode !== 'lite') {
-            numOfStudies = await models.project_subject_study.count({
-              col: 'study_id',
-              distinct: true,
-            });
+            const qry = `SELECT COUNT(DISTINCT study_id) AS count FROM project_subject_study;`;
+            numOfStudies = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
           } else {
             // TODO this will be affected by limit!
             const studies = await fastify.getPatientStudiesInternal(
@@ -13139,18 +13135,18 @@ async function epaddb(fastify, options, done) {
           const numOfSeries = series.length - numOfDSOs;
 
           let numOfAims = 0;
-          let numOfTemplateAimsMap = {};
+          const numOfTemplateAimsMap = {};
           if (config.env !== 'test') {
-            numOfAims = await models.project_aim.count({
-              col: 'aim_uid',
-              distinct: true,
-              where: fastify.qryNotDeleted(),
-            });
-            numOfTemplateAimsMap = await models.project_aim.findAll({
+            const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
+            numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
+            const numOfTemplateAims = await models.project_aim.findAll({
               group: ['template'],
               attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
               raw: true,
               where: fastify.qryNotDeleted(),
+            });
+            numOfTemplateAims.forEach((item) => {
+              numOfTemplateAimsMap[item.template] = item.aimcount;
             });
           }
 
@@ -13215,13 +13211,7 @@ async function epaddb(fastify, options, done) {
               ? templates[i].TemplateContainer.Template[0].templateType
               : 'Image';
             const templateDescription = templates[i].TemplateContainer.Template[0].description;
-            let numOfTemplateAims = 0;
-            if (config.env !== 'test' && config.mode !== 'lite') {
-              // ???
-              numOfTemplateAims = numOfTemplateAimsMap[templateCode].aimcount || 0;
-            } else {
-              numOfTemplateAims = numOfTemplateAimsMap[templateCode] || 0;
-            }
+            const numOfTemplateAims = numOfTemplateAimsMap[templateCode] || 0;
             const templateText = JSON.stringify(templates[i]);
 
             // save to db
