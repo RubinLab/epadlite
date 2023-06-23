@@ -254,7 +254,6 @@ async function other(fastify) {
               ).notify(fastify);
           });
       } catch (error) {
-        console.log('error', error);
         reply.send(new InternalError('Saved files processing', error));
       }
     } catch (err) {
