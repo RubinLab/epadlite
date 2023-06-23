@@ -166,95 +166,93 @@ async function other(fastify) {
         filenames.push(part.filename);
       }
       try {
-        Promise.all(fileSavePromisses)
-          .then(async () => {
-            if (config.env !== 'test') {
-              fastify.log.info('Files copy completed. sending response');
-              reply.code(202).send('Files received succesfully, saving..');
-            }
-            try {
-              const { success, errors } = await fastify.saveFiles(
-                dir,
-                filenames,
-                request.params,
-                request.query,
-                request.epadAuth
-              );
-              fs.remove(dir, (error) => {
-                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                fastify.log.info(`${dir} deleted`);
-              });
-              // poll dicomweb to update the counts
-              await fastify.pollDWStudies();
-              const errMessagesText = fastify.getCombinedErrorText(errors);
-              if (success) {
-                if (errMessagesText) {
-                  if (config.env === 'test')
-                    reply.send(
-                      new InternalError('Upload Completed with errors', new Error(errMessagesText))
-                    );
-                  else
-                    new EpadNotification(
-                      request,
-                      'Upload Completed with errors',
-                      new Error(errMessagesText),
-                      true
-                    ).notify(fastify);
-                  // test should wait for the upload to actually finish to send the response.
-                  // sending the reply early is to handle very large files and to avoid browser repeating the request
-                } else if (config.env === 'test') reply.code(200).send();
-                else {
-                  fastify.log.info(`Upload Completed ${filenames}`);
-                  new EpadNotification(request, 'Upload Completed', filenames, true).notify(
-                    fastify
+        await Promise.all(fileSavePromisses);
+        try {
+          if (config.env !== 'test') {
+            fastify.log.info('Files copy completed. sending response');
+            reply.code(202).send('Files received succesfully, saving..');
+          }
+          try {
+            const { success, errors } = await fastify.saveFiles(
+              dir,
+              filenames,
+              request.params,
+              request.query,
+              request.epadAuth
+            );
+            fs.remove(dir, (error) => {
+              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+              fastify.log.info(`${dir} deleted`);
+            });
+            // poll dicomweb to update the counts
+            await fastify.pollDWStudies();
+            const errMessagesText = fastify.getCombinedErrorText(errors);
+            if (success) {
+              if (errMessagesText) {
+                if (config.env === 'test')
+                  reply.send(
+                    new InternalError('Upload Completed with errors', new Error(errMessagesText))
                   );
-                }
-              } else if (config.env === 'test') {
-                reply.send(
-                  new InternalError(
-                    'Upload Failed as none of the files were uploaded successfully',
-                    new Error(`${filenames.toString()}. ${errMessagesText}`)
-                  )
-                );
-              } else {
-                new EpadNotification(
-                  request,
-                  'Upload Failed as none of the files were uploaded successfully',
-                  new Error(`${filenames.toString()}. ${errMessagesText}`),
-                  true
-                ).notify(fastify);
+                else
+                  new EpadNotification(
+                    request,
+                    'Upload Completed with errors',
+                    new Error(errMessagesText),
+                    true
+                  ).notify(fastify);
+                // test should wait for the upload to actually finish to send the response.
+                // sending the reply early is to handle very large files and to avoid browser repeating the request
+              } else if (config.env === 'test') reply.code(200).send();
+              else {
+                fastify.log.info(`Upload Completed ${filenames}`);
+                new EpadNotification(request, 'Upload Completed', filenames, true).notify(fastify);
               }
-            } catch (filesErr) {
-              fs.remove(dir, (error) => {
-                if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
-                else fastify.log.info(`${dir} deleted`);
-              });
-              if (config.env === 'test') reply.send(new InternalError('Upload Error', filesErr));
-              else
-                new EpadNotification(
-                  request,
-                  'Upload files',
-                  new InternalError('Upload Error', filesErr),
-                  true
-                ).notify(fastify);
+            } else if (config.env === 'test') {
+              reply.send(
+                new InternalError(
+                  'Upload Failed as none of the files were uploaded successfully',
+                  new Error(`${filenames.toString()}. ${errMessagesText}`)
+                )
+              );
+              return;
+            } else {
+              new EpadNotification(
+                request,
+                'Upload Failed as none of the files were uploaded successfully',
+                new Error(`${filenames.toString()}. ${errMessagesText}`),
+                true
+              ).notify(fastify);
             }
-          })
-          .catch((fileSaveErr) => {
+          } catch (filesErr) {
             fs.remove(dir, (error) => {
               if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
               else fastify.log.info(`${dir} deleted`);
             });
-            if (config.env === 'test') reply.send(new InternalError('Upload Error', fileSaveErr));
+            if (config.env === 'test') reply.send(new InternalError('Upload Error', filesErr));
             else
               new EpadNotification(
                 request,
                 'Upload files',
-                new InternalError('Upload Error', fileSaveErr),
+                new InternalError('Upload Error', filesErr),
                 true
               ).notify(fastify);
-          });
-      } catch (error) {
-        reply.send(new InternalError('Saved files processing', error));
+          }
+        } catch (error) {
+          reply.send(new InternalError('Saved files processing', error));
+        }
+      } catch (fileSaveErr) {
+        fs.remove(dir, (error) => {
+          if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+          else fastify.log.info(`${dir} deleted`);
+        });
+        if (config.env === 'test') reply.send(new InternalError('Upload Error', fileSaveErr));
+        else
+          new EpadNotification(
+            request,
+            'Upload files',
+            new InternalError('Upload Error', fileSaveErr),
+            true
+          ).notify(fastify);
       }
     } catch (err) {
       reply.send(new InternalError('Multipart file save', err));
