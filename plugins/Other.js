@@ -90,6 +90,7 @@ async function other(fastify) {
     return errMessagesText;
   });
   fastify.decorate('saveAimFile', (request, reply) => {
+    // TODO convert to pump usage as saveFile
     const fileSavePromises = [];
     function done(err) {
       if (err) {
