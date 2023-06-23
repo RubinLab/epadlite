@@ -13142,12 +13142,16 @@ async function epaddb(fastify, options, done) {
             const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
             numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
             console.log('numOfAims', numOfAims);
-            numOfTemplateAimsMap = await models.project_aim.findAll({
+            const numOfTemplateAims = await models.project_aim.findAll({
               group: ['template'],
               attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
               raw: true,
               where: fastify.qryNotDeleted(),
             });
+            numOfTemplateAims.forEach((item) => {
+              numOfTemplateAimsMap[item.template] = item.aimcount;
+            });
+            console.log('numOfTemplateAimsMap', numOfTemplateAimsMap);
           }
 
           // TODO are these correct? check with thick
@@ -13211,14 +13215,7 @@ async function epaddb(fastify, options, done) {
               ? templates[i].TemplateContainer.Template[0].templateType
               : 'Image';
             const templateDescription = templates[i].TemplateContainer.Template[0].description;
-            let numOfTemplateAims = 0;
-            if (config.env !== 'test' && config.mode !== 'lite') {
-              numOfTemplateAims = numOfTemplateAimsMap[templateCode]
-                ? numOfTemplateAimsMap[templateCode].aimcount
-                : 0;
-            } else {
-              numOfTemplateAims = numOfTemplateAimsMap[templateCode] || 0;
-            }
+            const numOfTemplateAims = numOfTemplateAimsMap[templateCode] || 0;
             const templateText = JSON.stringify(templates[i]);
 
             // save to db
