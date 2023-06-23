@@ -13101,7 +13101,6 @@ async function epaddb(fastify, options, done) {
           if (config.env !== 'test' && config.mode !== 'lite') {
             const qry = `SELECT COUNT(DISTINCT subject_id) AS count FROM project_subject;`;
             numOfPatients = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
-            console.log('numpats', numOfPatients);
           } else {
             const patients = await fastify.getPatientsInternal({}, undefined, undefined, true);
             numOfPatients = patients.length;
@@ -13111,7 +13110,6 @@ async function epaddb(fastify, options, done) {
           if (config.env !== 'test' && config.mode !== 'lite') {
             const qry = `SELECT COUNT(DISTINCT study_id) AS count FROM project_subject_study;`;
             numOfStudies = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
-            console.log('numstudies', numOfStudies);
           } else {
             // TODO this will be affected by limit!
             const studies = await fastify.getPatientStudiesInternal(
@@ -13141,7 +13139,6 @@ async function epaddb(fastify, options, done) {
           if (config.env !== 'test') {
             const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
             numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
-            console.log('numOfAims', numOfAims);
             const numOfTemplateAims = await models.project_aim.findAll({
               group: ['template'],
               attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
@@ -13151,7 +13148,6 @@ async function epaddb(fastify, options, done) {
             numOfTemplateAims.forEach((item) => {
               numOfTemplateAimsMap[item.template] = item.aimcount;
             });
-            console.log('numOfTemplateAimsMap', numOfTemplateAimsMap);
           }
 
           // TODO are these correct? check with thick
