@@ -9,7 +9,7 @@ const os = require('os');
 const schedule = require('node-schedule-tz');
 const archiver = require('archiver');
 const toArrayBuffer = require('to-array-buffer');
-const unzip = require('unzip-stream');
+const extractZip = require('extract-zip');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csv = require('csv-parser');
 const { createOfflineAimSegmentation } = require('aimapi');
@@ -2652,9 +2652,8 @@ async function epaddb(fastify, options, done) {
                       `Aims zip copied to aims folder ${inputfolder}annotations.zip`
                     );
 
-                    fs.createReadStream(`${inputfolder}annotations.zip`)
-                      .pipe(unzip.Extract({ path: `${inputfolder}` }))
-                      .on('close', () => {
+                    extractZip(`${inputfolder}annotations.zip`, { dir: `${inputfolder}` })
+                      .then(() => {
                         fastify.log.info(`${inputfolder}annotations.zip extracted`);
                         fs.remove(`${inputfolder}annotations.zip`, (error) => {
                           if (error) {
@@ -2667,7 +2666,7 @@ async function epaddb(fastify, options, done) {
                           }
                         });
                       })
-                      .on('error', (error) => {
+                      .catch((error) => {
                         reject(
                           new InternalError(`Extracting zip ${inputfolder}annotations.zip`, error)
                         );
