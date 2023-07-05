@@ -109,9 +109,6 @@ async function otherRoutes(fastify) {
             type: 'integer',
           },
         },
-        body: {
-          type: 'string',
-        },
       },
     },
     handler: fastify.saveTemplateStats,
@@ -150,9 +147,6 @@ async function otherRoutes(fastify) {
           numOfAims: {
             type: 'integer',
           },
-        },
-        body: {
-          type: 'string',
         },
       },
     },
@@ -291,12 +285,15 @@ async function otherRoutes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/wado/',
+    url: '/wado/:source/',
     schema: {
       tags: ['wado'],
       query: {
         type: 'object',
         properties: {
+          source: {
+            type: 'string',
+          },
           studyUID: {
             type: 'string',
           },
@@ -314,11 +311,109 @@ async function otherRoutes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/wadors/studies/:study/series/:series/instances/:instance',
+    url: '/wadors/:source/studies/:study/series/:series/instances/:instance',
     schema: {
       tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          instance: {
+            type: 'string',
+          },
+        },
+      },
     },
     handler: fastify.getWadoRS,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/wadors/:source/studies/:study/series/:series/instances/:instance/frames/:frame',
+    schema: {
+      tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          instance: {
+            type: 'string',
+          },
+          frame: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getWadoRS,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/wadors/:source/studies/:study/series/:series/instances/:instance/metadata',
+    schema: {
+      tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          instance: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getWadoRSMetadata,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/wadors/:source/studies/:study/series/:series/metadata',
+    schema: {
+      tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          instance: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getWadoRSMetadata,
   });
 
   fastify.route({

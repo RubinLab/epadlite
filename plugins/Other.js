@@ -1,7 +1,7 @@
 /* eslint-disable no-async-promise-executor */
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
-const unzip = require('unzip-stream');
+const extractZip = require('extract-zip');
 const toArrayBuffer = require('to-array-buffer');
 const { default: PQueue } = require('p-queue');
 const path = require('path');
@@ -15,6 +15,10 @@ const { createOfflineAimSegmentation, Aim } = require('aimapi');
 const crypto = require('crypto');
 const concat = require('concat-stream');
 const ActiveDirectory = require('activedirectory2');
+const util = require('util');
+const { pipeline } = require('stream');
+
+const pump = util.promisify(pipeline);
 const config = require('../config/index');
 
 let keycloak = null;
@@ -69,7 +73,11 @@ async function other(fastify) {
   //   );
   // });
   // eslint-disable-next-line global-require
-  fastify.register(require('@fastify/multipart'));
+  fastify.register(require('@fastify/multipart'), {
+    limits: {
+      fileSize: 2147483648, // 2GB
+    },
+  });
   fastify.decorate('getCombinedErrorText', (errors) => {
     let errMessagesText = null;
     if (errors.length > 0) {
@@ -82,6 +90,7 @@ async function other(fastify) {
     return errMessagesText;
   });
   fastify.decorate('saveAimFile', (request, reply) => {
+    // TODO convert to pump usage as saveFile
     const fileSavePromises = [];
     function done(err) {
       if (err) {
@@ -143,119 +152,111 @@ async function other(fastify) {
     request.multipart(handler, done);
   });
 
-  fastify.decorate('saveFile', (request, reply) => {
+  fastify.decorate('saveFile', async (request, reply) => {
+    const parts = request.files();
     const timestamp = new Date().getTime();
     const dir = `/tmp/tmp_${timestamp}`;
     const filenames = [];
     const fileSavePromisses = [];
-    function done(err) {
-      if (err) {
-        reply.send(new InternalError('Multipart file save', err));
-      } else {
-        Promise.all(fileSavePromisses)
-          .then(async () => {
-            if (config.env !== 'test') {
-              fastify.log.info('Files copy completed. sending response');
-              reply.code(202).send('Files received succesfully, saving..');
-            }
-            try {
-              const { success, errors } = await fastify.saveFiles(
-                dir,
-                filenames,
-                request.params,
-                request.query,
-                request.epadAuth
-              );
-              fs.remove(dir, (error) => {
-                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                fastify.log.info(`${dir} deleted`);
-              });
-              // poll dicomweb to update the counts
-              await fastify.pollDWStudies();
-              const errMessagesText = fastify.getCombinedErrorText(errors);
-              if (success) {
-                if (errMessagesText) {
-                  if (config.env === 'test')
-                    reply.send(
-                      new InternalError('Upload Completed with errors', new Error(errMessagesText))
-                    );
-                  else
-                    new EpadNotification(
-                      request,
-                      'Upload Completed with errors',
-                      new Error(errMessagesText),
-                      true
-                    ).notify(fastify);
-
-                  // test should wait for the upload to actually finish to send the response.
-                  // sending the reply early is to handle very large files and to avoid browser repeating the request
-                } else if (config.env === 'test') reply.code(200).send();
-                else {
-                  fastify.log.info(`Upload Completed ${filenames}`);
-                  new EpadNotification(request, 'Upload Completed', filenames, true).notify(
-                    fastify
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+      // eslint-disable-next-line no-restricted-syntax
+      for await (const part of parts) {
+        fileSavePromisses.push(pump(part.file, fs.createWriteStream(`${dir}/${part.filename}`)));
+        filenames.push(part.filename);
+      }
+      try {
+        await Promise.all(fileSavePromisses);
+        try {
+          if (config.env !== 'test') {
+            fastify.log.info('Files copy completed. sending response');
+            reply.code(202).send('Files received succesfully, saving..');
+          }
+          try {
+            const { success, errors } = await fastify.saveFiles(
+              dir,
+              filenames,
+              request.params,
+              request.query,
+              request.epadAuth
+            );
+            fs.remove(dir, (error) => {
+              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+              fastify.log.info(`${dir} deleted`);
+            });
+            // poll dicomweb to update the counts
+            await fastify.pollDWStudies();
+            const errMessagesText = fastify.getCombinedErrorText(errors);
+            if (success) {
+              if (errMessagesText) {
+                if (config.env === 'test')
+                  reply.send(
+                    new InternalError('Upload Completed with errors', new Error(errMessagesText))
                   );
-                }
-              } else if (config.env === 'test') {
-                reply.send(
-                  new InternalError(
-                    'Upload Failed as none of the files were uploaded successfully',
-                    new Error(`${filenames.toString()}. ${errMessagesText}`)
-                  )
-                );
-              } else {
-                new EpadNotification(
-                  request,
-                  'Upload Failed as none of the files were uploaded successfully',
-                  new Error(`${filenames.toString()}. ${errMessagesText}`),
-                  true
-                ).notify(fastify);
+                else
+                  new EpadNotification(
+                    request,
+                    'Upload Completed with errors',
+                    new Error(errMessagesText),
+                    true
+                  ).notify(fastify);
+                // test should wait for the upload to actually finish to send the response.
+                // sending the reply early is to handle very large files and to avoid browser repeating the request
+              } else if (config.env === 'test') reply.code(200).send();
+              else {
+                fastify.log.info(`Upload Completed ${filenames}`);
+                new EpadNotification(request, 'Upload Completed', filenames, true).notify(fastify);
               }
-            } catch (filesErr) {
-              fs.remove(dir, (error) => {
-                if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
-                else fastify.log.info(`${dir} deleted`);
-              });
-              if (config.env === 'test') reply.send(new InternalError('Upload Error', filesErr));
-              else
-                new EpadNotification(
-                  request,
-                  'Upload files',
-                  new InternalError('Upload Error', filesErr),
-                  true
-                ).notify(fastify);
+            } else if (config.env === 'test') {
+              reply.send(
+                new InternalError(
+                  'Upload Failed as none of the files were uploaded successfully',
+                  new Error(`${filenames.toString()}. ${errMessagesText}`)
+                )
+              );
+              return;
+            } else {
+              new EpadNotification(
+                request,
+                'Upload Failed as none of the files were uploaded successfully',
+                new Error(`${filenames.toString()}. ${errMessagesText}`),
+                true
+              ).notify(fastify);
             }
-          })
-          .catch((fileSaveErr) => {
+          } catch (filesErr) {
             fs.remove(dir, (error) => {
               if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
               else fastify.log.info(`${dir} deleted`);
             });
-            if (config.env === 'test') reply.send(new InternalError('Upload Error', fileSaveErr));
+            if (config.env === 'test') reply.send(new InternalError('Upload Error', filesErr));
             else
               new EpadNotification(
                 request,
                 'Upload files',
-                new InternalError('Upload Error', fileSaveErr),
+                new InternalError('Upload Error', filesErr),
                 true
               ).notify(fastify);
-          });
+          }
+        } catch (error) {
+          reply.send(new InternalError('Saved files processing', error));
+        }
+      } catch (fileSaveErr) {
+        fs.remove(dir, (error) => {
+          if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+          else fastify.log.info(`${dir} deleted`);
+        });
+        if (config.env === 'test') reply.send(new InternalError('Upload Error', fileSaveErr));
+        else
+          new EpadNotification(
+            request,
+            'Upload files',
+            new InternalError('Upload Error', fileSaveErr),
+            true
+          ).notify(fastify);
       }
+    } catch (err) {
+      reply.send(new InternalError('Multipart file save', err));
     }
-    function addFile(file, filename) {
-      fileSavePromisses.push(
-        new Promise((resolve) =>
-          file.pipe(fs.createWriteStream(`${dir}/${filename}`)).on('finish', resolve)
-        )
-      );
-      filenames.push(filename);
-    }
-    function handler(field, file, filename) {
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-      addFile(file, filename);
-    }
-
-    request.multipart(handler, done);
   });
 
   fastify.decorate(
@@ -499,9 +500,8 @@ async function other(fastify) {
         try {
           fs.mkdirSync(zipDir);
           fastify.log.info(`Extracting ${dir}/${filename} to ${zipDir}`);
-          fs.createReadStream(`${dir}/${filename}`)
-            .pipe(unzip.Extract({ path: `${zipDir}` }))
-            .on('close', () => {
+          extractZip(`${dir}/${filename}`, { dir: `${zipDir}` })
+            .then(() => {
               fastify.log.info(`Extracted zip ${zipDir}`);
               // add extracted zip so we can skip
               fastify
@@ -524,7 +524,7 @@ async function other(fastify) {
                 })
                 .catch((errPrc) => reject(errPrc));
             })
-            .on('error', (error) => {
+            .catch((error) => {
               reject(new InternalError(`Extracting zip ${filename}`, error));
             });
         } catch (err) {
@@ -1250,7 +1250,9 @@ async function other(fastify) {
                 );
               });
             else fastify.log.info('DICOM Send disabled. Skipping subject DICOM delete');
-            promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
+            promisses.push(() =>
+              fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }, undefined, true)
+            );
             pq.addAll(promisses)
               .then(() => {
                 fastify.log.info(`Subject ${params.subject} deletion is initiated successfully`);
@@ -1307,7 +1309,9 @@ async function other(fastify) {
         // delete study in dicomweb and annotations
         const promisses = [];
         promisses.push(() => fastify.deleteStudyDicomsInternal(params));
-        promisses.push(() => fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }));
+        promisses.push(() =>
+          fastify.deleteAimsInternal(params, epadAuth, { all: 'true' }, undefined, true)
+        );
         pq.addAll(promisses)
           .then(() => {
             fastify.log.info(`Study ${params.study} deletion is initiated successfully`);
@@ -1758,7 +1762,11 @@ async function other(fastify) {
       }
     }
     try {
-      if (!req.raw.url.startsWith('/documentation') && req.method !== 'OPTIONS')
+      if (
+        !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
+        !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) &&
+        req.method !== 'OPTIONS'
+      )
         await fastify.epadThickRightsCheck(req, res);
     } catch (err) {
       res.send(err);
@@ -2286,14 +2294,200 @@ async function other(fastify) {
     }
   });
 
+  // inputString - a valid query string.
+  // Returns that query, parsed.
+  fastify.decorate('reformatQuery', (inputString) => {
+    const outputArr = [];
+    let outputString = '';
+    // Replace fancy quotes with regular quotes
+    // eslint-disable-next-line no-param-reassign
+    inputString = inputString.replace(/[\u201C\u201D]/g, '"').toLowerCase();
+    for (let i = 0; i < inputString.length; i += 1) {
+      const prevCharacter = outputString[outputString.length - 1];
+      const cha = inputString[i];
+      if (cha === '"') {
+        // We want `"some stuff"` to turn into the regex /.*some stuff.*/
+        // and we want `""thing""` to be whole-word matching, so it matches `thing`
+        // but not `something`.
+        const twoQuotes = inputString[i + 1] === '"';
+        if (twoQuotes) {
+          i += 1;
+        }
+        let j = i + 1;
+        while (j < inputString.length) {
+          if (inputString[j] === '"' && (!twoQuotes || inputString[j + 1] === '"')) {
+            break;
+          }
+          j += 1;
+        }
+        if (![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
+          outputString += ' ';
+          outputArr.push(' ');
+        }
+        let stuffInQuotes = inputString.substring(i + 1, j);
+        i = j;
+        stuffInQuotes = fastify.escapeCharacters(stuffInQuotes, true, true);
+        if (twoQuotes) {
+          // This is the best regex I could come up with for whole-word matching.
+          // stuffInQuotes:
+          //   Whole-string matches.
+          // '.*[^a-z0-9]' + stuffInQuotes:
+          //   Matches strings which end with stuffInQuotes
+          // stuffInQuotes + '[^a-z0-9].*'
+          //   Matches strings which start with stuffInQuotes
+          // '.*[^a-z0-9]' + stuffInQuotes + '[^a-z0-9].*'
+          //   Matches strings with stuffInQuotes in the middle.
+          let x = `/.*[^a-z0-9]${stuffInQuotes}[^a-z0-9].*|${stuffInQuotes}`;
+          x += `[^a-z0-9].*|.*[^a-z0-9]${stuffInQuotes}|${stuffInQuotes}/`;
+          outputString += x;
+          outputArr.push(x);
+          i += 1;
+        } else {
+          outputString += `/.*${stuffInQuotes}.*/`;
+          outputArr.push(`/.*${stuffInQuotes}.*/`);
+        }
+      }
+      // We are not in quotation marks
+      else if (cha === ' ') {
+        // nothing to do for space
+      } else if (cha === '(' || cha === ')') {
+        if (cha === '(' && ![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
+          outputString += ' ';
+          outputArr.push(' ');
+        }
+        outputString += cha;
+        outputArr.push(cha);
+      } else {
+        // We find the start of a word
+        let j = i + 1;
+        // This finds the end of the word
+        while (j < inputString.length) {
+          if ([' ', '(', ')', '"'].includes(inputString[j])) {
+            break;
+          }
+          j += 1;
+        }
+        let word = inputString.substring(i, j);
+        i = j - 1;
+        if (![' ', '('].includes(prevCharacter) && prevCharacter !== undefined) {
+          outputString += ' ';
+          outputArr.push(' ');
+        }
+        if (word === 'and' || word === 'or' || word === 'not') {
+          outputString += word.toUpperCase();
+          outputArr.push(word.toUpperCase());
+        } else {
+          word = fastify.escapeCharacters(word, false, false);
+          outputString += `/.*${word}.*/`;
+          outputArr.push(`/.*${word}.*/`);
+        }
+      }
+    }
+    if (outputString.length === 0) {
+      return '/.*/';
+    }
+    fastify.addParensAroundAnd(outputArr);
+    return outputArr.join('');
+    // return outputString;
+  });
+
+  // Escapes any special characters that are inside quotation marks.
+  fastify.decorate('escapeCharacters', (inputString, escapeParentheses, escapeSpaces) => {
+    // Escapes any special characters in quotation marks
+    const charsToEscape = [
+      '+',
+      '-',
+      '!',
+      '{',
+      '}',
+      '[',
+      ']',
+      '^',
+      '~',
+      '*',
+      '?',
+      ':',
+      '\\',
+      '/',
+      '.',
+      '$',
+      '^',
+    ];
+    if (escapeParentheses) {
+      charsToEscape.push('(');
+      charsToEscape.push(')');
+    }
+    if (escapeSpaces) {
+      charsToEscape.push(' ');
+    }
+    for (let i = inputString.length - 1; i >= 0; i -= 1) {
+      let len2Escape = i < inputString.length - 1;
+      len2Escape = len2Escape && ['&', '|'].includes(inputString[i]);
+      len2Escape = len2Escape && ['&', '|'].includes(inputString[i + 1]);
+      if (charsToEscape.includes(inputString[i]) || len2Escape) {
+        // eslint-disable-next-line no-param-reassign
+        inputString = `${inputString.slice(0, i)}\\${inputString.slice(i)}`;
+      }
+    }
+    return inputString.toLowerCase();
+  });
+
+  // Mutates inputArr, doesn't return anything.
+  fastify.decorate('addParensAroundAnd', (inputArr) => {
+    for (let i = 0; i < inputArr.length; i += 1) {
+      if (inputArr[i] === 'AND') {
+        // Search backwards until # of '(', ')' match.
+        // This is only relevant for situations like '(a OR b) AND c',
+        // where we want the output to be '((a OR b) AND c)' instead of
+        // '(a OR (b) AND c)'
+        let netParens = 0;
+        for (let j = i - 2; j >= 0; j -= 1) {
+          // i-2 to skip the space before AND
+          if (inputArr[j] === ')') {
+            netParens -= 1;
+          } else if (inputArr[j] === '(') {
+            netParens += 1;
+          }
+          if (netParens === 0 && inputArr[j] !== ' ') {
+            inputArr.splice(j, 0, '(');
+            i += 1;
+            break;
+          }
+        }
+        // I am pretty confident that frontend validation will ensure that this
+        // error will never be thrown, but it never hurts to make sure.
+        if (netParens !== 0) {
+          throw new Error('Error parsing parentheses around AND');
+        }
+        // Same as before but searches forwards.
+        netParens = 0;
+        for (let j = i + 2; j < inputArr.length; j += 1) {
+          // i+2 to skip the space
+          if (inputArr[j] === '(') {
+            netParens += 1;
+          } else if (inputArr[j] === ')') {
+            netParens -= 1;
+          }
+          if (netParens === 0 && inputArr[j] !== ' ' && inputArr[j] !== 'NOT') {
+            inputArr.splice(j + 1, 0, ')');
+            break;
+          }
+        }
+        if (netParens !== 0) {
+          throw new Error('Error parsing parentheses around AND');
+        }
+      }
+    }
+  });
+
   fastify.decorate('createFieldsQuery', async (queryObj, epadAuth) => {
     const queryParts = [];
     if (queryObj.fields && queryObj.fields.query) {
       if (queryObj.fields.query.trim() !== '') {
         // query always case insensitive to handle search
         // TODO how about ids? ids are not in the default index. ignoring for now
-        const cleanedValue = queryObj.fields.query.trim().toLowerCase().replaceAll(' ', '\\ ');
-        queryParts.push(`/.*${cleanedValue}.*/`);
+        const cleanedValue = fastify.reformatQuery(queryObj.fields.query);
+        queryParts.push(`(${cleanedValue})`);
       }
     }
     // add filters

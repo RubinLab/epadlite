@@ -2778,9 +2778,25 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('project study add of study 0023.2015.09.28.3 to project testaim should be successful for set up ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testaim/subjects/3/studies/0023.2015.09.28.3')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     // set up again with fake aim
     it('aim save to project testaim should be successful ', (done) => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim_fake.json'));
+      // make it a teaching file to test the copy
+      jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code =
+        config.teachingTemplate;
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testaim/aims')
@@ -2788,6 +2804,41 @@ describe('Project Tests', () => {
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    // add significant series to testaim
+    it('should set significant series for study 0023.2015.09.28.3 to project testaim ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testaim/subjects/3/studies/0023.2015.09.28.3/significantSeries')
+        .query({ username: 'admin' })
+        .send([{ seriesUID: '0023.2015.09.28.3.3590', significanceOrder: 1 }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('project testaim should have 2 series with significant order set', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/series')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[1]).to.not.have.property('significanceOrder');
           done();
         })
         .catch((e) => {
@@ -2825,7 +2876,7 @@ describe('Project Tests', () => {
     it('should copy 2.25.211702350959705566747388843359605362 to testaim3 project (adding the study to project too', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/projects/testaim3/aims/copy')
+        .post('/projects/testaim3/fromprojects/testaim/aims/copy')
         .query({ username: 'admin' })
         .send(['2.25.211702350959705566747388843359605362'])
         .then((res) => {
@@ -2850,6 +2901,27 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    // should have significant series
+    it('project testaim3 should have 2 series with significance order copied', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/series')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].patientID).to.be.eql('3');
+          expect(res.body[0].patientName).to.be.eql('Phantom');
+          expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
+          expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[1]).to.not.have.property('significanceOrder');
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
     it('project testaim3 should have 1 aim ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
