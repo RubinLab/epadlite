@@ -4,7 +4,7 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
-const dimse = require('dicom-dimse-native');
+//const dimse = require('dicom-dimse-native');
 const https = require('https');
 const fs = require('fs');
 // eslint-disable-next-line no-global-assign
@@ -850,7 +850,7 @@ async function dicomwebserver(fastify) {
     'promisifyDIMSE',
     (dimseConf, studyUID) =>
       new Promise((resolve) => {
-        dimse.findScu(
+       /* dimse.findScu(
           JSON.stringify({
             source: {
               aet: 'FINDSCU',
@@ -908,7 +908,7 @@ async function dicomwebserver(fastify) {
           (result) => {
             resolve(result);
           }
-        );
+        );*/
       })
   );
 
