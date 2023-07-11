@@ -266,6 +266,7 @@ async function other(fastify) {
         try {
           console.log(csvFilePath);
           const timestamp = new Date().getTime();
+          // TODO add /tmp/ in the begining before merging 
           const dir = `tmp_${timestamp}`;
           fs.mkdirSync(dir);
           fs.mkdirSync(`${dir}/annotations`);
@@ -282,6 +283,7 @@ async function other(fastify) {
   fastify.decorate('processCsv', async (request, reply) => {
     const parts = request.files();
     const timestamp = new Date().getTime();
+    // TODO add /tmp/ in the begining before merging 
     const dir = `tmp_${timestamp}`;
     const filenames = [];
     const fileSavePromisses = [];
