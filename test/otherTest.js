@@ -205,6 +205,21 @@ describe('Other Tests', () => {
         done(e);
       });
   });
+  it.only('csv upload should succeed ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/processCsv')
+      .attach('files', 'test/data/unknownextension.abc', 'test/data/unknownextension.abc')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+
   /* it('dcm upload should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
