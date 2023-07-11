@@ -260,6 +260,100 @@ async function other(fastify) {
   });
 
   fastify.decorate(
+    'convertCsv2Aim',
+    (csvFilePath) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          console.log(csvFilePath);
+          const timestamp = new Date().getTime();
+          const dir = `tmp_${timestamp}`;
+          fs.mkdirSync(dir);
+          fs.mkdirSync(`${dir}/annotations`);
+          // TODO add the code to convert csv to aims here
+          const zipPath = '';
+          resolve(zipPath);
+        } catch (err) {
+          console.log('Error in convert csv 2 aim', err);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate('processCsv', async (request, reply) => {
+    const parts = request.files();
+    const timestamp = new Date().getTime();
+    const dir = `tmp_${timestamp}`;
+    const filenames = [];
+    const fileSavePromisses = [];
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+      // eslint-disable-next-line no-restricted-syntax
+      for await (const part of parts) {
+        fileSavePromisses.push(pump(part.file, fs.createWriteStream(`${dir}/${part.filename}`)));
+        filenames.push(part.filename);
+      }
+      try {
+        await Promise.all(fileSavePromisses);
+        try {
+          if (config.env !== 'test') {
+            fastify.log.info('Files copy completed. sending response');
+            reply.code(202).send('Files received succesfully, saving..');
+          }
+          try {
+            // todo call csv processing
+            const result = await fastify.convertCsv2Aim(`${dir}/${filenames[0]}`);
+            // fs.remove(dir, (error) => {
+            //   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+            //   fastify.log.info(`${dir} deleted`);
+            // });
+
+            // success!
+            if (config.env === 'test') reply.code(200).send(result);
+            else {
+              fastify.log.info(`Zip file ready in ${result}`);
+              // get the protocol and hostname from the request
+              const link = `${request.protocol}://${request.hostname}${result}`;
+              // send notification and/or email with link
+              if (request)
+                new EpadNotification(request, 'Download ready', link, false).notify(fastify);
+            }
+          } catch (filesErr) {
+            fs.remove(dir, (error) => {
+              if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+              else fastify.log.info(`${dir} deleted`);
+            });
+            if (config.env === 'test') reply.send(new InternalError('Upload Error', filesErr));
+            else
+              new EpadNotification(
+                request,
+                'Upload files',
+                new InternalError('Upload Error', filesErr),
+                true
+              ).notify(fastify);
+          }
+        } catch (error) {
+          reply.send(new InternalError('Csv processing', error));
+        }
+      } catch (fileSaveErr) {
+        fs.remove(dir, (error) => {
+          if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+          else fastify.log.info(`${dir} deleted`);
+        });
+        if (config.env === 'test') reply.send(new InternalError('Upload Error', fileSaveErr));
+        else
+          new EpadNotification(
+            request,
+            'Upload files',
+            new InternalError('Upload Error', fileSaveErr),
+            true
+          ).notify(fastify);
+      }
+    } catch (err) {
+      reply.send(new InternalError('Multipart file save', err));
+    }
+  });
+
+  fastify.decorate(
     'saveFiles',
     (dir, filenames, params, query, epadAuth) =>
       new Promise(async (resolve, reject) => {
