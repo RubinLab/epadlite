@@ -8967,8 +8967,9 @@ async function epaddb(fastify, options, done) {
                 await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
               resolve(`Aims deleted from system and removed from ${numDeleted} projects`);
             } else {
+              // check if the aims to be deleted exist in any other project
               const leftovers = await models.project_aim.findAll({
-                where: aimQry,
+                where: { aim_uid: aimUids },
                 attributes: ['project_id', 'subject_uid', 'study_uid', 'aim_uid', 'dso_series_uid'],
               });
               if (leftovers.length === 0) {
