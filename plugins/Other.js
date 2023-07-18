@@ -17,6 +17,8 @@ const concat = require('concat-stream');
 const ActiveDirectory = require('activedirectory2');
 const util = require('util');
 const { pipeline } = require('stream');
+const JSZip = require('jszip');
+const FileSaver = require('file-saver');
 
 // for csv2aim
 const { parse } = require('csv-parse');
@@ -274,8 +276,10 @@ async function other(fastify) {
           // TODO add /tmp/ in the begining before merging
           const dir = `tmp_${timestamp}`;
           fs.mkdirSync(dir);
-          fs.mkdirSync(`${dir}/annotations`);
+          // fs.mkdirSync(`${dir}/annotations`);
           // TODO add the code to convert csv to aims here
+
+          const zip = new JSZip();
 
           // Radiology Specialty
           // templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
@@ -535,7 +539,8 @@ async function other(fastify) {
             const aim = new Aim2(seedData, enumAimType.studyAnnotation);
 
             // writes new AIM file to output folder
-            fs.writeFileSync(`./output/${fileName}`, JSON.stringify(aim.getAimJSON()));
+            // fs.writeFileSync(`${dir}/${fileName}`, JSON.stringify(aim.getAimJSON()));
+            zip.file(`${dir}/${fileName}`, JSON.stringify(aim.getAimJSON()));
             console.log();
           }
 
@@ -587,7 +592,12 @@ async function other(fastify) {
               }
             });
 
-          const zipPath = '';
+          // generate zip file
+          zip.generateAsync({ type: 'blob' }).then((content) => {
+            FileSaver.saveAs(content, `${dir}/aims.zip`);
+          });
+
+          const zipPath = `${dir}/aims.zip`;
           resolve(zipPath);
         } catch (err) {
           console.log('Error in convert csv 2 aim', err);
