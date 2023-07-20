@@ -307,7 +307,7 @@ async function couchdb(fastify, options) {
         try {
           const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
-          const dir = `tmp_${timestamp}`;
+          const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
 
@@ -1680,7 +1680,7 @@ async function couchdb(fastify, options) {
       new Promise((resolve, reject) => {
         try {
           const timestamp = new Date().getTime();
-          const dir = `tmp_${timestamp}`;
+          const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
 
@@ -2062,8 +2062,9 @@ async function couchdb(fastify, options) {
           let dir = '';
           if (subDir) dir = subDir;
           else {
+            // TODO delete the tmp directory when done
             const timestamp = new Date().getTime();
-            dir = `tmp_${timestamp}`;
+            dir = `/tmp/tmp_${timestamp}`;
             if (!archive && !fs.existsSync(dir)) fs.mkdirSync(dir);
           }
           // have a boolean just to avoid filesystem check for empty annotations directory
