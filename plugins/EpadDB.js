@@ -8828,7 +8828,8 @@ async function epaddb(fastify, options, done) {
           for (let i = 0; i < request.body.length; i += 1) {
             if (
               request.epadAuth.admin ||
-              fastify.isOwnerOfProject(request, request.params.project) ||
+              (config.mode !== 'teaching' &&
+                fastify.isOwnerOfProject(request, request.params.project)) ||
               // eslint-disable-next-line no-await-in-loop
               (await fastify.isCreatorOfObject(request, {
                 level: 'aim',
