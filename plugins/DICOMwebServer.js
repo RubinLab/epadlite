@@ -4,7 +4,7 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
-const dimse = require('dicom-dimse-native');
+// const dimse = require('dicom-dimse-native');
 const https = require('https');
 const fs = require('fs');
 // eslint-disable-next-line no-global-assign
@@ -850,65 +850,67 @@ async function dicomwebserver(fastify) {
     'promisifyDIMSE',
     (dimseConf, studyUID) =>
       new Promise((resolve) => {
-        dimse.findScu(
-          JSON.stringify({
-            source: {
-              aet: 'FINDSCU',
-              ip: dimseConf.sourceIp || '127.0.0.1',
-              port: '9999',
-            },
-            target: {
-              aet: dimseConf.aet,
-              ip: dimseConf.ip,
-              port: dimseConf.port,
-            },
-            tags: [
-              {
-                key: '0020000D',
-                value: studyUID,
-              },
-              {
-                key: '00080052',
-                value: 'SERIES',
-              },
-              {
-                key: '00080021',
-                value: '',
-              },
-              {
-                key: '0008103E',
-                value: '',
-              },
-              {
-                key: '0020000E',
-                value: '',
-              },
-              {
-                key: '00080060',
-                value: '',
-              },
-              {
-                key: '00080050',
-                value: '',
-              },
-              {
-                key: '00201209',
-                value: '',
-              },
-              {
-                key: '00201209',
-                value: '',
-              },
-              {
-                key: '00200011',
-                value: '',
-              },
-            ],
-          }),
-          (result) => {
-            resolve(result);
-          }
-        );
+        console.log('dimse disabled', dimseConf, studyUID);
+        resolve([]);
+        // dimse.findScu(
+        //   JSON.stringify({
+        //     source: {
+        //       aet: 'FINDSCU',
+        //       ip: dimseConf.sourceIp || '127.0.0.1',
+        //       port: '9999',
+        //     },
+        //     target: {
+        //       aet: dimseConf.aet,
+        //       ip: dimseConf.ip,
+        //       port: dimseConf.port,
+        //     },
+        //     tags: [
+        //       {
+        //         key: '0020000D',
+        //         value: studyUID,
+        //       },
+        //       {
+        //         key: '00080052',
+        //         value: 'SERIES',
+        //       },
+        //       {
+        //         key: '00080021',
+        //         value: '',
+        //       },
+        //       {
+        //         key: '0008103E',
+        //         value: '',
+        //       },
+        //       {
+        //         key: '0020000E',
+        //         value: '',
+        //       },
+        //       {
+        //         key: '00080060',
+        //         value: '',
+        //       },
+        //       {
+        //         key: '00080050',
+        //         value: '',
+        //       },
+        //       {
+        //         key: '00201209',
+        //         value: '',
+        //       },
+        //       {
+        //         key: '00201209',
+        //         value: '',
+        //       },
+        //       {
+        //         key: '00200011',
+        //         value: '',
+        //       },
+        //     ],
+        //   }),
+        //   (result) => {
+        //     resolve(result);
+        //   }
+        // );
       })
   );
 

@@ -19,7 +19,6 @@
     "csv-writer": "^1.6.0",
     "dcmjs": "^0.17.0",
     "deep-equal-in-any-order": "^1.0.28",
-    "dicom-dimse-native": "^1.3.2",
     "dockerode": "^3.3.1",
     "extract-zip": "^2.0.1",
     "fastify": "^4.17.0",
