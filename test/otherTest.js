@@ -209,7 +209,10 @@ describe('Other Tests', () => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/processCsv')
-      .attach('files', 'test/data/unknownextension.abc', 'test/data/unknownextension.abc')
+      .attach(
+        'files',
+        'test/data/All_TF_Cases_July_8_2022_NO_PHI.xlsx - All Specialties - NO PHI.csv'
+      )
       .query({ username: 'admin' })
       .then((res) => {
         expect(res.statusCode).to.equal(200);

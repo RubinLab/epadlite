@@ -17,12 +17,10 @@ const concat = require('concat-stream');
 const ActiveDirectory = require('activedirectory2');
 const util = require('util');
 const { pipeline } = require('stream');
-const JSZip = require('jszip');
-const FileSaver = require('file-saver');
+const archiver = require('archiver');
 
 // for csv2aim
 const { parse } = require('csv-parse');
-const { Aim2 } = require('aimapi');
 const templateData = require('../test/data/99EPAD_947_2.25.182468981370271895711046628549377576999.json');
 
 const pump = util.promisify(pipeline);
@@ -273,13 +271,13 @@ async function other(fastify) {
         try {
           console.log(csvFilePath);
           const timestamp = new Date().getTime();
-          // TODO add /tmp/ in the begining before merging
+          // TODO add /tmp/ in the beginning before merging
           const dir = `tmp_${timestamp}`;
           fs.mkdirSync(dir);
-          // fs.mkdirSync(`${dir}/annotations`);
-          // TODO add the code to convert csv to aims here
+          fs.mkdirSync(`${dir}/annotations`);
+          const zipFilePath = `${dir}/aims.zip`;
 
-          const zip = new JSZip();
+          // TODO add the code to convert csv to aims here
 
           // Radiology Specialty
           // templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
@@ -536,11 +534,12 @@ async function other(fastify) {
             seedData.aim = merged;
             seedData.user = { loginName: 'admin', name: 'Full name' };
 
-            const aim = new Aim2(seedData, enumAimType.studyAnnotation);
+            const aim = new Aim(seedData, enumAimType.studyAnnotation);
 
             // writes new AIM file to output folder
-            // fs.writeFileSync(`${dir}/${fileName}`, JSON.stringify(aim.getAimJSON()));
-            zip.file(`${dir}/${fileName}`, JSON.stringify(aim.getAimJSON()));
+            fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aim.getAimJSON()));
+            // zip.file(`${dir}/${fileName}`, JSON.stringify(aim.getAimJSON()));
+            console.log(aim.getAimJSON());
             console.log();
           }
 
@@ -593,15 +592,85 @@ async function other(fastify) {
             });
 
           // generate zip file
-          zip.generateAsync({ type: 'blob' }).then((content) => {
-            FileSaver.saveAs(content, `${dir}/aims.zip`);
-          });
+          // zip.generateAsync({ type: 'blob' }).then((content) => {
+          //   FileSaver.saveAs(content, `${dir}/aims.zip`);
+          // });
+          // const output = fs.createWriteStream(zipFilePath);
+          // const archive = archiver('zip', {
+          //   zlib: { level: 9 }, // Sets the compression level.
+          // });
 
-          const zipPath = `${dir}/aims.zip`;
-          resolve(zipPath);
+          // await new Promise((success, error) => {
+          //   try {
+          //     // create the archive
+          //     archive
+          //       .directory(`${dir}/annotations`, false)
+          //       .on('error', (err) => reject(new InternalError('Archiving aims', err)))
+          //       .pipe(output);
+          //     output.on('close', () => {
+          //       fastify.log.info(`Created zip in ${zipFilePath}`);
+          //       const readStream = fs.createReadStream(`${dir}/aims.zip`);
+          //       // delete tmp folder after the file is sent
+          //       readStream.once('end', () => {
+          //         readStream.destroy(); // make sure stream closed, not close if download aborted.
+          //         fs.remove(dir, (error2) => {
+          //           if (error2) fastify.log.warn(`Temp directory deletion error ${error2.message}`);
+          //           else fastify.log.info(`${dir} deleted`);
+          //         });
+          //       });
+          //       success(readStream);
+          //     });
+          //     archive.finalize();
+          //   } catch (err) {
+          //     console.log('Zip error', err);
+          //     error(err);
+          //   }
+          // });
+
+          fastify.zipAims(dir, zipFilePath, `${dir}/annotations`);
+
+          resolve(zipFilePath);
         } catch (err) {
           console.log('Error in convert csv 2 aim', err);
           reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'zipAims',
+    (dir, zipFilePath) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          // create a file to stream archive data to.
+          const output = fs.createWriteStream(zipFilePath);
+          const archive = archiver('zip', {
+            zlib: { level: 9 }, // Sets the compression level.
+          });
+          // create the archive
+          archive.pipe(output);
+          archive.glob('**/*.json', { cwd: `${dir}` });
+
+          // .directory(aimsPath, false)
+          //   .on('error', (err) => reject(new InternalError('Archiving aims', err)))
+          output.on('close', () => {
+            fastify.log.info(`Created zip in ${zipFilePath}`);
+            const readStream = fs.createReadStream(zipFilePath);
+            // delete tmp folder after the file is sent
+            readStream.once('end', () => {
+              readStream.destroy(); // make sure stream closed, not close if download aborted.
+              fs.remove(dir, (error) => {
+                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                else fastify.log.info(`${dir} deleted`);
+              });
+            });
+
+            resolve(readStream);
+          });
+
+          archive.finalize();
+        } catch (err) {
+          reject(new InternalError('Downloading aims', err));
         }
       })
   );
@@ -635,7 +704,7 @@ async function other(fastify) {
             //   fastify.log.info(`${dir} deleted`);
             // });
 
-            // success!
+            // csv -> zip of aims success!
             if (config.env === 'test') reply.code(200).send(result);
             else {
               fastify.log.info(`Zip file ready in ${result}`);
