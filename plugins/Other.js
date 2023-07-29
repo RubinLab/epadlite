@@ -21,7 +21,7 @@ const archiver = require('archiver');
 
 // for csv2aim
 const { parse } = require('csv-parse');
-const templateData = require('../test/data/99EPAD_947_2.25.182468981370271895711046628549377576999.json');
+// const templateData = require('../test/data/99EPAD_947_2.25.182468981370271895711046628549377576999.json');
 
 const pump = util.promisify(pipeline);
 const config = require('../config/index');
@@ -276,6 +276,8 @@ async function other(fastify) {
           fs.mkdirSync(dir);
           fs.mkdirSync(`${dir}/annotations`);
           const zipFilePath = `${dir}/aims.zip`;
+
+          const templateData = await fastify.getTemplateInternal('99EPAD_947', 'json');
 
           // TODO add the code to convert csv to aims here
 
@@ -590,42 +592,6 @@ async function other(fastify) {
                 generateAIM(csvData[i], i + 2);
               }
             });
-
-          // generate zip file
-          // zip.generateAsync({ type: 'blob' }).then((content) => {
-          //   FileSaver.saveAs(content, `${dir}/aims.zip`);
-          // });
-          // const output = fs.createWriteStream(zipFilePath);
-          // const archive = archiver('zip', {
-          //   zlib: { level: 9 }, // Sets the compression level.
-          // });
-
-          // await new Promise((success, error) => {
-          //   try {
-          //     // create the archive
-          //     archive
-          //       .directory(`${dir}/annotations`, false)
-          //       .on('error', (err) => reject(new InternalError('Archiving aims', err)))
-          //       .pipe(output);
-          //     output.on('close', () => {
-          //       fastify.log.info(`Created zip in ${zipFilePath}`);
-          //       const readStream = fs.createReadStream(`${dir}/aims.zip`);
-          //       // delete tmp folder after the file is sent
-          //       readStream.once('end', () => {
-          //         readStream.destroy(); // make sure stream closed, not close if download aborted.
-          //         fs.remove(dir, (error2) => {
-          //           if (error2) fastify.log.warn(`Temp directory deletion error ${error2.message}`);
-          //           else fastify.log.info(`${dir} deleted`);
-          //         });
-          //       });
-          //       success(readStream);
-          //     });
-          //     archive.finalize();
-          //   } catch (err) {
-          //     console.log('Zip error', err);
-          //     error(err);
-          //   }
-          // });
 
           fastify.zipAims(dir, zipFilePath, `${dir}/annotations`);
 
