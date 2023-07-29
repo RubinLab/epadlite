@@ -265,18 +265,9 @@ async function other(fastify) {
 
   fastify.decorate(
     'convertCsv2Aim',
-    (csvFilePath) =>
+    (dir, csvFilePath) =>
       new Promise(async (resolve, reject) => {
         try {
-          console.log(csvFilePath);
-          const timestamp = new Date().getTime();
-          // TODO add /tmp/ in the beginning before merging
-          const dir = `/tmp/tmp_${timestamp}`;
-          fs.mkdirSync(dir);
-          fs.mkdirSync(`${dir}/annotations`);
-          // make sure zip file and folder names are different
-          const zipFilePath = `${dir}/aims.zip`;
-
           const templateData = await fastify.getTemplateInternal('99EPAD_947', 'json');
 
           // Radiology Specialty
@@ -589,10 +580,7 @@ async function other(fastify) {
                 generateAIM(csvData[i], i + 2);
               }
             });
-
-          fastify.zipAims(dir, zipFilePath);
-
-          resolve(zipFilePath);
+          resolve();
         } catch (err) {
           console.log('Error in convert csv 2 aim', err);
           reject(err);
@@ -602,9 +590,24 @@ async function other(fastify) {
 
   fastify.decorate(
     'zipAims',
-    (dir, zipFilePath) =>
+    (csvFilePath) =>
       new Promise(async (resolve, reject) => {
         try {
+          console.log(csvFilePath);
+          const timestamp = new Date().getTime();
+          // TODO add /tmp/ in the beginning before merging
+          const dir = `tmp_${timestamp}`;
+          fs.mkdirSync(dir);
+          fs.mkdirSync(`${dir}/annotations`);
+
+          await fastify.convertCsv2Aim(dir, csvFilePath);
+
+          // make sure zip file and folder names are different
+          let zipFilePath = '';
+          const downloadFolder = path.join(__dirname, '../download');
+          if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
+          zipFilePath = `${downloadFolder}/annotations_${timestamp}.zip`;
+
           // create a file to stream archive data to.
           const output = fs.createWriteStream(zipFilePath);
           const archive = archiver('zip', {
@@ -616,17 +619,13 @@ async function other(fastify) {
 
           output.on('close', () => {
             fastify.log.info(`Created zip in ${zipFilePath}`);
-            const readStream = fs.createReadStream(zipFilePath);
-            // delete tmp folder after the file is sent
-            readStream.once('end', () => {
-              readStream.destroy(); // make sure stream closed, not close if download aborted.
-              fs.remove(dir, (error) => {
-                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                else fastify.log.info(`${dir} deleted`);
-              });
+            fs.remove(dir, (error) => {
+              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+              else fastify.log.info(`${dir} deleted`);
             });
-
-            resolve(readStream);
+            resolve(
+              `${config.prefix ? `/${config.prefix}` : ''}/download/annotations_${timestamp}.zip`
+            );
           });
 
           archive.finalize();
@@ -640,7 +639,7 @@ async function other(fastify) {
     const parts = request.files();
     const timestamp = new Date().getTime();
     // TODO add /tmp/ in the begining before merging
-    const dir = `/tmp/tmp_${timestamp}`;
+    const dir = `tmp_${timestamp}`;
     const filenames = [];
     const fileSavePromisses = [];
     try {
@@ -659,7 +658,7 @@ async function other(fastify) {
           }
           try {
             // call csv processing
-            const result = await fastify.convertCsv2Aim(`${dir}/${filenames[0]}`);
+            const result = await fastify.zipAims(`${dir}/${filenames[0]}`);
             fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${result}`);
             // fs.remove(dir, (error) => {
             //   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
