@@ -271,7 +271,7 @@ async function other(fastify) {
           console.log(csvFilePath);
           const timestamp = new Date().getTime();
           // TODO add /tmp/ in the beginning before merging
-          const dir = `tmp_${timestamp}`;
+          const dir = `/tmp/tmp_${timestamp}`;
           fs.mkdirSync(dir);
           fs.mkdirSync(`${dir}/annotations`);
           // make sure zip file and folder names are different
@@ -640,7 +640,7 @@ async function other(fastify) {
     const parts = request.files();
     const timestamp = new Date().getTime();
     // TODO add /tmp/ in the begining before merging
-    const dir = `tmp_${timestamp}`;
+    const dir = `/tmp/tmp_${timestamp}`;
     const filenames = [];
     const fileSavePromisses = [];
     try {
@@ -660,6 +660,7 @@ async function other(fastify) {
           try {
             // call csv processing
             const result = await fastify.convertCsv2Aim(`${dir}/${filenames[0]}`);
+            fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${result}`);
             // fs.remove(dir, (error) => {
             //   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
             //   fastify.log.info(`${dir} deleted`);
@@ -671,6 +672,7 @@ async function other(fastify) {
               fastify.log.info(`Zip file ready in ${result}`);
               // get the protocol and hostname from the request
               const link = `${request.protocol}://${request.hostname}${result}`;
+              fastify.log.info(`LINK TO DOWNLOAD ZIP ${link}`);
               // send notification and/or email with link
               if (request)
                 new EpadNotification(request, 'Download ready', link, false).notify(fastify);
