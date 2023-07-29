@@ -604,9 +604,13 @@ async function other(fastify) {
 
           // make sure zip file and folder names are different
           let zipFilePath = '';
-          const downloadFolder = path.join(__dirname, '../download');
-          if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
-          zipFilePath = `${downloadFolder}/annotations_${timestamp}.zip`;
+          if (config.env === 'test') {
+            zipFilePath = `${dir}/aims.zip`;
+          } else {
+            const downloadFolder = path.join(__dirname, '../download');
+            if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
+            zipFilePath = `${downloadFolder}/annotations_${timestamp}.zip`;
+          }
 
           // create a file to stream archive data to.
           const output = fs.createWriteStream(zipFilePath);
@@ -618,14 +622,27 @@ async function other(fastify) {
           archive.glob('**/*.json', { cwd: `${dir}` });
 
           output.on('close', () => {
-            fastify.log.info(`Created zip in ${zipFilePath}`);
-            fs.remove(dir, (error) => {
-              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-              else fastify.log.info(`${dir} deleted`);
-            });
-            resolve(
-              `${config.prefix ? `/${config.prefix}` : ''}/download/annotations_${timestamp}.zip`
-            );
+            if (config.env === 'test') {
+              const readStream = fs.createReadStream(`${dir}/aims.zip`);
+              // delete tmp folder after the file is sent
+              readStream.once('end', () => {
+                readStream.destroy(); // make sure stream closed, not close if download aborted.
+                fs.remove(dir, (error) => {
+                  if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                  else fastify.log.info(`${dir} deleted`);
+                });
+              });
+              resolve(readStream);
+            } else {
+              fastify.log.info(`Created zip in ${zipFilePath}`);
+              fs.remove(dir, (error) => {
+                if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                else fastify.log.info(`${dir} deleted`);
+              });
+              resolve(
+                `${config.prefix ? `/${config.prefix}` : ''}/download/annotations_${timestamp}.zip`
+              );
+            }
           });
 
           archive.finalize();
