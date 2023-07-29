@@ -1,12 +1,29 @@
 const chai = require('chai');
 const chaiHttp = require('chai-http');
-// const fs = require('fs');
+const fs = require('fs');
 
 chai.use(chaiHttp);
 const { expect } = chai;
 const appVersion = require('../package.json').version;
 
 describe('Other Tests', () => {
+  before(async () => {
+    const jsonBuffer = JSON.parse(
+      fs.readFileSync('test/data/99EPAD_947_2.25.182468981370271895711046628549377576999.json')
+    );
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put(`/templates/${jsonBuffer.TemplateContainer.uid}`)
+      .send(jsonBuffer)
+      .query({ username: 'admin' });
+  });
+  after(async () => {
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/templates/2.25.182468981370271895711046628549377576999')
+      .query({ username: 'admin' });
+  });
+
   it('set an api key ', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
