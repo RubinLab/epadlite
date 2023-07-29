@@ -21,7 +21,6 @@ const archiver = require('archiver');
 
 // for csv2aim
 const { parse } = require('csv-parse');
-// const templateData = require('../test/data/99EPAD_947_2.25.182468981370271895711046628549377576999.json');
 
 const pump = util.promisify(pipeline);
 const config = require('../config/index');
@@ -275,11 +274,10 @@ async function other(fastify) {
           const dir = `tmp_${timestamp}`;
           fs.mkdirSync(dir);
           fs.mkdirSync(`${dir}/annotations`);
+          // make sure zip file and folder names are different
           const zipFilePath = `${dir}/aims.zip`;
 
           const templateData = await fastify.getTemplateInternal('99EPAD_947', 'json');
-
-          // TODO add the code to convert csv to aims here
 
           // Radiology Specialty
           // templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
@@ -540,7 +538,6 @@ async function other(fastify) {
 
             // writes new AIM file to output folder
             fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aim.getAimJSON()));
-            // zip.file(`${dir}/${fileName}`, JSON.stringify(aim.getAimJSON()));
             console.log(aim.getAimJSON());
             console.log();
           }
@@ -593,7 +590,7 @@ async function other(fastify) {
               }
             });
 
-          fastify.zipAims(dir, zipFilePath, `${dir}/annotations`);
+          fastify.zipAims(dir, zipFilePath);
 
           resolve(zipFilePath);
         } catch (err) {
@@ -617,8 +614,6 @@ async function other(fastify) {
           archive.pipe(output);
           archive.glob('**/*.json', { cwd: `${dir}` });
 
-          // .directory(aimsPath, false)
-          //   .on('error', (err) => reject(new InternalError('Archiving aims', err)))
           output.on('close', () => {
             fastify.log.info(`Created zip in ${zipFilePath}`);
             const readStream = fs.createReadStream(zipFilePath);
@@ -663,7 +658,7 @@ async function other(fastify) {
             reply.code(202).send('Files received succesfully, saving..');
           }
           try {
-            // todo call csv processing
+            // call csv processing
             const result = await fastify.convertCsv2Aim(`${dir}/${filenames[0]}`);
             // fs.remove(dir, (error) => {
             //   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
