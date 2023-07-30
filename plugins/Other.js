@@ -529,7 +529,6 @@ async function other(fastify) {
 
             // writes new AIM file to output folder
             fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aim.getAimJSON()));
-            console.log(aim.getAimJSON());
             console.log();
           }
 
@@ -579,8 +578,8 @@ async function other(fastify) {
               for (let i = 0; i < csvData.length; i += 1) {
                 generateAIM(csvData[i], i + 2);
               }
+              resolve();
             });
-          resolve();
         } catch (err) {
           console.log('Error in convert csv 2 aim', err);
           reject(err);
@@ -660,10 +659,10 @@ async function other(fastify) {
             // call csv processing
             const result = await fastify.zipAims(`${dir}/${filenames[0]}`);
             fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${result}`);
-            // fs.remove(dir, (error) => {
-            //   if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-            //   fastify.log.info(`${dir} deleted`);
-            // });
+            fs.remove(dir, (error) => {
+              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+              fastify.log.info(`${dir} deleted`);
+            });
 
             // csv -> zip of aims success!
             if (config.env === 'test') reply.code(200).send(result);
