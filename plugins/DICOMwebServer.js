@@ -9,6 +9,7 @@ const https = require('https');
 const fs = require('fs');
 // eslint-disable-next-line no-global-assign
 window = {};
+const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
@@ -1144,7 +1145,9 @@ async function dicomwebserver(fastify) {
               // handle success
               // map each instance to epadlite image object
               // get everything that's not PR
-              const result = _.chain(res.response.data)
+              // assumes the instances tags include ImagePositionPatient and ImageOrientationPatient
+              const sorted = fastify.sortImages(res.response.data);
+              const result = _.chain(sorted)
                 .filter(
                   (value) =>
                     !(
@@ -1207,7 +1210,6 @@ async function dicomwebserver(fastify) {
                   rescaleSlope: '', // TODO
                   sliceOrder: '', // TODO
                 }))
-                .sortBy('instanceNumber')
                 .value();
               resolve(result);
             })
@@ -1221,6 +1223,30 @@ async function dicomwebserver(fastify) {
         }
       })
   );
+
+  fastify.decorate('sortImages', (images) => {
+    const firstImage = images[0];
+    const sortedImages = [];
+    const referencePosition = firstImage['00200032'].Value;
+    const rowVector = firstImage['00200037'].Value.slice(0, 3);
+    const columnVector = firstImage['00200037'].Value.slice(3, 6);
+    const scanAxis = dcmjs.normalizers.ImageNormalizer.vec3CrossProduct(rowVector, columnVector);
+    const distanceDatasetPairs = [];
+    images.forEach((dataset) => {
+      const position = dataset['00200032'].Value.slice();
+      const positionVector = dcmjs.normalizers.ImageNormalizer.vec3Subtract(
+        position,
+        referencePosition
+      );
+      const distance = dcmjs.normalizers.ImageNormalizer.vec3Dot(positionVector, scanAxis);
+      distanceDatasetPairs.push([distance, dataset]);
+    });
+    distanceDatasetPairs.sort((a, b) => b[0] - a[0]);
+    distanceDatasetPairs.forEach((pair) => {
+      sortedImages.push(pair[1]);
+    });
+    return sortedImages;
+  });
 
   fastify.decorate('getWado', (request, reply) => {
     // Define request according to params.source
@@ -1290,8 +1316,8 @@ async function dicomwebserver(fastify) {
           mainHeader
         )
         .then((response) => {
-          console.log('metadata', response.data);
-          reply.send(response.data);
+          const sorted = fastify.sortImages(response.data);
+          reply.send(sorted);
         })
         .catch((err) => {
           console.log(err);
