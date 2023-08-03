@@ -367,8 +367,8 @@ async function other(fastify) {
             // const reportAuthor = csvRow['Report author']; // csv Report author
             // const readingPhysician = csvRow['Reading physician']; // csv Reading physician
 
-            console.log('Row:', rowNum, ', Medical record number:', patientId, ', SUID:', suid);
-            console.log(fileName);
+            fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
+            fastify.log.info(fileName);
 
             // generate keywordsArray, tracking the RIDs in the teaching file keywords
             const keywordsArray = [];
@@ -416,7 +416,7 @@ async function other(fastify) {
                 )
               );
             } else {
-              console.log('template missing specialty', specialty);
+              fastify.log.info('template missing specialty', specialty);
             }
 
             // adding body parts
@@ -433,7 +433,7 @@ async function other(fastify) {
                   )
                 );
               } else {
-                console.log('template missing body part', bodyPartArray[i]);
+                fastify.log.info('template missing body part', bodyPartArray[i]);
               }
             }
 
@@ -460,7 +460,7 @@ async function other(fastify) {
                   )
                 );
               } else {
-                console.log('template missing keyword', keywordsArray[i]);
+                fastify.log.info('template missing keyword', keywordsArray[i]);
               }
             }
 
@@ -529,7 +529,7 @@ async function other(fastify) {
 
             // writes new AIM file to output folder
             fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aim.getAimJSON()));
-            console.log();
+            fastify.log.info();
           }
 
           // Specialty Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
@@ -581,7 +581,7 @@ async function other(fastify) {
               resolve();
             });
         } catch (err) {
-          console.log('Error in convert csv 2 aim', err);
+          fastify.log.info('Error in convert csv 2 aim', err);
           reject(err);
         }
       })
@@ -592,10 +592,9 @@ async function other(fastify) {
     (csvFilePath) =>
       new Promise(async (resolve, reject) => {
         try {
-          console.log(csvFilePath);
+          fastify.log.info(csvFilePath);
           const timestamp = new Date().getTime();
-          // TODO add /tmp/ in the beginning before merging
-          const dir = `tmp_${timestamp}`;
+          const dir = `/tmp/tmp_${timestamp}`;
           fs.mkdirSync(dir);
           fs.mkdirSync(`${dir}/annotations`);
 
@@ -637,8 +636,7 @@ async function other(fastify) {
   fastify.decorate('processCsv', async (request, reply) => {
     const parts = request.files();
     const timestamp = new Date().getTime();
-    // TODO add /tmp/ in the begining before merging
-    const dir = `tmp_${timestamp}`;
+    const dir = `/tmp/tmp_${timestamp}`;
     const filenames = [];
     const fileSavePromisses = [];
     try {
@@ -657,6 +655,9 @@ async function other(fastify) {
           }
           try {
             // call csv processing
+            if (fastify.getExtension(filenames[0]) !== 'csv') {
+              throw new TypeError('File format is not .csv');
+            }
             const result = await fastify.zipAims(`${dir}/${filenames[0]}`);
             fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${result}`);
             fs.remove(dir, (error) => {

@@ -222,7 +222,7 @@ describe('Other Tests', () => {
         done(e);
       });
   });
-  it.only('csv upload should succeed ', (done) => {
+  it('csv upload should succeed ', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/processCsv')
