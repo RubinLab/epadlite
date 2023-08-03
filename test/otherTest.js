@@ -13,7 +13,7 @@ describe('Other Tests', () => {
     );
     await chai
       .request(`http://${process.env.host}:${process.env.port}`)
-      .put(`/templates/${jsonBuffer.TemplateContainer.uid}`)
+      .post(`/templates`)
       .send(jsonBuffer)
       .query({ username: 'admin' });
   });
