@@ -263,6 +263,246 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('generateUid', () => {
+    let uid = `2.25.${Math.floor(1 + Math.random() * 9)}`;
+    for (let index = 0; index < 38; index += 1) {
+      uid += Math.floor(Math.random() * 10);
+    }
+    return uid;
+  });
+
+  fastify.decorate(
+    'getTeachingTemplateAnswers',
+    // eslint-disable-next-line consistent-return
+    (metadata, annotationName, tempModality, comment) => {
+      // metadata should have a series and it should have modality, description, instanceNumber and number (series number)
+      // for teaching we do not have series so it should be something like {series: {modality: modalityFromData, instanceNumber:'', number:'',description:'' }}
+      // for teaching tempModality also should be modalityFromData
+      if (metadata.series) {
+        // const { number, description, instanceNumber } = metadata.series;
+        // const seriesModality = metadata.series.modality;
+        const modality = { value: tempModality };
+        const name = { value: annotationName };
+        // template info
+        const typeCode = [
+          {
+            code: '99EPAD_947',
+            codeSystemName: '99EPAD',
+            'iso:displayName': { 'xmlns:iso': 'uri:iso.org:21090', value: 'Teaching file' },
+          },
+        ];
+        return { comment, modality, name, typeCode };
+      }
+    }
+  );
+
+  fastify.decorate('generateCollectionItem', (code, codeSystemName, codeMeaning, label) => ({
+    // generates an annotation object for the AIM file
+    typeCode: [
+      {
+        code,
+        codeSystemName,
+        'iso:displayName': {
+          value: codeMeaning,
+          'xmlns:iso': 'uri:iso.org:21090',
+        },
+      },
+    ],
+    annotatorConfidence: { value: 0 },
+    label: { value: label },
+    uniqueIdentifier: {
+      root: fastify.generateUid(),
+    },
+  }));
+
+  fastify.decorate(
+    'generateAIM',
+    (csvRow, rowNum, enumAimType, specialtyMap, bodyPartMap, anatomyMap, diagnosisMap, dir) => {
+      // generates a single AIM file based on data in csvRow object
+      const fileName = `${fastify.generateUid()}.json`;
+
+      // CSV Data
+      const date = csvRow.Date; // csv Date
+      const name = csvRow.Name; // csv Name
+      const patientId = csvRow['Medical record number']; // csv Medical record number
+      const accessionNumber = csvRow['Accession number']; // csv Accession number
+      const suid = csvRow['SUID (Study UID)']; // csv SUID
+      let age = csvRow['Current age']; // csv Current age (or deceased)
+      const sex = csvRow.Sex; // csv Sex
+      const modality = csvRow.Modality; // csv Modality
+      const description = csvRow.Description; // csv Description
+      const bodyPart = csvRow['Body part']; // csv Body part
+      const keywords = csvRow['Teaching file keywords']; // csv Teaching file keywords
+      const specialty = csvRow.Specialty; // csv Specialty
+      // const reportAuthor = csvRow['Report author']; // csv Report author
+      // const readingPhysician = csvRow['Reading physician']; // csv Reading physician
+
+      fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
+      fastify.log.info(fileName);
+
+      // generate keywordsArray, tracking the RIDs in the teaching file keywords
+      const keywordsArray = [];
+      let keywordsIndex = 0;
+      let keywordExists = keywords.indexOf('(', keywordsIndex);
+      while (keywordExists !== -1) {
+        keywordsIndex = keywords.indexOf(')', keywordExists);
+        keywordsArray.push(keywords.substring(keywordExists + 1, keywordsIndex));
+        keywordExists = keywords.indexOf('(', keywordsIndex);
+      }
+
+      // generate comment, NN-year old (or deceased) female/male
+      const comment = { value: ' ' };
+      if (age.toLowerCase() === 'deceased') {
+        comment.value = `${age} `;
+      } else {
+        age = age.substring(0, age.length - 6); // format age
+        comment.value = `${age}-year-old `;
+      }
+
+      if (sex === 'F') {
+        comment.value += 'female';
+      } else if (sex === 'M') {
+        comment.value += 'male';
+      }
+
+      // anatomies =['RID230', 'RIS10']; // coming from "Anatomy Detail" in template
+      // diagnosis =['RIS1122', 'RID3455']; // coming from "Findings and Diagnosis" in template
+      // use a map of codevalue and codemeaning from template
+      // codevalue is the RID
+      // codemeaning is the displayname
+
+      const createdPhysicalEntityCollection = []; // anatomy core
+      const createdObservationEntityCollection = []; // specialty + findings and diagnosis + anatomy detail
+
+      // adding specialty
+      if (specialtyMap.has(specialty)) {
+        const specialtyItem = specialtyMap.get(specialty);
+        createdObservationEntityCollection.push(
+          fastify.generateCollectionItem(
+            specialtyItem.code,
+            specialtyItem.codeSystemName,
+            specialtyItem.codeMeaning,
+            'Radiology Specialty'
+          )
+        );
+      } else {
+        fastify.log.info('template missing specialty', specialty);
+      }
+
+      // adding body parts
+      const bodyPartArray = bodyPart.split(',');
+      for (let i = 0; i < bodyPartArray.length; i += 1) {
+        if (bodyPartMap.has(bodyPartArray[i])) {
+          const bodyPartItem = bodyPartMap.get(bodyPartArray[i]);
+          createdPhysicalEntityCollection.push(
+            fastify.generateCollectionItem(
+              bodyPartItem.code,
+              bodyPartItem.codeSystemName,
+              bodyPartItem.codeMeaning,
+              'Anatomy Core'
+            )
+          );
+        } else {
+          fastify.log.info('template missing body part', bodyPartArray[i]);
+        }
+      }
+
+      // adding findings and diagnosis + anatomy detail
+      for (let i = 0; i < keywordsArray.length; i += 1) {
+        if (anatomyMap.has(keywordsArray[i])) {
+          const anatomyItem = anatomyMap.get(keywordsArray[i]);
+          createdObservationEntityCollection.push(
+            fastify.generateCollectionItem(
+              keywordsArray[i],
+              anatomyItem.codeSystemName,
+              anatomyItem.codeMeaning,
+              'Anatomy Detail'
+            )
+          );
+        } else if (diagnosisMap.has(keywordsArray[i])) {
+          const diagnosisItem = diagnosisMap.get(keywordsArray[i]);
+          createdObservationEntityCollection.push(
+            fastify.generateCollectionItem(
+              keywordsArray[i],
+              diagnosisItem.codeSystemName,
+              diagnosisItem.codeMeaning,
+              'Findings and Diagnosis'
+            )
+          );
+        } else {
+          fastify.log.info('template missing keyword', keywordsArray[i]);
+        }
+      }
+
+      // fill in the seed data
+      const seedData = {};
+      seedData.aim = {};
+      seedData.study = {};
+      seedData.series = {};
+      seedData.equipment = {};
+      seedData.person = {};
+      seedData.image = [];
+      seedData.aim.studyInstanceUid = suid; // csv SUID
+      seedData.study.startTime = ''; // empty
+      seedData.study.instanceUid = suid; // csv SUID
+      const dateArray = date.split('/');
+      if (dateArray[0].length === 1) {
+        // month
+        dateArray[0] = `0${dateArray[0]}`;
+      }
+      if (dateArray[1].length === 1) {
+        // day
+        dateArray[1] = `0${dateArray[1]}`;
+      }
+      seedData.study.startDate = dateArray[2] + dateArray[0] + dateArray[1]; // csv Date (reformatted)
+      seedData.study.accessionNumber = accessionNumber; // csv accession
+      seedData.study.examTypes = modality;
+      seedData.series.instanceUid = ''; // empty
+      seedData.series.modality = modality;
+      seedData.series.number = ''; // empty
+      seedData.series.description = description; // csv description
+      seedData.series.instanceNumber = ''; // empty
+      seedData.equipment.manufacturerName = ''; // empty
+      seedData.equipment.manufacturerModelName = ''; // empty
+      seedData.equipment.softwareVersion = ''; // empty
+      seedData.person.sex = sex; // csv sex
+      const nameArray = name.split(', ');
+      seedData.person.name = `${nameArray[1]} ${nameArray[0]}`; // csv name (reformatted)
+      seedData.person.patientId = patientId; // csv Medical record number
+      if (age.toLowerCase() === 'deceased') {
+        seedData.person.birthDate = age;
+      } else {
+        seedData.person.birthDate = `${2022 - parseInt(age, 10)}0101`; // csv calculated date 66 years
+      }
+      const sopClassUid = '';
+      const sopInstanceUid = '';
+
+      // only adds physical and observation collections if there are keywords present
+      if (createdPhysicalEntityCollection.length > 0)
+        seedData.aim.imagingPhysicalEntityCollection = {
+          ImagingPhysicalEntity: createdPhysicalEntityCollection,
+        };
+
+      if (createdObservationEntityCollection.length > 0)
+        seedData.aim.imagingObservationEntityCollection = {
+          ImagingObservationEntity: createdObservationEntityCollection,
+        };
+
+      seedData.image.push({ sopClassUid, sopInstanceUid });
+
+      const answers = fastify.getTeachingTemplateAnswers(seedData, 'nodule1', '', comment);
+      const merged = { ...seedData.aim, ...answers };
+      seedData.aim = merged;
+      seedData.user = { loginName: 'admin', name: 'Full name' };
+
+      const aim = new Aim(seedData, enumAimType.studyAnnotation);
+
+      // writes new AIM file to output folder
+      fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aim.getAimJSON()));
+      fastify.log.info();
+    }
+  );
+
   fastify.decorate(
     'convertCsv2Aim',
     (dir, csvFilePath) =>
@@ -292,245 +532,6 @@ async function other(fastify) {
           const bodyPartMap = new Map();
           const anatomyMap = new Map();
           const diagnosisMap = new Map();
-
-          // eslint-disable-next-line no-inner-declarations
-          function generateUid() {
-            let uid = `2.25.${Math.floor(1 + Math.random() * 9)}`;
-            for (let index = 0; index < 38; index += 1) {
-              uid += Math.floor(Math.random() * 10);
-            }
-            return uid;
-          }
-
-          // metadata should have a series and it should have modality, description, instanceNumber and number (series number)
-          // for teaching we do not have series so it should be something like {series: {modality: modalityFromData, instanceNumber:'', number:'',description:'' }}
-          // for teaching tempModality also should be modalityFromData
-          // eslint-disable-next-line no-inner-declarations, consistent-return
-          function getTemplateAnswers(metadata, annotationName, tempModality, comment) {
-            if (metadata.series) {
-              // const { number, description, instanceNumber } = metadata.series;
-              // const seriesModality = metadata.series.modality;
-              const modality = { value: tempModality };
-              const name = { value: annotationName };
-              // template info
-              const typeCode = [
-                {
-                  code: '99EPAD_947',
-                  codeSystemName: '99EPAD',
-                  'iso:displayName': { 'xmlns:iso': 'uri:iso.org:21090', value: 'Teaching file' },
-                },
-              ];
-              return { comment, modality, name, typeCode };
-            }
-          }
-
-          // generates an annotation object for the AIM file
-          // eslint-disable-next-line no-inner-declarations
-          function generateCollectionItem(code, codeSystemName, codeMeaning, label) {
-            return {
-              typeCode: [
-                {
-                  code,
-                  codeSystemName,
-                  'iso:displayName': {
-                    value: codeMeaning,
-                    'xmlns:iso': 'uri:iso.org:21090',
-                  },
-                },
-              ],
-              annotatorConfidence: { value: 0 },
-              label: { value: label },
-              uniqueIdentifier: {
-                root: generateUid(),
-              },
-            };
-          }
-
-          // generates a single AIM file based on data in csvRow object
-          // eslint-disable-next-line no-inner-declarations
-          function generateAIM(csvRow, rowNum) {
-            const fileName = `${generateUid()}.json`;
-
-            // CSV Data
-            const date = csvRow.Date; // csv Date
-            const name = csvRow.Name; // csv Name
-            const patientId = csvRow['Medical record number']; // csv Medical record number
-            const accessionNumber = csvRow['Accession number']; // csv Accession number
-            const suid = csvRow['SUID (Study UID)']; // csv SUID
-            let age = csvRow['Current age']; // csv Current age (or deceased)
-            const sex = csvRow.Sex; // csv Sex
-            const modality = csvRow.Modality; // csv Modality
-            const description = csvRow.Description; // csv Description
-            const bodyPart = csvRow['Body part']; // csv Body part
-            const keywords = csvRow['Teaching file keywords']; // csv Teaching file keywords
-            const specialty = csvRow.Specialty; // csv Specialty
-            // const reportAuthor = csvRow['Report author']; // csv Report author
-            // const readingPhysician = csvRow['Reading physician']; // csv Reading physician
-
-            fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
-            fastify.log.info(fileName);
-
-            // generate keywordsArray, tracking the RIDs in the teaching file keywords
-            const keywordsArray = [];
-            let keywordsIndex = 0;
-            let keywordExists = keywords.indexOf('(', keywordsIndex);
-            while (keywordExists !== -1) {
-              keywordsIndex = keywords.indexOf(')', keywordExists);
-              keywordsArray.push(keywords.substring(keywordExists + 1, keywordsIndex));
-              keywordExists = keywords.indexOf('(', keywordsIndex);
-            }
-
-            // generate comment, NN-year old (or deceased) female/male
-            const comment = { value: ' ' };
-            if (age.toLowerCase() === 'deceased') {
-              comment.value = `${age} `;
-            } else {
-              age = age.substring(0, age.length - 6); // format age
-              comment.value = `${age}-year-old `;
-            }
-
-            if (sex === 'F') {
-              comment.value += 'female';
-            } else if (sex === 'M') {
-              comment.value += 'male';
-            }
-
-            // anatomies =['RID230', 'RIS10']; // coming from "Anatomy Detail" in template
-            // diagnosis =['RIS1122', 'RID3455']; // coming from "Findings and Diagnosis" in template
-            // use a map of codevalue and codemeaning from template
-            // codevalue is the RID
-            // codemeaning is the displayname
-
-            const createdPhysicalEntityCollection = []; // anatomy core
-            const createdObservationEntityCollection = []; // specialty + findings and diagnosis + anatomy detail
-
-            // adding specialty
-            if (specialtyMap.has(specialty)) {
-              const specialtyItem = specialtyMap.get(specialty);
-              createdObservationEntityCollection.push(
-                generateCollectionItem(
-                  specialtyItem.code,
-                  specialtyItem.codeSystemName,
-                  specialtyItem.codeMeaning,
-                  'Radiology Specialty'
-                )
-              );
-            } else {
-              fastify.log.info('template missing specialty', specialty);
-            }
-
-            // adding body parts
-            const bodyPartArray = bodyPart.split(',');
-            for (let i = 0; i < bodyPartArray.length; i += 1) {
-              if (bodyPartMap.has(bodyPartArray[i])) {
-                const bodyPartItem = bodyPartMap.get(bodyPartArray[i]);
-                createdPhysicalEntityCollection.push(
-                  generateCollectionItem(
-                    bodyPartItem.code,
-                    bodyPartItem.codeSystemName,
-                    bodyPartItem.codeMeaning,
-                    'Anatomy Core'
-                  )
-                );
-              } else {
-                fastify.log.info('template missing body part', bodyPartArray[i]);
-              }
-            }
-
-            // adding findings and diagnosis + anatomy detail
-            for (let i = 0; i < keywordsArray.length; i += 1) {
-              if (anatomyMap.has(keywordsArray[i])) {
-                const anatomyItem = anatomyMap.get(keywordsArray[i]);
-                createdObservationEntityCollection.push(
-                  generateCollectionItem(
-                    keywordsArray[i],
-                    anatomyItem.codeSystemName,
-                    anatomyItem.codeMeaning,
-                    'Anatomy Detail'
-                  )
-                );
-              } else if (diagnosisMap.has(keywordsArray[i])) {
-                const diagnosisItem = diagnosisMap.get(keywordsArray[i]);
-                createdObservationEntityCollection.push(
-                  generateCollectionItem(
-                    keywordsArray[i],
-                    diagnosisItem.codeSystemName,
-                    diagnosisItem.codeMeaning,
-                    'Findings and Diagnosis'
-                  )
-                );
-              } else {
-                fastify.log.info('template missing keyword', keywordsArray[i]);
-              }
-            }
-
-            // fill in the seed data
-            const seedData = {};
-            seedData.aim = {};
-            seedData.study = {};
-            seedData.series = {};
-            seedData.equipment = {};
-            seedData.person = {};
-            seedData.image = [];
-            seedData.aim.studyInstanceUid = suid; // csv SUID
-            seedData.study.startTime = ''; // empty
-            seedData.study.instanceUid = suid; // csv SUID
-            const dateArray = date.split('/');
-            if (dateArray[0].length === 1) {
-              // month
-              dateArray[0] = `0${dateArray[0]}`;
-            }
-            if (dateArray[1].length === 1) {
-              // day
-              dateArray[1] = `0${dateArray[1]}`;
-            }
-            seedData.study.startDate = dateArray[2] + dateArray[0] + dateArray[1]; // csv Date (reformatted)
-            seedData.study.accessionNumber = accessionNumber; // csv accession
-            seedData.study.examTypes = modality;
-            seedData.series.instanceUid = ''; // empty
-            seedData.series.modality = modality;
-            seedData.series.number = ''; // empty
-            seedData.series.description = description; // csv description
-            seedData.series.instanceNumber = ''; // empty
-            seedData.equipment.manufacturerName = ''; // empty
-            seedData.equipment.manufacturerModelName = ''; // empty
-            seedData.equipment.softwareVersion = ''; // empty
-            seedData.person.sex = sex; // csv sex
-            const nameArray = name.split(', ');
-            seedData.person.name = `${nameArray[1]} ${nameArray[0]}`; // csv name (reformatted)
-            seedData.person.patientId = patientId; // csv Medical record number
-            if (age.toLowerCase() === 'deceased') {
-              seedData.person.birthDate = age;
-            } else {
-              seedData.person.birthDate = `${2022 - parseInt(age, 10)}0101`; // csv calculated date 66 years
-            }
-            const sopClassUid = '';
-            const sopInstanceUid = '';
-
-            // only adds physical and observation collections if there are keywords present
-            if (createdPhysicalEntityCollection.length > 0)
-              seedData.aim.imagingPhysicalEntityCollection = {
-                ImagingPhysicalEntity: createdPhysicalEntityCollection,
-              };
-
-            if (createdObservationEntityCollection.length > 0)
-              seedData.aim.imagingObservationEntityCollection = {
-                ImagingObservationEntity: createdObservationEntityCollection,
-              };
-
-            seedData.image.push({ sopClassUid, sopInstanceUid });
-
-            const answers = getTemplateAnswers(seedData, 'nodule1', '', comment);
-            const merged = { ...seedData.aim, ...answers };
-            seedData.aim = merged;
-            seedData.user = { loginName: 'admin', name: 'Full name' };
-
-            const aim = new Aim(seedData, enumAimType.studyAnnotation);
-
-            // writes new AIM file to output folder
-            fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aim.getAimJSON()));
-            fastify.log.info();
-          }
 
           // Specialty Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
           specialtyMap.set('CT BODY', {
@@ -576,7 +577,16 @@ async function other(fastify) {
             })
             .on('end', () => {
               for (let i = 0; i < csvData.length; i += 1) {
-                generateAIM(csvData[i], i + 2);
+                fastify.generateAIM(
+                  csvData[i],
+                  i + 2,
+                  enumAimType,
+                  specialtyMap,
+                  bodyPartMap,
+                  anatomyMap,
+                  diagnosisMap,
+                  dir
+                );
               }
               resolve();
             });
