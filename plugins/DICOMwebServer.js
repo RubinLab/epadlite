@@ -1292,7 +1292,6 @@ async function dicomwebserver(fastify) {
           mainHeader
         )
         .then((response) => {
-          console.log('metadata', response.data);
           reply.send(response.data);
         })
         .catch((err) => {
