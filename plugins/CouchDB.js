@@ -307,7 +307,7 @@ async function couchdb(fastify, options) {
         try {
           const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
-          const dir = `tmp_${timestamp}`;
+          const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
 
@@ -1317,7 +1317,7 @@ async function couchdb(fastify, options) {
             : {
                 _id: aim,
               };
-        const attachments = fastify.extractAttachmentParts(aim);
+        let attachments = typeof aim !== 'string' ? fastify.extractAttachmentParts(aim) : [];
         const db = fastify.couch.db.use(config.db);
 
         db.fetch({ keys: [couchDoc._id] }, { attachments: true }).then((data) => {
@@ -1332,7 +1332,11 @@ async function couchdb(fastify, options) {
               couchDoc.projects = existing.projects;
             }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
-            if (config.auditLog === true && existing.aim) {
+            // if the method was called with just aimuid use the attachments on couchdb
+            if (existing._attachments && typeof aim === 'string' && attachments === [])
+              attachments = existing._attachments;
+            // auditLog is for aim changes, if input is just aimUID only project changes. no auditlog for now
+            if (config.auditLog === true && existing.aim && typeof aim !== 'string') {
               // add the old version to the couchdoc
               // add old aim
               attachments.push({
@@ -1680,7 +1684,7 @@ async function couchdb(fastify, options) {
       new Promise((resolve, reject) => {
         try {
           const timestamp = new Date().getTime();
-          const dir = `tmp_${timestamp}`;
+          const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
 
@@ -2062,8 +2066,9 @@ async function couchdb(fastify, options) {
           let dir = '';
           if (subDir) dir = subDir;
           else {
+            // TODO delete the tmp directory when done
             const timestamp = new Date().getTime();
-            dir = `tmp_${timestamp}`;
+            dir = `/tmp/tmp_${timestamp}`;
             if (!archive && !fs.existsSync(dir)) fs.mkdirSync(dir);
           }
           // have a boolean just to avoid filesystem check for empty annotations directory
