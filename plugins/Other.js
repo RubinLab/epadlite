@@ -575,7 +575,7 @@ async function other(fastify) {
           }
 
           const specialtyMapData = [];
-          fs.createReadStream('plugins/MappedSpecialty.csv') // edit to match CSV file path
+          fs.createReadStream('config/MappedSpecialty.csv') // edit to match CSV file path
             .pipe(
               parse({
                 delimiter: ',',
