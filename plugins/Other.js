@@ -381,8 +381,8 @@ async function other(fastify) {
       const createdObservationEntityCollection = []; // specialty + findings and diagnosis + anatomy detail
 
       // adding specialty
-      if (specialtyMap.has(specialty)) {
-        const specialtyItem = specialtyMap.get(specialty);
+      if (specialtyMap.has(specialty.toLowerCase())) {
+        const specialtyItem = specialtyMap.get(specialty.toLowerCase());
         createdObservationEntityCollection.push(
           fastify.generateCollectionItem(
             specialtyItem.code,
@@ -555,11 +555,50 @@ async function other(fastify) {
           const diagnosisMap = new Map();
 
           // Specialty Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
-          specialtyMap.set('CT BODY', {
-            code: 'RID50608',
-            codeMeaning: 'Abdominal Radiology',
-            codeSystemName: 'Radlex',
+          // only appears in most updated template
+          specialtyMap.set('mr body', {
+            code: '99EPAD_955',
+            codeMeaning: 'Body MRI',
+            codeSystemName: '99EPAD',
           });
+
+          // Radiology Specialty Map Setup
+          const specialtyMeaningMap = new Map();
+          const specialtyTerms =
+            templateData.TemplateContainer.Template[0].Component[0].AllowedTerm;
+          for (let i = 0; i < specialtyTerms.length; i += 1) {
+            specialtyMeaningMap.set(specialtyTerms[i].codeMeaning.toLowerCase(), {
+              code: specialtyTerms[i].codeValue,
+              codeMeaning: specialtyTerms[i].codeMeaning,
+              codeSystemName: specialtyTerms[i].codingSchemeDesignator,
+            });
+          }
+
+          const specialtyMapData = [];
+          fs.createReadStream('plugins/MappedSpecialty.csv') // edit to match CSV file path
+            .pipe(
+              parse({
+                delimiter: ',',
+                columns: true,
+                ltrim: true,
+              })
+            )
+            .on('data', (row) => {
+              specialtyMapData.push(row);
+            })
+            .on('end', () => {
+              for (let i = 0; i < specialtyMapData.length; i += 1) {
+                const { key, value } = specialtyMapData[i];
+                const specialtyItem = specialtyMeaningMap.get(value.toLowerCase());
+                if (specialtyItem != null) {
+                  specialtyMap.set(key, {
+                    code: specialtyItem.code,
+                    codeMeaning: specialtyItem.codeMeaning,
+                    codeSystemName: specialtyItem.codeSystemName,
+                  });
+                }
+              }
+            });
 
           // Body Part Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[1].AllowedTerm
           // bodyPartMap.set("CT BODY", { "code": "RID50608", "codeMeaning": "Abdominal Radiology", "codeSystemName": "Radlex" });
