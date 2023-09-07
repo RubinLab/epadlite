@@ -385,8 +385,8 @@ async function other(fastify) {
             'Radiology Specialty'
           )
         );
-      } else {
-        fastify.log.info('template missing specialty', specialty);
+      } else if (specialty !== '') {
+        fastify.log.info(`template missing specialty ${specialty}`);
       }
 
       // adding body parts
@@ -402,8 +402,8 @@ async function other(fastify) {
               'Anatomy Core'
             )
           );
-        } else {
-          fastify.log.info('template missing body part', bodyPartArray[i]);
+        } else if (bodyPartArray[i] !== '') {
+          fastify.log.info(`template missing body part ${bodyPartArray[i]}`);
         }
       }
 
@@ -430,7 +430,7 @@ async function other(fastify) {
             )
           );
         } else {
-          fastify.log.info('template missing keyword', keywordsArray[i]);
+          fastify.log.info(`template missing keyword ${keywordsArray[i]}`);
         }
       }
 
@@ -445,16 +445,25 @@ async function other(fastify) {
       seedData.aim.studyInstanceUid = suid; // csv SUID
       seedData.study.startTime = ''; // empty
       seedData.study.instanceUid = suid; // csv SUID
+      const studyDate = new Date(date);
       const dateArray = date.split('/');
-      if (dateArray[0].length === 1) {
-        // month
-        dateArray[0] = `0${dateArray[0]}`;
+      if (dateArray.length >= 3) {
+        if (dateArray[0].length === 1) {
+          // month
+          dateArray[0] = `0${dateArray[0]}`;
+        }
+        if (dateArray[1].length === 1) {
+          // day
+          dateArray[1] = `0${dateArray[1]}`;
+        }
+        if (dateArray[2].length === 2) {
+          // year
+          dateArray[2] = studyDate.getFullYear();
+        }
+        seedData.study.startDate = dateArray[2] + dateArray[0] + dateArray[1]; // csv Date (reformatted)
+      } else {
+        seedData.study.startDate = date;
       }
-      if (dateArray[1].length === 1) {
-        // day
-        dateArray[1] = `0${dateArray[1]}`;
-      }
-      seedData.study.startDate = dateArray[2] + dateArray[0] + dateArray[1]; // csv Date (reformatted)
       seedData.study.accessionNumber = accessionNumber; // csv accession
       seedData.study.examTypes = modality;
       seedData.series.instanceUid = ''; // empty
@@ -467,12 +476,18 @@ async function other(fastify) {
       seedData.equipment.softwareVersion = ''; // empty
       seedData.person.sex = sex; // csv sex
       const nameArray = name.split(', ');
-      seedData.person.name = `${nameArray[1]} ${nameArray[0]}`; // csv name (reformatted)
+      if (nameArray.length === 3) {
+        seedData.person.name = `${nameArray[1]} ${nameArray[2]} ${nameArray[0]}`; // csv name (reformatted)
+      } else if (nameArray.length === 2) {
+        seedData.person.name = `${nameArray[1]} ${nameArray[0]}`;
+      } else {
+        seedData.person.name = `${nameArray[0]}`;
+      }
       seedData.person.patientId = patientId; // csv Medical record number
       if (age.toLowerCase() === 'deceased') {
         seedData.person.birthDate = age;
-      } else {
-        seedData.person.birthDate = `${2022 - parseInt(age, 10)}0101`; // csv calculated date 66 years
+      } else if (age !== '') {
+        seedData.person.birthDate = `${new Date().getFullYear() - parseInt(age, 10)}0101`; // csv calculated date
       }
       const sopClassUid = '';
       const sopInstanceUid = '';
