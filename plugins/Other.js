@@ -322,7 +322,13 @@ async function other(fastify) {
       const fileName = `${fastify.generateUid()}.json`;
 
       // CSV Data
-      const date = csvRow.Date; // csv Date
+      let date; // csv Date
+      if (Object.prototype.hasOwnProperty.call(csvRow, 'Date')) {
+        date = csvRow.Date;
+      } else {
+        const char = String.fromCharCode(65279);
+        date = csvRow[`${char}Date`];
+      }
       const name = csvRow.Name; // csv Name
       const patientId = csvRow['Medical record number']; // csv Medical record number
       const accessionNumber = csvRow['Accession number']; // csv Accession number
