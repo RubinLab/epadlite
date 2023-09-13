@@ -554,15 +554,7 @@ async function other(fastify) {
           const anatomyMap = new Map();
           const diagnosisMap = new Map();
 
-          // Specialty Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
-          // only appears in most updated template
-          specialtyMap.set('mr body', {
-            code: '99EPAD_955',
-            codeMeaning: 'Body MRI',
-            codeSystemName: '99EPAD',
-          });
-
-          // Radiology Specialty Map Setup
+          // Specialty Map Setup
           const specialtyMeaningMap = new Map();
           const specialtyTerms =
             templateData.TemplateContainer.Template[0].Component[0].AllowedTerm;
