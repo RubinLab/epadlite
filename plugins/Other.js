@@ -320,7 +320,13 @@ async function other(fastify) {
       const fileName = `${fastify.generateUid()}.json`;
 
       // CSV Data
-      const date = csvRow.Date; // csv Date
+      let date; // csv Date
+      if (Object.prototype.hasOwnProperty.call(csvRow, 'Date')) {
+        date = csvRow.Date;
+      } else {
+        const char = String.fromCharCode(65279);
+        date = csvRow[`${char}Date`];
+      }
       const name = csvRow.Name; // csv Name
       const patientId = csvRow['Medical record number']; // csv Medical record number
       const accessionNumber = csvRow['Accession number']; // csv Accession number
@@ -373,8 +379,8 @@ async function other(fastify) {
       const createdObservationEntityCollection = []; // specialty + findings and diagnosis + anatomy detail
 
       // adding specialty
-      if (specialtyMap.has(specialty)) {
-        const specialtyItem = specialtyMap.get(specialty);
+      if (specialtyMap.has(specialty.toLowerCase())) {
+        const specialtyItem = specialtyMap.get(specialty.toLowerCase());
         createdObservationEntityCollection.push(
           fastify.generateCollectionItem(
             specialtyItem.code,
@@ -383,8 +389,8 @@ async function other(fastify) {
             'Radiology Specialty'
           )
         );
-      } else {
-        fastify.log.info('template missing specialty', specialty);
+      } else if (specialty !== '') {
+        fastify.log.info(`template missing specialty ${specialty}`);
       }
 
       // adding body parts
@@ -400,8 +406,8 @@ async function other(fastify) {
               'Anatomy Core'
             )
           );
-        } else {
-          fastify.log.info('template missing body part', bodyPartArray[i]);
+        } else if (bodyPartArray[i] !== '') {
+          fastify.log.info(`template missing body part ${bodyPartArray[i]}`);
         }
       }
 
@@ -428,7 +434,7 @@ async function other(fastify) {
             )
           );
         } else {
-          fastify.log.info('template missing keyword', keywordsArray[i]);
+          fastify.log.info(`template missing keyword ${keywordsArray[i]}`);
         }
       }
 
@@ -443,16 +449,25 @@ async function other(fastify) {
       seedData.aim.studyInstanceUid = suid; // csv SUID
       seedData.study.startTime = ''; // empty
       seedData.study.instanceUid = suid; // csv SUID
+      const studyDate = new Date(date);
       const dateArray = date.split('/');
-      if (dateArray[0].length === 1) {
-        // month
-        dateArray[0] = `0${dateArray[0]}`;
+      if (dateArray.length >= 3) {
+        if (dateArray[0].length === 1) {
+          // month
+          dateArray[0] = `0${dateArray[0]}`;
+        }
+        if (dateArray[1].length === 1) {
+          // day
+          dateArray[1] = `0${dateArray[1]}`;
+        }
+        if (dateArray[2].length === 2) {
+          // year
+          dateArray[2] = studyDate.getFullYear();
+        }
+        seedData.study.startDate = dateArray[2] + dateArray[0] + dateArray[1]; // csv Date (reformatted)
+      } else {
+        seedData.study.startDate = date;
       }
-      if (dateArray[1].length === 1) {
-        // day
-        dateArray[1] = `0${dateArray[1]}`;
-      }
-      seedData.study.startDate = dateArray[2] + dateArray[0] + dateArray[1]; // csv Date (reformatted)
       seedData.study.accessionNumber = accessionNumber; // csv accession
       seedData.study.examTypes = modality;
       seedData.series.instanceUid = ''; // empty
@@ -465,12 +480,18 @@ async function other(fastify) {
       seedData.equipment.softwareVersion = ''; // empty
       seedData.person.sex = sex; // csv sex
       const nameArray = name.split(', ');
-      seedData.person.name = `${nameArray[1]} ${nameArray[0]}`; // csv name (reformatted)
+      if (nameArray.length === 3) {
+        seedData.person.name = `${nameArray[1]} ${nameArray[2]} ${nameArray[0]}`; // csv name (reformatted)
+      } else if (nameArray.length === 2) {
+        seedData.person.name = `${nameArray[1]} ${nameArray[0]}`;
+      } else {
+        seedData.person.name = `${nameArray[0]}`;
+      }
       seedData.person.patientId = patientId; // csv Medical record number
       if (age.toLowerCase() === 'deceased') {
         seedData.person.birthDate = age;
-      } else {
-        seedData.person.birthDate = `${2022 - parseInt(age, 10)}0101`; // csv calculated date 66 years
+      } else if (age !== '') {
+        seedData.person.birthDate = `${new Date().getFullYear() - parseInt(age, 10)}0101`; // csv calculated date
       }
       const sopClassUid = '';
       const sopInstanceUid = '';
@@ -531,12 +552,43 @@ async function other(fastify) {
           const anatomyMap = new Map();
           const diagnosisMap = new Map();
 
-          // Specialty Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
-          specialtyMap.set('CT BODY', {
-            code: 'RID50608',
-            codeMeaning: 'Abdominal Radiology',
-            codeSystemName: 'Radlex',
-          });
+          // Specialty Map Setup
+          const specialtyMeaningMap = new Map();
+          const specialtyTerms =
+            templateData.TemplateContainer.Template[0].Component[0].AllowedTerm;
+          for (let i = 0; i < specialtyTerms.length; i += 1) {
+            specialtyMeaningMap.set(specialtyTerms[i].codeMeaning.toLowerCase(), {
+              code: specialtyTerms[i].codeValue,
+              codeMeaning: specialtyTerms[i].codeMeaning,
+              codeSystemName: specialtyTerms[i].codingSchemeDesignator,
+            });
+          }
+
+          const specialtyMapData = [];
+          fs.createReadStream('config/MappedSpecialty.csv') // edit to match CSV file path
+            .pipe(
+              parse({
+                delimiter: ',',
+                columns: true,
+                ltrim: true,
+              })
+            )
+            .on('data', (row) => {
+              specialtyMapData.push(row);
+            })
+            .on('end', () => {
+              for (let i = 0; i < specialtyMapData.length; i += 1) {
+                const { key, value } = specialtyMapData[i];
+                const specialtyItem = specialtyMeaningMap.get(value.toLowerCase());
+                if (specialtyItem != null) {
+                  specialtyMap.set(key, {
+                    code: specialtyItem.code,
+                    codeMeaning: specialtyItem.codeMeaning,
+                    codeSystemName: specialtyItem.codeSystemName,
+                  });
+                }
+              }
+            });
 
           // Body Part Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[1].AllowedTerm
           // bodyPartMap.set("CT BODY", { "code": "RID50608", "codeMeaning": "Abdominal Radiology", "codeSystemName": "Radlex" });
