@@ -17,6 +17,10 @@ const concat = require('concat-stream');
 const ActiveDirectory = require('activedirectory2');
 const util = require('util');
 const { pipeline } = require('stream');
+const archiver = require('archiver');
+
+// for csv2aim
+const { parse } = require('csv-parse');
 
 const pump = util.promisify(pipeline);
 const config = require('../config/index');
@@ -239,6 +243,463 @@ async function other(fastify) {
           }
         } catch (error) {
           reply.send(new InternalError('Saved files processing', error));
+        }
+      } catch (fileSaveErr) {
+        fs.remove(dir, (error) => {
+          if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+          else fastify.log.info(`${dir} deleted`);
+        });
+        if (config.env === 'test') reply.send(new InternalError('Upload Error', fileSaveErr));
+        else
+          new EpadNotification(
+            request,
+            'Upload files',
+            new InternalError('Upload Error', fileSaveErr),
+            true
+          ).notify(fastify);
+      }
+    } catch (err) {
+      reply.send(new InternalError('Multipart file save', err));
+    }
+  });
+
+  fastify.decorate('generateUid', () => {
+    let uid = `2.25.${Math.floor(1 + Math.random() * 9)}`;
+    for (let index = 0; index < 38; index += 1) {
+      uid += Math.floor(Math.random() * 10);
+    }
+    return uid;
+  });
+
+  fastify.decorate(
+    'getTeachingTemplateAnswers',
+    // eslint-disable-next-line consistent-return
+    (metadata, annotationName, tempModality, comment) => {
+      // metadata should have a series and it should have modality, description, instanceNumber and number (series number)
+      // for teaching we do not have series so it should be something like {series: {modality: modalityFromData, instanceNumber:'', number:'',description:'' }}
+      // for teaching tempModality also should be modalityFromData
+      if (metadata.series) {
+        const modality = { value: tempModality };
+        const name = { value: annotationName };
+        // template info
+        const typeCode = [
+          {
+            code: '99EPAD_947',
+            codeSystemName: '99EPAD',
+            'iso:displayName': { 'xmlns:iso': 'uri:iso.org:21090', value: 'Teaching file' },
+          },
+        ];
+        return { comment, modality, name, typeCode };
+      }
+    }
+  );
+
+  fastify.decorate('generateCollectionItem', (code, codeSystemName, codeMeaning, label) => ({
+    // generates an annotation object for the AIM file
+    typeCode: [
+      {
+        code,
+        codeSystemName,
+        'iso:displayName': {
+          value: codeMeaning,
+          'xmlns:iso': 'uri:iso.org:21090',
+        },
+      },
+    ],
+    annotatorConfidence: { value: 0 },
+    label: { value: label },
+    uniqueIdentifier: {
+      root: fastify.generateUid(),
+    },
+  }));
+
+  fastify.decorate(
+    'generateAIM',
+    (csvRow, rowNum, enumAimType, specialtyMap, bodyPartMap, anatomyMap, diagnosisMap, dir) => {
+      // generates a single AIM file based on data in csvRow object
+      const fileName = `${fastify.generateUid()}.json`;
+
+      // CSV Data
+      const date = csvRow.Date; // csv Date
+      const name = csvRow.Name; // csv Name
+      const patientId = csvRow['Medical record number']; // csv Medical record number
+      const accessionNumber = csvRow['Accession number']; // csv Accession number
+      const suid = csvRow['SUID (Study UID)']; // csv SUID
+      let age = csvRow['Current age']; // csv Current age (or deceased)
+      const sex = csvRow.Sex; // csv Sex
+      const modality = csvRow.Modality; // csv Modality
+      const description = csvRow.Description; // csv Description
+      const bodyPart = csvRow['Body part']; // csv Body part
+      const keywords = csvRow['Teaching file keywords']; // csv Teaching file keywords
+      const specialty = csvRow.Specialty; // csv Specialty
+      // const reportAuthor = csvRow['Report author']; // csv Report author
+      // const readingPhysician = csvRow['Reading physician']; // csv Reading physician
+
+      fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
+      fastify.log.info(fileName);
+
+      // generate keywordsArray, tracking the RIDs in the teaching file keywords
+      const keywordsArray = [];
+      let keywordsIndex = 0;
+      let keywordExists = keywords.indexOf('(', keywordsIndex);
+      while (keywordExists !== -1) {
+        keywordsIndex = keywords.indexOf(')', keywordExists);
+        keywordsArray.push(keywords.substring(keywordExists + 1, keywordsIndex));
+        keywordExists = keywords.indexOf('(', keywordsIndex);
+      }
+
+      // generate comment, NN-year old (or deceased) female/male
+      const comment = { value: ' ' };
+      if (age.toLowerCase() === 'deceased') {
+        comment.value = `${age} `;
+      } else {
+        age = age.substring(0, age.length - 6); // format age
+        comment.value = `${age}-year-old `;
+      }
+
+      if (sex === 'F') {
+        comment.value += 'female';
+      } else if (sex === 'M') {
+        comment.value += 'male';
+      }
+
+      // anatomies =['RID230', 'RIS10']; // coming from "Anatomy Detail" in template
+      // diagnosis =['RIS1122', 'RID3455']; // coming from "Findings and Diagnosis" in template
+      // use a map of codevalue and codemeaning from template
+      // codevalue is the RID
+      // codemeaning is the displayname
+
+      const createdPhysicalEntityCollection = []; // anatomy core
+      const createdObservationEntityCollection = []; // specialty + findings and diagnosis + anatomy detail
+
+      // adding specialty
+      if (specialtyMap.has(specialty)) {
+        const specialtyItem = specialtyMap.get(specialty);
+        createdObservationEntityCollection.push(
+          fastify.generateCollectionItem(
+            specialtyItem.code,
+            specialtyItem.codeSystemName,
+            specialtyItem.codeMeaning,
+            'Radiology Specialty'
+          )
+        );
+      } else {
+        fastify.log.info('template missing specialty', specialty);
+      }
+
+      // adding body parts
+      const bodyPartArray = bodyPart.split(',');
+      for (let i = 0; i < bodyPartArray.length; i += 1) {
+        if (bodyPartMap.has(bodyPartArray[i])) {
+          const bodyPartItem = bodyPartMap.get(bodyPartArray[i]);
+          createdPhysicalEntityCollection.push(
+            fastify.generateCollectionItem(
+              bodyPartItem.code,
+              bodyPartItem.codeSystemName,
+              bodyPartItem.codeMeaning,
+              'Anatomy Core'
+            )
+          );
+        } else {
+          fastify.log.info('template missing body part', bodyPartArray[i]);
+        }
+      }
+
+      // adding findings and diagnosis + anatomy detail
+      for (let i = 0; i < keywordsArray.length; i += 1) {
+        if (anatomyMap.has(keywordsArray[i])) {
+          const anatomyItem = anatomyMap.get(keywordsArray[i]);
+          createdObservationEntityCollection.push(
+            fastify.generateCollectionItem(
+              keywordsArray[i],
+              anatomyItem.codeSystemName,
+              anatomyItem.codeMeaning,
+              'Anatomy Detail'
+            )
+          );
+        } else if (diagnosisMap.has(keywordsArray[i])) {
+          const diagnosisItem = diagnosisMap.get(keywordsArray[i]);
+          createdObservationEntityCollection.push(
+            fastify.generateCollectionItem(
+              keywordsArray[i],
+              diagnosisItem.codeSystemName,
+              diagnosisItem.codeMeaning,
+              'Findings and Diagnosis'
+            )
+          );
+        } else {
+          fastify.log.info('template missing keyword', keywordsArray[i]);
+        }
+      }
+
+      // fill in the seed data
+      const seedData = {};
+      seedData.aim = {};
+      seedData.study = {};
+      seedData.series = {};
+      seedData.equipment = {};
+      seedData.person = {};
+      seedData.image = [];
+      seedData.aim.studyInstanceUid = suid; // csv SUID
+      seedData.study.startTime = ''; // empty
+      seedData.study.instanceUid = suid; // csv SUID
+      const dateArray = date.split('/');
+      if (dateArray[0].length === 1) {
+        // month
+        dateArray[0] = `0${dateArray[0]}`;
+      }
+      if (dateArray[1].length === 1) {
+        // day
+        dateArray[1] = `0${dateArray[1]}`;
+      }
+      seedData.study.startDate = dateArray[2] + dateArray[0] + dateArray[1]; // csv Date (reformatted)
+      seedData.study.accessionNumber = accessionNumber; // csv accession
+      seedData.study.examTypes = modality;
+      seedData.series.instanceUid = ''; // empty
+      seedData.series.modality = modality;
+      seedData.series.number = ''; // empty
+      seedData.series.description = description; // csv description
+      seedData.series.instanceNumber = ''; // empty
+      seedData.equipment.manufacturerName = ''; // empty
+      seedData.equipment.manufacturerModelName = ''; // empty
+      seedData.equipment.softwareVersion = ''; // empty
+      seedData.person.sex = sex; // csv sex
+      const nameArray = name.split(', ');
+      seedData.person.name = `${nameArray[1]} ${nameArray[0]}`; // csv name (reformatted)
+      seedData.person.patientId = patientId; // csv Medical record number
+      if (age.toLowerCase() === 'deceased') {
+        seedData.person.birthDate = age;
+      } else {
+        seedData.person.birthDate = `${2022 - parseInt(age, 10)}0101`; // csv calculated date 66 years
+      }
+      const sopClassUid = '';
+      const sopInstanceUid = '';
+
+      // only adds physical and observation collections if there are keywords present
+      if (createdPhysicalEntityCollection.length > 0)
+        seedData.aim.imagingPhysicalEntityCollection = {
+          ImagingPhysicalEntity: createdPhysicalEntityCollection,
+        };
+
+      if (createdObservationEntityCollection.length > 0)
+        seedData.aim.imagingObservationEntityCollection = {
+          ImagingObservationEntity: createdObservationEntityCollection,
+        };
+
+      seedData.image.push({ sopClassUid, sopInstanceUid });
+
+      const answers = fastify.getTeachingTemplateAnswers(seedData, 'nodule1', '', comment);
+      const merged = { ...seedData.aim, ...answers };
+      seedData.aim = merged;
+      seedData.user = { loginName: 'admin', name: 'Full name' };
+
+      const aim = new Aim(seedData, enumAimType.studyAnnotation);
+
+      // writes new AIM file to output folder
+      fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aim.getAimJSON()));
+      fastify.log.info();
+    }
+  );
+
+  fastify.decorate(
+    'convertCsv2Aim',
+    (dir, csvFilePath) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const templateData = await fastify.getTemplateInternal('99EPAD_947', 'json');
+
+          // Radiology Specialty
+          // templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
+
+          // Anatomy Core
+          // templateData.TemplateContainer.Template[0].Component[1].AllowedTerm
+
+          // Findings and Diagnosis
+          // templateData.TemplateContainer.Template[0].Component[2].AllowedTerm
+
+          // Anatomy Detail
+          // templateData.TemplateContainer.Template[0].Component[5].AllowedTerm
+
+          const enumAimType = {
+            imageAnnotation: 1,
+            seriesAnnotation: 2,
+            studyAnnotation: 3,
+          };
+
+          const specialtyMap = new Map();
+          const bodyPartMap = new Map();
+          const anatomyMap = new Map();
+          const diagnosisMap = new Map();
+
+          // Specialty Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[0].AllowedTerm
+          specialtyMap.set('CT BODY', {
+            code: 'RID50608',
+            codeMeaning: 'Abdominal Radiology',
+            codeSystemName: 'Radlex',
+          });
+
+          // Body Part Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[1].AllowedTerm
+          // bodyPartMap.set("CT BODY", { "code": "RID50608", "codeMeaning": "Abdominal Radiology", "codeSystemName": "Radlex" });
+
+          // Anatomy Detail Map Setup
+          const anatomyTerms = templateData.TemplateContainer.Template[0].Component[5].AllowedTerm;
+          for (let i = 0; i < anatomyTerms.length; i += 1) {
+            anatomyMap.set(anatomyTerms[i].codeValue, {
+              codeMeaning: anatomyTerms[i].codeMeaning,
+              codeSystemName: anatomyTerms[i].codingSchemeDesignator,
+            });
+          }
+
+          // Findings and Diagnosis Map Setup
+          const diagnosisTerms =
+            templateData.TemplateContainer.Template[0].Component[2].AllowedTerm;
+          for (let i = 0; i < diagnosisTerms.length; i += 1) {
+            diagnosisMap.set(diagnosisTerms[i].codeValue, {
+              codeMeaning: diagnosisTerms[i].codeMeaning,
+              codeSystemName: diagnosisTerms[i].codingSchemeDesignator,
+            });
+          }
+
+          // reads data from CSV file and generates AIMs
+          const csvData = [];
+          fs.createReadStream(csvFilePath) // edit to match CSV file path
+            .pipe(
+              parse({
+                delimiter: ',',
+                columns: true,
+                ltrim: true,
+              })
+            )
+            .on('data', (row) => {
+              csvData.push(row);
+            })
+            .on('end', () => {
+              for (let i = 0; i < csvData.length; i += 1) {
+                fastify.generateAIM(
+                  csvData[i],
+                  i + 2,
+                  enumAimType,
+                  specialtyMap,
+                  bodyPartMap,
+                  anatomyMap,
+                  diagnosisMap,
+                  dir
+                );
+              }
+              resolve();
+            });
+        } catch (err) {
+          fastify.log.info('Error in convert csv 2 aim', err);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'zipAims',
+    (csvFilePath) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          fastify.log.info(csvFilePath);
+          const timestamp = new Date().getTime();
+          const dir = `/tmp/tmp_${timestamp}`;
+          fs.mkdirSync(dir);
+          fs.mkdirSync(`${dir}/annotations`);
+
+          await fastify.convertCsv2Aim(dir, csvFilePath);
+
+          // make sure zip file and folder names are different
+          let zipFilePath = '';
+          const downloadFolder = path.join(__dirname, '../download');
+          if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
+          zipFilePath = `${downloadFolder}/annotations_${timestamp}.zip`;
+
+          // create a file to stream archive data to.
+          const output = fs.createWriteStream(zipFilePath);
+          const archive = archiver('zip', {
+            zlib: { level: 9 }, // Sets the compression level.
+          });
+          // create the archive
+          archive.pipe(output);
+          archive.glob('**/*.json', { cwd: `${dir}` });
+
+          output.on('close', () => {
+            fastify.log.info(`Created zip in ${zipFilePath}`);
+            fs.remove(dir, (error) => {
+              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+              else fastify.log.info(`${dir} deleted`);
+            });
+            resolve(
+              `${config.prefix ? `/${config.prefix}` : ''}/download/annotations_${timestamp}.zip`
+            );
+          });
+
+          archive.finalize();
+        } catch (err) {
+          reject(new InternalError('Downloading aims', err));
+        }
+      })
+  );
+
+  fastify.decorate('processCsv', async (request, reply) => {
+    const parts = request.files();
+    const timestamp = new Date().getTime();
+    const dir = `/tmp/tmp_${timestamp}`;
+    const filenames = [];
+    const fileSavePromisses = [];
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+      // eslint-disable-next-line no-restricted-syntax
+      for await (const part of parts) {
+        fileSavePromisses.push(pump(part.file, fs.createWriteStream(`${dir}/${part.filename}`)));
+        filenames.push(part.filename);
+      }
+      try {
+        await Promise.all(fileSavePromisses);
+        try {
+          if (config.env !== 'test') {
+            fastify.log.info('Files copy completed. sending response');
+            reply.code(202).send('Files received succesfully, saving..');
+          }
+          try {
+            // call csv processing
+            if (fastify.getExtension(filenames[0]) !== 'csv') {
+              throw new TypeError('File format is not .csv');
+            }
+            const result = await fastify.zipAims(`${dir}/${filenames[0]}`);
+            fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${result}`);
+            fs.remove(dir, (error) => {
+              if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+              fastify.log.info(`${dir} deleted`);
+            });
+
+            // csv -> zip of aims success!
+            if (config.env === 'test') reply.code(200).send(result);
+            else {
+              fastify.log.info(`Zip file ready in ${result}`);
+              // get the protocol and hostname from the request
+              const link = `${request.protocol}://${request.hostname}${result}`;
+              fastify.log.info(`LINK TO DOWNLOAD ZIP ${link}`);
+              // send notification and/or email with link
+              if (request)
+                new EpadNotification(request, 'Download ready', link, false).notify(fastify);
+            }
+          } catch (filesErr) {
+            fs.remove(dir, (error) => {
+              if (error) fastify.log.info(`Temp directory deletion error ${error.message}`);
+              else fastify.log.info(`${dir} deleted`);
+            });
+            if (config.env === 'test') reply.send(new InternalError('Upload Error', filesErr));
+            else
+              new EpadNotification(
+                request,
+                'Upload files',
+                new InternalError('Upload Error', filesErr),
+                true
+              ).notify(fastify);
+          }
+        } catch (error) {
+          reply.send(new InternalError('Csv processing', error));
         }
       } catch (fileSaveErr) {
         fs.remove(dir, (error) => {

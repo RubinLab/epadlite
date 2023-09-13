@@ -583,5 +583,14 @@ async function otherRoutes(fastify) {
     url: '/appVersion',
     handler: fastify.getVersion,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/processCsv',
+    schema: {
+      tags: ['files'],
+    },
+    handler: fastify.processCsv,
+  });
 }
 module.exports = otherRoutes;

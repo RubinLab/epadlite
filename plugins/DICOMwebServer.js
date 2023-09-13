@@ -4,13 +4,15 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
-const dimse = require('dicom-dimse-native');
 const https = require('https');
 const fs = require('fs');
 // eslint-disable-next-line no-global-assign
 window = {};
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
+
+// eslint-disable-next-line import/no-unresolved
+const dimse = config.dimse ? require('dicom-dimse-native') : null;
 
 // I need to import this after config as it uses config values
 // eslint-disable-next-line import/order
@@ -849,66 +851,68 @@ async function dicomwebserver(fastify) {
   fastify.decorate(
     'promisifyDIMSE',
     (dimseConf, studyUID) =>
-      new Promise((resolve) => {
-        dimse.findScu(
-          JSON.stringify({
-            source: {
-              aet: 'FINDSCU',
-              ip: dimseConf.sourceIp || '127.0.0.1',
-              port: '9999',
-            },
-            target: {
-              aet: dimseConf.aet,
-              ip: dimseConf.ip,
-              port: dimseConf.port,
-            },
-            tags: [
-              {
-                key: '0020000D',
-                value: studyUID,
+      new Promise((resolve, reject) => {
+        if (!dimse) reject(new Error(`DIMSE library couldn't be installed. DIMSE not supported`));
+        else
+          dimse.findScu(
+            JSON.stringify({
+              source: {
+                aet: 'FINDSCU',
+                ip: dimseConf.sourceIp || '127.0.0.1',
+                port: '9999',
               },
-              {
-                key: '00080052',
-                value: 'SERIES',
+              target: {
+                aet: dimseConf.aet,
+                ip: dimseConf.ip,
+                port: dimseConf.port,
               },
-              {
-                key: '00080021',
-                value: '',
-              },
-              {
-                key: '0008103E',
-                value: '',
-              },
-              {
-                key: '0020000E',
-                value: '',
-              },
-              {
-                key: '00080060',
-                value: '',
-              },
-              {
-                key: '00080050',
-                value: '',
-              },
-              {
-                key: '00201209',
-                value: '',
-              },
-              {
-                key: '00201209',
-                value: '',
-              },
-              {
-                key: '00200011',
-                value: '',
-              },
-            ],
-          }),
-          (result) => {
-            resolve(result);
-          }
-        );
+              tags: [
+                {
+                  key: '0020000D',
+                  value: studyUID,
+                },
+                {
+                  key: '00080052',
+                  value: 'SERIES',
+                },
+                {
+                  key: '00080021',
+                  value: '',
+                },
+                {
+                  key: '0008103E',
+                  value: '',
+                },
+                {
+                  key: '0020000E',
+                  value: '',
+                },
+                {
+                  key: '00080060',
+                  value: '',
+                },
+                {
+                  key: '00080050',
+                  value: '',
+                },
+                {
+                  key: '00201209',
+                  value: '',
+                },
+                {
+                  key: '00201209',
+                  value: '',
+                },
+                {
+                  key: '00200011',
+                  value: '',
+                },
+              ],
+            }),
+            (result) => {
+              resolve(result);
+            }
+          );
       })
   );
 
@@ -920,50 +924,52 @@ async function dicomwebserver(fastify) {
           fastify.promisifyDIMSE(config.dimse, studyUID),
           fastify.promisifyDIMSE(config.archiveDimse, studyUID),
         ];
-        Promise.all(dimsePromises).then((results) => {
-          try {
-            // use vna if there is a successfull result from vna
-            // it means the study is already archived
-            // we assume the series data does not change once it is archived
-            const containerJSONs = results
-              .map((item) => JSON.parse(item))
-              .filter((item) => item.code === 0 && item.container) // sanity check for success in retrieval
-              .map((item) => JSON.parse(item.container)); // convert container to JSON
-            // get Sectra by default
-            let res = containerJSONs[0];
-            // check if the return value has series descriptions
-            // if it has no series description in the first 3 (to cover series with no description), we need to get the descriptions from vna
-            if (
-              ((res.length > 0 && !res[0]['0008103E']) ||
-                (res.length > 1 && !res[1]['0008103E']) ||
-                (res.length > 2 && !res[2]['0008103E'])) &&
-              containerJSONs[1]
-            ) {
-              // get a map of series descriptions from VNA
-              const map = containerJSONs[1].reduce((result, item) => {
-                if (
-                  item['0020000E'] &&
-                  item['0020000E'].Value &&
-                  item['0020000E'].Value[0] &&
-                  item['0008103E']
-                )
-                  // eslint-disable-next-line no-param-reassign
-                  result[item['0020000E'].Value[0]] = item['0008103E'];
-                return result;
-              }, {});
-              // fill in the series descriptions retrieved from Sectra
-              res = res.map((item) => {
-                if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
-                  // eslint-disable-next-line no-param-reassign
-                  item['0008103E'] = map[item['0020000E'].Value[0]];
-                return item;
-              });
+        Promise.all(dimsePromises)
+          .then((results) => {
+            try {
+              // use vna if there is a successfull result from vna
+              // it means the study is already archived
+              // we assume the series data does not change once it is archived
+              const containerJSONs = results
+                .map((item) => JSON.parse(item))
+                .filter((item) => item.code === 0 && item.container) // sanity check for success in retrieval
+                .map((item) => JSON.parse(item.container)); // convert container to JSON
+              // get Sectra by default
+              let res = containerJSONs[0];
+              // check if the return value has series descriptions
+              // if it has no series description in the first 3 (to cover series with no description), we need to get the descriptions from vna
+              if (
+                ((res.length > 0 && !res[0]['0008103E']) ||
+                  (res.length > 1 && !res[1]['0008103E']) ||
+                  (res.length > 2 && !res[2]['0008103E'])) &&
+                containerJSONs[1]
+              ) {
+                // get a map of series descriptions from VNA
+                const map = containerJSONs[1].reduce((result, item) => {
+                  if (
+                    item['0020000E'] &&
+                    item['0020000E'].Value &&
+                    item['0020000E'].Value[0] &&
+                    item['0008103E']
+                  )
+                    // eslint-disable-next-line no-param-reassign
+                    result[item['0020000E'].Value[0]] = item['0008103E'];
+                  return result;
+                }, {});
+                // fill in the series descriptions retrieved from Sectra
+                res = res.map((item) => {
+                  if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
+                    // eslint-disable-next-line no-param-reassign
+                    item['0008103E'] = map[item['0020000E'].Value[0]];
+                  return item;
+                });
+              }
+              resolve({ data: res });
+            } catch (err) {
+              reject(err);
             }
-            resolve({ data: res });
-          } catch (err) {
-            reject(err);
-          }
-        });
+          })
+          .catch((err) => reject(err));
       })
   );
 
