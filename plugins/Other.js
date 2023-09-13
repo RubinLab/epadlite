@@ -279,8 +279,6 @@ async function other(fastify) {
       // for teaching we do not have series so it should be something like {series: {modality: modalityFromData, instanceNumber:'', number:'',description:'' }}
       // for teaching tempModality also should be modalityFromData
       if (metadata.series) {
-        // const { number, description, instanceNumber } = metadata.series;
-        // const seriesModality = metadata.series.modality;
         const modality = { value: tempModality };
         const name = { value: annotationName };
         // template info
