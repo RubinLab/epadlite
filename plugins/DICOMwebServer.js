@@ -11,6 +11,7 @@ window = {};
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
+// eslint-disable-next-line import/no-unresolved
 const dimse = config.dimse ? require('dicom-dimse-native') : null;
 
 // I need to import this after config as it uses config values
