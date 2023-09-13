@@ -8828,7 +8828,8 @@ async function epaddb(fastify, options, done) {
           for (let i = 0; i < request.body.length; i += 1) {
             if (
               request.epadAuth.admin ||
-              fastify.isOwnerOfProject(request, request.params.project) ||
+              (config.mode !== 'teaching' &&
+                fastify.isOwnerOfProject(request, request.params.project)) ||
               // eslint-disable-next-line no-await-in-loop
               (await fastify.isCreatorOfObject(request, {
                 level: 'aim',
@@ -8952,10 +8953,20 @@ async function epaddb(fastify, options, done) {
                 });
             }
           }
+          // get the project db record if params.project is sent
+          const project = params.project
+            ? await models.project.findOne({
+                where: { projectid: params.project },
+              })
+            : null;
 
+          // delete the aims in this project (if any)
           const numDeleted =
             aimUids.length > 0
-              ? await fastify.deleteAimDB({ aim_uid: aimUids }, epadAuth.username)
+              ? await fastify.deleteAimDB(
+                  { aim_uid: aimUids, ...(project ? { project_id: project.id } : {}) },
+                  epadAuth.username
+                )
               : 0;
           // if delete from all or it doesn't exist in any other project, delete from system
           try {
@@ -8967,8 +8978,10 @@ async function epaddb(fastify, options, done) {
                 await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
               resolve(`Aims deleted from system and removed from ${numDeleted} projects`);
             } else {
+              // check if the aims to be deleted exist in any other project
+              // make sure to handle auditlog deletes
               const leftovers = await models.project_aim.findAll({
-                where: aimQry,
+                where: { aim_uid: aimUids, ...fastify.qryNotDeleted() },
                 attributes: ['project_id', 'subject_uid', 'study_uid', 'aim_uid', 'dso_series_uid'],
               });
               if (leftovers.length === 0) {
