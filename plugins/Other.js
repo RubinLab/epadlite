@@ -730,9 +730,7 @@ async function other(fastify) {
             else {
               fastify.log.info(`Zip file ready in ${result}`);
               // get the protocol and hostname from the request
-              const link = `${config.httpsLink ? 'https' : request.protocol}://${
-                request.hostname
-              }${result}`;
+              const link = `${request.protocol}://${request.hostname}${result}`;
               fastify.log.info(`LINK TO DOWNLOAD ZIP ${link}`);
               // send notification and/or email with link
               if (request)
