@@ -959,7 +959,7 @@ async function dicomwebserver(fastify) {
                   return result;
                 }, {});
                 fastify.log.info('PACS DIMSE response', JSON.stringify(res));
-                fastify.log.info('ARCHIVE series description map', JSON.strinfigy(map));
+                fastify.log.info('ARCHIVE series description map', JSON.stringify(map));
                 // fill in the series descriptions retrieved from Sectra
                 res = res.map((item) => {
                   if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
