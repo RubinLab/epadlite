@@ -938,11 +938,13 @@ async function dicomwebserver(fastify) {
               let res = containerJSONs[0];
               // check if the return value has series descriptions
               // if it has no series description in the first 3 (to cover series with no description), we need to get the descriptions from vna
+              let seriesDescAvail = false;
+              for (let i = 0; i < res.length && i < 3; i += 1)
+                seriesDescAvail = seriesDescAvail && res[i]['0008103E'];
               if (
-                ((res.length > 0 && !res[0]['0008103E']) ||
-                  (res.length > 1 && !res[1]['0008103E']) ||
-                  (res.length > 2 && !res[2]['0008103E'])) &&
-                containerJSONs[1]
+                !seriesDescAvail &&
+                containerJSONs[1] &&
+                Object.keys(containerJSONs[1]).length > 0
               ) {
                 // get a map of series descriptions from VNA
                 const map = containerJSONs[1].reduce((result, item) => {
@@ -956,6 +958,8 @@ async function dicomwebserver(fastify) {
                     result[item['0020000E'].Value[0]] = item['0008103E'];
                   return result;
                 }, {});
+                fastify.log.info('PACS DIMSE response', JSON.stringify(res));
+                fastify.log.info('ARCHIVE series description map', JSON.strinfigy(map));
                 // fill in the series descriptions retrieved from Sectra
                 res = res.map((item) => {
                   if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
