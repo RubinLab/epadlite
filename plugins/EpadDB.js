@@ -9407,6 +9407,9 @@ async function epaddb(fastify, options, done) {
                 } else if (studies.length > 0) {
                   // this happens in stella when a study is being sent to create a teaching file
                   if (studies.length > 1) {
+                    fastify.log.info(
+                      `Received ${studies.length} study records for the studyuid ${params.study}. Comparing the patient info to see if they are same`
+                    );
                     // ambigious results. check if the patient info is the same
                     for (let i = 1; i < studies.length; i += 1)
                       if (
