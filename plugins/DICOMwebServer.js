@@ -1198,10 +1198,6 @@ async function dicomwebserver(fastify) {
                         : '1'
                     ),
                     losslessImage: '', // TODO
-                    // lossyImage: `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances/${
-                    //   value['00080018'].Value[0]
-                    // }`,
-                    // send wado-uri instead of wado-rs
                     // Send the source when generating url
                     lossyImage: fastify.getWadoPath(
                       params.study,
