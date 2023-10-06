@@ -1233,7 +1233,7 @@ async function dicomwebserver(fastify) {
                   }
                 }
               }
-              singleframes.sort('instanceNumber');
+              _.sortBy(singleframes, 'instanceNumber');
               const resultAA = [singleframes, ...multiframes];
               resolve(resultAA);
             })
