@@ -1154,7 +1154,7 @@ async function dicomwebserver(fastify) {
               // separate multiframes
               // switching regular for loop for fastest results
               const len = res.response.data.length;
-              const singleframes = [];
+              let singleframes = [];
               const multiframes = [];
               for (let i = 0; i < len; i += 1) {
                 const value = res.response.data[i];
@@ -1233,7 +1233,7 @@ async function dicomwebserver(fastify) {
                   }
                 }
               }
-              _.sortBy(singleframes, 'instanceNumber');
+              singleframes = _.sortBy(singleframes, 'instanceNumber');
               const resultAA = [singleframes, ...multiframes];
               resolve(resultAA);
             })
