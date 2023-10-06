@@ -9404,8 +9404,34 @@ async function epaddb(fastify, options, done) {
                     updatetime: Date.now(),
                     createdtime: Date.now(),
                   });
-                } else if (studies.length === 1) {
-                  // this shouldn't ever happen except tests because of nock
+                } else if (studies.length > 0) {
+                  // this happens in stella when a study is being sent to create a teaching file
+                  if (studies.length > 1) {
+                    fastify.log.info(
+                      `Received ${studies.length} study records for the studyuid ${params.study}. Comparing the patient info to see if they are same`
+                    );
+                    // ambigious results. check if the patient info is the same
+                    for (let i = 1; i < studies.length; i += 1)
+                      if (
+                        studies[i].patientName !== studies[0].patientName ||
+                        studies[i].sex !== studies[0].sex ||
+                        studies[i].birthdate !== studies[0].birthdate
+                      ) {
+                        reject(
+                          new InternalError(
+                            `Not able to add study ${params.study} for MRN ${params.subject}`,
+                            new Error(
+                              `Ambigious patient records. Accession: ${
+                                studies[i].studyAccessionNumber
+                              }, Name:${studies[i].patientName !== studies[0].patientName}, sex:${
+                                studies[i].sex !== studies[0].sex
+                              }, birthdate:${studies[i].birthdate !== studies[0].birthdate}`
+                            )
+                          )
+                        );
+                        return;
+                      }
+                  }
                   subject = await models.subject.create({
                     subjectuid: params.subject.replace('\u0000', '').trim(),
                     name: studies[0].patientName
