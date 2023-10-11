@@ -701,7 +701,7 @@ async function epaddb(fastify, options, done) {
         }),
         // I'm not interested in users that don't have any projects
         fastify.orm.query(
-          'SELECT pu.project_id as project_id, u.username as username FROM user u INNER JOIN project_user pu ON u.id = pu.user_id GROUP BY pu.project_id ORDER BY pu.project_id',
+          'SELECT pu.project_id as project_id, u.username as username FROM user u INNER JOIN project_user pu ON u.id = pu.user_id ORDER BY pu.project_id, u.username',
           { type: QueryTypes.SELECT }
         ),
       ];
