@@ -696,7 +696,10 @@ async function epaddb(fastify, options, done) {
       const projects = await models.project.findAll({
         where: config.mode === 'lite' ? { projectid: 'lite' } : {},
         order: [['name', 'ASC']],
-        include: ['users', { model: models.project_subject, required: false }],
+        include: [
+          { model: models.user, as: 'users', separate: true },
+          { model: models.project_subject, required: false, separate: true },
+        ],
       });
 
       // projects will be an array of all Project instances
