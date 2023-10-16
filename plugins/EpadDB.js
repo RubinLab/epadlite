@@ -13311,6 +13311,7 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate('getStats', async (request, reply) => {
+    // eslint-disable-next-line prefer-const
     let { year, host } = request.query;
     if (!year) year = new Date().getFullYear();
     let hostFilter = '';
