@@ -13311,10 +13311,12 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate('getStats', async (request, reply) => {
-    let { year } = request.query;
+    let { year, host } = request.query;
     if (!year) year = new Date().getFullYear();
+    let hostFilter = '';
+    if (host) hostFilter = ` and host like '%${host}%'`;
     const stats = await fastify.orm.query(
-      `select sum(numOfUsers) numOfUsers,sum(numOfProjects) numOfProjects, sum(numOfPatients) numOfPatients,sum(numOfStudies) numOfStudies,sum(numOfSeries) numOfSeries,sum(numOfAims) numOfAims,sum(numOfDsos) numOfDSOs,sum(numOfPacs) numOfPacs,sum(numOfAutoQueries) numOfAutoQueries,sum(numOfWorkLists) numOfWorkLists,sum(numOfFiles) numOfFiles,max(numOfTemplates) numOfTemplates,max(numOfPlugins) numOfPlugins from epadstatistics mt inner join(select max(id) id from epadstatistics where host not like '%epad-build.stanford.edu%' and host not like '%epad-dev5.stanford.edu%' and host not like '%epad-dev4.stanford.edu%' and updatetime like '%${year}%' group by host ) st on mt.id = st.id `
+      `select sum(numOfUsers) numOfUsers,sum(numOfProjects) numOfProjects, sum(numOfPatients) numOfPatients,sum(numOfStudies) numOfStudies,sum(numOfSeries) numOfSeries,sum(numOfAims) numOfAims,sum(numOfDsos) numOfDSOs,sum(numOfPacs) numOfPacs,sum(numOfAutoQueries) numOfAutoQueries,sum(numOfWorkLists) numOfWorkLists,sum(numOfFiles) numOfFiles,max(numOfTemplates) numOfTemplates,max(numOfPlugins) numOfPlugins from epadstatistics mt inner join(select max(id) id from epadstatistics where host not like '%epad-build.stanford.edu%' and host not like '%epad-dev5.stanford.edu%' and host not like '%epad-dev4.stanford.edu%' and updatetime like '%${year}%' ${hostFilter} group by SUBSTRING_INDEX(SUBSTRING_INDEX(host, '|', 2), '|', -1) ) st on mt.id = st.id `
     );
     const statsJson = stats[0][0];
     const statsEdited = Object.keys(statsJson).reduce(
