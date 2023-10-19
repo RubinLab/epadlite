@@ -693,15 +693,33 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjects', async (request, reply) => {
     try {
-      const projects = await models.project.findAll({
-        where: config.mode === 'lite' ? { projectid: 'lite' } : {},
-        order: [['name', 'ASC']],
-        include: ['users', { model: models.project_subject, required: false }],
-      });
+      const promisses = [
+        models.project.findAll({
+          where: config.mode === 'lite' ? { projectid: 'lite' } : {},
+          order: [['name', 'ASC']],
+          include: [{ model: models.project_subject, required: false, separate: true }],
+        }),
+        // I'm not interested in users that don't have any projects
+        fastify.orm.query(
+          'SELECT pu.project_id as project_id, u.username as username FROM user u INNER JOIN project_user pu ON u.id = pu.user_id ORDER BY pu.project_id, u.username',
+          { type: QueryTypes.SELECT }
+        ),
+      ];
+      const [projects, projectUsers] = await Promise.all(promisses);
 
+      const projectUserMap = {};
+      if (projectUsers) {
+        projectUsers.forEach((projectUser) => {
+          // eslint-disable-next-line no-unused-expressions
+          projectUserMap[projectUser.project_id]
+            ? projectUserMap[projectUser.project_id].push(projectUser.username)
+            : (projectUserMap[projectUser.project_id] = [projectUser.username]);
+        });
+      }
       // projects will be an array of all Project instances
       const result = [];
-      for (let i = 0; i < projects.length; i += 1) {
+      const projectsLen = projects.length;
+      for (let i = 0; i < projectsLen; i += 1) {
         const project = projects[i];
         let numberOfSubjects = project.dataValues.project_subjects.length;
         if (project.projectid === config.XNATUploadProjectID) {
@@ -744,9 +762,10 @@ async function epaddb(fastify, options, done) {
           defaultTemplate: project.dataValues.defaulttemplate,
         };
 
-        project.dataValues.users.forEach((user) => {
-          obj.loginNames.push(user.username);
-        });
+        if (projectUserMap[project.dataValues.id])
+          projectUserMap[project.dataValues.id].forEach((username) => {
+            obj.loginNames.push(username);
+          });
         if (
           request.epadAuth.admin ||
           obj.loginNames.includes(request.epadAuth.username) ||
