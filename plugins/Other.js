@@ -1742,7 +1742,7 @@ async function other(fastify) {
           else reply.send(err);
         });
     else {
-      fastify.log.err('DICOMSend disabled');
+      fastify.log.error('DICOMSend disabled');
       reply.send(new InternalError('Subject delete from system', new Error('DICOMSend disabled')));
     }
   });
@@ -1812,7 +1812,7 @@ async function other(fastify) {
           else reply.send(err);
         });
     else {
-      fastify.log.err('DICOMSend disabled');
+      fastify.log.error('DICOMSend disabled');
       reply.send(new InternalError('Study delete from system', new Error('DICOMSend disabled')));
     }
   });

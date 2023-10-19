@@ -229,7 +229,7 @@ async function dicomwebserver(fastify) {
             // },
           };
           if (config.disableDICOMSend) {
-            fastify.log.err('DICOMSend disabled');
+            fastify.log.error('DICOMSend disabled');
             resolve();
           } else {
             this.request
