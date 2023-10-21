@@ -1232,7 +1232,7 @@ async function dicomwebserver(fastify) {
             )
             .then(async (res) => {
               // handle success
-              const resultAA = fastify.arrangeImages(res.response.data, res.source);
+              const resultAA = fastify.arrangeImages(res.response.data, params, res.source);
               resolve(resultAA);
             })
             .catch((error) => {
