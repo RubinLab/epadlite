@@ -1213,7 +1213,7 @@ async function dicomwebserver(fastify) {
       }
     }
     singleframes = _.sortBy(singleframes, 'instanceNumber');
-    const resultAA = [singleframes, ...multiframes];
+    const resultAA = singleframes.length > 0 ? [singleframes, ...multiframes] : [...multiframes];
     return resultAA;
   });
 
