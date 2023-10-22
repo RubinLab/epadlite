@@ -1155,6 +1155,8 @@ async function dicomwebserver(fastify) {
           value['00080060'].Value[0] === 'PR'
         )
       ) {
+        const multiFrameImage =
+          value['00280008'] && value['00280008'].Value ? value['00280008'].Value[0] > 1 : false;
         const obj = all
           ? value
           : {
@@ -1197,16 +1199,13 @@ async function dicomwebserver(fastify) {
                 value['00080060'] && value['00080060'].Value
                   ? value['00080060'].Value[0] === 'SEG'
                   : false,
-              multiFrameImage:
-                value['00280008'] && value['00280008'].Value
-                  ? value['00280008'].Value[0] > 1
-                  : false,
+              multiFrameImage,
               isFlaggedImage: '', // TODO
               rescaleIntercept: '', // TODO
               rescaleSlope: '', // TODO
               sliceOrder: '', // TODO
             };
-        if (obj.multiFrameImage) {
+        if (multiFrameImage) {
           multiframes.push([obj]);
         } else {
           singleframes.push(obj);
@@ -1314,6 +1313,7 @@ async function dicomwebserver(fastify) {
           mainHeader
         )
         .then((response) => {
+          console.log(response.data);
           reply.send(fastify.arrangeImages(response.data, request.params, request.source, true));
         })
         .catch((err) => {
