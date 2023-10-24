@@ -13334,7 +13334,7 @@ async function epaddb(fastify, options, done) {
     let hostFilter = '';
     if (host) hostFilter = ` and host like '%${host}%'`;
     const stats = await fastify.orm.query(
-      `select numOfAims from epadstatistics_template where updatetime like '%${year}%' and templateCode='${template}' ${hostFilter} `
+      `select numOfAims from epadstatistics_template where updatetime like '%${year}%' and templateCode='${template}' ${hostFilter} order by id desc limit 1`
     );
     const statsJson = stats[0][0];
     const statsEdited = Object.keys(statsJson).reduce(
