@@ -13327,6 +13327,23 @@ async function epaddb(fastify, options, done) {
     reply.send(statsEdited);
   });
 
+  fastify.decorate('getTemplateStats', async (request, reply) => {
+    // eslint-disable-next-line prefer-const
+    let { year, host, template } = request.query;
+    if (!year) year = new Date().getFullYear();
+    let hostFilter = '';
+    if (host) hostFilter = ` and host like '%${host}%'`;
+    const stats = await fastify.orm.query(
+      `select numOfAims from epadstatistics_template where updatetime like '%${year}%' and templateCode='${template}' ${hostFilter} `
+    );
+    const statsJson = stats[0][0];
+    const statsEdited = Object.keys(statsJson).reduce(
+      (p, c) => ({ ...p, [c]: statsJson[c] === null ? 0 : statsJson[c] }),
+      {}
+    );
+    reply.send(statsEdited);
+  });
+
   fastify.decorate('saveStats', async (request, reply) => {
     try {
       const {
