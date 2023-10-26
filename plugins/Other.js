@@ -332,6 +332,7 @@ async function other(fastify) {
       const accessionNumber = csvRow['Accession number']; // csv Accession number
       const suid = csvRow.SUID; // csv SUID
       let age = csvRow['Current age']; // csv Current age (or deceased)
+      const birthDate = csvRow.DOB;
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
       const bodyPart = csvRow['Body part']; // csv Body part
@@ -489,10 +490,24 @@ async function other(fastify) {
         seedData.person.name = `${nameArray[0].toUpperCase()}^^^^`;
       }
       seedData.person.patientId = patientId; // csv Medical record number
-      if (age.toLowerCase() === 'deceased') {
-        seedData.person.birthDate = age;
-      } else if (age !== '') {
-        seedData.person.birthDate = `${new Date().getFullYear() - parseInt(age, 10)}0101`; // csv calculated date
+      const dobDate = new Date(birthDate);
+      const dobArray = birthDate.split('/');
+      if (dobArray.length >= 3) {
+        if (dobArray[0].length === 1) {
+          // month
+          dobArray[0] = `0${dobArray[0]}`;
+        }
+        if (dobArray[1].length === 1) {
+          // day
+          dobArray[1] = `0${dobArray[1]}`;
+        }
+        if (dobArray[2].length === 2) {
+          // year
+          dobArray[2] = dobDate.getFullYear();
+        }
+        seedData.person.birthDate = dobArray[2] + dobArray[0] + dobArray[1]; // csv DOB (reformatted)
+      } else {
+        seedData.person.birthDate = birthDate;
       }
       const sopClassUid = '';
       const sopInstanceUid = '';
