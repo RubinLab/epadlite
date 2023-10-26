@@ -515,9 +515,15 @@ async function other(fastify) {
       seedData.user = { loginName: 'admin', name: 'Full name' };
 
       const aim = new Aim(seedData, enumAimType.studyAnnotation);
+      const aimJSON = aim.getAimJSON();
+
+      delete aimJSON.ImageAnnotationCollection.xmlns;
+      delete aimJSON.ImageAnnotationCollection['xmlns:rdf'];
+      delete aimJSON.ImageAnnotationCollection['xmlns:xsi'];
+      delete aimJSON.ImageAnnotationCollection['xsi:schemaLocation'];
 
       // writes new AIM file to output folder
-      fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aim.getAimJSON()));
+      fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aimJSON));
       fastify.log.info();
     }
   );
