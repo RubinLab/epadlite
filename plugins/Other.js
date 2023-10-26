@@ -3137,7 +3137,7 @@ async function other(fastify) {
     }
     // replace projectName with project for now. sort with projectName is not supported (projectName is not in couchdb)
     sortItem = sortItem.replace('projectName', 'project');
-    sortItem += isNumber(item) ? '<number>' : '<string>';
+    sortItem += isNumber.includes(item) ? '<number>' : '<string>';
     return sortItem;
   });
 
