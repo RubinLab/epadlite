@@ -334,7 +334,6 @@ async function other(fastify) {
       let age = csvRow['Current age']; // csv Current age (or deceased)
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
-      const description = csvRow.Description; // csv Description
       const bodyPart = csvRow['Body part']; // csv Body part
       const keywords = csvRow['Teaching file keywords']; // csv Teaching file keywords
       const specialty = csvRow.Specialty; // csv Specialty
@@ -473,7 +472,7 @@ async function other(fastify) {
       seedData.series.instanceUid = ''; // empty
       seedData.series.modality = modality;
       seedData.series.number = ''; // empty
-      seedData.series.description = description; // csv description
+      seedData.series.description = ''; // csv description
       seedData.series.instanceNumber = ''; // empty
       seedData.equipment.manufacturerName = ''; // empty
       seedData.equipment.manufacturerModelName = ''; // empty
