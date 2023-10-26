@@ -3095,8 +3095,9 @@ async function other(fastify) {
     // 'user_name',
     // 'comment',
     // 'name',
-    'patient_age<number>',
+    'patient_age',
   ];
+  const isNumber = ['patient_age'];
   // use epad fields
   // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project, projectName (additional, no couchdb)
   fastify.decorate('caseFormatVal', (key, value) => {
@@ -3136,7 +3137,7 @@ async function other(fastify) {
     }
     // replace projectName with project for now. sort with projectName is not supported (projectName is not in couchdb)
     sortItem = sortItem.replace('projectName', 'project');
-    if (!sortItem.endsWith('>')) sortItem += '<string>';
+    sortItem += isNumber(item) ? '<number>' : '<string>';
     return sortItem;
   });
 
