@@ -480,11 +480,13 @@ async function other(fastify) {
       seedData.person.sex = sex; // csv sex
       const nameArray = name.split(', ');
       if (nameArray.length === 3) {
-        seedData.person.name = `${nameArray[1]} ${nameArray[2]} ${nameArray[0]}`; // csv name (reformatted)
+        // nameArray[1] = first, nameArray[2] = middle, nameArray[0] = last
+        seedData.person.name = `${nameArray[0].toUpperCase()}^${nameArray[1].toUpperCase()}^${nameArray[2].toUpperCase()}^^`; // csv name (reformatted)
       } else if (nameArray.length === 2) {
-        seedData.person.name = `${nameArray[1]} ${nameArray[0]}`;
+        // nameArray[0] = last, nameArray[1] = first
+        seedData.person.name = `${nameArray[0].toUpperCase()}^${nameArray[1].toUpperCase()}^^^`;
       } else {
-        seedData.person.name = `${nameArray[0]}`;
+        seedData.person.name = `${nameArray[0].toUpperCase()}^^^^`;
       }
       seedData.person.patientId = patientId; // csv Medical record number
       if (age.toLowerCase() === 'deceased') {
