@@ -330,7 +330,7 @@ async function other(fastify) {
       const name = csvRow.Name; // csv Name
       const patientId = csvRow['Medical record number']; // csv Medical record number
       const accessionNumber = csvRow['Accession number']; // csv Accession number
-      const suid = csvRow['SUID (Study UID)']; // csv SUID
+      const suid = csvRow.SUID; // csv SUID
       let age = csvRow['Current age']; // csv Current age (or deceased)
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
