@@ -3096,6 +3096,7 @@ async function other(fastify) {
     // 'comment',
     // 'name',
     'patient_age',
+    '-patient_age',
   ];
   const isNumber = ['patient_age'];
   // use epad fields
