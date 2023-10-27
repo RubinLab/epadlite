@@ -3098,7 +3098,7 @@ async function other(fastify) {
     'patient_age',
     '-patient_age',
   ];
-  const isNumber = ['patient_age'];
+  const isNumber = ['patient_age', '-patient_age'];
   // use epad fields
   // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project, projectName (additional, no couchdb)
   fastify.decorate('caseFormatVal', (key, value) => {
