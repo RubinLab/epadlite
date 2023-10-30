@@ -394,21 +394,28 @@ async function other(fastify) {
       }
 
       // adding body parts
-      const bodyPartArray = bodyPart.split(',');
-      for (let i = 0; i < bodyPartArray.length; i += 1) {
-        if (bodyPartMap.has(bodyPartArray[i])) {
-          const bodyPartItem = bodyPartMap.get(bodyPartArray[i]);
+      if (bodyPartMap.has(bodyPart.trim().toLowerCase())) {
+        const bodyPartItem = bodyPartMap.get(bodyPart.trim().toLowerCase());
+        createdPhysicalEntityCollection.push(
+          fastify.generateCollectionItem(
+            bodyPartItem[0].code,
+            bodyPartItem[0].codeSystemName,
+            bodyPartItem[0].codeMeaning,
+            'Anatomy Core'
+          )
+        );
+        if (bodyPartItem.length > 1) {
           createdPhysicalEntityCollection.push(
             fastify.generateCollectionItem(
-              bodyPartItem.code,
-              bodyPartItem.codeSystemName,
-              bodyPartItem.codeMeaning,
+              bodyPartItem[1].code,
+              bodyPartItem[1].codeSystemName,
+              bodyPartItem[1].codeMeaning,
               'Anatomy Core'
             )
           );
-        } else if (bodyPartArray[i] !== '') {
-          fastify.log.info(`template missing body part ${bodyPartArray[i]}`);
         }
+      } else {
+        fastify.log.info(`template missing body part ${bodyPart}`);
       }
 
       // adding findings and diagnosis + anatomy detail
@@ -545,6 +552,129 @@ async function other(fastify) {
   );
 
   fastify.decorate(
+    'specialtyMapSetup',
+    (templateData) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const specialtyMap = new Map();
+          const specialtyMeaningMap = new Map();
+          const specialtyTerms =
+            templateData.TemplateContainer.Template[0].Component[0].AllowedTerm;
+          for (let i = 0; i < specialtyTerms.length; i += 1) {
+            specialtyMeaningMap.set(specialtyTerms[i].codeMeaning.toLowerCase(), {
+              code: specialtyTerms[i].codeValue,
+              codeMeaning: specialtyTerms[i].codeMeaning,
+              codeSystemName: specialtyTerms[i].codingSchemeDesignator,
+            });
+          }
+
+          const specialtyMapData = [];
+          fs.createReadStream('config/MappedSpecialty.csv')
+            .pipe(
+              parse({
+                delimiter: ',',
+                columns: true,
+                ltrim: true,
+              })
+            )
+            .on('data', (row) => {
+              specialtyMapData.push(row);
+            })
+            .on('end', () => {
+              for (let i = 0; i < specialtyMapData.length; i += 1) {
+                const { key, value } = specialtyMapData[i];
+                fastify.log.info(key);
+                const specialtyItem = specialtyMeaningMap.get(value.toLowerCase());
+                if (specialtyItem != null) {
+                  specialtyMap.set(key, {
+                    code: specialtyItem.code,
+                    codeMeaning: specialtyItem.codeMeaning,
+                    codeSystemName: specialtyItem.codeSystemName,
+                  });
+                }
+              }
+              resolve(specialtyMap);
+            });
+        } catch (err) {
+          fastify.log.info('Error in specialty map setup', err);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'bodyPartMapSetup',
+    (templateData) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const bodyPartMap = new Map();
+          const bodyPartMeaningMap = new Map();
+          const bodyPartTerms = templateData.TemplateContainer.Template[0].Component[1].AllowedTerm;
+          for (let i = 0; i < bodyPartTerms.length; i += 1) {
+            bodyPartMeaningMap.set(bodyPartTerms[i].codeMeaning.toLowerCase(), {
+              code: bodyPartTerms[i].codeValue,
+              codeMeaning: bodyPartTerms[i].codeMeaning,
+              codeSystemName: bodyPartTerms[i].codingSchemeDesignator,
+            });
+          }
+
+          const bodyPartMapData = [];
+          fs.createReadStream('config/MappedBodyPart.csv')
+            .pipe(
+              parse({
+                delimiter: ',',
+                columns: true,
+                ltrim: true,
+              })
+            )
+            .on('data', (row) => {
+              bodyPartMapData.push(row);
+            })
+            .on('end', () => {
+              for (let i = 0; i < bodyPartMapData.length; i += 1) {
+                const { key, primary, secondary } = bodyPartMapData[i];
+                fastify.log.info(key);
+                const primaryBodyPart = bodyPartMeaningMap.get(primary.toLowerCase());
+                if (primaryBodyPart != null) {
+                  bodyPartMap.set(key, [
+                    {
+                      code: primaryBodyPart.code,
+                      codeMeaning: primaryBodyPart.codeMeaning,
+                      codeSystemName: primaryBodyPart.codeSystemName,
+                    },
+                  ]);
+                }
+                if (secondary !== '') {
+                  const secondaryBodyPart = bodyPartMeaningMap.get(secondary.toLowerCase());
+                  if (secondaryBodyPart != null) {
+                    if (bodyPartMap.get(key)) {
+                      bodyPartMap.get(key).push({
+                        code: secondaryBodyPart.code,
+                        codeMeaning: secondaryBodyPart.codeMeaning,
+                        codeSystemName: secondaryBodyPart.codeSystemName,
+                      });
+                    } else {
+                      bodyPartMap.set(key, [
+                        {
+                          code: secondaryBodyPart.code,
+                          codeMeaning: secondaryBodyPart.codeMeaning,
+                          codeSystemName: secondaryBodyPart.codeSystemName,
+                        },
+                      ]);
+                    }
+                  }
+                }
+              }
+              resolve(bodyPartMap);
+            });
+        } catch (err) {
+          fastify.log.info('Error in body part map setup', err);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
     'convertCsv2Aim',
     (dir, csvFilePath) =>
       new Promise(async (resolve, reject) => {
@@ -569,51 +699,12 @@ async function other(fastify) {
             studyAnnotation: 3,
           };
 
-          const specialtyMap = new Map();
-          const bodyPartMap = new Map();
+          const specialtyMap = await fastify.specialtyMapSetup(templateData);
+          fastify.log.info(specialtyMap);
+          const bodyPartMap = await fastify.bodyPartMapSetup(templateData);
+          fastify.log.info(bodyPartMap);
           const anatomyMap = new Map();
           const diagnosisMap = new Map();
-
-          // Specialty Map Setup
-          const specialtyMeaningMap = new Map();
-          const specialtyTerms =
-            templateData.TemplateContainer.Template[0].Component[0].AllowedTerm;
-          for (let i = 0; i < specialtyTerms.length; i += 1) {
-            specialtyMeaningMap.set(specialtyTerms[i].codeMeaning.toLowerCase(), {
-              code: specialtyTerms[i].codeValue,
-              codeMeaning: specialtyTerms[i].codeMeaning,
-              codeSystemName: specialtyTerms[i].codingSchemeDesignator,
-            });
-          }
-
-          const specialtyMapData = [];
-          fs.createReadStream('config/MappedSpecialty.csv') // edit to match CSV file path
-            .pipe(
-              parse({
-                delimiter: ',',
-                columns: true,
-                ltrim: true,
-              })
-            )
-            .on('data', (row) => {
-              specialtyMapData.push(row);
-            })
-            .on('end', () => {
-              for (let i = 0; i < specialtyMapData.length; i += 1) {
-                const { key, value } = specialtyMapData[i];
-                const specialtyItem = specialtyMeaningMap.get(value.toLowerCase());
-                if (specialtyItem != null) {
-                  specialtyMap.set(key, {
-                    code: specialtyItem.code,
-                    codeMeaning: specialtyItem.codeMeaning,
-                    codeSystemName: specialtyItem.codeSystemName,
-                  });
-                }
-              }
-            });
-
-          // Body Part Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[1].AllowedTerm
-          // bodyPartMap.set("CT BODY", { "code": "RID50608", "codeMeaning": "Abdominal Radiology", "codeSystemName": "Radlex" });
 
           // Anatomy Detail Map Setup
           const anatomyTerms = templateData.TemplateContainer.Template[0].Component[5].AllowedTerm;
