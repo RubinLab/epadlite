@@ -75,6 +75,26 @@ async function otherRoutes(fastify) {
     handler: fastify.getStats,
   });
 
+  fastify.route({
+    method: 'GET',
+    url: '/epads/templatestats',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          year: {
+            type: 'string',
+          },
+          template: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getTemplateStats,
+  });
+
   // old format with trailing /
   fastify.route({
     method: 'PUT',
