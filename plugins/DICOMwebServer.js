@@ -1,3 +1,4 @@
+/* eslint-disable prefer-destructuring */
 /* eslint-disable no-async-promise-executor */
 /* eslint-disable array-callback-return */
 const fp = require('fastify-plugin');
@@ -10,6 +11,7 @@ const fs = require('fs');
 window = {};
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
+// const EpadNotification = require('../utils/EpadNotification');
 
 // eslint-disable-next-line import/no-unresolved
 const dimse = config.dimse ? require('dicom-dimse-native') : null;
@@ -594,6 +596,58 @@ async function dicomwebserver(fastify) {
       })
   );
 
+  fastify.decorate('removeDuplicateStudies', (filteredStudies) => {
+    const lookup = filteredStudies.reduce((a, e) => {
+      if (
+        e['0020000D'] &&
+        e['0020000D'].Value &&
+        e['0020000D'].Value[0] &&
+        e['00080050'] &&
+        e['00080050'].Value &&
+        e['00080050'].Value[0]
+      )
+        if (a[e['0020000D'].Value[0]]) {
+          if (a[e['0020000D'].Value[0]].length > 8 && e['00080050'].Value[0].length === 8)
+            // eslint-disable-next-line no-param-reassign
+            a[e['0020000D'].Value[0]] = e['00080050'].Value[0];
+          else if (a[e['0020000D'].Value[0]].length === 8 && e['00080050'].Value[0].length === 8)
+            if (parseInt(e['00080050'].Value[0], 10) > parseInt(a[e['0020000D'].Value[0]], 10))
+              // compare integer
+              // eslint-disable-next-line no-param-reassign
+              a[e['0020000D'].Value[0]] = e['00080050'].Value[0];
+          // eslint-disable-next-line no-param-reassign
+        } else a[e['0020000D'].Value[0]] = e['00080050'].Value[0];
+      return a;
+    }, {});
+    const beforeLen = filteredStudies.length;
+    // const duplicateStudyUids = [];
+    const filteredStudiesUnique = filteredStudies.filter(
+      (e) =>
+        e['0020000D'] &&
+        e['0020000D'].Value &&
+        e['0020000D'].Value[0] &&
+        e['00080050'] &&
+        e['00080050'].Value &&
+        e['00080050'].Value[0] &&
+        lookup[e['0020000D'].Value[0]] === e['00080050'].Value[0]
+    );
+    const afterLen = filteredStudiesUnique.length;
+    if (beforeLen !== afterLen) {
+      // make sure it is a valid request object
+      // if (request && Object.keys(request).length > 3)
+      //   new EpadNotification(
+      //     request,
+      //     `We got the study with largest accession number with 8 digits. The number of studies got down from ${beforeLen} to ${afterLen}`,
+      //     `Study list included duplicates for study  `,
+      //     false
+      //   ).notify(fastify);
+      fastify.log.error(
+        `Study list included duplicates for study. We got the study with largest accession number with 8 digits. The number of studies got down from ${beforeLen} to ${afterLen}`
+      );
+    }
+    return filteredStudiesUnique;
+  });
+
   fastify.decorate(
     'getPatientStudiesInternal',
     (
@@ -686,10 +740,12 @@ async function dicomwebserver(fastify) {
                 : await fastify.filter(studies, [], filter, tag, aimField, negateFilter);
               // populate an aim counts map containing each study
               const aimsCountMap = !noStats ? values[values.length - 1] : [];
-
+              // TODO remove multiple entities
+              filteredStudies = fastify.removeDuplicateStudies(filteredStudies);
+              const filteredStudiesLen = filteredStudies.length;
               if (
-                filteredStudies.length === 0 ||
-                (filteredStudies.length === 1 && Object.keys(filteredStudies[0]).length === 0)
+                filteredStudiesLen === 0 ||
+                (filteredStudiesLen === 1 && Object.keys(filteredStudies[0]).length === 0)
               ) {
                 resolve([]);
               } else {

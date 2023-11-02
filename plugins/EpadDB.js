@@ -6427,6 +6427,7 @@ async function epaddb(fastify, options, done) {
             )
           );
         else {
+          // check if the subject is already in the system (with different studies possibly)
           let subject = await models.subject.findOne({
             where: {
               subjectuid: request.params.subject ? request.params.subject : request.body.subjectUid,
@@ -6442,7 +6443,11 @@ async function epaddb(fastify, options, done) {
               { ...request.query, filterDSO: 'true' }
             );
           }
+
+          // if the subject is not already in DB
           if (!subject) {
+            // retrieve from dicom if body is empty, just get the item from first.
+            // TODO is there a better way? what if they have different values
             const subjectInfo = {
               subjectuid: request.params.subject ? request.params.subject : request.body.subjectUid,
               name: request.body && request.body.name ? request.body.name : null,
@@ -7986,7 +7991,7 @@ async function epaddb(fastify, options, done) {
                   collab,
                   epadAuth
                 );
-          if (reportMultiUser && reportMultiUser !== {}) {
+          if (reportMultiUser && Object.keys(reportMultiUser).length !== 0) {
             await fastify.saveReport2DB(
               projectId,
               subjectId,
@@ -9365,12 +9370,7 @@ async function epaddb(fastify, options, done) {
     (params, epadAuth, body, query) =>
       new Promise(async (resolve, reject) => {
         try {
-          let studyUid = params.study;
-          if (!studyUid && body) {
-            // eslint-disable-next-line prefer-destructuring
-            studyUid = body.studyUid;
-            // check if the studyUid exists and return duplicate entity error
-          }
+          const studyUid = params.study || (body ? body.studyUid : null);
           if (!studyUid)
             reject(
               new BadRequestError(
@@ -9425,6 +9425,7 @@ async function epaddb(fastify, options, done) {
                   });
                 } else if (studies.length > 0) {
                   // this happens in stella when a study is being sent to create a teaching file
+                  // this won't happen anymore as I changed the studies retrieval
                   if (studies.length > 1) {
                     fastify.log.info(
                       `Received ${studies.length} study records for the studyuid ${params.study}. Comparing the patient info to see if they are same`
@@ -9495,7 +9496,10 @@ async function epaddb(fastify, options, done) {
                 if (body && body.subjectName === undefined && studyExists) {
                   reject(new ResourceAlreadyExistsError('Study', studyInfo.studyUID));
                 } else {
+                  // getPatientStudiesInternal handles multiple studies. should not have multiple studies here
                   if (studies.length === 1) [studyInfo] = studies;
+                  else if (studies.length > 1)
+                    fastify.log.error(`Multiple studies returned for ${params.study}`);
                   await fastify.addPatientStudyToProjectDBInternal(
                     { ...studyInfo, projectID: params.project },
                     projectSubject,
@@ -11785,8 +11789,12 @@ async function epaddb(fastify, options, done) {
           request.epadAuth,
           request.query
         );
+        // if more than one return the first
         if (result.length === 1) reply.code(200).send(result[0]);
-        else reply.send(new ResourceNotFoundError('Study', request.params.study));
+        else if (result.length > 1) {
+          fastify.log.error(`Multiple studies returned for ${request.params.study}`);
+          reply.code(200).send(result[0]);
+        } else reply.send(new ResourceNotFoundError('Study', request.params.study));
       }
     } catch (err) {
       reply.send(new InternalError(`Get study ${request.params.study}`, err));
