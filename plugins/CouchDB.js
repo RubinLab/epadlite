@@ -1371,7 +1371,7 @@ async function couchdb(fastify, options) {
             } else couchDoc.projects = [projectId];
           }
           console.log('attachments', attachments);
-          if (attachments)
+          if (attachments && attachments.length > 0)
             db.multipart
               .insert(couchDoc, attachments, couchDoc._id)
               .then(() => {
@@ -1382,7 +1382,7 @@ async function couchdb(fastify, options) {
                 reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
               });
           else
-            db.nsert(couchDoc, couchDoc._id)
+            db.insert(couchDoc, couchDoc._id)
               .then(() => {
                 // await fastify.getAimVersions(couchDoc._id);
                 resolve(`Aim ${couchDoc._id} is saved successfully`);
