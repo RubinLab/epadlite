@@ -3083,7 +3083,7 @@ async function other(fastify) {
   });
 
   // fields for filter and sort
-  // CouchDB fields: patient_name, patient_id, accession_number, name, patient_age, sex, modality, study_date, anatomy, observation, creation_datetime, template_name, template_code, user, user_name (by order in aim), comment, project, user_name_sorted (alphabetical)
+  // CouchDB fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_datetime, template_name, template_code, user, user_name (by order in aim), comment, project, user_name_sorted (alphabetical)
   // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName (by order in aim), comment, project, projectName (additional, no couchdb), fullNameSorted (alphabetical)
 
   // We do not need sorting_fields anymore. ePAD fields are received and replaceSorts replaces field names if necessary.
@@ -3097,9 +3097,7 @@ async function other(fastify) {
     // 'comment',
     // 'name',
     'patient_age',
-    '-patient_age',
   ];
-  const isNumber = ['patient_age', '-patient_age'];
   // use epad fields
   // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project, projectName (additional, no couchdb)
   fastify.decorate('caseFormatVal', (key, value) => {
@@ -3139,7 +3137,7 @@ async function other(fastify) {
     }
     // replace projectName with project for now. sort with projectName is not supported (projectName is not in couchdb)
     sortItem = sortItem.replace('projectName', 'project');
-    sortItem += isNumber.includes(item) ? '<number>' : '<string>';
+    sortItem += '<string>';
     return sortItem;
   });
 
