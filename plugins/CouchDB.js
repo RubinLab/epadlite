@@ -1370,7 +1370,6 @@ async function couchdb(fastify, options) {
               if (!couchDoc.projects.includes(projectId)) couchDoc.projects.push(projectId);
             } else couchDoc.projects = [projectId];
           }
-          console.log('attachments', attachments);
           if (attachments && attachments.length > 0)
             db.multipart
               .insert(couchDoc, attachments, couchDoc._id)
