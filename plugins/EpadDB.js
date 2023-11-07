@@ -9426,30 +9426,37 @@ async function epaddb(fastify, options, done) {
                 } else if (studies.length > 0) {
                   // this happens in stella when a study is being sent to create a teaching file
                   if (studies.length > 1) {
+                    const accessions = studies.map((item) => item.studyAccessionNumber);
                     fastify.log.info(
-                      `Received ${studies.length} study records for the studyuid ${params.study}. Comparing the patient info to see if they are same`
+                      `Received ${studies.length} study records for the studyuid ${
+                        params.study
+                      } with accessions ${accessions.join(',')}`
                     );
-                    // ambigious results. check if the patient info is the same
-                    for (let i = 1; i < studies.length; i += 1)
-                      if (
-                        studies[i].patientName !== studies[0].patientName ||
-                        studies[i].sex !== studies[0].sex ||
-                        studies[i].birthdate !== studies[0].birthdate
-                      ) {
-                        reject(
-                          new InternalError(
-                            `Not able to add study ${params.study} for MRN ${params.subject}`,
-                            new Error(
-                              `Ambigious patient records. Accession: ${
-                                studies[i].studyAccessionNumber
-                              }, Name:${studies[i].patientName !== studies[0].patientName}, sex:${
-                                studies[i].sex !== studies[0].sex
-                              }, birthdate:${studies[i].birthdate !== studies[0].birthdate}`
-                            )
+                    if (config.mode === 'teaching')
+                      reject(
+                        new InternalError(
+                          'Adding study to Stella',
+                          new Error(
+                            `${params.study} has ${
+                              studies.length
+                            } study records with accessions ${accessions.join(
+                              ','
+                            )}. Stella doesn't support this at this moment`
                           )
-                        );
-                        return;
-                      }
+                        )
+                      );
+                    else
+                      reject(
+                        new InternalError(
+                          'Adding study to project',
+                          new Error(
+                            `${params.study} has ${
+                              studies.length
+                            } study records with accessions ${accessions.join(',')}`
+                          )
+                        )
+                      );
+                    return;
                   }
                   subject = await models.subject.create({
                     subjectuid: params.subject.replace('\u0000', '').trim(),
