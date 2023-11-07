@@ -1370,16 +1370,25 @@ async function couchdb(fastify, options) {
               if (!couchDoc.projects.includes(projectId)) couchDoc.projects.push(projectId);
             } else couchDoc.projects = [projectId];
           }
-
-          db.multipart
-            .insert(couchDoc, attachments, couchDoc._id)
-            .then(() => {
-              // await fastify.getAimVersions(couchDoc._id);
-              resolve(`Aim ${couchDoc._id} is saved successfully`);
-            })
-            .catch((err) => {
-              reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
-            });
+          if (attachments && attachments.length > 0)
+            db.multipart
+              .insert(couchDoc, attachments, couchDoc._id)
+              .then(() => {
+                // await fastify.getAimVersions(couchDoc._id);
+                resolve(`Aim ${couchDoc._id} is saved successfully`);
+              })
+              .catch((err) => {
+                reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
+              });
+          else
+            db.insert(couchDoc, couchDoc._id)
+              .then(() => {
+                // await fastify.getAimVersions(couchDoc._id);
+                resolve(`Aim ${couchDoc._id} is saved successfully`);
+              })
+              .catch((err) => {
+                reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
+              });
         });
       })
   );
