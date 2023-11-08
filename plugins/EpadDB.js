@@ -9437,11 +9437,11 @@ async function epaddb(fastify, options, done) {
                         new InternalError(
                           'Adding study to Stella',
                           new Error(
-                            `${params.study} has ${
+                            `Study with UID '${params.study}' has ${
                               studies.length
-                            } study records with accessions ${accessions.join(
+                            } study records with accessions '${accessions.join(
                               ','
-                            )}. Stella doesn't support this at this moment`
+                            )}'. Stella doesn't support multiple records for a study at this moment`
                           )
                         )
                       );
@@ -9450,9 +9450,9 @@ async function epaddb(fastify, options, done) {
                         new InternalError(
                           'Adding study to project',
                           new Error(
-                            `${params.study} has ${
+                            `Study with UID '${params.study}' has ${
                               studies.length
-                            } study records with accessions ${accessions.join(',')}`
+                            } study records with accessions '${accessions.join(',')}'`
                           )
                         )
                       );
