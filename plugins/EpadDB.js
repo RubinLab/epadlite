@@ -8729,89 +8729,42 @@ async function epaddb(fastify, options, done) {
       )
         reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
-        const args = await models.project_aim.findOne({
-          where: {
-            project_id: project.id,
-            aim_uid: request.params.aimuid,
-            ...fastify.qryNotDeleted(),
-          },
-          attributes: ['project_id', 'subject_uid', 'study_uid'],
-          include: [{ model: models.project }, { model: models.user, as: 'users' }],
-        });
-        const users = args.dataValues.users.map((u) => u.username);
-        const numDeleted = await fastify.deleteAimDB(
-          { project_id: project.id, aim_uid: request.params.aimuid },
-          request.epadAuth.username
-        );
-        // if delete from all or it doesn't exist in any other project, delete from system
-        try {
-          if (request.query.all && request.query.all === 'true') {
-            const deletednum = await fastify.deleteAimDB(
-              { aim_uid: request.params.aimuid },
-              request.epadAuth.username
-            );
-            await fastify.deleteAimInternal(request.params.aimuid);
-            if (args) {
-              await fastify.aimUpdateGateway(
-                args.dataValues.project_id,
-                args.dataValues.subject_uid,
-                args.dataValues.study_uid,
-                users,
-                request.epadAuth,
-                undefined,
-                request.params.project
-              );
-            }
-            reply
-              .code(200)
-              .send(`Aim deleted from system and removed from ${deletednum + numDeleted} projects`);
-          } else {
-            const count = await models.project_aim.count({
-              where: {
-                aim_uid: request.params.aimuid,
-                ...fastify.qryNotDeleted(),
-              },
-            });
-            if (count === 0) {
-              await fastify.deleteAimInternal(request.params.aimuid);
-              if (args) {
-                await fastify.aimUpdateGateway(
-                  args.project_id,
-                  args.subject_uid,
-                  args.study_uid,
-                  users,
-                  request.epadAuth,
-                  undefined,
-                  request.params.project
-                );
-              }
-              reply
-                .code(200)
-                .send(`Aim deleted from system as it didn't exist in any other project`);
-            } else {
-              await fastify.saveAimInternal(request.params.aimuid, request.params.project, true);
-              if (args) {
-                await fastify.aimUpdateGateway(
-                  args.project_id,
-                  args.subject_uid,
-                  args.study_uid,
-                  users,
-                  request.epadAuth,
-                  undefined,
-                  request.params.project
-                );
-              }
-              reply.code(200).send(`Aim not deleted from system as it exists in other project`);
-            }
-          }
-        } catch (deleteErr) {
+        if (
+          !(
+            request.epadAuth.admin ||
+            (config.mode !== 'teaching' &&
+              fastify.isOwnerOfProject(request, request.params.project)) ||
+            // eslint-disable-next-line no-await-in-loop
+            (await fastify.isCreatorOfObject(request, {
+              level: 'aim',
+              objectId: request.params.aimuid,
+              project: request.params.project,
+            })) === true
+          )
+        ) {
           reply.send(
             new InternalError(
-              `Aim ${request.params.aimuid} deletion from system ${request.params.project}`,
-              deleteErr
+              `Aim ${request.params.aimuid}  deletion from project ${request.params.project}`,
+              new Error('User does not have sufficient rights')
             )
           );
+          return;
         }
+
+        const aimDelete = await fastify.deleteAimsInternal(
+          request.params,
+          request.epadAuth,
+          request.query,
+          [request.params.aimuid]
+        );
+        if (aimDelete === 0) reply.code(200).send({ message: aimDelete });
+        else
+          reply.send(
+            new InternalError(
+              `Aims ${request.params.aimuid}  deletion from project ${request.params.project}`,
+              new Error(`Could not delete from DB. Deleted aim # ${aimDelete}`)
+            )
+          );
       }
     } catch (err) {
       reply.send(
