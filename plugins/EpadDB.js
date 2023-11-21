@@ -8757,14 +8757,7 @@ async function epaddb(fastify, options, done) {
           request.query,
           [request.params.aimuid]
         );
-        if (aimDelete === 0) reply.code(200).send({ message: aimDelete });
-        else
-          reply.send(
-            new InternalError(
-              `Aims ${request.params.aimuid}  deletion from project ${request.params.project}`,
-              new Error(`Could not delete from DB. Deleted aim # ${aimDelete}`)
-            )
-          );
+        reply.code(200).send({ message: aimDelete });
       }
     } catch (err) {
       reply.send(
