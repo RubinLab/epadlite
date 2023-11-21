@@ -9255,8 +9255,11 @@ async function epaddb(fastify, options, done) {
               description: studyInfo.studyDescription,
               subject_id: projectSubject.subject_id,
               exam_types: studyInfo.examTypes ? JSON.stringify(studyInfo.examTypes) : null,
+              // eslint-disable-next-line no-nested-ternary
               referring_physician: studyInfo.referringPhysicianName
-                ? studyInfo.referringPhysicianName
+                ? studyInfo.referringPhysicianName.Aphabetic
+                  ? studyInfo.referringPhysicianName.Aphabetic
+                  : studyInfo.referringPhysicianName
                 : null,
               accession_number: studyInfo.studyAccessionNumber
                 ? studyInfo.studyAccessionNumber
