@@ -475,8 +475,10 @@ async function other(fastify) {
       } else {
         seedData.study.startDate = date;
       }
+      seedData.study.startTime = '00:00:00';
       seedData.study.accessionNumber = accessionNumber; // csv accession
       seedData.study.examTypes = modality;
+      seedData.study.modality = modality;
       seedData.series.instanceUid = ''; // empty
       seedData.series.modality = modality;
       seedData.series.number = ''; // empty
