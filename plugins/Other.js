@@ -955,8 +955,11 @@ async function other(fastify) {
                   ? dicomTags.dict['0020000D'].Value[0]
                   : '',
               subjectName:
+                // eslint-disable-next-line no-nested-ternary
                 dicomTags.dict['00100010'] && dicomTags.dict['00100010'].Value
-                  ? dicomTags.dict['00100010'].Value[0]
+                  ? dicomTags.dict['00100010'].Value[0].Alphabetic
+                    ? dicomTags.dict['00100010'].Value[0].Alphabetic
+                    : dicomTags.dict['00100010'].Value[0]
                   : '',
               studyDesc:
                 dicomTags.dict['00081030'] && dicomTags.dict['00081030'].Value
