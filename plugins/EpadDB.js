@@ -9,7 +9,7 @@ const os = require('os');
 const schedule = require('node-schedule-tz');
 const archiver = require('archiver');
 const toArrayBuffer = require('to-array-buffer');
-const unzip = require('unzip-stream');
+const extractZip = require('extract-zip');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csv = require('csv-parser');
 const { createOfflineAimSegmentation } = require('aimapi');
@@ -370,6 +370,21 @@ async function epaddb(fastify, options, done) {
                 await models.project_user.create(entry);
                 // if there is default template add that template to project
                 await fastify.tryAddDefaultTemplateToProject(defaultTemplate, project, epadAuth);
+                // if teaching make sure both teeaching and significant image templates are added
+                if (config.mode === 'teaching') {
+                  if (defaultTemplate !== config.teachingTemplate)
+                    await fastify.tryAddDefaultTemplateToProject(
+                      config.teachingTemplate,
+                      project,
+                      epadAuth
+                    );
+                  if (defaultTemplate !== config.sigImageTemplate)
+                    await fastify.tryAddDefaultTemplateToProject(
+                      config.sigImageTemplate,
+                      project,
+                      epadAuth
+                    );
+                }
 
                 fastify.log.info(`Project with id ${project.id} is created successfully`);
                 resolve(`Project with id ${project.id} is created successfully`);
@@ -489,16 +504,12 @@ async function epaddb(fastify, options, done) {
                 where: { project_id: dbProjectId },
               });
 
-              let leftWhereJSON = { [uidField]: uidsToDelete };
-              if (uidField === 'aim_uid')
-                leftWhereJSON = { ...leftWhereJSON, ...fastify.qryNotDeleted() };
-
-              const uidsLeftObjects = await models[relationTable].findAll({
-                attributes: [uidField],
-                distinct: true,
-                where: leftWhereJSON,
-                order: [[uidField, 'ASC']],
-              });
+              let leftQry = `SELECT distinct ${uidField} FROM ${relationTable} WHERE ${uidField} in ('${uidsToDelete.join(
+                `','`
+              )}')`;
+              if (uidField === 'aim_uid') leftQry += ` AND deleted is NULL `;
+              leftQry += ` ORDER BY ${uidField} ASC`;
+              const uidsLeftObjects = await fastify.orm.query(leftQry, { type: QueryTypes.SELECT });
               if (uidsToDelete.length === uidsLeftObjects.length) {
                 fastify.log.info(
                   `All ${relationTable} entries of project ${dbProjectId} are being used by other projects`
@@ -682,15 +693,33 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjects', async (request, reply) => {
     try {
-      const projects = await models.project.findAll({
-        where: config.mode === 'lite' ? { projectid: 'lite' } : {},
-        order: [['name', 'ASC']],
-        include: ['users', { model: models.project_subject, required: false }],
-      });
+      const promisses = [
+        models.project.findAll({
+          where: config.mode === 'lite' ? { projectid: 'lite' } : {},
+          order: [['name', 'ASC']],
+          include: [{ model: models.project_subject, required: false, separate: true }],
+        }),
+        // I'm not interested in users that don't have any projects
+        fastify.orm.query(
+          'SELECT pu.project_id as project_id, u.username as username FROM user u INNER JOIN project_user pu ON u.id = pu.user_id ORDER BY pu.project_id, u.username',
+          { type: QueryTypes.SELECT }
+        ),
+      ];
+      const [projects, projectUsers] = await Promise.all(promisses);
 
+      const projectUserMap = {};
+      if (projectUsers) {
+        projectUsers.forEach((projectUser) => {
+          // eslint-disable-next-line no-unused-expressions
+          projectUserMap[projectUser.project_id]
+            ? projectUserMap[projectUser.project_id].push(projectUser.username)
+            : (projectUserMap[projectUser.project_id] = [projectUser.username]);
+        });
+      }
       // projects will be an array of all Project instances
       const result = [];
-      for (let i = 0; i < projects.length; i += 1) {
+      const projectsLen = projects.length;
+      for (let i = 0; i < projectsLen; i += 1) {
         const project = projects[i];
         let numberOfSubjects = project.dataValues.project_subjects.length;
         if (project.projectid === config.XNATUploadProjectID) {
@@ -733,9 +762,10 @@ async function epaddb(fastify, options, done) {
           defaultTemplate: project.dataValues.defaulttemplate,
         };
 
-        project.dataValues.users.forEach((user) => {
-          obj.loginNames.push(user.username);
-        });
+        if (projectUserMap[project.dataValues.id])
+          projectUserMap[project.dataValues.id].forEach((username) => {
+            obj.loginNames.push(username);
+          });
         if (
           request.epadAuth.admin ||
           obj.loginNames.includes(request.epadAuth.username) ||
@@ -2641,9 +2671,8 @@ async function epaddb(fastify, options, done) {
                       `Aims zip copied to aims folder ${inputfolder}annotations.zip`
                     );
 
-                    fs.createReadStream(`${inputfolder}annotations.zip`)
-                      .pipe(unzip.Extract({ path: `${inputfolder}` }))
-                      .on('close', () => {
+                    extractZip(`${inputfolder}annotations.zip`, { dir: `${inputfolder}` })
+                      .then(() => {
                         fastify.log.info(`${inputfolder}annotations.zip extracted`);
                         fs.remove(`${inputfolder}annotations.zip`, (error) => {
                           if (error) {
@@ -2656,7 +2685,7 @@ async function epaddb(fastify, options, done) {
                           }
                         });
                       })
-                      .on('error', (error) => {
+                      .catch((error) => {
                         reject(
                           new InternalError(`Extracting zip ${inputfolder}annotations.zip`, error)
                         );
@@ -6893,10 +6922,11 @@ async function epaddb(fastify, options, done) {
           }
           if (subject !== null) {
             await fastify.deleteAimsInternal(
-              { subject: subject.subjectuid },
+              { subject: subject.subjectuid, project: params.project },
               epadAuth,
               { all: 'true' },
-              undefined
+              undefined,
+              true
             );
             // delete the subject
             await models.subject.destroy({
@@ -6989,8 +7019,9 @@ async function epaddb(fastify, options, done) {
               await fastify.deleteAimsInternal(
                 { subject: subject.subjectuid, project: params.project },
                 epadAuth,
-                { all: 'true' },
-                undefined
+                { all: query.all },
+                undefined,
+                true
               );
 
               // if delete from all or it doesn't exist in any other project, delete from system
@@ -7014,10 +7045,11 @@ async function epaddb(fastify, options, done) {
                     where: { project_id: project.id, subject_id: subject.id },
                   });
                   await fastify.deleteAimsInternal(
-                    { subject: subject.subjectuid },
+                    { subject: subject.subjectuid, project: params.project },
                     epadAuth,
-                    { all: 'true' },
-                    undefined
+                    { all: query.all },
+                    undefined,
+                    true
                   );
                   // delete the subject
                   await models.subject.destroy({
@@ -7141,9 +7173,10 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
-      let filter;
+      // sort by name when retrieving list of aims instead of creation date
+      const filter = { sort: 'name<string>' };
       if (request.query.format === 'returnTable' && request.query.templatecode) {
-        filter = { template: request.query.templatecode };
+        filter.template = request.query.templatecode;
       }
       let result;
       // check for saved reports
@@ -8704,89 +8737,35 @@ async function epaddb(fastify, options, done) {
       )
         reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
-        const args = await models.project_aim.findOne({
-          where: {
-            project_id: project.id,
-            aim_uid: request.params.aimuid,
-            ...fastify.qryNotDeleted(),
-          },
-          attributes: ['project_id', 'subject_uid', 'study_uid'],
-          include: [{ model: models.project }, { model: models.user, as: 'users' }],
-        });
-        const users = args.dataValues.users.map((u) => u.username);
-        const numDeleted = await fastify.deleteAimDB(
-          { project_id: project.id, aim_uid: request.params.aimuid },
-          request.epadAuth.username
-        );
-        // if delete from all or it doesn't exist in any other project, delete from system
-        try {
-          if (request.query.all && request.query.all === 'true') {
-            const deletednum = await fastify.deleteAimDB(
-              { aim_uid: request.params.aimuid },
-              request.epadAuth.username
-            );
-            await fastify.deleteAimInternal(request.params.aimuid);
-            if (args) {
-              await fastify.aimUpdateGateway(
-                args.dataValues.project_id,
-                args.dataValues.subject_uid,
-                args.dataValues.study_uid,
-                users,
-                request.epadAuth,
-                undefined,
-                request.params.project
-              );
-            }
-            reply
-              .code(200)
-              .send(`Aim deleted from system and removed from ${deletednum + numDeleted} projects`);
-          } else {
-            const count = await models.project_aim.count({
-              where: {
-                aim_uid: request.params.aimuid,
-                ...fastify.qryNotDeleted(),
-              },
-            });
-            if (count === 0) {
-              await fastify.deleteAimInternal(request.params.aimuid);
-              if (args) {
-                await fastify.aimUpdateGateway(
-                  args.project_id,
-                  args.subject_uid,
-                  args.study_uid,
-                  users,
-                  request.epadAuth,
-                  undefined,
-                  request.params.project
-                );
-              }
-              reply
-                .code(200)
-                .send(`Aim deleted from system as it didn't exist in any other project`);
-            } else {
-              await fastify.saveAimInternal(request.params.aimuid, request.params.project, true);
-              if (args) {
-                await fastify.aimUpdateGateway(
-                  args.project_id,
-                  args.subject_uid,
-                  args.study_uid,
-                  users,
-                  request.epadAuth,
-                  undefined,
-                  request.params.project
-                );
-              }
-              reply.code(200).send(`Aim not deleted from system as it exists in other project`);
-            }
-          }
-        } catch (deleteErr) {
+        if (
+          !(
+            request.epadAuth.admin ||
+            (config.mode !== 'teaching' &&
+              fastify.isOwnerOfProject(request, request.params.project)) ||
+            // eslint-disable-next-line no-await-in-loop
+            (await fastify.isCreatorOfObject(request, {
+              level: 'aim',
+              objectId: request.params.aimuid,
+              project: request.params.project,
+            })) === true
+          )
+        ) {
           reply.send(
             new InternalError(
-              `Aim ${request.params.aimuid} deletion from system ${request.params.project}`,
-              deleteErr
+              `Aim ${request.params.aimuid}  deletion from project ${request.params.project}`,
+              new Error('User does not have sufficient rights')
             )
           );
+          return;
         }
+
+        const aimDelete = await fastify.deleteAimsInternal(
+          request.params,
+          request.epadAuth,
+          request.query,
+          [request.params.aimuid]
+        );
+        reply.code(200).send({ message: aimDelete });
       }
     } catch (err) {
       reply.send(
@@ -8823,7 +8802,8 @@ async function epaddb(fastify, options, done) {
           for (let i = 0; i < request.body.length; i += 1) {
             if (
               request.epadAuth.admin ||
-              fastify.isOwnerOfProject(request, request.params.project) ||
+              (config.mode !== 'teaching' &&
+                fastify.isOwnerOfProject(request, request.params.project)) ||
               // eslint-disable-next-line no-await-in-loop
               (await fastify.isCreatorOfObject(request, {
                 level: 'aim',
@@ -8870,10 +8850,11 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  // params should always have the project. if we want to delete from all projects just send all:true query param
   // segs
   fastify.decorate(
     'deleteAimsInternal',
-    (params, epadAuth, query, body) =>
+    (params, epadAuth, query, body, skipCheckAndDeleteNoAimStudies) =>
       new Promise(async (resolve, reject) => {
         try {
           let aimQry = {};
@@ -8948,10 +8929,20 @@ async function epaddb(fastify, options, done) {
                 });
             }
           }
+          // get the project db record if params.project is sent
+          const project = params.project
+            ? await models.project.findOne({
+                where: { projectid: params.project },
+              })
+            : null;
 
+          // delete the aims in this project (if any)
           const numDeleted =
             aimUids.length > 0
-              ? await fastify.deleteAimDB({ aim_uid: aimUids }, epadAuth.username)
+              ? await fastify.deleteAimDB(
+                  { aim_uid: aimUids, ...(project ? { project_id: project.id } : {}) },
+                  epadAuth.username
+                )
               : 0;
           // if delete from all or it doesn't exist in any other project, delete from system
           try {
@@ -8959,11 +8950,14 @@ async function epaddb(fastify, options, done) {
               await fastify.deleteCouchDocsInternal(aimUids);
               await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
               await Promise.all(segDeletePromises);
-              await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+              if (!skipCheckAndDeleteNoAimStudies)
+                await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
               resolve(`Aims deleted from system and removed from ${numDeleted} projects`);
             } else {
+              // check if the aims to be deleted exist in any other project
+              // make sure to handle auditlog deletes
               const leftovers = await models.project_aim.findAll({
-                where: aimQry,
+                where: { aim_uid: aimUids, ...fastify.qryNotDeleted() },
                 attributes: ['project_id', 'subject_uid', 'study_uid', 'aim_uid', 'dso_series_uid'],
               });
               if (leftovers.length === 0) {
@@ -8971,7 +8965,8 @@ async function epaddb(fastify, options, done) {
                 await fastify.aimUpdateGatewayInBulk(dbAims, epadAuth, params.project);
 
                 await Promise.all(segDeletePromises);
-                await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                if (!skipCheckAndDeleteNoAimStudies)
+                  await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
                 resolve(`Aims deleted from system as they didn't exist in any other project`);
               } else {
                 const leftoverIds = [];
@@ -9002,7 +8997,8 @@ async function epaddb(fastify, options, done) {
                 await fastify.aimUpdateGatewayInBulk(deletedAims, epadAuth, params.project);
                 await Promise.all(segDeletePromises);
                 // it doesn't filter the not deleted ones. does an extra check
-                await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                if (!skipCheckAndDeleteNoAimStudies)
+                  await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
                 resolve(
                   `${leftovers.length} aims not deleted from system as they exist in other project`
                 );
@@ -9070,7 +9066,7 @@ async function epaddb(fastify, options, done) {
                 });
                 // eslint-disable-next-line no-await-in-loop
                 await models.project_subject_study_series_significance.destroy({
-                  where: { id: { $in: idsToDelete.map((item) => item.dataValues.id) } },
+                  where: { id: idsToDelete.map((item) => item.dataValues.id) },
                 });
                 fastify.log.info(
                   `Deleted ${idsToDelete.length} significant series for study ${studyInfos[i].study} and project ${studyInfos[i].project}`
@@ -9081,7 +9077,7 @@ async function epaddb(fastify, options, done) {
                   epadAuth,
                   query: {},
                 });
-                deleted.push(studyInfos);
+                deleted.push(studyInfos[i]);
               }
             }
             resolve(`Deleted ${JSON.stringify(deleted)}`);
@@ -9217,8 +9213,11 @@ async function epaddb(fastify, options, done) {
               description: studyInfo.studyDescription,
               subject_id: projectSubject.subject_id,
               exam_types: studyInfo.examTypes ? JSON.stringify(studyInfo.examTypes) : null,
+              // eslint-disable-next-line no-nested-ternary
               referring_physician: studyInfo.referringPhysicianName
-                ? studyInfo.referringPhysicianName
+                ? studyInfo.referringPhysicianName.Aphabetic
+                  ? studyInfo.referringPhysicianName.Aphabetic
+                  : studyInfo.referringPhysicianName
                 : null,
               accession_number: studyInfo.studyAccessionNumber
                 ? studyInfo.studyAccessionNumber
@@ -9385,8 +9384,41 @@ async function epaddb(fastify, options, done) {
                     updatetime: Date.now(),
                     createdtime: Date.now(),
                   });
-                } else if (studies.length === 1) {
-                  // this shouldn't ever happen except tests because of nock
+                } else if (studies.length > 0) {
+                  // this happens in stella when a study is being sent to create a teaching file
+                  if (studies.length > 1) {
+                    const accessions = studies.map((item) => item.studyAccessionNumber);
+                    fastify.log.info(
+                      `Received ${studies.length} study records for the studyuid ${
+                        params.study
+                      } with accessions ${accessions.join(',')}`
+                    );
+                    if (config.mode === 'teaching')
+                      reject(
+                        new InternalError(
+                          'Adding study to Stella',
+                          new Error(
+                            `Study with UID '${params.study}' has ${
+                              studies.length
+                            } study records with accessions '${accessions.join(
+                              ','
+                            )}'. Stella doesn't support multiple records for a study at this moment`
+                          )
+                        )
+                      );
+                    else
+                      reject(
+                        new InternalError(
+                          'Adding study to project',
+                          new Error(
+                            `Study with UID '${params.study}' has ${
+                              studies.length
+                            } study records with accessions '${accessions.join(',')}'`
+                          )
+                        )
+                      );
+                    return;
+                  }
                   subject = await models.subject.create({
                     subjectuid: params.subject.replace('\u0000', '').trim(),
                     name: studies[0].patientName
@@ -13093,22 +13125,18 @@ async function epaddb(fastify, options, done) {
           const numOfProjects = await models.project.count();
 
           let numOfPatients = 0;
-          if (config.env !== 'test' && config.mode === 'thick') {
-            numOfPatients = await models.project_subject.count({
-              col: 'subject_id',
-              distinct: true,
-            });
+          if (config.env !== 'test' && config.mode !== 'lite') {
+            const qry = `SELECT COUNT(DISTINCT subject_id) AS count FROM project_subject;`;
+            numOfPatients = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
           } else {
             const patients = await fastify.getPatientsInternal({}, undefined, undefined, true);
             numOfPatients = patients.length;
           }
 
           let numOfStudies = 0;
-          if (config.env !== 'test' && config.mode === 'thick') {
-            numOfStudies = await models.project_subject_study.count({
-              col: 'study_id',
-              distinct: true,
-            });
+          if (config.env !== 'test' && config.mode !== 'lite') {
+            const qry = `SELECT COUNT(DISTINCT study_id) AS count FROM project_subject_study;`;
+            numOfStudies = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
           } else {
             // TODO this will be affected by limit!
             const studies = await fastify.getPatientStudiesInternal(
@@ -13134,18 +13162,18 @@ async function epaddb(fastify, options, done) {
           const numOfSeries = series.length - numOfDSOs;
 
           let numOfAims = 0;
-          let numOfTemplateAimsMap = {};
+          const numOfTemplateAimsMap = {};
           if (config.env !== 'test') {
-            numOfAims = await models.project_aim.count({
-              col: 'aim_uid',
-              distinct: true,
-              where: fastify.qryNotDeleted(),
-            });
-            numOfTemplateAimsMap = await models.project_aim.findAll({
+            const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
+            numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
+            const numOfTemplateAims = await models.project_aim.findAll({
               group: ['template'],
               attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
               raw: true,
               where: fastify.qryNotDeleted(),
+            });
+            numOfTemplateAims.forEach((item) => {
+              numOfTemplateAimsMap[item.template] = item.aimcount;
             });
           }
 
@@ -13210,13 +13238,7 @@ async function epaddb(fastify, options, done) {
               ? templates[i].TemplateContainer.Template[0].templateType
               : 'Image';
             const templateDescription = templates[i].TemplateContainer.Template[0].description;
-            let numOfTemplateAims = 0;
-            if (config.env !== 'test' && config.mode === 'thick') {
-              // ???
-              numOfTemplateAims = numOfTemplateAimsMap[templateCode].aimcount || 0;
-            } else {
-              numOfTemplateAims = numOfTemplateAimsMap[templateCode] || 0;
-            }
+            const numOfTemplateAims = numOfTemplateAimsMap[templateCode] || 0;
             const templateText = JSON.stringify(templates[i]);
 
             // save to db
@@ -13276,10 +13298,30 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate('getStats', async (request, reply) => {
-    let { year } = request.query;
+    // eslint-disable-next-line prefer-const
+    let { year, host } = request.query;
     if (!year) year = new Date().getFullYear();
+    let hostFilter = '';
+    if (host) hostFilter = ` and host like '%${host}%'`;
     const stats = await fastify.orm.query(
-      `select sum(numOfUsers) numOfUsers,sum(numOfProjects) numOfProjects, sum(numOfPatients) numOfPatients,sum(numOfStudies) numOfStudies,sum(numOfSeries) numOfSeries,sum(numOfAims) numOfAims,sum(numOfDsos) numOfDSOs,sum(numOfPacs) numOfPacs,sum(numOfAutoQueries) numOfAutoQueries,sum(numOfWorkLists) numOfWorkLists,sum(numOfFiles) numOfFiles,max(numOfTemplates) numOfTemplates,max(numOfPlugins) numOfPlugins from epadstatistics mt inner join(select max(id) id from epadstatistics where host not like '%epad-build.stanford.edu%' and host not like '%epad-dev5.stanford.edu%' and host not like '%epad-dev4.stanford.edu%' and updatetime like '%${year}%' group by host ) st on mt.id = st.id `
+      `select sum(numOfUsers) numOfUsers,sum(numOfProjects) numOfProjects, sum(numOfPatients) numOfPatients,sum(numOfStudies) numOfStudies,sum(numOfSeries) numOfSeries,sum(numOfAims) numOfAims,sum(numOfDsos) numOfDSOs,sum(numOfPacs) numOfPacs,sum(numOfAutoQueries) numOfAutoQueries,sum(numOfWorkLists) numOfWorkLists,sum(numOfFiles) numOfFiles,max(numOfTemplates) numOfTemplates,max(numOfPlugins) numOfPlugins from epadstatistics mt inner join(select max(id) id from epadstatistics where host not like '%epad-build.stanford.edu%' and host not like '%epad-dev5.stanford.edu%' and host not like '%epad-dev4.stanford.edu%' and updatetime like '%${year}%' ${hostFilter} group by SUBSTRING_INDEX(SUBSTRING_INDEX(host, '|', 2), '|', -1) ) st on mt.id = st.id `
+    );
+    const statsJson = stats[0][0];
+    const statsEdited = Object.keys(statsJson).reduce(
+      (p, c) => ({ ...p, [c]: statsJson[c] === null ? 0 : statsJson[c] }),
+      {}
+    );
+    reply.send(statsEdited);
+  });
+
+  fastify.decorate('getTemplateStats', async (request, reply) => {
+    // eslint-disable-next-line prefer-const
+    let { year, host, template } = request.query;
+    if (!year) year = new Date().getFullYear();
+    let hostFilter = '';
+    if (host) hostFilter = ` and host like '%${host}%'`;
+    const stats = await fastify.orm.query(
+      `select numOfAims from epadstatistics_template where updatetime like '%${year}%' and templateCode='${template}' ${hostFilter} order by id desc limit 1`
     );
     const statsJson = stats[0][0];
     const statsEdited = Object.keys(statsJson).reduce(
@@ -14681,6 +14723,60 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
+
+  fastify.decorate('copySignificantSeries', async (studyUID, toProjectUID, fromProjectUID) => {
+    try {
+      // if I'm copying to lite, and from is empty, don't do anything
+      if (toProjectUID === 'lite' && !fromProjectUID) {
+        fastify.log.warn(
+          `From project is not given and to project is lite. Don't know where to copy from. Not doing anything to avoid duplication`
+        );
+        return;
+      }
+      const studyID = (
+        await models.study.findOne({
+          where: { studyuid: studyUID },
+          attributes: ['id'],
+        })
+      ).dataValues.id;
+
+      const toProjectID = (
+        await models.project.findOne({
+          where: { projectid: toProjectUID },
+          attributes: ['id'],
+        })
+      ).dataValues.id;
+
+      // copy from project lite (main teaching project) by default
+      const fromProjectID = (
+        await models.project.findOne({
+          where: { projectid: fromProjectUID || 'lite' },
+          attributes: ['id'],
+        })
+      ).dataValues.id;
+
+      const qry = { study_id: studyID, project_id: fromProjectID };
+      const significantSeries = await models.project_subject_study_series_significance.findAll({
+        where: qry,
+        raw: true,
+      });
+      significantSeries.map((item) => {
+        // eslint-disable-next-line no-param-reassign
+        item.project_id = toProjectID;
+        // eslint-disable-next-line no-param-reassign
+        delete item.id;
+        return item;
+      });
+
+      // delete the existing significant series in the toProject to avoid duplication
+      await models.project_subject_study_series_significance.destroy({
+        where: { project_id: toProjectID },
+      });
+      await models.project_subject_study_series_significance.bulkCreate(significantSeries);
+    } catch (err) {
+      throw new InternalError('Copying significant series', err);
+    }
+  });
 
   fastify.decorate('version0_4_0', () => fastify.addProjectIDToAims());
 

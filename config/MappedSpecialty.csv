@@ -1,0 +1,48 @@
+key,value
+pet ct,Nuclear Medicine Imaging
+mr body,Body MRI
+nm,Nuclear Medicine Imaging
+xr msk,Musculoskeletal radiology
+us head neck,Abdominal radiology
+xr chest,Chest radiology
+ct body,Abdominal radiology
+us breast interventional,Breast imaging
+mr msk,Musculoskeletal radiology
+mg screening,Breast imaging
+us soft tissue,Musculoskeletal radiology
+us pelvis,Abdominal radiology
+mr neuro,Neuroradiology
+us abdomen,Abdominal radiology
+ct msk,Musculoskeletal radiology
+mg interventional,Breast imaging
+us msk,Musculoskeletal radiology
+mr breast,Breast imaging
+ct cvi,vascular imaging
+ct chest,Chest radiology
+xr body,Abdominal radiology
+ir,interventional radiology
+us ob,Abdominal radiology
+us vascular,vascular imaging
+fl body,Abdominal radiology
+fl msk,Musculoskeletal radiology
+pet mr,Nuclear Medicine Imaging
+nm body,Nuclear Medicine Imaging
+ct neuro,Neuroradiology
+ct bodypet ct,Nuclear Medicine Imaging
+msk,Musculoskeletal radiology
+mg diag,Breast imaging
+mr cvi,vascular imaging
+nm dexa,Nuclear Medicine Imaging
+us body,Abdominal radiology
+mr breast interventional,Breast imaging
+vas,vascular imaging
+nm neuro,Nuclear Medicine Imaging
+nm research,Nuclear Medicine Imaging
+us breast,Breast imaging
+us perinatal,ob/gyn radiology
+pet ct research,Nuclear Medicine Imaging
+us chest,Chest radiology
+nm therapy,Nuclear Medicine Imaging
+ir ct,interventional radiology
+ir body,interventional radiology
+msk xr,Musculoskeletal radiology

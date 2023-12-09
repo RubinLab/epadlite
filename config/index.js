@@ -183,6 +183,7 @@ config.ad = config.ad
 
 config.defaultTemplate = process.env.DEFAULT_TEMPLATE || config.defaultTemplate || 'ROI';
 config.teachingTemplate = process.env.TEACHING_TEMPLATE || config.teachingTemplate || '99EPAD_947';
+config.sigImageTemplate = process.env.SIG_IMAGE_TEMPLATE || config.sigImageTemplate || '99EPAD_948';
 
 config.teachingTemplateUID =
   process.env.TEACHING_TEMPLATE_UID ||
@@ -221,5 +222,10 @@ config.RCFromRRMin =
   config.RCFromRRMin ||
   config.legacyReporting ||
   false;
+
+config.https = (process.env.HTTPS && process.env.HTTPS === 'true') || config.https || false;
+
+config.httpsLink =
+  (process.env.HTTPS_LINK && process.env.HTTPS_LINK === 'true') || config.httpLink || false;
 
 module.exports = config;

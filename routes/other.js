@@ -75,6 +75,26 @@ async function otherRoutes(fastify) {
     handler: fastify.getStats,
   });
 
+  fastify.route({
+    method: 'GET',
+    url: '/epads/templatestats',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          year: {
+            type: 'string',
+          },
+          template: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getTemplateStats,
+  });
+
   // old format with trailing /
   fastify.route({
     method: 'PUT',
@@ -336,6 +356,87 @@ async function otherRoutes(fastify) {
   });
 
   fastify.route({
+    method: 'GET',
+    url: '/wadors/:source/studies/:study/series/:series/instances/:instance/frames/:frame',
+    schema: {
+      tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          instance: {
+            type: 'string',
+          },
+          frame: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getWadoRS,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/wadors/:source/studies/:study/series/:series/instances/:instance/metadata',
+    schema: {
+      tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          instance: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getWadoRSMetadata,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/wadors/:source/studies/:study/series/:series/metadata',
+    schema: {
+      tags: ['wado'],
+      query: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+          series: {
+            type: 'string',
+          },
+          instance: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getWadoRSMetadata,
+  });
+
+  fastify.route({
     method: 'POST',
     url: '/polldw',
     handler: fastify.triggerPollDW,
@@ -501,6 +602,15 @@ async function otherRoutes(fastify) {
     method: 'GET',
     url: '/appVersion',
     handler: fastify.getVersion,
+  });
+
+  fastify.route({
+    method: 'POST',
+    url: '/processCsv',
+    schema: {
+      tags: ['files'],
+    },
+    handler: fastify.processCsv,
   });
 }
 module.exports = otherRoutes;

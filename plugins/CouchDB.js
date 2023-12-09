@@ -307,7 +307,7 @@ async function couchdb(fastify, options) {
         try {
           const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
-          const dir = `tmp_${timestamp}`;
+          const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
 
@@ -558,7 +558,9 @@ async function couchdb(fastify, options) {
                             .then((result) => {
                               fastify.log.info(`Zip file ready in ${result}`);
                               // get the protocol and hostname from the request
-                              const link = `${request.protocol}://${request.hostname}${result}`;
+                              const link = `${config.httpsLink ? 'https' : request.protocol}://${
+                                request.hostname
+                              }${result}`;
                               // send notification and/or email with link
                               if (request)
                                 new EpadNotification(request, 'Download ready', link, false).notify(
@@ -906,6 +908,17 @@ async function couchdb(fastify, options) {
             // eslint-disable-next-line no-await-in-loop
             await fastify.addPatientStudyToProjectInternal(params, request.epadAuth);
             studyUIDs.push(studyUID);
+            // copy significant series if teaching file
+            if (
+              aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code ===
+              config.teachingTemplate
+            ) {
+              fastify.copySignificantSeries(
+                studyUID,
+                request.params.project,
+                request.params.fromproject
+              );
+            }
           }
           // create a copy the aim with a new uid
           aim.ImageAnnotationCollection.uniqueIdentifier.root = fastify.generateUidInternal();
@@ -1306,7 +1319,7 @@ async function couchdb(fastify, options) {
             : {
                 _id: aim,
               };
-        const attachments = fastify.extractAttachmentParts(aim);
+        let attachments = typeof aim !== 'string' ? fastify.extractAttachmentParts(aim) : [];
         const db = fastify.couch.db.use(config.db);
 
         db.fetch({ keys: [couchDoc._id] }, { attachments: true }).then((data) => {
@@ -1321,7 +1334,11 @@ async function couchdb(fastify, options) {
               couchDoc.projects = existing.projects;
             }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
-            if (config.auditLog === true && existing.aim) {
+            // if the method was called with just aimuid use the attachments on couchdb
+            if (existing._attachments && typeof aim === 'string' && attachments === [])
+              attachments = existing._attachments;
+            // auditLog is for aim changes, if input is just aimUID only project changes. no auditlog for now
+            if (config.auditLog === true && existing.aim && typeof aim !== 'string') {
               // add the old version to the couchdoc
               // add old aim
               attachments.push({
@@ -1353,16 +1370,25 @@ async function couchdb(fastify, options) {
               if (!couchDoc.projects.includes(projectId)) couchDoc.projects.push(projectId);
             } else couchDoc.projects = [projectId];
           }
-
-          db.multipart
-            .insert(couchDoc, attachments, couchDoc._id)
-            .then(() => {
-              // await fastify.getAimVersions(couchDoc._id);
-              resolve(`Aim ${couchDoc._id} is saved successfully`);
-            })
-            .catch((err) => {
-              reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
-            });
+          if (attachments && attachments.length > 0)
+            db.multipart
+              .insert(couchDoc, attachments, couchDoc._id)
+              .then(() => {
+                // await fastify.getAimVersions(couchDoc._id);
+                resolve(`Aim ${couchDoc._id} is saved successfully`);
+              })
+              .catch((err) => {
+                reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
+              });
+          else
+            db.insert(couchDoc, couchDoc._id)
+              .then(() => {
+                // await fastify.getAimVersions(couchDoc._id);
+                resolve(`Aim ${couchDoc._id} is saved successfully`);
+              })
+              .catch((err) => {
+                reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
+              });
         });
       })
   );
@@ -1672,7 +1698,7 @@ async function couchdb(fastify, options) {
       new Promise((resolve, reject) => {
         try {
           const timestamp = new Date().getTime();
-          const dir = `tmp_${timestamp}`;
+          const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
           let isThereDataToWrite = false;
 
@@ -2054,8 +2080,9 @@ async function couchdb(fastify, options) {
           let dir = '';
           if (subDir) dir = subDir;
           else {
+            // TODO delete the tmp directory when done
             const timestamp = new Date().getTime();
-            dir = `tmp_${timestamp}`;
+            dir = `/tmp/tmp_${timestamp}`;
             if (!archive && !fs.existsSync(dir)) fs.mkdirSync(dir);
           }
           // have a boolean just to avoid filesystem check for empty annotations directory
