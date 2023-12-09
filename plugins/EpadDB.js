@@ -8242,14 +8242,22 @@ async function epaddb(fastify, options, done) {
         try {
           const projectId = await fastify.findProjectIdInternal(project);
           // TODO do I need to check if the user has access?
-          const aimsCount = await models.project_aim.count({
+          const aims = await models.project_aim.findAll({
             where: {
               project_id: projectId,
               dso_series_uid: dsoSeriesUid,
               ...fastify.qryNotDeleted(),
             },
+            raw: true,
           });
-          resolve(aimsCount > 0);
+          if (aims.length > 0) {
+            if (aims.length > 1)
+              console.error(
+                `Aims length for DSO series ${dsoSeriesUid} is ${aims.length}. It is not supposed to be more than 1!`
+              );
+            resolve(aims[0].aim_uid);
+          }
+          resolve(null);
         } catch (err) {
           reject(
             new InternalError(`Checking DSO Aim existance ${dsoSeriesUid} in ${project}`, err)
@@ -8908,6 +8916,7 @@ async function epaddb(fastify, options, done) {
                 study: dbAims[i].dataValues.study_uid,
               });
             // check if there are any aims pointing to the DSO
+            // do we need to if we will always have only one aim pointing to the seg? what if in another project
             if (dbAims[i].dataValues.dso_series_uid)
               segDeletePromises.push(
                 fastify.deleteSeriesDicomsInternal({
@@ -8979,7 +8988,8 @@ async function epaddb(fastify, options, done) {
                 for (let i = 0; i < deletedAims.length; i += 1) {
                   if (deletedAims[i].dso_series_uid) {
                     deletedAimUids.push(deletedAims[i].aim_uid);
-                    // check if there are any aims pointing to the DSO
+                    // check if there are any aims pointing to the DSO, deleting the segmentations of the deleted aims only
+                    // do we need to if we will always have only one aim pointing to the seg? what if in another project
                     segDeletePromises.push(
                       fastify.deleteSeriesDicomsInternal({
                         study: deletedAims[i].study_uid,
@@ -9261,11 +9271,11 @@ async function epaddb(fastify, options, done) {
             for (let i = 0; i < seriesList.length; i += 1) {
               if (seriesList[i].examType === 'SEG') {
                 // eslint-disable-next-line no-await-in-loop
-                const aimExists = await fastify.checkProjectSegAimExistence(
+                const existingAim = await fastify.checkProjectSegAimExistence(
                   seriesList[i].seriesUID,
                   studyInfo.projectID
                 );
-                if (!aimExists) {
+                if (!existingAim) {
                   const params = {
                     project: studyInfo.projectID,
                     subject: studyInfo.patientID,

@@ -1448,6 +1448,8 @@ async function couchdb(fastify, options) {
             // this is a segmentation aim
             if (segEntity) {
               // check if there are any other aims pointing to the DSO
+              // do we need to if we will always have only one aim pointing to the seg? what if in another project
+
               const params = {
                 study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
                 series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
