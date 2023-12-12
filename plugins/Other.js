@@ -1014,7 +1014,9 @@ async function other(fastify) {
                   : '',
               referringPhysicianName:
                 // eslint-disable-next-line no-nested-ternary
-                dicomTags.dict['00080090'] && dicomTags.dict['00080090'].Value
+                dicomTags.dict['00080090'] &&
+                dicomTags.dict['00080090'].Value &&
+                dicomTags.dict['00080090'].Value[0]
                   ? dicomTags.dict['00080090'].Value[0].Alphabetic
                     ? dicomTags.dict['00080090'].Value[0].Alphabetic
                     : dicomTags.dict['00080090'].Value[0]
