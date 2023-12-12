@@ -889,7 +889,8 @@ async function other(fastify) {
         { project },
         epadAuth,
         { all: 'true' },
-        existingAim
+        existingAim,
+        true
       );
       console.log('deleted old aim', aimDelete);
     }

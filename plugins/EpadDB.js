@@ -8854,7 +8854,7 @@ async function epaddb(fastify, options, done) {
   // segs
   fastify.decorate(
     'deleteAimsInternal',
-    (params, epadAuth, query, body, skipCheckAndDeleteNoAimStudies) =>
+    (params, epadAuth, query, body, skipCheckAndDeleteNoAimStudies, skipSegDelete) =>
       new Promise(async (resolve, reject) => {
         try {
           let aimQry = {};
@@ -8898,7 +8898,7 @@ async function epaddb(fastify, options, done) {
               });
             // check if there are any aims pointing to the DSO
             // do we need to if we will always have only one aim pointing to the seg? what if in another project
-            if (dbAims[i].dataValues.dso_series_uid)
+            if (!skipSegDelete && dbAims[i].dataValues.dso_series_uid)
               segDeletePromises.push(
                 fastify.deleteSeriesDicomsInternal({
                   study: dbAims[i].dataValues.study_uid,
