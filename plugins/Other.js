@@ -916,7 +916,8 @@ async function other(fastify) {
                   await fastify.checkAndDeleteDefaultSegAim(
                     aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                       .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root,
-                    params.project
+                    params.project,
+                    epadAuth
                   );
                 }
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
