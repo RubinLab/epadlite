@@ -893,7 +893,9 @@ async function other(fastify) {
         true,
         true
       );
-      console.log('deleted old aim', aimDelete);
+      fastify.log.warn(
+        `Deleted old aim referring to the segmentation Series UID ${dsoSeriesUid} from project ${project}. ${aimDelete}`
+      );
     }
   });
   // filename is sent if it is an actual aim file from upload. it is empty if we created a default aim for segs
