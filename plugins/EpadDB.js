@@ -8270,15 +8270,17 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'checkProjectSegAimExistence',
-    (dsoSeriesUid, project) =>
+    (dsoSeriesUid, project, aimUid) =>
       new Promise(async (resolve, reject) => {
         try {
-          const projectId = await fastify.findProjectIdInternal(project);
+          // handle no project filter for deleting from system
+          const projectId = project ? await fastify.findProjectIdInternal(project) : null;
           // TODO do I need to check if the user has access?
           const aims = await models.project_aim.findAll({
             where: {
-              project_id: projectId,
+              ...(projectId ? { project_id: projectId } : {}),
               dso_series_uid: dsoSeriesUid,
+              ...(aimUid ? { aim_uid: { $not: aimUid } } : {}),
               ...fastify.qryNotDeleted(),
             },
             raw: true,
@@ -8897,14 +8899,23 @@ async function epaddb(fastify, options, done) {
                 study: dbAims[i].dataValues.study_uid,
               });
             // check if there are any aims pointing to the DSO
-            // do we need to if we will always have only one aim pointing to the seg? what if in another project
-            if (!skipSegDelete && dbAims[i].dataValues.dso_series_uid)
-              segDeletePromises.push(
-                fastify.deleteSeriesDicomsInternal({
-                  study: dbAims[i].dataValues.study_uid,
-                  series: dbAims[i].dataValues.dso_series_uid,
-                })
+            // do we need to if we will always have only one aim pointing to the seg?
+            // delete seg should only work if there is no aim in the system pointing to the seg, regardless of the project
+            if (!skipSegDelete && dbAims[i].dataValues.dso_series_uid) {
+              // eslint-disable-next-line no-await-in-loop
+              const existingAim = await fastify.checkProjectSegAimExistence(
+                dbAims[i].dataValues.dso_series_uid,
+                null,
+                dbAims[i].dataValues.aim_uid
               );
+              if (!existingAim)
+                segDeletePromises.push(
+                  fastify.deleteSeriesDicomsInternal({
+                    study: dbAims[i].dataValues.study_uid,
+                    series: dbAims[i].dataValues.dso_series_uid,
+                  })
+                );
+            }
           }
           // if the aim records are deleted from db but there are leftovers in the couchdb
           if (aimUids.length === 0 && body && Array.isArray(body)) {

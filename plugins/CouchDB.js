@@ -1461,7 +1461,7 @@ async function couchdb(fastify, options) {
     (aimuid) =>
       new Promise((resolve, reject) => {
         const db = fastify.couch.db.use(config.db);
-        db.get(aimuid, (error, existing) => {
+        db.get(aimuid, async (error, existing) => {
           if (error || !existing) {
             reject(new ResourceNotFoundError('Aim', aimuid));
           }
@@ -1475,12 +1475,19 @@ async function couchdb(fastify, options) {
             if (segEntity) {
               // check if there are any other aims pointing to the DSO
               // do we need to if we will always have only one aim pointing to the seg? what if in another project
-
-              const params = {
-                study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
-                series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
-              };
-              promisses.push(fastify.deleteSeriesDicomsInternal(params));
+              // eslint-disable-next-line no-await-in-loop
+              const existingAim = await fastify.checkProjectSegAimExistence(
+                segEntity.SegmentationEntity[0].seriesInstanceUid.root,
+                undefined,
+                aimuid
+              );
+              if (!existingAim) {
+                const params = {
+                  study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
+                  series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
+                };
+                promisses.push(fastify.deleteSeriesDicomsInternal(params));
+              }
             }
           }
 
