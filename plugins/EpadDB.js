@@ -8268,9 +8268,12 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  // when deleting, we should check if there is any aim in the SYSTEM referring to the DSO other than the aim being deleted (send dsoSeriesUid, aimUid)
+  // when we see a new seg in a project (either upload or add to project), check if there is any aim referring to the DSO in that project (send dsoSeriesUid, project)
+  // when trying to retrieve/delete the default seg aim, check with the template (send dsoSeriesUid, project, aimUid, template)
   fastify.decorate(
     'checkProjectSegAimExistence',
-    (dsoSeriesUid, project, aimUid) =>
+    (dsoSeriesUid, project, aimUid, template) =>
       new Promise(async (resolve, reject) => {
         try {
           // handle no project filter for deleting from system
@@ -8282,6 +8285,7 @@ async function epaddb(fastify, options, done) {
               dso_series_uid: dsoSeriesUid,
               ...(aimUid ? { aim_uid: { [Op.not]: aimUid } } : {}),
               ...fastify.qryNotDeleted(),
+              ...(template ? { template } : {}),
             },
             raw: true,
           });
