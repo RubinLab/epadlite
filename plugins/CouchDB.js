@@ -1487,7 +1487,10 @@ async function couchdb(fastify, options) {
                   series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
                 };
                 promisses.push(fastify.deleteSeriesDicomsInternal(params));
-              }
+              } else
+                fastify.log.warn(
+                  `In aim system delete, Aim ${aimuid} refers to a segmentation with DSO Series UID ${segEntity.SegmentationEntity[0].seriesInstanceUid.root}. However, the DSO is referred by another aim ${existingAim}. It won't be deleted from the system`
+                );
             }
           }
 

@@ -8915,6 +8915,10 @@ async function epaddb(fastify, options, done) {
                     series: dbAims[i].dataValues.dso_series_uid,
                   })
                 );
+              else
+                fastify.log.warn(
+                  `Aim ${dbAims[i].dataValues.aim_uid} refers to a segmentation with DSO Series UID ${dbAims[i].dataValues.dso_series_uid}. However, the DSO is referred by another aim ${existingAim}. It won't be deleted from the system`
+                );
             }
           }
           // if the aim records are deleted from db but there are leftovers in the couchdb
