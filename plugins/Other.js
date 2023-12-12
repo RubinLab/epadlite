@@ -880,24 +880,32 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate('checkAndDeleteDefaultSegAim', async (dsoSeriesUid, project, epadAuth) => {
-    const existingAim = await fastify.checkProjectSegAimExistence(dsoSeriesUid, project);
-    // if there is already an existing aim, delete it
-    // should be delete it from project or all? we don't need to pass project if we use all
-    if (existingAim) {
-      const aimDelete = await fastify.deleteAimsInternal(
-        { project },
-        epadAuth,
-        { all: 'true' },
-        [existingAim],
-        true,
-        true
+  fastify.decorate(
+    'checkAndDeleteDefaultSegAim',
+    async (dsoSeriesUid, project, epadAuth, aimUid) => {
+      const existingAim = await fastify.checkProjectSegAimExistence(
+        dsoSeriesUid,
+        project,
+        aimUid,
+        'SEG'
       );
-      fastify.log.warn(
-        `Deleted old aim referring to the segmentation Series UID ${dsoSeriesUid} from project ${project}. ${aimDelete}`
-      );
+      // if there is already an existing aim, delete it
+      // should be delete it from project or all? we don't need to pass project if we use all
+      if (existingAim) {
+        const aimDelete = await fastify.deleteAimsInternal(
+          { project },
+          epadAuth,
+          { all: 'true' },
+          [existingAim],
+          true,
+          true
+        );
+        fastify.log.warn(
+          `Deleted old aim referring to the segmentation Series UID ${dsoSeriesUid} from project ${project}. ${aimDelete}`
+        );
+      }
     }
-  });
+  );
   // filename is sent if it is an actual aim file from upload. it is empty if we created a default aim for segs
   fastify.decorate(
     'saveAimJsonWithProjectRef',
@@ -916,11 +924,13 @@ async function other(fastify) {
                   aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                     .segmentationEntityCollection
                 ) {
+                  // aimuid is actually not required as this is just being uploaded but sending to be safe
                   await fastify.checkAndDeleteDefaultSegAim(
                     aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
                       .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root,
                     params.project,
-                    epadAuth
+                    epadAuth,
+                    aimJson.ImageAnnotationCollection.uniqueIdentifier.root
                   );
                 }
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
