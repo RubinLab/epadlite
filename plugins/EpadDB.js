@@ -2,7 +2,7 @@
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
-const { Sequelize, QueryTypes } = require('sequelize');
+const { Sequelize, QueryTypes, Op } = require('sequelize');
 const _ = require('lodash');
 const Axios = require('axios');
 const os = require('os');
@@ -8280,7 +8280,7 @@ async function epaddb(fastify, options, done) {
             where: {
               ...(projectId ? { project_id: projectId } : {}),
               dso_series_uid: dsoSeriesUid,
-              ...(aimUid ? { aim_uid: { $not: aimUid } } : {}),
+              ...(aimUid ? { aim_uid: { [Op.not]: aimUid } } : {}),
               ...fastify.qryNotDeleted(),
             },
             raw: true,
