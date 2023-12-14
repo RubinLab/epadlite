@@ -14716,7 +14716,7 @@ async function epaddb(fastify, options, done) {
             order: [['significance_order', 'ASC']],
           });
           if (array) {
-            const significantSeriesArray = {};
+            const significantSeriesArray = [];
             for (let i = 0; i < significantSeries.length; i += 1) {
               significantSeriesArray.push({
                 seriesUID: significantSeries[i].series_uid,
