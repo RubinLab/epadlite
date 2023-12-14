@@ -9000,16 +9000,27 @@ async function epaddb(fastify, options, done) {
                 segDeletePromises = [];
                 const deletedAimUids = [];
                 for (let i = 0; i < deletedAims.length; i += 1) {
-                  if (deletedAims[i].dso_series_uid) {
-                    deletedAimUids.push(deletedAims[i].aim_uid);
-                    // check if there are any aims pointing to the DSO, deleting the segmentations of the deleted aims only
-                    // do we need to if we will always have only one aim pointing to the seg? what if in another project
-                    segDeletePromises.push(
-                      fastify.deleteSeriesDicomsInternal({
-                        study: deletedAims[i].study_uid,
-                        series: deletedAims[i].dso_series_uid,
-                      })
+                  deletedAimUids.push(deletedAims[i].aim_uid);
+                  // check if there are any aims pointing to the DSO, deleting the segmentations of the deleted aims only
+                  // do we need to if we will always have only one aim pointing to the seg? what if in another project
+                  if (!skipSegDelete && deletedAims[i].dso_series_uid) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const existingAim = await fastify.checkProjectSegAimExistence(
+                      deletedAims[i].dso_series_uid,
+                      null,
+                      deletedAims[i].aim_uid
                     );
+                    if (!existingAim)
+                      segDeletePromises.push(
+                        fastify.deleteSeriesDicomsInternal({
+                          study: deletedAims[i].study_uid,
+                          series: deletedAims[i].dso_series_uid,
+                        })
+                      );
+                    else
+                      fastify.log.warn(
+                        `One of the deleted aims, ${deletedAims[i].aim_uid}, refers to a segmentation with DSO Series UID ${deletedAims[i].dso_series_uid}. However, the DSO is referred by another aim ${existingAim}. It won't be deleted from the system`
+                      );
                   }
                 }
                 await fastify.deleteCouchDocsInternal(deletedAimUids);
