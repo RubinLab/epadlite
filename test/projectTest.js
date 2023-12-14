@@ -1689,7 +1689,7 @@ describe('Project Tests', () => {
     it('project teststudy should have 1 significant series by project and study', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantseries')
+        .get('/projects/teststudy/studies/0023.2015.09.28.3/significantseries')
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);

@@ -699,7 +699,7 @@ async function routes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/projects/:project/subjects/:subject/studies/:study/significantSeries',
+    url: '/projects/:project/subjects/:subject/studies/:study/significantseries',
     schema: {
       tags: ['project'],
       params: {
@@ -709,6 +709,26 @@ async function routes(fastify) {
             type: 'string',
           },
           subject: {
+            type: 'string',
+          },
+          study: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getSignificantSeries,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/projects/:project/studies/:study/significantseries',
+    schema: {
+      tags: ['project'],
+      params: {
+        type: 'object',
+        properties: {
+          project: {
             type: 'string',
           },
           study: {
