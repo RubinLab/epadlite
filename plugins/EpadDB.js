@@ -2,7 +2,7 @@
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
-const { Sequelize, QueryTypes } = require('sequelize');
+const { Sequelize, QueryTypes, Op } = require('sequelize');
 const _ = require('lodash');
 const Axios = require('axios');
 const os = require('os');
@@ -8268,21 +8268,35 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  // when deleting, we should check if there is any aim in the SYSTEM referring to the DSO other than the aim being deleted (send dsoSeriesUid, aimUid)
+  // when we see a new seg in a project (either upload or add to project), check if there is any aim referring to the DSO in that project (send dsoSeriesUid, project)
+  // when trying to retrieve/delete the default seg aim, check with the template (send dsoSeriesUid, project, aimUid, template)
   fastify.decorate(
     'checkProjectSegAimExistence',
-    (dsoSeriesUid, project) =>
+    (dsoSeriesUid, project, aimUid, template) =>
       new Promise(async (resolve, reject) => {
         try {
-          const projectId = await fastify.findProjectIdInternal(project);
+          // handle no project filter for deleting from system
+          const projectId = project ? await fastify.findProjectIdInternal(project) : null;
           // TODO do I need to check if the user has access?
-          const aimsCount = await models.project_aim.count({
+          const aims = await models.project_aim.findAll({
             where: {
-              project_id: projectId,
+              ...(projectId ? { project_id: projectId } : {}),
               dso_series_uid: dsoSeriesUid,
+              ...(aimUid ? { aim_uid: { [Op.not]: aimUid } } : {}),
               ...fastify.qryNotDeleted(),
+              ...(template ? { template } : {}),
             },
+            raw: true,
           });
-          resolve(aimsCount > 0);
+          if (aims.length > 0) {
+            if (aims.length > 1)
+              console.error(
+                `Aims length for DSO series ${dsoSeriesUid} is ${aims.length}. It is not supposed to be more than 1!`
+              );
+            resolve(aims[0].aim_uid);
+          }
+          resolve(null);
         } catch (err) {
           reject(
             new InternalError(`Checking DSO Aim existance ${dsoSeriesUid} in ${project}`, err)
@@ -8846,7 +8860,7 @@ async function epaddb(fastify, options, done) {
   // segs
   fastify.decorate(
     'deleteAimsInternal',
-    (params, epadAuth, query, body, skipCheckAndDeleteNoAimStudies) =>
+    (params, epadAuth, query, body, skipCheckAndDeleteNoAimStudies, skipSegDelete) =>
       new Promise(async (resolve, reject) => {
         try {
           let aimQry = {};
@@ -8888,13 +8902,28 @@ async function epaddb(fastify, options, done) {
                 subject: dbAims[i].dataValues.subject_uid,
                 study: dbAims[i].dataValues.study_uid,
               });
-            if (dbAims[i].dataValues.dso_series_uid)
-              segDeletePromises.push(
-                fastify.deleteSeriesDicomsInternal({
-                  study: dbAims[i].dataValues.study_uid,
-                  series: dbAims[i].dataValues.dso_series_uid,
-                })
+            // check if there are any aims pointing to the DSO
+            // do we need to if we will always have only one aim pointing to the seg?
+            // delete seg should only work if there is no aim in the system pointing to the seg, regardless of the project
+            if (!skipSegDelete && dbAims[i].dataValues.dso_series_uid) {
+              // eslint-disable-next-line no-await-in-loop
+              const existingAim = await fastify.checkProjectSegAimExistence(
+                dbAims[i].dataValues.dso_series_uid,
+                null,
+                dbAims[i].dataValues.aim_uid
               );
+              if (!existingAim)
+                segDeletePromises.push(
+                  fastify.deleteSeriesDicomsInternal({
+                    study: dbAims[i].dataValues.study_uid,
+                    series: dbAims[i].dataValues.dso_series_uid,
+                  })
+                );
+              else
+                fastify.log.warn(
+                  `Aim ${dbAims[i].dataValues.aim_uid} refers to a segmentation with DSO Series UID ${dbAims[i].dataValues.dso_series_uid}. However, the DSO is referred by another aim ${existingAim}. It won't be deleted from the system`
+                );
+            }
           }
           // if the aim records are deleted from db but there are leftovers in the couchdb
           if (aimUids.length === 0 && body && Array.isArray(body)) {
@@ -8971,14 +9000,27 @@ async function epaddb(fastify, options, done) {
                 segDeletePromises = [];
                 const deletedAimUids = [];
                 for (let i = 0; i < deletedAims.length; i += 1) {
-                  if (deletedAims[i].dso_series_uid) {
-                    deletedAimUids.push(deletedAims[i].aim_uid);
-                    segDeletePromises.push(
-                      fastify.deleteSeriesDicomsInternal({
-                        study: deletedAims[i].study_uid,
-                        series: deletedAims[i].dso_series_uid,
-                      })
+                  deletedAimUids.push(deletedAims[i].aim_uid);
+                  // check if there are any aims pointing to the DSO, deleting the segmentations of the deleted aims only
+                  // do we need to if we will always have only one aim pointing to the seg? what if in another project
+                  if (!skipSegDelete && deletedAims[i].dso_series_uid) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const existingAim = await fastify.checkProjectSegAimExistence(
+                      deletedAims[i].dso_series_uid,
+                      null,
+                      deletedAims[i].aim_uid
                     );
+                    if (!existingAim)
+                      segDeletePromises.push(
+                        fastify.deleteSeriesDicomsInternal({
+                          study: deletedAims[i].study_uid,
+                          series: deletedAims[i].dso_series_uid,
+                        })
+                      );
+                    else
+                      fastify.log.warn(
+                        `One of the deleted aims, ${deletedAims[i].aim_uid}, refers to a segmentation with DSO Series UID ${deletedAims[i].dso_series_uid}. However, the DSO is referred by another aim ${existingAim}. It won't be deleted from the system`
+                      );
                   }
                 }
                 await fastify.deleteCouchDocsInternal(deletedAimUids);
@@ -9258,11 +9300,11 @@ async function epaddb(fastify, options, done) {
             for (let i = 0; i < seriesList.length; i += 1) {
               if (seriesList[i].examType === 'SEG') {
                 // eslint-disable-next-line no-await-in-loop
-                const aimExists = await fastify.checkProjectSegAimExistence(
+                const existingAim = await fastify.checkProjectSegAimExistence(
                   seriesList[i].seriesUID,
                   studyInfo.projectID
                 );
-                if (!aimExists) {
+                if (!existingAim) {
                   const params = {
                     project: studyInfo.projectID,
                     subject: studyInfo.patientID,

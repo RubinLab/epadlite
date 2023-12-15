@@ -881,6 +881,33 @@ async function other(fastify) {
   );
 
   fastify.decorate(
+    'checkAndDeleteDefaultSegAim',
+    async (dsoSeriesUid, project, epadAuth, aimUid) => {
+      const existingAim = await fastify.checkProjectSegAimExistence(
+        dsoSeriesUid,
+        project,
+        aimUid,
+        'SEG'
+      );
+      // if there is already an existing aim, delete it
+      // should be delete it from project or all? we don't need to pass project if we use all
+      if (existingAim) {
+        const aimDelete = await fastify.deleteAimsInternal(
+          { project },
+          epadAuth,
+          { all: 'true' },
+          [existingAim],
+          true,
+          true
+        );
+        fastify.log.warn(
+          `Deleted old aim referring to the segmentation Series UID ${dsoSeriesUid} from project ${project}. ${aimDelete}`
+        );
+      }
+    }
+  );
+  // filename is sent if it is an actual aim file from upload. it is empty if we created a default aim for segs
+  fastify.decorate(
     'saveAimJsonWithProjectRef',
     (aimJson, params, epadAuth, filename) =>
       new Promise(async (resolve, reject) => {
@@ -889,6 +916,23 @@ async function other(fastify) {
             .saveAimInternal(aimJson, params.project)
             .then(async () => {
               try {
+                // if it is a segmentation aim and the DSO has a default aim created with createOfflineAimSegmentation
+                // other than this one then delete the default aim
+                if (
+                  filename &&
+                  aimJson &&
+                  aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .segmentationEntityCollection
+                ) {
+                  // aimuid is actually not required as this is just being uploaded but sending to be safe
+                  await fastify.checkAndDeleteDefaultSegAim(
+                    aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root,
+                    params.project,
+                    epadAuth,
+                    aimJson.ImageAnnotationCollection.uniqueIdentifier.root
+                  );
+                }
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
                 if (filename) fastify.log.info(`Saving successful for ${filename}`);
                 resolve({ success: true, errors: [] });
@@ -915,12 +959,12 @@ async function other(fastify) {
           // eslint-disable-next-line no-underscore-dangle
           dataset._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(dicomTags.meta);
           if (dataset.Modality === 'SEG') {
-            const aimExist = await fastify.checkProjectSegAimExistence(
+            const existingAim = await fastify.checkProjectSegAimExistence(
               dataset.SeriesInstanceUID,
               params.project
             );
             // create a segmentation aim if it doesn't exist
-            if (!aimExist) {
+            if (!existingAim) {
               fastify.log.info(
                 `A segmentation is uploaded with series UID ${dataset.SeriesInstanceUID} which doesn't have an aim, generating an aim with name ${dataset.SeriesDescription} `
               );
@@ -983,7 +1027,9 @@ async function other(fastify) {
                   : '',
               referringPhysicianName:
                 // eslint-disable-next-line no-nested-ternary
-                dicomTags.dict['00080090'] && dicomTags.dict['00080090'].Value
+                dicomTags.dict['00080090'] &&
+                dicomTags.dict['00080090'].Value &&
+                dicomTags.dict['00080090'].Value[0]
                   ? dicomTags.dict['00080090'].Value[0].Alphabetic
                     ? dicomTags.dict['00080090'].Value[0].Alphabetic
                     : dicomTags.dict['00080090'].Value[0]
