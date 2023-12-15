@@ -14651,9 +14651,23 @@ async function epaddb(fastify, options, done) {
     });
   });
 
+  fastify.decorate('getSignificantSeries', (request, reply) => {
+    fastify
+      .getSignificantSeriesInternal(
+        request.params.project,
+        request.params.subject,
+        request.params.study,
+        true
+      )
+      .then((res) => reply.code(200).send(res))
+      .catch((err) => {
+        reply.send(err);
+      });
+  });
+
   fastify.decorate(
     'getSignificantSeriesInternal',
-    (project, subject, study) =>
+    (project, subject, study, array = false) =>
       new Promise(async (resolve, reject) => {
         try {
           // ignore project id if we have it missing so that polling calls and such works
@@ -14699,13 +14713,25 @@ async function epaddb(fastify, options, done) {
               'series_uid',
               'significance_order',
             ],
+            order: [['significance_order', 'ASC']],
           });
-          const significantSeriesMap = {};
-          for (let i = 0; i < significantSeries.length; i += 1) {
-            significantSeriesMap[significantSeries[i].series_uid] =
-              significantSeries[i].significance_order;
+          if (array) {
+            const significantSeriesArray = [];
+            for (let i = 0; i < significantSeries.length; i += 1) {
+              significantSeriesArray.push({
+                seriesUID: significantSeries[i].series_uid,
+                significanceOrder: significantSeries[i].significance_order,
+              });
+            }
+            resolve(significantSeriesArray);
+          } else {
+            const significantSeriesMap = {};
+            for (let i = 0; i < significantSeries.length; i += 1) {
+              significantSeriesMap[significantSeries[i].series_uid] =
+                significantSeries[i].significance_order;
+            }
+            resolve(significantSeriesMap);
           }
-          resolve(significantSeriesMap);
         } catch (err) {
           reject(new InternalError('Getting significant series', err));
         }
