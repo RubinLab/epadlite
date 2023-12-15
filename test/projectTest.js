@@ -1686,6 +1686,23 @@ describe('Project Tests', () => {
         });
     });
 
+    it('project teststudy should have 1 significant series by project, subject and study', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantseries')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].seriesUID).to.be.eql('0023.2015.09.28.3.3590');
+          expect(res.body[0].significanceOrder).to.be.eql(1);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
     it('project teststudy should have 1 significant series by project and study', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
