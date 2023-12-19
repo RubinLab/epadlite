@@ -990,7 +990,11 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          if (config.dimse) promisses.push(fastify.getStudySeriesDIMSE(params.study));
+          if (
+            (!query.forceDicomweb || query.forceDicomweb.toLowerCase() === 'false') &&
+            config.dimse
+          )
+            promisses.push(fastify.getStudySeriesDIMSE(params.study));
           else
             promisses.push(
               this.request.get(
