@@ -315,7 +315,17 @@ async function other(fastify) {
 
   fastify.decorate(
     'generateAIM',
-    (csvRow, rowNum, enumAimType, specialtyMap, bodyPartMap, anatomyMap, diagnosisMap, dir) => {
+    (
+      csvRow,
+      rowNum,
+      enumAimType,
+      specialtyMap,
+      bodyPartMap,
+      anatomyMap,
+      diagnosisMap,
+      SIDMap,
+      dir
+    ) => {
       // generates a single AIM file based on data in csvRow object
       const fileName = `${fastify.generateUid()}.json`;
 
@@ -338,8 +348,7 @@ async function other(fastify) {
       const bodyPart = csvRow['Body part']; // csv Body part
       const keywords = csvRow['Teaching file keywords']; // csv Teaching file keywords
       const specialty = csvRow.Specialty; // csv Specialty
-      // const reportAuthor = csvRow['Report author']; // csv Report author
-      // const readingPhysician = csvRow['Reading physician']; // csv Reading physician
+      const reportAuthor = csvRow['Report author']; // csv Report author
 
       fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
       fastify.log.info(fileName);
@@ -537,7 +546,20 @@ async function other(fastify) {
       const answers = fastify.getTeachingTemplateAnswers(seedData, 'nodule1', '', comment);
       const merged = { ...seedData.aim, ...answers };
       seedData.aim = merged;
-      seedData.user = { loginName: 'admin', name: 'Full name' };
+
+      // process report author
+      const reportAuthorArray = reportAuthor.split(', ');
+      let reportFirstLast = reportAuthor;
+      if (reportAuthorArray.length >= 2) {
+        const reportFirst = reportAuthorArray[1];
+        const reportLast = reportAuthorArray[0];
+        reportFirstLast = `${reportFirst} ${reportLast}`;
+      }
+      let SID = 'stella_import';
+      if (SIDMap.has(reportFirstLast.toLowerCase())) {
+        SID = SIDMap.get(reportFirstLast.toLowerCase());
+      }
+      seedData.user = { loginName: SID, name: reportFirstLast };
 
       const aim = new Aim(seedData, enumAimType.studyAnnotation);
       const aimJSON = aim.getAimJSON();
@@ -677,6 +699,44 @@ async function other(fastify) {
   );
 
   fastify.decorate(
+    'SIDMapSetup',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const SIDMap = new Map();
+
+          const SIDMapData = [];
+          fs.createReadStream('config/FacultySIDMapping.csv')
+            .pipe(
+              parse({
+                delimiter: ',',
+                columns: true,
+                ltrim: true,
+              })
+            )
+            .on('data', (row) => {
+              SIDMapData.push(row);
+            })
+            .on('end', () => {
+              for (let i = 0; i < SIDMapData.length; i += 1) {
+                const SIDData = SIDMapData[i];
+                let last = SIDData['Last Name'];
+                const first = SIDData['First Name'];
+                const sid = SIDData['Payroll ID'];
+                if (last.charAt(last.length - 1) === first.charAt(0))
+                  last = last.substring(0, last.length - 2);
+                SIDMap.set(`${first} ${last}`.toLowerCase(), sid);
+              }
+              resolve(SIDMap);
+            });
+        } catch (err) {
+          fastify.log.info('Error in SID map setup', err);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
     'convertCsv2Aim',
     (dir, csvFilePath) =>
       new Promise(async (resolve, reject) => {
@@ -727,6 +787,8 @@ async function other(fastify) {
             });
           }
 
+          const SIDMap = await fastify.SIDMapSetup();
+
           // reads data from CSV file and generates AIMs
           const csvData = [];
           fs.createReadStream(csvFilePath) // edit to match CSV file path
@@ -750,6 +812,7 @@ async function other(fastify) {
                   bodyPartMap,
                   anatomyMap,
                   diagnosisMap,
+                  SIDMap,
                   dir
                 );
               }
