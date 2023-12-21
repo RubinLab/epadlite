@@ -1,0 +1,101 @@
+key,primary,secondary
+abdomen,abdomen,
+neck,neck,
+shoulder,shoulder,
+head,head,
+pelvis,pelvis,
+knee,knee,
+breast,breast,
+wrist,wrist,
+foot,foot,
+hand,hand,
+ankle,ankle,
+elbow,elbow,
+spine,spine,
+heart,heart,
+brain,brain,
+upper extremity,upper extremity,
+whole body,whole body,
+lower extremity,lower extremity,
+hip,hip,
+liver,liver,
+finger,hand,
+humerus,upper extremity,
+femur,thigh,
+face,face,
+skull,skull,
+body,whole body,
+skullthigh,whole body,
+chest,thorax,
+abd / pel,abdomen,
+low ext,lower extremity,
+hippel,hip,
+wrist hand,wrist,
+cspine,cervical spine region,
+lspine,lumbar spine region,
+up_exm,upper extremity,
+wholebody,whole body,
+"lspine,pelvis",lumbosacral plexus,
+"abdomen,pelvis",abdomen,
+upper ext,upper extremity,
+ches/abd/pel,abdomen,thorax
+abd pel,abdomen,
+other,unlisted,
+"head,neck",neck,
+"chest,abd / pel",abdomen,chest
+"abdomen,pelvis,venogram",abdomen,
+"chest,abdomen,pelvis",abdomen,thorax
+tibfib,lower extremity,
+tspine,thoracic spine region,
+"abdomen,pelvis,hip",abdomen,
+"chest,vascular",thorax,
+chest/abd,thorax,abdomen
+"head,cspine",head,cervical spine region
+"ext,brain",upper extremity,
+"arm,elbow,shoulder,forearm",upper extremity,
+"abdomen,chest",abdomen,thorax
+"cspine,tspine",cervical spine region,thoracic spine region
+"c-spine,t-spine,l-spine",spine,
+"chest,heart",heart,
+"abdomen,pelvis,vascular,chest",abdomen,thorax
+"leg,knee,ankle",lower extremity,
+"brain,spine",brain,spine
+ext,unlisted,
+"head,vascular",head,
+gi,abdomen,
+ankle foot,lower extremity,
+"foot,ankle",lower extremity,
+t/l-spine,thoracolumbar spine region,
+"spine,chest,abdomen",spine,
+"arm,forearm,wrist,hand,pelvis",upper extremity,
+"hip,thigh,knee,ankle,foot,leg",lower extremity,
+"abdomen,pelvis,vascular",abdomen,
+"neck,chest,abdomen,pelvis",neck,thorax
+"tspine,lspine",thoracic spine region,lumbar spine region
+"head,neck,c-spine",head,cervical spine region
+"chest,abdomen",abdomen,thorax
+"t-spine,l-spine,chest,abdomen,pe",thoracic spine region,
+bone,unlisted,
+abdomen pelvis,abdomen,
+"hip, thigh, knee",lower extremity,
+skull to mid thigh,whole body,
+chest abdomen pelvis,abdomen,thorax
+cervical spine,cervical spine region,
+"cervical spine,head",cervical spine region,head
+"abdomen, pelvis",abdomen,
+"c-spine, t-spine, l-spine",spine,
+abdomen pelvis lower extremity,abdomen,lower extremity
+hip pelvis,hip,
+"hip, knee, ankle",lower extremity,
+chest abdomen,abdomen,thorax
+gastrointestinal,abdomen,
+"shoulder, elbow, wrist",upper extremity,
+uprext,upper extremity,
+lwrext,lower extremity,
+c-spine,cervical spine region,
+"thigh, leg, vascular",thigh,
+"head, abdomen",head,abdomen
+"neck, chest",neck,thorax
+"shoulder, chest, arm",upper extremity,
+extremity,unlisted,
+,unlisted,

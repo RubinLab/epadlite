@@ -315,7 +315,17 @@ async function other(fastify) {
 
   fastify.decorate(
     'generateAIM',
-    (csvRow, rowNum, enumAimType, specialtyMap, bodyPartMap, anatomyMap, diagnosisMap, dir) => {
+    (
+      csvRow,
+      rowNum,
+      enumAimType,
+      specialtyMap,
+      bodyPartMap,
+      anatomyMap,
+      diagnosisMap,
+      SIDMap,
+      dir
+    ) => {
       // generates a single AIM file based on data in csvRow object
       const fileName = `${fastify.generateUid()}.json`;
 
@@ -330,16 +340,15 @@ async function other(fastify) {
       const name = csvRow.Name; // csv Name
       const patientId = csvRow['Medical record number']; // csv Medical record number
       const accessionNumber = csvRow['Accession number']; // csv Accession number
-      const suid = csvRow['SUID (Study UID)']; // csv SUID
+      const suid = csvRow.SUID; // csv SUID
       let age = csvRow['Current age']; // csv Current age (or deceased)
+      const birthDate = csvRow.DOB;
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
-      const description = csvRow.Description; // csv Description
       const bodyPart = csvRow['Body part']; // csv Body part
       const keywords = csvRow['Teaching file keywords']; // csv Teaching file keywords
       const specialty = csvRow.Specialty; // csv Specialty
-      // const reportAuthor = csvRow['Report author']; // csv Report author
-      // const readingPhysician = csvRow['Reading physician']; // csv Reading physician
+      const reportAuthor = csvRow['Report author']; // csv Report author
 
       fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
       fastify.log.info(fileName);
@@ -394,21 +403,28 @@ async function other(fastify) {
       }
 
       // adding body parts
-      const bodyPartArray = bodyPart.split(',');
-      for (let i = 0; i < bodyPartArray.length; i += 1) {
-        if (bodyPartMap.has(bodyPartArray[i])) {
-          const bodyPartItem = bodyPartMap.get(bodyPartArray[i]);
+      if (bodyPartMap.has(bodyPart.trim().toLowerCase())) {
+        const bodyPartItem = bodyPartMap.get(bodyPart.trim().toLowerCase());
+        createdPhysicalEntityCollection.push(
+          fastify.generateCollectionItem(
+            bodyPartItem[0].code,
+            bodyPartItem[0].codeSystemName,
+            bodyPartItem[0].codeMeaning,
+            'Anatomy Core'
+          )
+        );
+        if (bodyPartItem.length > 1) {
           createdPhysicalEntityCollection.push(
             fastify.generateCollectionItem(
-              bodyPartItem.code,
-              bodyPartItem.codeSystemName,
-              bodyPartItem.codeMeaning,
+              bodyPartItem[1].code,
+              bodyPartItem[1].codeSystemName,
+              bodyPartItem[1].codeMeaning,
               'Anatomy Core'
             )
           );
-        } else if (bodyPartArray[i] !== '') {
-          fastify.log.info(`template missing body part ${bodyPartArray[i]}`);
         }
+      } else {
+        fastify.log.info(`template missing body part ${bodyPart}`);
       }
 
       // adding findings and diagnosis + anatomy detail
@@ -468,12 +484,14 @@ async function other(fastify) {
       } else {
         seedData.study.startDate = date;
       }
+      seedData.study.startTime = '00:00:00';
       seedData.study.accessionNumber = accessionNumber; // csv accession
       seedData.study.examTypes = modality;
+      seedData.study.modality = modality;
       seedData.series.instanceUid = ''; // empty
       seedData.series.modality = modality;
       seedData.series.number = ''; // empty
-      seedData.series.description = description; // csv description
+      seedData.series.description = ''; // csv description
       seedData.series.instanceNumber = ''; // empty
       seedData.equipment.manufacturerName = ''; // empty
       seedData.equipment.manufacturerModelName = ''; // empty
@@ -481,17 +499,33 @@ async function other(fastify) {
       seedData.person.sex = sex; // csv sex
       const nameArray = name.split(', ');
       if (nameArray.length === 3) {
-        seedData.person.name = `${nameArray[1]} ${nameArray[2]} ${nameArray[0]}`; // csv name (reformatted)
+        // nameArray[1] = first, nameArray[2] = middle, nameArray[0] = last
+        seedData.person.name = `${nameArray[0].toUpperCase()}^${nameArray[1].toUpperCase()}^${nameArray[2].toUpperCase()}^^`; // csv name (reformatted)
       } else if (nameArray.length === 2) {
-        seedData.person.name = `${nameArray[1]} ${nameArray[0]}`;
+        // nameArray[0] = last, nameArray[1] = first
+        seedData.person.name = `${nameArray[0].toUpperCase()}^${nameArray[1].toUpperCase()}^^^`;
       } else {
-        seedData.person.name = `${nameArray[0]}`;
+        seedData.person.name = `${nameArray[0].toUpperCase()}^^^^`;
       }
       seedData.person.patientId = patientId; // csv Medical record number
-      if (age.toLowerCase() === 'deceased') {
-        seedData.person.birthDate = age;
-      } else if (age !== '') {
-        seedData.person.birthDate = `${new Date().getFullYear() - parseInt(age, 10)}0101`; // csv calculated date
+      const dobDate = new Date(birthDate);
+      const dobArray = birthDate.split('/');
+      if (dobArray.length >= 3) {
+        if (dobArray[0].length === 1) {
+          // month
+          dobArray[0] = `0${dobArray[0]}`;
+        }
+        if (dobArray[1].length === 1) {
+          // day
+          dobArray[1] = `0${dobArray[1]}`;
+        }
+        if (dobArray[2].length === 2) {
+          // year
+          dobArray[2] = dobDate.getFullYear();
+        }
+        seedData.person.birthDate = dobArray[2] + dobArray[0] + dobArray[1]; // csv DOB (reformatted)
+      } else {
+        seedData.person.birthDate = birthDate;
       }
       const sopClassUid = '';
       const sopInstanceUid = '';
@@ -512,14 +546,194 @@ async function other(fastify) {
       const answers = fastify.getTeachingTemplateAnswers(seedData, 'nodule1', '', comment);
       const merged = { ...seedData.aim, ...answers };
       seedData.aim = merged;
-      seedData.user = { loginName: 'admin', name: 'Full name' };
+
+      // process report author
+      const reportAuthorArray = reportAuthor.split(', ');
+      let reportFirstLast = reportAuthor;
+      if (reportAuthorArray.length >= 2) {
+        const reportFirst = reportAuthorArray[1];
+        const reportLast = reportAuthorArray[0];
+        reportFirstLast = `${reportFirst} ${reportLast}`;
+      }
+      let SID = 'stella_import';
+      if (SIDMap.has(reportFirstLast.toLowerCase())) {
+        SID = SIDMap.get(reportFirstLast.toLowerCase());
+      }
+      seedData.user = { loginName: SID, name: reportFirstLast };
 
       const aim = new Aim(seedData, enumAimType.studyAnnotation);
+      const aimJSON = aim.getAimJSON();
+
+      delete aimJSON.ImageAnnotationCollection.xmlns;
+      delete aimJSON.ImageAnnotationCollection['xmlns:rdf'];
+      delete aimJSON.ImageAnnotationCollection['xmlns:xsi'];
+      delete aimJSON.ImageAnnotationCollection['xsi:schemaLocation'];
 
       // writes new AIM file to output folder
-      fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aim.getAimJSON()));
+      fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aimJSON));
       fastify.log.info();
     }
+  );
+
+  fastify.decorate(
+    'specialtyMapSetup',
+    (templateData) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const specialtyMap = new Map();
+          const specialtyMeaningMap = new Map();
+          const specialtyTerms =
+            templateData.TemplateContainer.Template[0].Component[0].AllowedTerm;
+          for (let i = 0; i < specialtyTerms.length; i += 1) {
+            specialtyMeaningMap.set(specialtyTerms[i].codeMeaning.toLowerCase(), {
+              code: specialtyTerms[i].codeValue,
+              codeMeaning: specialtyTerms[i].codeMeaning,
+              codeSystemName: specialtyTerms[i].codingSchemeDesignator,
+            });
+          }
+
+          const specialtyMapData = [];
+          fs.createReadStream('config/MappedSpecialty.csv')
+            .pipe(
+              parse({
+                delimiter: ',',
+                columns: true,
+                ltrim: true,
+              })
+            )
+            .on('data', (row) => {
+              specialtyMapData.push(row);
+            })
+            .on('end', () => {
+              for (let i = 0; i < specialtyMapData.length; i += 1) {
+                const { key, value } = specialtyMapData[i];
+                fastify.log.info(key);
+                const specialtyItem = specialtyMeaningMap.get(value.toLowerCase());
+                if (specialtyItem != null) {
+                  specialtyMap.set(key, {
+                    code: specialtyItem.code,
+                    codeMeaning: specialtyItem.codeMeaning,
+                    codeSystemName: specialtyItem.codeSystemName,
+                  });
+                }
+              }
+              resolve(specialtyMap);
+            });
+        } catch (err) {
+          fastify.log.info('Error in specialty map setup', err);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'bodyPartMapSetup',
+    (templateData) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const bodyPartMap = new Map();
+          const bodyPartMeaningMap = new Map();
+          const bodyPartTerms = templateData.TemplateContainer.Template[0].Component[1].AllowedTerm;
+          for (let i = 0; i < bodyPartTerms.length; i += 1) {
+            bodyPartMeaningMap.set(bodyPartTerms[i].codeMeaning.toLowerCase(), {
+              code: bodyPartTerms[i].codeValue,
+              codeMeaning: bodyPartTerms[i].codeMeaning,
+              codeSystemName: bodyPartTerms[i].codingSchemeDesignator,
+            });
+          }
+
+          const bodyPartMapData = [];
+          fs.createReadStream('config/MappedBodyPart.csv')
+            .pipe(
+              parse({
+                delimiter: ',',
+                columns: true,
+                ltrim: true,
+              })
+            )
+            .on('data', (row) => {
+              bodyPartMapData.push(row);
+            })
+            .on('end', () => {
+              for (let i = 0; i < bodyPartMapData.length; i += 1) {
+                const { key, primary, secondary } = bodyPartMapData[i];
+                fastify.log.info(key);
+                const primaryBodyPart = bodyPartMeaningMap.get(primary.toLowerCase());
+                if (primaryBodyPart != null) {
+                  bodyPartMap.set(key, [
+                    {
+                      code: primaryBodyPart.code,
+                      codeMeaning: primaryBodyPart.codeMeaning,
+                      codeSystemName: primaryBodyPart.codeSystemName,
+                    },
+                  ]);
+                }
+                if (secondary !== '') {
+                  const secondaryBodyPart = bodyPartMeaningMap.get(secondary.toLowerCase());
+                  if (secondaryBodyPart != null) {
+                    if (bodyPartMap.get(key)) {
+                      bodyPartMap.get(key).push({
+                        code: secondaryBodyPart.code,
+                        codeMeaning: secondaryBodyPart.codeMeaning,
+                        codeSystemName: secondaryBodyPart.codeSystemName,
+                      });
+                    } else {
+                      bodyPartMap.set(key, [
+                        {
+                          code: secondaryBodyPart.code,
+                          codeMeaning: secondaryBodyPart.codeMeaning,
+                          codeSystemName: secondaryBodyPart.codeSystemName,
+                        },
+                      ]);
+                    }
+                  }
+                }
+              }
+              resolve(bodyPartMap);
+            });
+        } catch (err) {
+          fastify.log.info('Error in body part map setup', err);
+          reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'SIDMapSetup',
+    () =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const SIDMap = new Map();
+
+          const SIDMapData = [];
+          fs.createReadStream('config/FacultySIDMapping.csv')
+            .pipe(
+              parse({
+                delimiter: ',',
+                columns: true,
+                ltrim: true,
+              })
+            )
+            .on('data', (row) => {
+              SIDMapData.push(row);
+            })
+            .on('end', () => {
+              for (let i = 0; i < SIDMapData.length; i += 1) {
+                const SIDData = SIDMapData[i];
+                let last = SIDData['Last Name'];
+                const first = SIDData['First Name'];
+                const sid = SIDData['Payroll ID'];
+                if (last.charAt(last.length - 1) === first.charAt(0))
+                  last = last.substring(0, last.length - 2);
+                SIDMap.set(`${first} ${last}`.toLowerCase(), sid);
+              }
+              resolve(SIDMap);
+            });
+        } catch (err) {
+          fastify.log.info('Error in SID map setup', err);
+          reject(err);
+        }
+      })
   );
 
   fastify.decorate(
@@ -547,51 +761,12 @@ async function other(fastify) {
             studyAnnotation: 3,
           };
 
-          const specialtyMap = new Map();
-          const bodyPartMap = new Map();
+          const specialtyMap = await fastify.specialtyMapSetup(templateData);
+          fastify.log.info(specialtyMap);
+          const bodyPartMap = await fastify.bodyPartMapSetup(templateData);
+          fastify.log.info(bodyPartMap);
           const anatomyMap = new Map();
           const diagnosisMap = new Map();
-
-          // Specialty Map Setup
-          const specialtyMeaningMap = new Map();
-          const specialtyTerms =
-            templateData.TemplateContainer.Template[0].Component[0].AllowedTerm;
-          for (let i = 0; i < specialtyTerms.length; i += 1) {
-            specialtyMeaningMap.set(specialtyTerms[i].codeMeaning.toLowerCase(), {
-              code: specialtyTerms[i].codeValue,
-              codeMeaning: specialtyTerms[i].codeMeaning,
-              codeSystemName: specialtyTerms[i].codingSchemeDesignator,
-            });
-          }
-
-          const specialtyMapData = [];
-          fs.createReadStream('config/MappedSpecialty.csv') // edit to match CSV file path
-            .pipe(
-              parse({
-                delimiter: ',',
-                columns: true,
-                ltrim: true,
-              })
-            )
-            .on('data', (row) => {
-              specialtyMapData.push(row);
-            })
-            .on('end', () => {
-              for (let i = 0; i < specialtyMapData.length; i += 1) {
-                const { key, value } = specialtyMapData[i];
-                const specialtyItem = specialtyMeaningMap.get(value.toLowerCase());
-                if (specialtyItem != null) {
-                  specialtyMap.set(key, {
-                    code: specialtyItem.code,
-                    codeMeaning: specialtyItem.codeMeaning,
-                    codeSystemName: specialtyItem.codeSystemName,
-                  });
-                }
-              }
-            });
-
-          // Body Part Map Setup, eventually map to templateData.TemplateContainer.Template[0].Component[1].AllowedTerm
-          // bodyPartMap.set("CT BODY", { "code": "RID50608", "codeMeaning": "Abdominal Radiology", "codeSystemName": "Radlex" });
 
           // Anatomy Detail Map Setup
           const anatomyTerms = templateData.TemplateContainer.Template[0].Component[5].AllowedTerm;
@@ -611,6 +786,8 @@ async function other(fastify) {
               codeSystemName: diagnosisTerms[i].codingSchemeDesignator,
             });
           }
+
+          const SIDMap = await fastify.SIDMapSetup();
 
           // reads data from CSV file and generates AIMs
           const csvData = [];
@@ -635,6 +812,7 @@ async function other(fastify) {
                   bodyPartMap,
                   anatomyMap,
                   diagnosisMap,
+                  SIDMap,
                   dir
                 );
               }
