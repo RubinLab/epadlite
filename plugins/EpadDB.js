@@ -4059,8 +4059,8 @@ async function epaddb(fastify, options, done) {
           segDS._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(segTags.meta);
 
           const { aim } = createOfflineAimSegmentation(segDS, {
-            loginName: '', // epadAuth.username,
-            name: '', // `${epadAuth.firstname} ${epadAuth.lastname}`,
+            loginName: { value: '' }, // epadAuth.username,
+            name: { value: '' }, // `${epadAuth.firstname} ${epadAuth.lastname}`,
           });
           // looking in the returned aim for "ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection"
           const dicomJson = aim.getAimJSON();
@@ -9331,8 +9331,8 @@ async function epaddb(fastify, options, done) {
                       } `
                     );
                     const { aim } = createOfflineAimSegmentation(segDS, {
-                      loginName: epadAuth.username,
-                      name: `${epadAuth.firstname} ${epadAuth.lastname}`,
+                      loginName: { value: epadAuth.username },
+                      name: { value: `${epadAuth.firstname} ${epadAuth.lastname}` },
                     });
                     const aimJson = aim.getAimJSON();
                     // eslint-disable-next-line no-await-in-loop
