@@ -9,7 +9,7 @@
     "@fastify/static": "^6.10.1",
     "@fastify/swagger": "^8.3.1",
     "activedirectory2": "^2.1.0",
-    "aimapi": "^0.1.12",
+    "aimapi": "^0.1.25",
     "archiver": "^5.1.0",
     "atob": "^2.1.2",
     "axios": "^0.21.4",

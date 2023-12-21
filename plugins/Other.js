@@ -969,8 +969,8 @@ async function other(fastify) {
                 `A segmentation is uploaded with series UID ${dataset.SeriesInstanceUID} which doesn't have an aim, generating an aim with name ${dataset.SeriesDescription} `
               );
               const { aim } = createOfflineAimSegmentation(dataset, {
-                loginName: epadAuth.username,
-                name: `${epadAuth.firstname} ${epadAuth.lastname}`,
+                loginName: { value: epadAuth.username },
+                name: { value: `${epadAuth.firstname} ${epadAuth.lastname}` },
               });
               const aimJson = aim.getAimJSON();
               await fastify.saveAimJsonWithProjectRef(aimJson, params, epadAuth);
