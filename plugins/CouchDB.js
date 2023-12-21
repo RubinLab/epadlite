@@ -1370,16 +1370,25 @@ async function couchdb(fastify, options) {
               if (!couchDoc.projects.includes(projectId)) couchDoc.projects.push(projectId);
             } else couchDoc.projects = [projectId];
           }
-
-          db.multipart
-            .insert(couchDoc, attachments, couchDoc._id)
-            .then(() => {
-              // await fastify.getAimVersions(couchDoc._id);
-              resolve(`Aim ${couchDoc._id} is saved successfully`);
-            })
-            .catch((err) => {
-              reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
-            });
+          if (attachments && attachments.length > 0)
+            db.multipart
+              .insert(couchDoc, attachments, couchDoc._id)
+              .then(() => {
+                // await fastify.getAimVersions(couchDoc._id);
+                resolve(`Aim ${couchDoc._id} is saved successfully`);
+              })
+              .catch((err) => {
+                reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
+              });
+          else
+            db.insert(couchDoc, couchDoc._id)
+              .then(() => {
+                // await fastify.getAimVersions(couchDoc._id);
+                resolve(`Aim ${couchDoc._id} is saved successfully`);
+              })
+              .catch((err) => {
+                reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
+              });
         });
       })
   );
@@ -1452,7 +1461,7 @@ async function couchdb(fastify, options) {
     (aimuid) =>
       new Promise((resolve, reject) => {
         const db = fastify.couch.db.use(config.db);
-        db.get(aimuid, (error, existing) => {
+        db.get(aimuid, async (error, existing) => {
           if (error || !existing) {
             reject(new ResourceNotFoundError('Aim', aimuid));
           }
@@ -1464,11 +1473,24 @@ async function couchdb(fastify, options) {
                 .segmentationEntityCollection;
             // this is a segmentation aim
             if (segEntity) {
-              const params = {
-                study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
-                series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
-              };
-              promisses.push(fastify.deleteSeriesDicomsInternal(params));
+              // check if there are any other aims pointing to the DSO
+              // do we need to if we will always have only one aim pointing to the seg? what if in another project
+              // eslint-disable-next-line no-await-in-loop
+              const existingAim = await fastify.checkProjectSegAimExistence(
+                segEntity.SegmentationEntity[0].seriesInstanceUid.root,
+                undefined,
+                aimuid
+              );
+              if (!existingAim) {
+                const params = {
+                  study: segEntity.SegmentationEntity[0].studyInstanceUid.root,
+                  series: segEntity.SegmentationEntity[0].seriesInstanceUid.root,
+                };
+                promisses.push(fastify.deleteSeriesDicomsInternal(params));
+              } else
+                fastify.log.warn(
+                  `In aim system delete, Aim ${aimuid} refers to a segmentation with DSO Series UID ${segEntity.SegmentationEntity[0].seriesInstanceUid.root}. However, the DSO is referred by another aim ${existingAim}. It won't be deleted from the system`
+                );
             }
           }
 

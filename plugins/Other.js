@@ -1059,6 +1059,33 @@ async function other(fastify) {
   );
 
   fastify.decorate(
+    'checkAndDeleteDefaultSegAim',
+    async (dsoSeriesUid, project, epadAuth, aimUid) => {
+      const existingAim = await fastify.checkProjectSegAimExistence(
+        dsoSeriesUid,
+        project,
+        aimUid,
+        'SEG'
+      );
+      // if there is already an existing aim, delete it
+      // should be delete it from project or all? we don't need to pass project if we use all
+      if (existingAim) {
+        const aimDelete = await fastify.deleteAimsInternal(
+          { project },
+          epadAuth,
+          { all: 'true' },
+          [existingAim],
+          true,
+          true
+        );
+        fastify.log.warn(
+          `Deleted old aim referring to the segmentation Series UID ${dsoSeriesUid} from project ${project}. ${aimDelete}`
+        );
+      }
+    }
+  );
+  // filename is sent if it is an actual aim file from upload. it is empty if we created a default aim for segs
+  fastify.decorate(
     'saveAimJsonWithProjectRef',
     (aimJson, params, epadAuth, filename) =>
       new Promise(async (resolve, reject) => {
@@ -1067,6 +1094,23 @@ async function other(fastify) {
             .saveAimInternal(aimJson, params.project)
             .then(async () => {
               try {
+                // if it is a segmentation aim and the DSO has a default aim created with createOfflineAimSegmentation
+                // other than this one then delete the default aim
+                if (
+                  filename &&
+                  aimJson &&
+                  aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                    .segmentationEntityCollection
+                ) {
+                  // aimuid is actually not required as this is just being uploaded but sending to be safe
+                  await fastify.checkAndDeleteDefaultSegAim(
+                    aimJson.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+                      .segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root,
+                    params.project,
+                    epadAuth,
+                    aimJson.ImageAnnotationCollection.uniqueIdentifier.root
+                  );
+                }
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
                 if (filename) fastify.log.info(`Saving successful for ${filename}`);
                 resolve({ success: true, errors: [] });
@@ -1093,18 +1137,18 @@ async function other(fastify) {
           // eslint-disable-next-line no-underscore-dangle
           dataset._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(dicomTags.meta);
           if (dataset.Modality === 'SEG') {
-            const aimExist = await fastify.checkProjectSegAimExistence(
+            const existingAim = await fastify.checkProjectSegAimExistence(
               dataset.SeriesInstanceUID,
               params.project
             );
             // create a segmentation aim if it doesn't exist
-            if (!aimExist) {
+            if (!existingAim) {
               fastify.log.info(
                 `A segmentation is uploaded with series UID ${dataset.SeriesInstanceUID} which doesn't have an aim, generating an aim with name ${dataset.SeriesDescription} `
               );
               const { aim } = createOfflineAimSegmentation(dataset, {
-                loginName: epadAuth.username,
-                name: `${epadAuth.firstname} ${epadAuth.lastname}`,
+                loginName: { value: epadAuth.username },
+                name: { value: `${epadAuth.firstname} ${epadAuth.lastname}` },
               });
               const aimJson = aim.getAimJSON();
               await fastify.saveAimJsonWithProjectRef(aimJson, params, epadAuth);
@@ -1133,8 +1177,11 @@ async function other(fastify) {
                   ? dicomTags.dict['0020000D'].Value[0]
                   : '',
               subjectName:
+                // eslint-disable-next-line no-nested-ternary
                 dicomTags.dict['00100010'] && dicomTags.dict['00100010'].Value
-                  ? dicomTags.dict['00100010'].Value[0]
+                  ? dicomTags.dict['00100010'].Value[0].Alphabetic
+                    ? dicomTags.dict['00100010'].Value[0].Alphabetic
+                    : dicomTags.dict['00100010'].Value[0]
                   : '',
               studyDesc:
                 dicomTags.dict['00081030'] && dicomTags.dict['00081030'].Value
@@ -1157,8 +1204,13 @@ async function other(fastify) {
                   ? dicomTags.dict['00080050'].Value[0]
                   : '',
               referringPhysicianName:
-                dicomTags.dict['00080090'] && dicomTags.dict['00080090'].Value
-                  ? dicomTags.dict['00080090'].Value[0]
+                // eslint-disable-next-line no-nested-ternary
+                dicomTags.dict['00080090'] &&
+                dicomTags.dict['00080090'].Value &&
+                dicomTags.dict['00080090'].Value[0]
+                  ? dicomTags.dict['00080090'].Value[0].Alphabetic
+                    ? dicomTags.dict['00080090'].Value[0].Alphabetic
+                    : dicomTags.dict['00080090'].Value[0]
                   : '',
               studyID:
                 dicomTags.dict['00200010'] && dicomTags.dict['00200010'].Value
@@ -2410,6 +2462,7 @@ async function other(fastify) {
       config.auth !== 'none' &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/templatestats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
@@ -3260,7 +3313,7 @@ async function other(fastify) {
   });
 
   // fields for filter and sort
-  // CouchDB fields: patient_name, patient_id, accession_number, name, age, sex, modality, study_date, anatomy, observation, creation_datetime, template_name, template_code, user, user_name (by order in aim), comment, project, user_name_sorted (alphabetical)
+  // CouchDB fields: patient_name, patient_id, accession_number, name, patient_age, sex, modality, study_date, anatomy, observation, creation_datetime, template_name, template_code, user, user_name (by order in aim), comment, project, user_name_sorted (alphabetical)
   // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName (by order in aim), comment, project, projectName (additional, no couchdb), fullNameSorted (alphabetical)
 
   // We do not need sorting_fields anymore. ePAD fields are received and replaceSorts replaces field names if necessary.
@@ -3274,7 +3327,9 @@ async function other(fastify) {
     // 'comment',
     // 'name',
     'patient_age',
+    '-patient_age',
   ];
+  const isNumber = ['patient_age', '-patient_age'];
   // use epad fields
   // ePAD fields:      patientName, subjectID, accessionNumber, name, age, sex, modality, studyDate, anatomy, observation, date, templateType (template name), template, user, fullName, comment, project, projectName (additional, no couchdb)
   fastify.decorate('caseFormatVal', (key, value) => {
@@ -3314,7 +3369,7 @@ async function other(fastify) {
     }
     // replace projectName with project for now. sort with projectName is not supported (projectName is not in couchdb)
     sortItem = sortItem.replace('projectName', 'project');
-    sortItem += '<string>';
+    sortItem += isNumber.includes(item) ? '<number>' : '<string>';
     return sortItem;
   });
 
