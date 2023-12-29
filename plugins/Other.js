@@ -350,6 +350,20 @@ async function other(fastify) {
       const specialty = csvRow.Specialty; // csv Specialty
       const reportAuthor = csvRow['Report author']; // csv Report author
 
+      // Handle missing CSV fields
+      if (name == null) throw TypeError("Missing 'Name' field");
+      if (patientId == null) throw TypeError("Missing 'Medical record number' field");
+      if (accessionNumber == null) throw TypeError("Missing 'Accession number' field");
+      if (suid == null) throw TypeError("Missing 'SUID' field");
+      if (age == null) throw TypeError("Missing 'Current age' field");
+      if (birthDate == null) throw TypeError("Missing 'DOB' field");
+      if (sex == null) throw TypeError("Missing 'Sex' field");
+      if (modality == null) throw TypeError("Missing 'Modality' field");
+      if (bodyPart == null) throw TypeError("Missing 'Body part' field");
+      if (keywords == null) throw TypeError("Missing 'Teaching file keywords' field");
+      if (specialty == null) throw TypeError("Missing 'Specialty' field");
+      if (reportAuthor == null) throw TypeError("Missing 'Report author' field");
+
       fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
       fastify.log.info(fileName);
 
@@ -803,20 +817,28 @@ async function other(fastify) {
               csvData.push(row);
             })
             .on('end', () => {
-              for (let i = 0; i < csvData.length; i += 1) {
-                fastify.generateAIM(
-                  csvData[i],
-                  i + 2,
-                  enumAimType,
-                  specialtyMap,
-                  bodyPartMap,
-                  anatomyMap,
-                  diagnosisMap,
-                  SIDMap,
-                  dir
-                );
+              try {
+                for (let i = 0; i < csvData.length; i += 1) {
+                  fastify.generateAIM(
+                    csvData[i],
+                    i + 2,
+                    enumAimType,
+                    specialtyMap,
+                    bodyPartMap,
+                    anatomyMap,
+                    diagnosisMap,
+                    SIDMap,
+                    dir
+                  );
+                }
+              } catch (generateErr) {
+                fastify.log.info('Error in generating aims', generateErr);
+                reject(generateErr);
               }
               resolve();
+            })
+            .on('error', (err) => {
+              fastify.log.info('Error in generating aims', err);
             });
         } catch (err) {
           fastify.log.info('Error in convert csv 2 aim', err);
@@ -866,7 +888,7 @@ async function other(fastify) {
 
           archive.finalize();
         } catch (err) {
-          reject(new InternalError('Downloading aims', err));
+          reject(err);
         }
       })
   );
