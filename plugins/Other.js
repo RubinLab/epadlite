@@ -839,6 +839,7 @@ async function other(fastify) {
             })
             .on('error', (err) => {
               fastify.log.info('Error in generating aims', err);
+              reject(err);
             });
         } catch (err) {
           fastify.log.info('Error in convert csv 2 aim', err);
