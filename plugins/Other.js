@@ -573,7 +573,7 @@ async function other(fastify) {
       if (SIDMap.has(reportFirstLast.toLowerCase())) {
         SID = SIDMap.get(reportFirstLast.toLowerCase());
       }
-      seedData.user = { loginName: SID, name: reportFirstLast };
+      seedData.user = { loginName: { value: SID }, name: { value: reportFirstLast } };
 
       const aim = new Aim(seedData, enumAimType.studyAnnotation);
       const aimJSON = aim.getAimJSON();
