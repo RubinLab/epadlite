@@ -456,7 +456,13 @@ async function couchdb(fastify, options) {
               const res = [];
               if (format === 'summary') {
                 for (let i = 0; i < body.rows.length; i += 1) {
-                  // not putting project id. getprojectaims puts the project that was called from
+                  // If there is a project in the query, just send that back.
+                  // If there is no project in the search, body.rows[i].fields.project might return an array
+                  //   and the projectName retrieval from the map would fail.
+                  //   We are not handling that situation yet!
+                  const projectId = searchQry.project
+                    ? searchQry.project
+                    : body.rows[i].fields.project;
                   res.push({
                     aimID: body.rows[i].id,
                     subjectID: body.rows[i].fields.patient_id,
@@ -479,8 +485,8 @@ async function couchdb(fastify, options) {
                     userName: Array.isArray(body.rows[i].fields.user)
                       ? body.rows[i].fields.user
                       : [body.rows[i].fields.user],
-                    projectID: body.rows[i].fields.project,
-                    projectName: projectNameMap[body.rows[i].fields.project],
+                    projectID: projectId,
+                    projectName: projectNameMap[projectId],
                     modality: body.rows[i].fields.modality,
                     anatomy: body.rows[i].fields.anatomy,
                     observation: body.rows[i].fields.observation,
