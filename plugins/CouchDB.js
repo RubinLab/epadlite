@@ -461,10 +461,12 @@ async function couchdb(fastify, options) {
                   //   and the projectName retrieval from the map would fail.
                   //   We are not handling that situation yet!
                   let projectId = body.rows[i].fields.project;
-                  const regex = /(?:project:")(\w+)(?:")/gm;
-                  const projectInQry = searchQry.q.match(regex);
-                  if (projectInQry && projectInQry[0])
-                    projectId = projectInQry[0].split(':')[1].replaceAll('"', '');
+                  if (Array.isArray(projectId)) {
+                    const regex = /(?:project:")(\w+)(?:")/gm;
+                    const projectInQry = searchQry.q.match(regex);
+                    if (projectInQry && projectInQry[0])
+                      projectId = projectInQry[0].split(':')[1].replaceAll('"', '');
+                  }
                   res.push({
                     aimID: body.rows[i].id,
                     subjectID: body.rows[i].fields.patient_id,
