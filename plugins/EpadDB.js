@@ -10665,14 +10665,19 @@ async function epaddb(fastify, options, done) {
       updated_by: request.epadAuth.username,
       updatetime: Date.now(),
     };
-    fastify
-      .updateUserInternal(rowsUpdated, request.params)
-      .then(() => {
-        reply.code(200).send(`User ${request.params.user} updated sucessfully`);
-      })
-      .catch((err) => {
-        reply.send(new InternalError(`Updating user ${request.params.user}`, err));
-      });
+    // noone should be able to set admin apart from admins
+    if (request.epadAuth.admin === false && request.body.admin) {
+      reply.send(new UnauthorizedError('User has no right to update admin info'));
+    } else {
+      fastify
+        .updateUserInternal(rowsUpdated, request.params)
+        .then(() => {
+          reply.code(200).send(`User ${request.params.user} updated sucessfully`);
+        })
+        .catch((err) => {
+          reply.send(new InternalError(`Updating user ${request.params.user}`, err));
+        });
+    }
   });
 
   // updating username may affect the data in the tables below
