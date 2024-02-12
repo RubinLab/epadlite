@@ -4,13 +4,15 @@ const fp = require('fastify-plugin');
 const Axios = require('axios');
 const _ = require('underscore');
 const btoa = require('btoa');
-const dimse = require('dicom-dimse-native');
 const https = require('https');
 const fs = require('fs');
 // eslint-disable-next-line no-global-assign
 window = {};
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
+
+// eslint-disable-next-line import/no-unresolved
+const dimse = config.dimse ? require('dicom-dimse-native') : null;
 
 // I need to import this after config as it uses config values
 // eslint-disable-next-line import/order
@@ -849,66 +851,68 @@ async function dicomwebserver(fastify) {
   fastify.decorate(
     'promisifyDIMSE',
     (dimseConf, studyUID) =>
-      new Promise((resolve) => {
-        dimse.findScu(
-          JSON.stringify({
-            source: {
-              aet: 'FINDSCU',
-              ip: dimseConf.sourceIp || '127.0.0.1',
-              port: '9999',
-            },
-            target: {
-              aet: dimseConf.aet,
-              ip: dimseConf.ip,
-              port: dimseConf.port,
-            },
-            tags: [
-              {
-                key: '0020000D',
-                value: studyUID,
+      new Promise((resolve, reject) => {
+        if (!dimse) reject(new Error(`DIMSE library couldn't be installed. DIMSE not supported`));
+        else
+          dimse.findScu(
+            JSON.stringify({
+              source: {
+                aet: 'FINDSCU',
+                ip: dimseConf.sourceIp || '127.0.0.1',
+                port: '9999',
               },
-              {
-                key: '00080052',
-                value: 'SERIES',
+              target: {
+                aet: dimseConf.aet,
+                ip: dimseConf.ip,
+                port: dimseConf.port,
               },
-              {
-                key: '00080021',
-                value: '',
-              },
-              {
-                key: '0008103E',
-                value: '',
-              },
-              {
-                key: '0020000E',
-                value: '',
-              },
-              {
-                key: '00080060',
-                value: '',
-              },
-              {
-                key: '00080050',
-                value: '',
-              },
-              {
-                key: '00201209',
-                value: '',
-              },
-              {
-                key: '00201209',
-                value: '',
-              },
-              {
-                key: '00200011',
-                value: '',
-              },
-            ],
-          }),
-          (result) => {
-            resolve(result);
-          }
-        );
+              tags: [
+                {
+                  key: '0020000D',
+                  value: studyUID,
+                },
+                {
+                  key: '00080052',
+                  value: 'SERIES',
+                },
+                {
+                  key: '00080021',
+                  value: '',
+                },
+                {
+                  key: '0008103E',
+                  value: '',
+                },
+                {
+                  key: '0020000E',
+                  value: '',
+                },
+                {
+                  key: '00080060',
+                  value: '',
+                },
+                {
+                  key: '00080050',
+                  value: '',
+                },
+                {
+                  key: '00201209',
+                  value: '',
+                },
+                {
+                  key: '00201209',
+                  value: '',
+                },
+                {
+                  key: '00200011',
+                  value: '',
+                },
+              ],
+            }),
+            (result) => {
+              resolve(result);
+            }
+          );
       })
   );
 
@@ -920,50 +924,63 @@ async function dicomwebserver(fastify) {
           fastify.promisifyDIMSE(config.dimse, studyUID),
           fastify.promisifyDIMSE(config.archiveDimse, studyUID),
         ];
-        Promise.all(dimsePromises).then((results) => {
-          try {
-            // use vna if there is a successfull result from vna
-            // it means the study is already archived
-            // we assume the series data does not change once it is archived
-            const containerJSONs = results
-              .map((item) => JSON.parse(item))
-              .filter((item) => item.code === 0 && item.container) // sanity check for success in retrieval
-              .map((item) => JSON.parse(item.container)); // convert container to JSON
-            // get Sectra by default
-            let res = containerJSONs[0];
-            // check if the return value has series descriptions
-            // if it has no series description in the first 3 (to cover series with no description), we need to get the descriptions from vna
-            if (
-              ((res.length > 0 && !res[0]['0008103E']) ||
-                (res.length > 1 && !res[1]['0008103E']) ||
-                (res.length > 2 && !res[2]['0008103E'])) &&
-              containerJSONs[1]
-            ) {
-              // get a map of series descriptions from VNA
-              const map = containerJSONs[1].reduce((result, item) => {
-                if (
-                  item['0020000E'] &&
-                  item['0020000E'].Value &&
-                  item['0020000E'].Value[0] &&
-                  item['0008103E']
-                )
-                  // eslint-disable-next-line no-param-reassign
-                  result[item['0020000E'].Value[0]] = item['0008103E'];
-                return result;
-              }, {});
-              // fill in the series descriptions retrieved from Sectra
-              res = res.map((item) => {
-                if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
-                  // eslint-disable-next-line no-param-reassign
-                  item['0008103E'] = map[item['0020000E'].Value[0]];
-                return item;
-              });
+        Promise.all(dimsePromises)
+          .then((results) => {
+            try {
+              // use vna if there is a successfull result from vna
+              // it means the study is already archived
+              // we assume the series data does not change once it is archived
+              const containerJSONs = results
+                .map((item) => JSON.parse(item))
+                .filter((item) => item.code === 0 && item.container) // sanity check for success in retrieval
+                .map((item) => JSON.parse(item.container)); // convert container to JSON
+              // get Sectra by default
+              let res = containerJSONs[0];
+              // check if the return value has series descriptions
+              // if it has no series description in the first 3 (to cover series with no description), we need to get the descriptions from vna
+              let seriesDescAvail = false;
+              for (let i = 0; i < res.length && i < 3; i += 1)
+                seriesDescAvail = seriesDescAvail || res[i]['0008103E'];
+              fastify.log.info(
+                `PACS DIMSE response ${JSON.stringify(res)}. Series available ${seriesDescAvail}`
+              );
+              fastify.log.info(
+                `ARCHIVE DIMSE response ${JSON.stringify(
+                  containerJSONs[1]
+                )}. Series available ${seriesDescAvail}`
+              );
+              if (
+                !seriesDescAvail &&
+                containerJSONs[1] &&
+                Object.keys(containerJSONs[1]).length > 0
+              ) {
+                // get a map of series descriptions from VNA
+                const map = containerJSONs[1].reduce((result, item) => {
+                  if (
+                    item['0020000E'] &&
+                    item['0020000E'].Value &&
+                    item['0020000E'].Value[0] &&
+                    item['0008103E']
+                  )
+                    // eslint-disable-next-line no-param-reassign
+                    result[item['0020000E'].Value[0]] = item['0008103E'];
+                  return result;
+                }, {});
+                fastify.log.info(`ARCHIVE series description map ${JSON.stringify(map)}`);
+                // fill in the series descriptions retrieved from Sectra
+                res = res.map((item) => {
+                  if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
+                    // eslint-disable-next-line no-param-reassign
+                    item['0008103E'] = map[item['0020000E'].Value[0]];
+                  return item;
+                });
+              }
+              resolve({ data: res });
+            } catch (err) {
+              reject(err);
             }
-            resolve({ data: res });
-          } catch (err) {
-            reject(err);
-          }
-        });
+          })
+          .catch((err) => reject(err));
       })
   );
 
@@ -973,7 +990,11 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
-          if (config.dimse) promisses.push(fastify.getStudySeriesDIMSE(params.study));
+          if (
+            (!query.forceDicomweb || query.forceDicomweb.toLowerCase() === 'false') &&
+            config.dimse
+          )
+            promisses.push(fastify.getStudySeriesDIMSE(params.study));
           else
             promisses.push(
               this.request.get(
@@ -1129,6 +1150,7 @@ async function dicomwebserver(fastify) {
       })
   );
 
+  // TODO return array of arrays with multiframes separated
   // TODO! query input param not used
   fastify.decorate(
     'getSeriesImagesInternal',
@@ -1144,72 +1166,88 @@ async function dicomwebserver(fastify) {
               // handle success
               // map each instance to epadlite image object
               // get everything that's not PR
-              const result = _.chain(res.response.data)
-                .filter(
-                  (value) =>
-                    !(
-                      value['00080060'] &&
-                      value['00080060'].Value &&
-                      value['00080060'].Value[0] &&
-                      value['00080060'].Value[0] === 'PR'
-                    )
-                )
-                .map((value) => ({
-                  projectID: params.project ? params.project : projectID,
-                  patientID:
-                    value['00100020'] && value['00100020'].Value
-                      ? fastify.replaceNull(value['00100020'].Value[0])
-                      : params.subject,
-                  studyUID:
-                    value['0020000D'] && value['0020000D'].Value
-                      ? value['0020000D'].Value[0]
-                      : params.study,
-                  seriesUID:
-                    value['0020000E'] && value['0020000E'].Value
-                      ? value['0020000E'].Value[0]
-                      : params.series,
-                  imageUID:
-                    value['00080018'] && value['00080018'].Value ? value['00080018'].Value[0] : '',
-                  classUID:
-                    value['00080016'] && value['00080016'].Value ? value['00080016'].Value[0] : '',
-                  insertDate: '', // no date in studies call
-                  imageDate: '', // TODO
-                  sliceLocation: '', // TODO
-                  instanceNumber: Number(
-                    value['00200013'] && value['00200013'].Value ? value['00200013'].Value[0] : '1'
-                  ),
-                  losslessImage: '', // TODO
-                  // lossyImage: `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series/${params.series}/instances/${
-                  //   value['00080018'].Value[0]
-                  // }`,
-                  // send wado-uri instead of wado-rs
-                  // Send the source when generating url
-                  lossyImage: fastify.getWadoPath(
-                    params.study,
-                    params.series,
-                    value['00080018'].Value[0],
-                    res.source
-                  ),
-                  dicomElements: '', // TODO
-                  defaultDICOMElements: '', // TODO
-                  numberOfFrames:
-                    value['00280008'] && value['00280008'].Value ? value['00280008'].Value[0] : 1,
-                  isDSO:
-                    value['00080060'] && value['00080060'].Value
-                      ? value['00080060'].Value[0] === 'SEG'
-                      : false,
-                  multiFrameImage:
-                    value['00280008'] && value['00280008'].Value
-                      ? value['00280008'].Value[0] > 1
-                      : false,
-                  isFlaggedImage: '', // TODO
-                  rescaleIntercept: '', // TODO
-                  rescaleSlope: '', // TODO
-                  sliceOrder: '', // TODO
-                }))
-                .sortBy('instanceNumber')
-                .value();
-              resolve(result);
+              // separate multiframes
+              // switching regular for loop for fastest results
+              const len = res.response.data.length;
+              let singleframes = [];
+              const multiframes = [];
+              for (let i = 0; i < len; i += 1) {
+                const value = res.response.data[i];
+                // make sure it is not PR
+                if (
+                  !(
+                    value['00080060'] &&
+                    value['00080060'].Value &&
+                    value['00080060'].Value[0] &&
+                    value['00080060'].Value[0] === 'PR'
+                  )
+                ) {
+                  const obj = {
+                    projectID: params.project ? params.project : projectID,
+                    patientID:
+                      value['00100020'] && value['00100020'].Value
+                        ? fastify.replaceNull(value['00100020'].Value[0])
+                        : params.subject,
+                    studyUID:
+                      value['0020000D'] && value['0020000D'].Value
+                        ? value['0020000D'].Value[0]
+                        : params.study,
+                    seriesUID:
+                      value['0020000E'] && value['0020000E'].Value
+                        ? value['0020000E'].Value[0]
+                        : params.series,
+                    imageUID:
+                      value['00080018'] && value['00080018'].Value
+                        ? value['00080018'].Value[0]
+                        : '',
+                    classUID:
+                      value['00080016'] && value['00080016'].Value
+                        ? value['00080016'].Value[0]
+                        : '',
+                    insertDate: '', // no date in studies call
+                    imageDate: '', // TODO
+                    sliceLocation: '', // TODO
+                    instanceNumber: Number(
+                      value['00200013'] && value['00200013'].Value
+                        ? value['00200013'].Value[0]
+                        : '1'
+                    ),
+                    losslessImage: '', // TODO
+                    // Send the source when generating url
+                    lossyImage: fastify.getWadoPath(
+                      params.study,
+                      params.series,
+                      value['00080018'].Value[0],
+                      res.source
+                    ),
+                    dicomElements: '', // TODO
+                    defaultDICOMElements: '', // TODO
+                    numberOfFrames:
+                      value['00280008'] && value['00280008'].Value ? value['00280008'].Value[0] : 1,
+                    isDSO:
+                      value['00080060'] && value['00080060'].Value
+                        ? value['00080060'].Value[0] === 'SEG'
+                        : false,
+                    multiFrameImage:
+                      value['00280008'] && value['00280008'].Value
+                        ? value['00280008'].Value[0] > 1
+                        : false,
+                    isFlaggedImage: '', // TODO
+                    rescaleIntercept: '', // TODO
+                    rescaleSlope: '', // TODO
+                    sliceOrder: '', // TODO
+                  };
+                  if (obj.multiFrameImage) {
+                    multiframes.push([obj]);
+                  } else {
+                    singleframes.push(obj);
+                  }
+                }
+              }
+              singleframes = _.sortBy(singleframes, 'instanceNumber');
+              const resultAA =
+                singleframes.length > 0 ? [singleframes, ...multiframes] : [...multiframes];
+              resolve(resultAA);
             })
             .catch((error) => {
               reject(

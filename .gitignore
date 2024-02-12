@@ -4,3 +4,4 @@ files
 data/**
 download/**
 tmp/**
+.DS_Store

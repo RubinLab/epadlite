@@ -223,4 +223,9 @@ config.RCFromRRMin =
   config.legacyReporting ||
   false;
 
+config.https = (process.env.HTTPS && process.env.HTTPS === 'true') || config.https || false;
+
+config.httpsLink =
+  (process.env.HTTPS_LINK && process.env.HTTPS_LINK === 'true') || config.httpLink || false;
+
 module.exports = config;

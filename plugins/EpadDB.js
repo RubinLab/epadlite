@@ -2,7 +2,7 @@
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
 const path = require('path');
-const { Sequelize, QueryTypes } = require('sequelize');
+const { Sequelize, QueryTypes, Op } = require('sequelize');
 const _ = require('lodash');
 const Axios = require('axios');
 const os = require('os');
@@ -693,15 +693,33 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjects', async (request, reply) => {
     try {
-      const projects = await models.project.findAll({
-        where: config.mode === 'lite' ? { projectid: 'lite' } : {},
-        order: [['name', 'ASC']],
-        include: ['users', { model: models.project_subject, required: false }],
-      });
+      const promisses = [
+        models.project.findAll({
+          where: config.mode === 'lite' ? { projectid: 'lite' } : {},
+          order: [['name', 'ASC']],
+          include: [{ model: models.project_subject, required: false, separate: true }],
+        }),
+        // I'm not interested in users that don't have any projects
+        fastify.orm.query(
+          'SELECT pu.project_id as project_id, u.username as username FROM user u INNER JOIN project_user pu ON u.id = pu.user_id ORDER BY pu.project_id, u.username',
+          { type: QueryTypes.SELECT }
+        ),
+      ];
+      const [projects, projectUsers] = await Promise.all(promisses);
 
+      const projectUserMap = {};
+      if (projectUsers) {
+        projectUsers.forEach((projectUser) => {
+          // eslint-disable-next-line no-unused-expressions
+          projectUserMap[projectUser.project_id]
+            ? projectUserMap[projectUser.project_id].push(projectUser.username)
+            : (projectUserMap[projectUser.project_id] = [projectUser.username]);
+        });
+      }
       // projects will be an array of all Project instances
       const result = [];
-      for (let i = 0; i < projects.length; i += 1) {
+      const projectsLen = projects.length;
+      for (let i = 0; i < projectsLen; i += 1) {
         const project = projects[i];
         let numberOfSubjects = project.dataValues.project_subjects.length;
         if (project.projectid === config.XNATUploadProjectID) {
@@ -744,9 +762,10 @@ async function epaddb(fastify, options, done) {
           defaultTemplate: project.dataValues.defaulttemplate,
         };
 
-        project.dataValues.users.forEach((user) => {
-          obj.loginNames.push(user.username);
-        });
+        if (projectUserMap[project.dataValues.id])
+          projectUserMap[project.dataValues.id].forEach((username) => {
+            obj.loginNames.push(username);
+          });
         if (
           request.epadAuth.admin ||
           obj.loginNames.includes(request.epadAuth.username) ||
@@ -4040,8 +4059,8 @@ async function epaddb(fastify, options, done) {
           segDS._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(segTags.meta);
 
           const { aim } = createOfflineAimSegmentation(segDS, {
-            loginName: '', // epadAuth.username,
-            name: '', // `${epadAuth.firstname} ${epadAuth.lastname}`,
+            loginName: { value: '' }, // epadAuth.username,
+            name: { value: '' }, // `${epadAuth.firstname} ${epadAuth.lastname}`,
           });
           // looking in the returned aim for "ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection"
           const dicomJson = aim.getAimJSON();
@@ -7154,9 +7173,10 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
-      let filter;
+      // sort by name when retrieving list of aims instead of creation date
+      const filter = { sort: 'name<string>' };
       if (request.query.format === 'returnTable' && request.query.templatecode) {
-        filter = { template: request.query.templatecode };
+        filter.template = request.query.templatecode;
       }
       let result;
       // check for saved reports
@@ -8248,21 +8268,35 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  // when deleting, we should check if there is any aim in the SYSTEM referring to the DSO other than the aim being deleted (send dsoSeriesUid, aimUid)
+  // when we see a new seg in a project (either upload or add to project), check if there is any aim referring to the DSO in that project (send dsoSeriesUid, project)
+  // when trying to retrieve/delete the default seg aim, check with the template (send dsoSeriesUid, project, aimUid, template)
   fastify.decorate(
     'checkProjectSegAimExistence',
-    (dsoSeriesUid, project) =>
+    (dsoSeriesUid, project, aimUid, template) =>
       new Promise(async (resolve, reject) => {
         try {
-          const projectId = await fastify.findProjectIdInternal(project);
+          // handle no project filter for deleting from system
+          const projectId = project ? await fastify.findProjectIdInternal(project) : null;
           // TODO do I need to check if the user has access?
-          const aimsCount = await models.project_aim.count({
+          const aims = await models.project_aim.findAll({
             where: {
-              project_id: projectId,
+              ...(projectId ? { project_id: projectId } : {}),
               dso_series_uid: dsoSeriesUid,
+              ...(aimUid ? { aim_uid: { [Op.not]: aimUid } } : {}),
               ...fastify.qryNotDeleted(),
+              ...(template ? { template } : {}),
             },
+            raw: true,
           });
-          resolve(aimsCount > 0);
+          if (aims.length > 0) {
+            if (aims.length > 1)
+              console.error(
+                `Aims length for DSO series ${dsoSeriesUid} is ${aims.length}. It is not supposed to be more than 1!`
+              );
+            resolve(aims[0].aim_uid);
+          }
+          resolve(null);
         } catch (err) {
           reject(
             new InternalError(`Checking DSO Aim existance ${dsoSeriesUid} in ${project}`, err)
@@ -8709,89 +8743,35 @@ async function epaddb(fastify, options, done) {
       )
         reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
       else {
-        const args = await models.project_aim.findOne({
-          where: {
-            project_id: project.id,
-            aim_uid: request.params.aimuid,
-            ...fastify.qryNotDeleted(),
-          },
-          attributes: ['project_id', 'subject_uid', 'study_uid'],
-          include: [{ model: models.project }, { model: models.user, as: 'users' }],
-        });
-        const users = args.dataValues.users.map((u) => u.username);
-        const numDeleted = await fastify.deleteAimDB(
-          { project_id: project.id, aim_uid: request.params.aimuid },
-          request.epadAuth.username
-        );
-        // if delete from all or it doesn't exist in any other project, delete from system
-        try {
-          if (request.query.all && request.query.all === 'true') {
-            const deletednum = await fastify.deleteAimDB(
-              { aim_uid: request.params.aimuid },
-              request.epadAuth.username
-            );
-            await fastify.deleteAimInternal(request.params.aimuid);
-            if (args) {
-              await fastify.aimUpdateGateway(
-                args.dataValues.project_id,
-                args.dataValues.subject_uid,
-                args.dataValues.study_uid,
-                users,
-                request.epadAuth,
-                undefined,
-                request.params.project
-              );
-            }
-            reply
-              .code(200)
-              .send(`Aim deleted from system and removed from ${deletednum + numDeleted} projects`);
-          } else {
-            const count = await models.project_aim.count({
-              where: {
-                aim_uid: request.params.aimuid,
-                ...fastify.qryNotDeleted(),
-              },
-            });
-            if (count === 0) {
-              await fastify.deleteAimInternal(request.params.aimuid);
-              if (args) {
-                await fastify.aimUpdateGateway(
-                  args.project_id,
-                  args.subject_uid,
-                  args.study_uid,
-                  users,
-                  request.epadAuth,
-                  undefined,
-                  request.params.project
-                );
-              }
-              reply
-                .code(200)
-                .send(`Aim deleted from system as it didn't exist in any other project`);
-            } else {
-              await fastify.saveAimInternal(request.params.aimuid, request.params.project, true);
-              if (args) {
-                await fastify.aimUpdateGateway(
-                  args.project_id,
-                  args.subject_uid,
-                  args.study_uid,
-                  users,
-                  request.epadAuth,
-                  undefined,
-                  request.params.project
-                );
-              }
-              reply.code(200).send(`Aim not deleted from system as it exists in other project`);
-            }
-          }
-        } catch (deleteErr) {
+        if (
+          !(
+            request.epadAuth.admin ||
+            (config.mode !== 'teaching' &&
+              fastify.isOwnerOfProject(request, request.params.project)) ||
+            // eslint-disable-next-line no-await-in-loop
+            (await fastify.isCreatorOfObject(request, {
+              level: 'aim',
+              objectId: request.params.aimuid,
+              project: request.params.project,
+            })) === true
+          )
+        ) {
           reply.send(
             new InternalError(
-              `Aim ${request.params.aimuid} deletion from system ${request.params.project}`,
-              deleteErr
+              `Aim ${request.params.aimuid}  deletion from project ${request.params.project}`,
+              new Error('User does not have sufficient rights')
             )
           );
+          return;
         }
+
+        const aimDelete = await fastify.deleteAimsInternal(
+          request.params,
+          request.epadAuth,
+          request.query,
+          [request.params.aimuid]
+        );
+        reply.code(200).send({ message: aimDelete });
       }
     } catch (err) {
       reply.send(
@@ -8880,7 +8860,7 @@ async function epaddb(fastify, options, done) {
   // segs
   fastify.decorate(
     'deleteAimsInternal',
-    (params, epadAuth, query, body, skipCheckAndDeleteNoAimStudies) =>
+    (params, epadAuth, query, body, skipCheckAndDeleteNoAimStudies, skipSegDelete) =>
       new Promise(async (resolve, reject) => {
         try {
           let aimQry = {};
@@ -8922,13 +8902,28 @@ async function epaddb(fastify, options, done) {
                 subject: dbAims[i].dataValues.subject_uid,
                 study: dbAims[i].dataValues.study_uid,
               });
-            if (dbAims[i].dataValues.dso_series_uid)
-              segDeletePromises.push(
-                fastify.deleteSeriesDicomsInternal({
-                  study: dbAims[i].dataValues.study_uid,
-                  series: dbAims[i].dataValues.dso_series_uid,
-                })
+            // check if there are any aims pointing to the DSO
+            // do we need to if we will always have only one aim pointing to the seg?
+            // delete seg should only work if there is no aim in the system pointing to the seg, regardless of the project
+            if (!skipSegDelete && dbAims[i].dataValues.dso_series_uid) {
+              // eslint-disable-next-line no-await-in-loop
+              const existingAim = await fastify.checkProjectSegAimExistence(
+                dbAims[i].dataValues.dso_series_uid,
+                null,
+                dbAims[i].dataValues.aim_uid
               );
+              if (!existingAim)
+                segDeletePromises.push(
+                  fastify.deleteSeriesDicomsInternal({
+                    study: dbAims[i].dataValues.study_uid,
+                    series: dbAims[i].dataValues.dso_series_uid,
+                  })
+                );
+              else
+                fastify.log.warn(
+                  `Aim ${dbAims[i].dataValues.aim_uid} refers to a segmentation with DSO Series UID ${dbAims[i].dataValues.dso_series_uid}. However, the DSO is referred by another aim ${existingAim}. It won't be deleted from the system`
+                );
+            }
           }
           // if the aim records are deleted from db but there are leftovers in the couchdb
           if (aimUids.length === 0 && body && Array.isArray(body)) {
@@ -9005,14 +9000,27 @@ async function epaddb(fastify, options, done) {
                 segDeletePromises = [];
                 const deletedAimUids = [];
                 for (let i = 0; i < deletedAims.length; i += 1) {
-                  if (deletedAims[i].dso_series_uid) {
-                    deletedAimUids.push(deletedAims[i].aim_uid);
-                    segDeletePromises.push(
-                      fastify.deleteSeriesDicomsInternal({
-                        study: deletedAims[i].study_uid,
-                        series: deletedAims[i].dso_series_uid,
-                      })
+                  deletedAimUids.push(deletedAims[i].aim_uid);
+                  // check if there are any aims pointing to the DSO, deleting the segmentations of the deleted aims only
+                  // do we need to if we will always have only one aim pointing to the seg? what if in another project
+                  if (!skipSegDelete && deletedAims[i].dso_series_uid) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const existingAim = await fastify.checkProjectSegAimExistence(
+                      deletedAims[i].dso_series_uid,
+                      null,
+                      deletedAims[i].aim_uid
                     );
+                    if (!existingAim)
+                      segDeletePromises.push(
+                        fastify.deleteSeriesDicomsInternal({
+                          study: deletedAims[i].study_uid,
+                          series: deletedAims[i].dso_series_uid,
+                        })
+                      );
+                    else
+                      fastify.log.warn(
+                        `One of the deleted aims, ${deletedAims[i].aim_uid}, refers to a segmentation with DSO Series UID ${deletedAims[i].dso_series_uid}. However, the DSO is referred by another aim ${existingAim}. It won't be deleted from the system`
+                      );
                   }
                 }
                 await fastify.deleteCouchDocsInternal(deletedAimUids);
@@ -9235,8 +9243,11 @@ async function epaddb(fastify, options, done) {
               description: studyInfo.studyDescription,
               subject_id: projectSubject.subject_id,
               exam_types: studyInfo.examTypes ? JSON.stringify(studyInfo.examTypes) : null,
+              // eslint-disable-next-line no-nested-ternary
               referring_physician: studyInfo.referringPhysicianName
-                ? studyInfo.referringPhysicianName
+                ? studyInfo.referringPhysicianName.Aphabetic
+                  ? studyInfo.referringPhysicianName.Aphabetic
+                  : studyInfo.referringPhysicianName
                 : null,
               accession_number: studyInfo.studyAccessionNumber
                 ? studyInfo.studyAccessionNumber
@@ -9289,11 +9300,11 @@ async function epaddb(fastify, options, done) {
             for (let i = 0; i < seriesList.length; i += 1) {
               if (seriesList[i].examType === 'SEG') {
                 // eslint-disable-next-line no-await-in-loop
-                const aimExists = await fastify.checkProjectSegAimExistence(
+                const existingAim = await fastify.checkProjectSegAimExistence(
                   seriesList[i].seriesUID,
                   studyInfo.projectID
                 );
-                if (!aimExists) {
+                if (!existingAim) {
                   const params = {
                     project: studyInfo.projectID,
                     subject: studyInfo.patientID,
@@ -9320,8 +9331,8 @@ async function epaddb(fastify, options, done) {
                       } `
                     );
                     const { aim } = createOfflineAimSegmentation(segDS, {
-                      loginName: epadAuth.username,
-                      name: `${epadAuth.firstname} ${epadAuth.lastname}`,
+                      loginName: { value: epadAuth.username },
+                      name: { value: `${epadAuth.firstname} ${epadAuth.lastname}` },
                     });
                     const aimJson = aim.getAimJSON();
                     // eslint-disable-next-line no-await-in-loop
@@ -9403,8 +9414,41 @@ async function epaddb(fastify, options, done) {
                     updatetime: Date.now(),
                     createdtime: Date.now(),
                   });
-                } else if (studies.length === 1) {
-                  // this shouldn't ever happen except tests because of nock
+                } else if (studies.length > 0) {
+                  // this happens in stella when a study is being sent to create a teaching file
+                  if (studies.length > 1) {
+                    const accessions = studies.map((item) => item.studyAccessionNumber);
+                    fastify.log.info(
+                      `Received ${studies.length} study records for the studyuid ${
+                        params.study
+                      } with accessions ${accessions.join(',')}`
+                    );
+                    if (config.mode === 'teaching')
+                      reject(
+                        new InternalError(
+                          'Adding study to Stella',
+                          new Error(
+                            `Study with UID '${params.study}' has ${
+                              studies.length
+                            } study records with accessions '${accessions.join(
+                              ','
+                            )}'. Stella doesn't support multiple records for a study at this moment`
+                          )
+                        )
+                      );
+                    else
+                      reject(
+                        new InternalError(
+                          'Adding study to project',
+                          new Error(
+                            `Study with UID '${params.study}' has ${
+                              studies.length
+                            } study records with accessions '${accessions.join(',')}'`
+                          )
+                        )
+                      );
+                    return;
+                  }
                   subject = await models.subject.create({
                     subjectuid: params.subject.replace('\u0000', '').trim(),
                     name: studies[0].patientName
@@ -10621,14 +10665,19 @@ async function epaddb(fastify, options, done) {
       updated_by: request.epadAuth.username,
       updatetime: Date.now(),
     };
-    fastify
-      .updateUserInternal(rowsUpdated, request.params)
-      .then(() => {
-        reply.code(200).send(`User ${request.params.user} updated sucessfully`);
-      })
-      .catch((err) => {
-        reply.send(new InternalError(`Updating user ${request.params.user}`, err));
-      });
+    // noone should be able to set admin apart from admins
+    if (request.epadAuth.admin === false && request.body.admin) {
+      reply.send(new UnauthorizedError('User has no right to update admin info'));
+    } else {
+      fastify
+        .updateUserInternal(rowsUpdated, request.params)
+        .then(() => {
+          reply.code(200).send(`User ${request.params.user} updated sucessfully`);
+        })
+        .catch((err) => {
+          reply.send(new InternalError(`Updating user ${request.params.user}`, err));
+        });
+    }
   });
 
   // updating username may affect the data in the tables below
@@ -13284,10 +13333,30 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate('getStats', async (request, reply) => {
-    let { year } = request.query;
+    // eslint-disable-next-line prefer-const
+    let { year, host } = request.query;
     if (!year) year = new Date().getFullYear();
+    let hostFilter = '';
+    if (host) hostFilter = ` and host like '%${host}%'`;
     const stats = await fastify.orm.query(
-      `select sum(numOfUsers) numOfUsers,sum(numOfProjects) numOfProjects, sum(numOfPatients) numOfPatients,sum(numOfStudies) numOfStudies,sum(numOfSeries) numOfSeries,sum(numOfAims) numOfAims,sum(numOfDsos) numOfDSOs,sum(numOfPacs) numOfPacs,sum(numOfAutoQueries) numOfAutoQueries,sum(numOfWorkLists) numOfWorkLists,sum(numOfFiles) numOfFiles,max(numOfTemplates) numOfTemplates,max(numOfPlugins) numOfPlugins from epadstatistics mt inner join(select max(id) id from epadstatistics where host not like '%epad-build.stanford.edu%' and host not like '%epad-dev5.stanford.edu%' and host not like '%epad-dev4.stanford.edu%' and updatetime like '%${year}%' group by host ) st on mt.id = st.id `
+      `select sum(numOfUsers) numOfUsers,sum(numOfProjects) numOfProjects, sum(numOfPatients) numOfPatients,sum(numOfStudies) numOfStudies,sum(numOfSeries) numOfSeries,sum(numOfAims) numOfAims,sum(numOfDsos) numOfDSOs,sum(numOfPacs) numOfPacs,sum(numOfAutoQueries) numOfAutoQueries,sum(numOfWorkLists) numOfWorkLists,sum(numOfFiles) numOfFiles,max(numOfTemplates) numOfTemplates,max(numOfPlugins) numOfPlugins from epadstatistics mt inner join(select max(id) id from epadstatistics where host not like '%epad-build.stanford.edu%' and host not like '%epad-dev5.stanford.edu%' and host not like '%epad-dev4.stanford.edu%' and updatetime like '%${year}%' ${hostFilter} group by SUBSTRING_INDEX(SUBSTRING_INDEX(host, '|', 2), '|', -1) ) st on mt.id = st.id `
+    );
+    const statsJson = stats[0][0];
+    const statsEdited = Object.keys(statsJson).reduce(
+      (p, c) => ({ ...p, [c]: statsJson[c] === null ? 0 : statsJson[c] }),
+      {}
+    );
+    reply.send(statsEdited);
+  });
+
+  fastify.decorate('getTemplateStats', async (request, reply) => {
+    // eslint-disable-next-line prefer-const
+    let { year, host, template } = request.query;
+    if (!year) year = new Date().getFullYear();
+    let hostFilter = '';
+    if (host) hostFilter = ` and host like '%${host}%'`;
+    const stats = await fastify.orm.query(
+      `select numOfAims from epadstatistics_template where updatetime like '%${year}%' and templateCode='${template}' ${hostFilter} order by id desc limit 1`
     );
     const statsJson = stats[0][0];
     const statsEdited = Object.keys(statsJson).reduce(
@@ -14629,9 +14698,23 @@ async function epaddb(fastify, options, done) {
     });
   });
 
+  fastify.decorate('getSignificantSeries', (request, reply) => {
+    fastify
+      .getSignificantSeriesInternal(
+        request.params.project,
+        request.params.subject,
+        request.params.study,
+        true
+      )
+      .then((res) => reply.code(200).send(res))
+      .catch((err) => {
+        reply.send(err);
+      });
+  });
+
   fastify.decorate(
     'getSignificantSeriesInternal',
-    (project, subject, study) =>
+    (project, subject, study, array = false) =>
       new Promise(async (resolve, reject) => {
         try {
           // ignore project id if we have it missing so that polling calls and such works
@@ -14677,13 +14760,25 @@ async function epaddb(fastify, options, done) {
               'series_uid',
               'significance_order',
             ],
+            order: [['significance_order', 'ASC']],
           });
-          const significantSeriesMap = {};
-          for (let i = 0; i < significantSeries.length; i += 1) {
-            significantSeriesMap[significantSeries[i].series_uid] =
-              significantSeries[i].significance_order;
+          if (array) {
+            const significantSeriesArray = [];
+            for (let i = 0; i < significantSeries.length; i += 1) {
+              significantSeriesArray.push({
+                seriesUID: significantSeries[i].series_uid,
+                significanceOrder: significantSeries[i].significance_order,
+              });
+            }
+            resolve(significantSeriesArray);
+          } else {
+            const significantSeriesMap = {};
+            for (let i = 0; i < significantSeries.length; i += 1) {
+              significantSeriesMap[significantSeries[i].series_uid] =
+                significantSeries[i].significance_order;
+            }
+            resolve(significantSeriesMap);
           }
-          resolve(significantSeriesMap);
         } catch (err) {
           reject(new InternalError('Getting significant series', err));
         }
