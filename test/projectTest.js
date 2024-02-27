@@ -6320,4 +6320,87 @@ describe('Project Tests', () => {
         });
     });
   });
+
+  describe.only('Project Export Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'miraccl',
+          projectName: 'miraccl',
+          projectDescription: 'miraccl',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+    });
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/miraccl')
+        .query({ username: 'admin' });
+    });
+
+    it('should save 24 aims', (done) => {
+      fs.readdir('test/data/ispy_annotations', async (err, files) => {
+        if (err) {
+          throw new Error(`Reading directory test/data/ispy_annotations`, err);
+        } else {
+          for (let i = 0; i < files.length; i += 1) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              await chai
+                .request(`http://${process.env.host}:${process.env.port}`)
+                .post('/projects/miraccl/aimfiles')
+                .attach('file', `test/data/ispy_annotations/${files[i]}`, `${files[i]}`, {
+                  stream: true,
+                })
+                .query({ username: 'admin' });
+            } catch (err2) {
+              console.log(
+                'Error in aim save for miraccl export test',
+                err2,
+                'file with error',
+                files[i]
+              );
+            }
+          }
+          done();
+        }
+      });
+    });
+
+    // the ones without measurements are ignored as they are seg only annotations and segmentations are not uploaded
+    it('Project miraccl should have 12 aims', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/miraccl/aims?format=summary')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows).to.be.a('array');
+          expect(res.body.rows.length).to.be.eql(12);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('get miraccl export ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/miracclexport?project=miraccl')
+        .query({ username: 'admin' })
+        .then((res) => {
+          console.log(res.body);
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+  });
 });
