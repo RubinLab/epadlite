@@ -535,7 +535,10 @@ async function couchdb(fastify, options) {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
             reject(new UnauthenticatedError('No epadauth in request'));
           // if there is a project and user has no role in project (public project)
-          if (params.project && !fastify.hasRoleInProject(params.project, epadAuth))
+          if (
+            params.project &&
+            (!fastify.hasRoleInProject(params.project, epadAuth) || epadAuth.isAdmin)
+          )
             resolve({ total_rows: 0, rows: [] });
           else {
             const db = fastify.couch.db.use(config.db);
@@ -1175,6 +1178,27 @@ async function couchdb(fastify, options) {
       })
   );
 
+  fastify.decorate('writeCsv', (header, data, reply) => {
+    const filename = path.join('/tmp', `summary${new Date().getTime()}.csv`);
+    const csvWriter = createCsvWriter({
+      path: filename,
+      header,
+    });
+    csvWriter.writeRecords(data).then(() => {
+      fastify.log.info('The export CSV file was written successfully');
+      const buffer = fs.readFileSync(filename);
+      fs.remove(filename, (error) => {
+        if (error) {
+          fastify.log.info(`${filename} export csv file deletion error ${error.message}`);
+        } else {
+          fastify.log.info(`${filename} export csv deleted`);
+        }
+      });
+      reply.header('Content-Disposition', `attachment; filename=changes.csv`);
+      reply.code(200).send(buffer);
+    });
+  });
+
   fastify.decorate('getAimVersionChangesAimUIDs', (request, reply) => {
     fastify
       .getAimVersionChangesBulk(request.body)
@@ -1182,24 +1206,7 @@ async function couchdb(fastify, options) {
         if (request.query.rawData === 'true') {
           reply.code(200).send({ header, data });
         } else {
-          const filename = path.join('/tmp', `summary${new Date().getTime()}.csv`);
-          const csvWriter = createCsvWriter({
-            path: filename,
-            header,
-          });
-          csvWriter.writeRecords(data).then(() => {
-            fastify.log.info('The export CSV file was written successfully');
-            const buffer = fs.readFileSync(filename);
-            fs.remove(filename, (error) => {
-              if (error) {
-                fastify.log.info(`${filename} export csv file deletion error ${error.message}`);
-              } else {
-                fastify.log.info(`${filename} export csv deleted`);
-              }
-            });
-            reply.header('Content-Disposition', `attachment; filename=changes.csv`);
-            reply.code(200).send(buffer);
-          });
+          fastify.writeCsv(header, data, reply);
         }
       })
       .catch((err) => reply.send(new InternalError('Export changes', err)));
@@ -1228,24 +1235,7 @@ async function couchdb(fastify, options) {
               if (request.query.rawData === 'true') {
                 reply.code(200).send({ header, data });
               } else {
-                const filename = path.join('/tmp', `summary${new Date().getTime()}.csv`);
-                const csvWriter = createCsvWriter({
-                  path: filename,
-                  header,
-                });
-                csvWriter.writeRecords(data).then(() => {
-                  fastify.log.info('The export CSV file was written successfully');
-                  const buffer = fs.readFileSync(filename);
-                  fs.remove(filename, (err) => {
-                    if (err) {
-                      fastify.log.info(`${filename} export csv file deletion error ${err.message}`);
-                    } else {
-                      fastify.log.info(`${filename} export csv deleted`);
-                    }
-                  });
-                  reply.header('Content-Disposition', `attachment; filename=changes.csv`);
-                  reply.code(200).send(buffer);
-                });
+                fastify.writeCsv(header, data, reply);
               }
             })
             .catch((err) => reply.send(new InternalError('Export changes', err)));
