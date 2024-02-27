@@ -440,6 +440,7 @@ async function reporting(fastify) {
       fastify.log.error(
         `Error during filling table for ${template}, ${columns}, ${shapesIn} and ${aimJSONs.length}. Error: ${err.message}`
       );
+      console.log(err);
     }
     return [];
   });
@@ -1316,6 +1317,119 @@ async function reporting(fastify) {
     }
   );
 
+  fastify.decorate('generateRow', (index, timepoint, patientInfo, report) => {
+    const row = { ...patientInfo };
+    row.ID = index;
+    row.PRE_POST_TREATMT = timepoint;
+    const timepointMap = { PRE: '0B', ON: '1F', POST: '2F' };
+    row.LONG_DIAM =
+      report[`2_${timepointMap[timepoint]}_Longest Diameter`] ||
+      report[`1_${timepointMap[timepoint]}_Longest Diameter`];
+    row.VOL =
+      report[`2_${timepointMap[timepoint]}_Volume`] ||
+      report[`1_${timepointMap[timepoint]}_Volume`];
+    row.SER_MEDIAN =
+      report[`2_${timepointMap[timepoint]}_SER Median`] ||
+      report[`1_${timepointMap[timepoint]}_SER Median`];
+    row.SER_MAX =
+      report[`2_${timepointMap[timepoint]}_SER Max`] ||
+      report[`1_${timepointMap[timepoint]}_SER Max`];
+    row.ADC_MEDIAN =
+      report[`2_${timepointMap[timepoint]}_ADC Median`] ||
+      report[`1_${timepointMap[timepoint]}_ADC Median`];
+    row.ADC_MAX =
+      report[`2_${timepointMap[timepoint]}_ADC Max`] ||
+      report[`1_${timepointMap[timepoint]}_ADC Max`];
+    row.IMG_STUDY_ID =
+      report[`2_${timepointMap[timepoint]}_Study UID`] ||
+      report[`1_${timepointMap[timepoint]}_Study UID`];
+    return row;
+  });
+
+  fastify.decorate('getMiracclExport', async (request, reply) => {
+    try {
+      // const fillSeriesDescriptions = {['ACRIN'] : {ADC: 'DWI', SER: 'CROPPED'}, ['BCM', 'HCI'] : {ADC: 'T1W', SER: 'T1W'}}
+      const waterfall = await fastify.getWaterfallProject(
+        request.query.project,
+        request.query.type || 'BASELINE',
+        request.epadAuth,
+        request.query.metric || 'Export (beta)',
+        request.query.exportCalcs ||
+          JSON.parse(
+            '[{"field":"ser_original_shape_maximum2ddiameterslice","header":"Longest Diameter"},{"field":"ser_original_shape_voxelvolume","header":"Volume"},{"field":"ser_original_firstorder_median","header":"SER Median"},{"field":"ser_original_firstorder_maximum","header":"SER Max"},{"field":"adc_original_firstorder_median","header":"ADC Median"},{"field":"adc_original_firstorder_maximum","header":"ADC Max"}]'
+          )
+      );
+      console.log('waterfall', waterfall);
+      let index = 1;
+      let data = [];
+      const header = [
+        'ID',
+        'PATIENT_ID',
+        'PRE_POST_TREATMT',
+        'LONG_DIAM',
+        'VOL',
+        'SER_MEDIAN',
+        'SER_MAX',
+        'ADC_MEDIAN',
+        'ADC_MAX',
+        'IMG_STUDY_ID',
+        'IMG_SERIES_ID_SER',
+        'IMG_SERIES_ID_ADC',
+        'EPAD_NAME',
+      ];
+      // sanity check if not overriden by ignoreEmpty query param. just checked longest diameter!! check from exportcalcs maybe?
+      if (
+        !request.query.ignoreEmpty &&
+        (waterfall.waterfallExport.length < 0 ||
+          !waterfall.waterfallExport[0].patId ||
+          !(
+            waterfall.waterfallExport[0][`1_0B_Longest Diameter`] ||
+            waterfall.waterfallExport[0][`2_0B_Longest Diameter`]
+          ))
+      )
+        reply.send(
+          new InternalError(
+            'Generating MIRACCL export',
+            new Error('Waterfall report cannot be generated with all the required calculations')
+          )
+        );
+      for (let i = 0; i < waterfall.waterfallExport.length; i += 1) {
+        const patientInfo = {};
+        // GENERAL
+        patientInfo.PATIENT_ID = waterfall.waterfallExport[i].patId;
+        patientInfo.EPAD_NAME = waterfall.waterfallExport[i].patId;
+
+        // PRE
+        const preRow = fastify.generateRow(index, 'PRE', patientInfo, waterfall.waterfallExport[i]);
+        data.push(preRow);
+        index += 1;
+
+        // ON
+        const onRow = fastify.generateRow(index, 'ON', patientInfo, waterfall.waterfallExport[i]);
+        data.push(onRow);
+        index += 1;
+
+        // POST
+        const postRow = fastify.generateRow(
+          index,
+          'POST',
+          patientInfo,
+          waterfall.waterfallExport[i]
+        );
+        data.push(postRow);
+        index += 1;
+      }
+      // get the series uids if the series names are passed
+      if (request.query.seriesDescriptions)
+        data = fastify.addSeriesUIDs(request.query.seriesDescriptions, data);
+      // fastify.writeCsv(header, data, reply);
+      reply.send({ header, data });
+    } catch (err) {
+      console.log(err);
+      reply.send(new InternalError('Generating export for miraccl', err));
+    }
+  });
+
   // ----  waterfall --------
   fastify.decorate(
     'getWaterfallProject',
@@ -1631,6 +1745,27 @@ async function reporting(fastify) {
                       timepoint < readerReport.studyDates.length;
                       timepoint += 1
                     ) {
+                      // add studyuids to the export
+                      if (readerReport.stTimepoints[timepoint] === 0) {
+                        row[`${lesionNum + 1}_${timepoint}B_Study UID`] =
+                          readerReport.tUIDs[lesionNum][timepoint].studyUID;
+                        fastify.addHeader(
+                          lesionHeaders,
+                          headerKeys,
+                          `${lesionNum + 1}_${timepoint}B_Study UID}`,
+                          `Lesion ${lesionNum + 1} ${timepoint ? 'New ' : ''}Baseline Study UID`
+                        );
+                      } else {
+                        row[`${lesionNum + 1}_${timepoint}F_Study UID`] =
+                          readerReport.tUIDs[lesionNum][timepoint].studyUID;
+                        fastify.addHeader(
+                          lesionHeaders,
+                          headerKeys,
+                          `${lesionNum + 1}_${timepoint}F_Study UID}`,
+                          `Lesion ${lesionNum + 1} Follow-up ${timepoint} Study UID`
+                        );
+                      }
+
                       for (let valNum = 0; valNum < exportCalcs.length; valNum += 1) {
                         if (readerReport.stTimepoints[timepoint] === 0) {
                           row[`${lesionNum + 1}_${timepoint}B_${exportCalcs[valNum].header}`] =
@@ -1776,6 +1911,7 @@ async function reporting(fastify) {
               err.message
             }`
           );
+          console.log(err);
           reject(err);
         }
       })
