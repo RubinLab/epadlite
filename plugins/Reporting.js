@@ -440,7 +440,6 @@ async function reporting(fastify) {
       fastify.log.error(
         `Error during filling table for ${template}, ${columns}, ${shapesIn} and ${aimJSONs.length}. Error: ${err.message}`
       );
-      console.log(err);
     }
     return [];
   });
@@ -1348,7 +1347,6 @@ async function reporting(fastify) {
 
   fastify.decorate('getMiracclExport', async (request, reply) => {
     try {
-      // const fillSeriesDescriptions = {['ACRIN'] : {ADC: 'DWI', SER: 'CROPPED'}, ['BCM', 'HCI'] : {ADC: 'T1W', SER: 'T1W'}}
       const waterfall = await fastify.getWaterfallProject(
         request.query.project,
         request.query.type || 'BASELINE',
@@ -1359,7 +1357,6 @@ async function reporting(fastify) {
             '[{"field":"ser_original_shape_maximum2ddiameterslice","header":"Longest Diameter"},{"field":"ser_original_shape_voxelvolume","header":"Volume"},{"field":"ser_original_firstorder_median","header":"SER Median"},{"field":"ser_original_firstorder_maximum","header":"SER Max"},{"field":"adc_original_firstorder_median","header":"ADC Median"},{"field":"adc_original_firstorder_maximum","header":"ADC Max"}]'
           )
       );
-      console.log('waterfall', waterfall);
       let index = 1;
       let data = [];
       const header = [
@@ -1420,14 +1417,65 @@ async function reporting(fastify) {
         index += 1;
       }
       // get the series uids if the series names are passed
-      if (request.query.seriesDescriptions)
-        data = fastify.addSeriesUIDs(request.query.seriesDescriptions, data);
-      // fastify.writeCsv(header, data, reply);
-      reply.send({ header, data });
+      // series descriptions should be a map of patient id's to ser and adc series descriptions
+      // this should be the array for prototype
+      // const seriesInfos = [{'patientIDs':['BCM','HCI'], 'ADC': 'T1wDCE', 'SER': 'T1wDCE'}, {'patIDs':['ACRIN'], 'ADC': 'DWI_TRACE_bValue_Zero', 'SER': 'CROPPED_DCE'}];
+      const seriesInfos = [
+        { patientIDs: ['BCM', 'HCI'], ADC: 'T1wDCE', SER: 'T1wDCE' },
+        { patientIDs: ['ACRIN'], ADC: 'DWI_TRACE_bValue_Zero', SER: 'CROPPED_DCE' },
+      ];
+      data = await fastify.addSeriesUIDs(
+        request.query.seriesInfos || seriesInfos,
+        data,
+        request.epadAuth
+      );
+      if (config.env === 'test' || (request.query.rawData && request.query.rawData === true)) {
+        reply.code(200).send({ header, data });
+      } else {
+        fastify.writeCsv(header, data, reply);
+      }
     } catch (err) {
-      console.log(err);
       reply.send(new InternalError('Generating export for miraccl', err));
     }
+  });
+
+  fastify.decorate('getSeriesUID', async (seriesDescription, study, epadAuth) => {
+    try {
+      // get series of the study
+      const seriesList = await fastify.getStudySeriesInternal({ study }, {}, epadAuth, true);
+      const series = seriesList.find((item) => item.seriesDescription === seriesDescription);
+      return series.seriesUID;
+    } catch (err) {
+      fastify.log.error(`Error getting series UID for study ${study}. ${err.description}`);
+    }
+    return null;
+  });
+
+  fastify.decorate('addSeriesUIDs', async (seriesInfos, dataIn, epadAuth) => {
+    try {
+      const data = dataIn;
+      for (let i = 0; i < data.length; i += 1) {
+        const seriesInfo = seriesInfos.find((item) =>
+          data[i].PATIENT_ID.match(`(${item.patientIDs.join('|')}).*`)
+        );
+        // eslint-disable-next-line no-await-in-loop
+        data[i].IMG_SERIES_ID_SER = await fastify.getSeriesUID(
+          seriesInfo.SER,
+          data[i].IMG_STUDY_ID,
+          epadAuth
+        );
+        // eslint-disable-next-line no-await-in-loop
+        data[i].IMG_SERIES_ID_ADC = await fastify.getSeriesUID(
+          seriesInfo.ADC,
+          data[i].IMG_STUDY_ID,
+          epadAuth
+        );
+      }
+      return data;
+    } catch (err) {
+      fastify.log.error(`Error adding series UIDs. ${err.description}`);
+    }
+    return null;
   });
 
   // ----  waterfall --------
@@ -1911,7 +1959,6 @@ async function reporting(fastify) {
               err.message
             }`
           );
-          console.log(err);
           reject(err);
         }
       })

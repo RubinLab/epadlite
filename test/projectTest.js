@@ -9,6 +9,10 @@ const studiesResponse3 = require('./data/studiesResponse3.json');
 const studiesResponse7 = require('./data/studiesResponse7.json');
 const seriesResponse = require('./data/seriesResponse.json');
 const seriesResponse7 = require('./data/seriesResponse7.json');
+const miracclSeriesResponsePre = require('./data/miracclSeriesResponsePre.json');
+const miracclSeriesResponseOn = require('./data/miracclSeriesResponseOn.json');
+const miracclSeriesResponsePost = require('./data/miracclSeriesResponsePost.json');
+
 const config = require('../config/index');
 
 chai.use(chaiHttp);
@@ -153,6 +157,23 @@ beforeEach(() => {
     .matchHeader('content-type', (val) => val.includes('application/x-www-form-urlencoded'))
     .post(`${config.dicomWebConfig.qidoSubPath}/studies`)
     .reply(200);
+
+  nock(config.dicomWebConfig.baseUrl)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.232867709256560213489962898887/series?includefield=SeriesDescription`
+    )
+    .reply(200, miracclSeriesResponsePre);
+
+  nock(config.dicomWebConfig.baseUrl)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.273794066502136913191366109101/series?includefield=SeriesDescription`
+    )
+    .reply(200, miracclSeriesResponseOn);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.297906865092698577172413829097/series?includefield=SeriesDescription`
+    )
+    .reply(200, miracclSeriesResponsePost);
 });
 
 describe('Project Tests', () => {
@@ -6361,7 +6382,7 @@ describe('Project Tests', () => {
               console.log(
                 'Error in aim save for miraccl export test',
                 err2,
-                'file with error',
+                'File with error',
                 files[i]
               );
             }
@@ -6389,13 +6410,14 @@ describe('Project Tests', () => {
     });
 
     it('get miraccl export ', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/miracclexport.json'));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/miracclexport?project=miraccl')
         .query({ username: 'admin' })
         .then((res) => {
-          console.log(res.body);
           expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
           done();
         })
         .catch((e) => {
