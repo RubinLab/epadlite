@@ -1345,99 +1345,116 @@ async function reporting(fastify) {
     return row;
   });
 
-  fastify.decorate('getMiracclExport', async (request, reply) => {
-    try {
-      const waterfall = await fastify.getWaterfallProject(
-        request.query.project,
-        request.query.type || 'BASELINE',
-        request.epadAuth,
-        request.query.metric || 'Export (beta)',
-        request.query.exportCalcs ||
-          JSON.parse(
-            '[{"field":"ser_original_shape_maximum2ddiameterslice","header":"Longest Diameter"},{"field":"ser_original_shape_voxelvolume","header":"Volume"},{"field":"ser_original_firstorder_median","header":"SER Median"},{"field":"ser_original_firstorder_maximum","header":"SER Max"},{"field":"adc_original_firstorder_median","header":"ADC Median"},{"field":"adc_original_firstorder_maximum","header":"ADC Max"}]'
-          )
-      );
-      let index = 1;
-      let data = [];
-      const header = [
-        'ID',
-        'PATIENT_ID',
-        'PRE_POST_TREATMT',
-        'LONG_DIAM',
-        'VOL',
-        'SER_MEDIAN',
-        'SER_MAX',
-        'ADC_MEDIAN',
-        'ADC_MAX',
-        'IMG_STUDY_ID',
-        'IMG_SERIES_ID_SER',
-        'IMG_SERIES_ID_ADC',
-        'EPAD_NAME',
-      ];
-      // sanity check if not overriden by ignoreEmpty query param. just checked longest diameter!! check from exportcalcs maybe?
-      if (
-        !request.query.ignoreEmpty &&
-        (waterfall.waterfallExport.length < 0 ||
-          !waterfall.waterfallExport[0].patId ||
-          !(
-            waterfall.waterfallExport[0][`1_0B_Longest Diameter`] ||
-            waterfall.waterfallExport[0][`2_0B_Longest Diameter`]
-          ))
-      )
-        reply.send(
-          new InternalError(
-            'Generating MIRACCL export',
-            new Error('Waterfall report cannot be generated with all the required calculations')
-          )
-        );
-      for (let i = 0; i < waterfall.waterfallExport.length; i += 1) {
-        const patientInfo = {};
-        // GENERAL
-        patientInfo.PATIENT_ID = waterfall.waterfallExport[i].patId;
-        patientInfo.EPAD_NAME = waterfall.waterfallExport[i].patId;
-
-        // PRE
-        const preRow = fastify.generateRow(index, 'PRE', patientInfo, waterfall.waterfallExport[i]);
-        data.push(preRow);
-        index += 1;
-
-        // ON
-        const onRow = fastify.generateRow(index, 'ON', patientInfo, waterfall.waterfallExport[i]);
-        data.push(onRow);
-        index += 1;
-
-        // POST
-        const postRow = fastify.generateRow(
-          index,
-          'POST',
-          patientInfo,
-          waterfall.waterfallExport[i]
-        );
-        data.push(postRow);
-        index += 1;
-      }
-      // get the series uids if the series names are passed
-      // series descriptions should be a map of patient id's to ser and adc series descriptions
-      // this should be the array for prototype
-      // const seriesInfos = [{'patientIDs':['BCM','HCI'], 'ADC': 'T1wDCE', 'SER': 'T1wDCE'}, {'patIDs':['ACRIN'], 'ADC': 'DWI_TRACE_bValue_Zero', 'SER': 'CROPPED_DCE'}];
-      const seriesInfos = [
-        { patientIDs: ['BCM', 'HCI'], ADC: 'T1wDCE', SER: 'T1wDCE' },
-        { patientIDs: ['ACRIN'], ADC: 'DWI_TRACE_bValue_Zero', SER: 'CROPPED_DCE' },
-      ];
-      data = await fastify.addSeriesUIDs(
-        request.query.seriesInfos || seriesInfos,
-        data,
-        request.epadAuth
-      );
-      if (config.env === 'test' || (request.query.rawData && request.query.rawData === true)) {
+  fastify.decorate('getMiracclExport', (request, reply) => {
+    fastify
+      .getMiracclExportInternal(request.query, request.epadAuth)
+      .then(({ header, data }) => {
         reply.code(200).send({ header, data });
-      } else {
-        fastify.writeCsv(header, data, reply);
-      }
-    } catch (err) {
-      reply.send(new InternalError('Generating export for miraccl', err));
-    }
+      })
+      .catch((err) => {
+        reply.send(err);
+      });
   });
+
+  fastify.decorate(
+    'getMiracclExportInternal',
+    (query, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const waterfall = await fastify.getWaterfallProject(
+            query.project,
+            query.type || 'BASELINE',
+            epadAuth,
+            query.metric || 'Export (beta)',
+            query.exportCalcs ||
+              JSON.parse(
+                '[{"field":"ser_original_shape_maximum2ddiameterslice","header":"Longest Diameter"},{"field":"ser_original_shape_voxelvolume","header":"Volume"},{"field":"ser_original_firstorder_median","header":"SER Median"},{"field":"ser_original_firstorder_maximum","header":"SER Max"},{"field":"adc_original_firstorder_median","header":"ADC Median"},{"field":"adc_original_firstorder_maximum","header":"ADC Max"}]'
+              )
+          );
+          let index = 1;
+          let data = [];
+          const header = [
+            'ID',
+            'PATIENT_ID',
+            'PRE_POST_TREATMT',
+            'LONG_DIAM',
+            'VOL',
+            'SER_MEDIAN',
+            'SER_MAX',
+            'ADC_MEDIAN',
+            'ADC_MAX',
+            'IMG_STUDY_ID',
+            'IMG_SERIES_ID_SER',
+            'IMG_SERIES_ID_ADC',
+            'EPAD_NAME',
+          ];
+          // sanity check if not overriden by ignoreEmpty query param. just checked longest diameter!! check from exportcalcs maybe?
+          if (
+            !query.ignoreEmpty &&
+            (waterfall.waterfallExport.length < 0 ||
+              !waterfall.waterfallExport[0].patId ||
+              !(
+                waterfall.waterfallExport[0][`1_0B_Longest Diameter`] ||
+                waterfall.waterfallExport[0][`2_0B_Longest Diameter`]
+              ))
+          )
+            reject(
+              new InternalError(
+                'Generating MIRACCL export',
+                new Error('Waterfall report cannot be generated with all the required calculations')
+              )
+            );
+          for (let i = 0; i < waterfall.waterfallExport.length; i += 1) {
+            const patientInfo = {};
+            // GENERAL
+            patientInfo.PATIENT_ID = waterfall.waterfallExport[i].patId;
+            patientInfo.EPAD_NAME = waterfall.waterfallExport[i].patId;
+
+            // PRE
+            const preRow = fastify.generateRow(
+              index,
+              'PRE',
+              patientInfo,
+              waterfall.waterfallExport[i]
+            );
+            data.push(preRow);
+            index += 1;
+
+            // ON
+            const onRow = fastify.generateRow(
+              index,
+              'ON',
+              patientInfo,
+              waterfall.waterfallExport[i]
+            );
+            data.push(onRow);
+            index += 1;
+
+            // POST
+            const postRow = fastify.generateRow(
+              index,
+              'POST',
+              patientInfo,
+              waterfall.waterfallExport[i]
+            );
+            data.push(postRow);
+            index += 1;
+          }
+          // get the series uids if the series names are passed
+          // series descriptions should be a map of patient id's to ser and adc series descriptions
+          // this should be the array for prototype
+          // const seriesInfos = [{'patientIDs':['BCM','HCI'], 'ADC': 'T1wDCE', 'SER': 'T1wDCE'}, {'patIDs':['ACRIN'], 'ADC': 'DWI_TRACE_bValue_Zero', 'SER': 'CROPPED_DCE'}];
+          const seriesInfos = [
+            { patientIDs: ['BCM', 'HCI'], ADC: 'T1wDCE', SER: 'T1wDCE' },
+            { patientIDs: ['ACRIN'], ADC: 'DWI_TRACE_bValue_Zero', SER: 'CROPPED_DCE' },
+          ];
+          data = await fastify.addSeriesUIDs(query.seriesInfos || seriesInfos, data, epadAuth);
+          resolve({ header, data });
+        } catch (err) {
+          reject(new InternalError('Generating export for miraccl', err));
+        }
+      })
+  );
 
   fastify.decorate('getSeriesUID', async (seriesDescription, study, epadAuth) => {
     try {
