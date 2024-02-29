@@ -1323,25 +1323,32 @@ async function reporting(fastify) {
     const timepointMap = { PRE: '0B', ON: '1F', POST: '2F' };
     row.LONG_DIAM =
       report[`2_${timepointMap[timepoint]}_Longest Diameter`] ||
-      report[`1_${timepointMap[timepoint]}_Longest Diameter`];
+      report[`1_${timepointMap[timepoint]}_Longest Diameter`] ||
+      '';
     row.VOL =
       report[`2_${timepointMap[timepoint]}_Volume`] ||
-      report[`1_${timepointMap[timepoint]}_Volume`];
+      report[`1_${timepointMap[timepoint]}_Volume`] ||
+      '';
     row.SER_MEDIAN =
       report[`2_${timepointMap[timepoint]}_SER Median`] ||
-      report[`1_${timepointMap[timepoint]}_SER Median`];
+      report[`1_${timepointMap[timepoint]}_SER Median`] ||
+      '';
     row.SER_MAX =
       report[`2_${timepointMap[timepoint]}_SER Max`] ||
-      report[`1_${timepointMap[timepoint]}_SER Max`];
+      report[`1_${timepointMap[timepoint]}_SER Max`] ||
+      '';
     row.ADC_MEDIAN =
       report[`2_${timepointMap[timepoint]}_ADC Median`] ||
-      report[`1_${timepointMap[timepoint]}_ADC Median`];
+      report[`1_${timepointMap[timepoint]}_ADC Median`] ||
+      '';
     row.ADC_MAX =
       report[`2_${timepointMap[timepoint]}_ADC Max`] ||
-      report[`1_${timepointMap[timepoint]}_ADC Max`];
+      report[`1_${timepointMap[timepoint]}_ADC Max`] ||
+      '';
     row.IMG_STUDY_ID =
       report[`2_${timepointMap[timepoint]}_Study UID`] ||
-      report[`1_${timepointMap[timepoint]}_Study UID`];
+      report[`1_${timepointMap[timepoint]}_Study UID`] ||
+      '';
     return row;
   });
 
@@ -1472,21 +1479,26 @@ async function reporting(fastify) {
     try {
       const data = dataIn;
       for (let i = 0; i < data.length; i += 1) {
-        const seriesInfo = seriesInfos.find((item) =>
-          data[i].PATIENT_ID.match(`(${item.patientIDs.join('|')}).*`)
-        );
-        // eslint-disable-next-line no-await-in-loop
-        data[i].IMG_SERIES_ID_SER = await fastify.getSeriesUID(
-          seriesInfo.SER,
-          data[i].IMG_STUDY_ID,
-          epadAuth
-        );
-        // eslint-disable-next-line no-await-in-loop
-        data[i].IMG_SERIES_ID_ADC = await fastify.getSeriesUID(
-          seriesInfo.ADC,
-          data[i].IMG_STUDY_ID,
-          epadAuth
-        );
+        if (data[i].IMG_STUDY_ID === '') {
+          data[i].IMG_SERIES_ID_SER = '';
+          data[i].IMG_SERIES_ID_ADC = '';
+        } else {
+          const seriesInfo = seriesInfos.find((item) =>
+            data[i].PATIENT_ID.match(`(${item.patientIDs.join('|')}).*`)
+          );
+          // eslint-disable-next-line no-await-in-loop
+          data[i].IMG_SERIES_ID_SER = await fastify.getSeriesUID(
+            seriesInfo.SER,
+            data[i].IMG_STUDY_ID,
+            epadAuth
+          );
+          // eslint-disable-next-line no-await-in-loop
+          data[i].IMG_SERIES_ID_ADC = await fastify.getSeriesUID(
+            seriesInfo.ADC,
+            data[i].IMG_STUDY_ID,
+            epadAuth
+          );
+        }
       }
       return data;
     } catch (err) {
