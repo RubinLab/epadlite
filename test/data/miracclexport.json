@@ -1,5 +1,5 @@
 {
-  "header": [
+  "waterfallHeaders": [
     "ID",
     "PATIENT_ID",
     "PRE_POST_TREATMT",
@@ -14,7 +14,7 @@
     "IMG_SERIES_ID_ADC",
     "EPAD_NAME"
   ],
-  "data": [
+  "waterfallExport": [
     {
       "PATIENT_ID": "ACRIN-6698-138027",
       "EPAD_NAME": "ACRIN-6698-138027",

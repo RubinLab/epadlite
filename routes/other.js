@@ -614,16 +614,13 @@ async function otherRoutes(fastify) {
   });
 
   fastify.route({
-    method: 'GET',
+    method: 'POST',
     url: '/miracclexport',
     handler: fastify.getMiracclExport,
     schema: {
       params: {
         type: 'object',
         properties: {
-          project: {
-            type: 'string',
-          },
           type: {
             type: 'string',
           },

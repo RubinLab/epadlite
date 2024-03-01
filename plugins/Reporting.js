@@ -1354,9 +1354,9 @@ async function reporting(fastify) {
 
   fastify.decorate('getMiracclExport', (request, reply) => {
     fastify
-      .getMiracclExportInternal(request.query, request.epadAuth)
-      .then(({ header, data }) => {
-        reply.code(200).send({ header, data });
+      .getMiracclExportInternal(request.body, request.query, request.epadAuth)
+      .then(({ waterfallHeaders, waterfallExport }) => {
+        reply.code(200).send({ waterfallHeaders, waterfallExport });
       })
       .catch((err) => {
         reply.send(err);
@@ -1365,19 +1365,37 @@ async function reporting(fastify) {
 
   fastify.decorate(
     'getMiracclExportInternal',
-    (query, epadAuth) =>
+    (body, query, epadAuth) =>
       new Promise(async (resolve, reject) => {
         try {
-          const waterfall = await fastify.getWaterfallProject(
-            query.project,
-            query.type || 'BASELINE',
-            epadAuth,
-            query.metric || 'Export (beta)',
-            query.exportCalcs ||
-              JSON.parse(
-                '[{"field":"ser_original_shape_maximum2ddiameterslice","header":"Longest Diameter"},{"field":"ser_original_shape_voxelvolume","header":"Volume"},{"field":"ser_original_firstorder_median","header":"SER Median"},{"field":"ser_original_firstorder_maximum","header":"SER Max"},{"field":"adc_original_firstorder_median","header":"ADC Median"},{"field":"adc_original_firstorder_maximum","header":"ADC Max"}]'
-              )
+          const defaultType = 'BASELINE';
+          const defaultMetric = 'Export (beta)';
+          const defaultExportCalcs = JSON.parse(
+            '[{"field":"ser_original_shape_maximum2ddiameterslice","header":"Longest Diameter"},{"field":"ser_original_shape_voxelvolume","header":"Volume"},{"field":"ser_original_firstorder_median","header":"SER Median"},{"field":"ser_original_firstorder_maximum","header":"SER Max"},{"field":"adc_original_firstorder_median","header":"ADC Median"},{"field":"adc_original_firstorder_maximum","header":"ADC Max"}]'
           );
+
+          let waterfall;
+          if (body.pairs || body.subjectUIDs)
+            waterfall = await fastify.getWaterfall(
+              body.subjectUIDs,
+              body.projectID,
+              body.pairs,
+              query.type || defaultType,
+              epadAuth,
+              query.metric || defaultMetric,
+              query.templates,
+              query.shapes,
+              query.exportCalcs || defaultExportCalcs
+            );
+          else if (body.projectID) {
+            waterfall = await fastify.getWaterfallProject(
+              body.projectID,
+              query.type || defaultType,
+              epadAuth,
+              query.metric || defaultMetric,
+              query.exportCalcs || defaultExportCalcs
+            );
+          }
           let index = 1;
           let data = [];
           const header = [
@@ -1456,7 +1474,7 @@ async function reporting(fastify) {
             { patientIDs: ['ACRIN'], ADC: 'DWI_TRACE_bValue_Zero', SER: 'CROPPED_DCE' },
           ];
           data = await fastify.addSeriesUIDs(query.seriesInfos || seriesInfos, data, epadAuth);
-          resolve({ header, data });
+          resolve({ waterfallHeaders: header, waterfallExport: data });
         } catch (err) {
           reject(new InternalError('Generating export for miraccl', err));
         }

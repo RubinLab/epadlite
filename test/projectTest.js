@@ -6413,8 +6413,9 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/miracclexport.json'));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/miracclexport?project=miraccl')
+        .post('/miracclexport')
         .query({ username: 'admin' })
+        .send({ projectID: 'miraccl' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.eql(jsonBuffer);
