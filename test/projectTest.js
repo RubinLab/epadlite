@@ -6346,7 +6346,7 @@ describe('Project Tests', () => {
     });
   });
 
-  describe.only('Project Export Tests', () => {
+  describe('Project Export Tests', () => {
     before(async () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
