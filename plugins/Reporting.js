@@ -1369,11 +1369,10 @@ async function reporting(fastify) {
       new Promise(async (resolve, reject) => {
         try {
           const defaultType = 'BASELINE';
-          const defaultMetric = 'Export (beta)';
           const defaultExportCalcs = JSON.parse(
             '[{"field":"ser_original_shape_maximum2ddiameterslice","header":"Longest Diameter"},{"field":"ser_original_shape_voxelvolume","header":"Volume"},{"field":"ser_original_firstorder_median","header":"SER Median"},{"field":"ser_original_firstorder_maximum","header":"SER Max"},{"field":"adc_original_firstorder_median","header":"ADC Median"},{"field":"adc_original_firstorder_maximum","header":"ADC Max"}]'
           );
-
+          // the metric needs to be Export (beta) so that we can get the data
           let waterfall;
           if (body.pairs || body.subjectUIDs)
             waterfall = await fastify.getWaterfall(
@@ -1382,7 +1381,7 @@ async function reporting(fastify) {
               body.pairs,
               query.type || defaultType,
               epadAuth,
-              query.metric || defaultMetric,
+              'Export (beta)',
               query.templates,
               query.shapes,
               query.exportCalcs || defaultExportCalcs
@@ -1392,7 +1391,7 @@ async function reporting(fastify) {
               body.projectID,
               query.type || defaultType,
               epadAuth,
-              query.metric || defaultMetric,
+              'Export (beta)',
               query.exportCalcs || defaultExportCalcs
             );
           }
@@ -1488,7 +1487,7 @@ async function reporting(fastify) {
       const series = seriesList.find((item) => item.seriesDescription === seriesDescription);
       return series.seriesUID;
     } catch (err) {
-      fastify.log.error(`Error getting series UID for study ${study}. ${err.description}`);
+      fastify.log.error(`Error getting series UID for study ${study}. ${err.message}`);
     }
     return null;
   });
@@ -1520,7 +1519,7 @@ async function reporting(fastify) {
       }
       return data;
     } catch (err) {
-      fastify.log.error(`Error adding series UIDs. ${err.description}`);
+      fastify.log.error(`Error adding series UIDs. ${err.message}`);
     }
     return null;
   });
