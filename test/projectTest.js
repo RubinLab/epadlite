@@ -158,18 +158,22 @@ beforeEach(() => {
     .post(`${config.dicomWebConfig.qidoSubPath}/studies`)
     .reply(200);
 
+  // nock request that needs to be called more than once needs to be persisted, otherwise we get no matching nock
   nock(config.dicomWebConfig.baseUrl)
+    .persist()
     .get(
       `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.232867709256560213489962898887/series?includefield=SeriesDescription`
     )
     .reply(200, miracclSeriesResponsePre);
 
   nock(config.dicomWebConfig.baseUrl)
+    .persist()
     .get(
       `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.273794066502136913191366109101/series?includefield=SeriesDescription`
     )
     .reply(200, miracclSeriesResponseOn);
   nock(config.dicomWebConfig.baseUrl)
+    .persist()
     .get(
       `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.297906865092698577172413829097/series?includefield=SeriesDescription`
     )
@@ -6416,6 +6420,40 @@ describe('Project Tests', () => {
         .post('/miracclexport')
         .query({ username: 'admin' })
         .send({ projectID: 'miraccl' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('get miraccl export for single patient with subjectUIDs', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/miracclexport.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/miracclexport')
+        .query({ username: 'admin' })
+        .send({ projectID: 'miraccl', subjectUIDs: ['ACRIN-6698-138027'] })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('get miraccl export for single patient with pairs', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/miracclexport.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/miracclexport')
+        .query({ username: 'admin' })
+        .send({ pairs: [{ projectID: 'miraccl', subjectID: 'ACRIN-6698-138027' }] })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.eql(jsonBuffer);
