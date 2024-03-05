@@ -721,6 +721,17 @@ async function epaddb(fastify, options, done) {
       const projectsLen = projects.length;
       for (let i = 0; i < projectsLen; i += 1) {
         const project = projects[i];
+        // if the mode is teaching get the count of teaching files
+        let numberOfTeachingFiles;
+        if (config.mode === 'teaching') {
+          // eslint-disable-next-line no-await-in-loop
+          const teachingFileCount = await fastify.orm.query(
+            `SELECT count(aim_uid) aimCount FROM project_aim WHERE template='99EPAD_947' and project_id=${project.id};`,
+            { raw: true, type: QueryTypes.SELECT }
+          );
+          numberOfTeachingFiles =
+            teachingFileCount && teachingFileCount[0] ? teachingFileCount[0].subjCount : 0;
+        }
         let numberOfSubjects = project.dataValues.project_subjects.length;
         if (project.projectid === config.XNATUploadProjectID) {
           // eslint-disable-next-line no-await-in-loop
@@ -755,6 +766,7 @@ async function epaddb(fastify, options, done) {
           // numberOfAnnotations:
           // numberOfStudies:
           numberOfSubjects,
+          numberOfTeachingFiles,
           // subjectIDs:
           description: project.dataValues.description,
           loginNames: [],
