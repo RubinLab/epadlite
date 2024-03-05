@@ -730,7 +730,7 @@ async function epaddb(fastify, options, done) {
             { raw: true, type: QueryTypes.SELECT }
           );
           numberOfTeachingFiles =
-            teachingFileCount && teachingFileCount[0] ? teachingFileCount[0].subjCount : 0;
+            teachingFileCount && teachingFileCount[0] ? teachingFileCount[0].aimCount : 0;
         }
         let numberOfSubjects = project.dataValues.project_subjects.length;
         if (project.projectid === config.XNATUploadProjectID) {
