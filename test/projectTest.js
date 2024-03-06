@@ -6367,7 +6367,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' });
     });
 
-    it('should save 24 aims', (done) => {
+    it('should save 12 aims', (done) => {
       fs.readdir('test/data/ispy_annotations', async (err, files) => {
         if (err) {
           throw new Error(`Reading directory test/data/ispy_annotations`, err);
