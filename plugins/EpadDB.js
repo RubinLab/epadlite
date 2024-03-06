@@ -838,7 +838,7 @@ async function epaddb(fastify, options, done) {
   //     });
   // });
 
-  fastify.decorate('getPluginsForProject', async (request, reply) => {
+  fastify.decorate('getPluginsForProject', (request, reply) => {
     const paramProjectId = request.params.projectid;
     models.project
       .findOne({
