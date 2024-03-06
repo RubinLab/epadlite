@@ -9,6 +9,10 @@ const studiesResponse3 = require('./data/studiesResponse3.json');
 const studiesResponse7 = require('./data/studiesResponse7.json');
 const seriesResponse = require('./data/seriesResponse.json');
 const seriesResponse7 = require('./data/seriesResponse7.json');
+const miracclSeriesResponsePre = require('./data/miracclSeriesResponsePre.json');
+const miracclSeriesResponseOn = require('./data/miracclSeriesResponseOn.json');
+const miracclSeriesResponsePost = require('./data/miracclSeriesResponsePost.json');
+
 const config = require('../config/index');
 
 chai.use(chaiHttp);
@@ -153,6 +157,27 @@ beforeEach(() => {
     .matchHeader('content-type', (val) => val.includes('application/x-www-form-urlencoded'))
     .post(`${config.dicomWebConfig.qidoSubPath}/studies`)
     .reply(200);
+
+  // nock request that needs to be called more than once needs to be persisted, otherwise we get no matching nock
+  nock(config.dicomWebConfig.baseUrl)
+    .persist()
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.232867709256560213489962898887/series?includefield=SeriesDescription`
+    )
+    .reply(200, miracclSeriesResponsePre);
+
+  nock(config.dicomWebConfig.baseUrl)
+    .persist()
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.273794066502136913191366109101/series?includefield=SeriesDescription`
+    )
+    .reply(200, miracclSeriesResponseOn);
+  nock(config.dicomWebConfig.baseUrl)
+    .persist()
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.297906865092698577172413829097/series?includefield=SeriesDescription`
+    )
+    .reply(200, miracclSeriesResponsePost);
 });
 
 describe('Project Tests', () => {
@@ -6313,6 +6338,125 @@ describe('Project Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.equal(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+  });
+
+  describe('Project Export Tests', () => {
+    before(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects')
+        .query({ username: 'admin' })
+        .send({
+          projectId: 'miraccl',
+          projectName: 'miraccl',
+          projectDescription: 'miraccl',
+          defaultTemplate: 'ROI',
+          type: 'private',
+        });
+    });
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/miraccl')
+        .query({ username: 'admin' });
+    });
+
+    it('should save 12 aims', (done) => {
+      fs.readdir('test/data/ispy_annotations', async (err, files) => {
+        if (err) {
+          throw new Error(`Reading directory test/data/ispy_annotations`, err);
+        } else {
+          for (let i = 0; i < files.length; i += 1) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              await chai
+                .request(`http://${process.env.host}:${process.env.port}`)
+                .post('/projects/miraccl/aimfiles')
+                .attach('file', `test/data/ispy_annotations/${files[i]}`, `${files[i]}`, {
+                  stream: true,
+                })
+                .query({ username: 'admin' });
+            } catch (err2) {
+              console.log(
+                'Error in aim save for miraccl export test',
+                err2,
+                'File with error',
+                files[i]
+              );
+            }
+          }
+          done();
+        }
+      });
+    });
+
+    // the ones without measurements are ignored as they are seg only annotations and segmentations are not uploaded
+    it('Project miraccl should have 12 aims', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/miraccl/aims?format=summary')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows).to.be.a('array');
+          expect(res.body.rows.length).to.be.eql(12);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('get miraccl export ', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/miracclexport.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/miracclexport')
+        .query({ username: 'admin' })
+        .send({ projectID: 'miraccl' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('get miraccl export for single patient with subjectUIDs', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/miracclexport.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/miracclexport')
+        .query({ username: 'admin' })
+        .send({ projectID: 'miraccl', subjectUIDs: ['ACRIN-6698-138027'] })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('get miraccl export for single patient with pairs', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/miracclexport.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/miracclexport')
+        .query({ username: 'admin' })
+        .send({ pairs: [{ projectID: 'miraccl', subjectID: 'ACRIN-6698-138027' }] })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql(jsonBuffer);
           done();
         })
         .catch((e) => {
