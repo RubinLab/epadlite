@@ -1842,7 +1842,10 @@ async function reporting(fastify) {
                       // add studyuids to the export
                       if (readerReport.stTimepoints[timepoint] === 0) {
                         row[`${lesionNum + 1}_${timepoint}B_Study UID`] =
-                          readerReport.tUIDs[lesionNum][timepoint].studyUID;
+                          readerReport.tUIDs[lesionNum][timepoint] &&
+                          readerReport.tUIDs[lesionNum][timepoint].studyUID
+                            ? readerReport.tUIDs[lesionNum][timepoint].studyUID
+                            : undefined;
                         fastify.addHeader(
                           lesionHeaders,
                           headerKeys,
@@ -1851,7 +1854,10 @@ async function reporting(fastify) {
                         );
                       } else {
                         row[`${lesionNum + 1}_${timepoint}F_Study UID`] =
-                          readerReport.tUIDs[lesionNum][timepoint].studyUID;
+                          readerReport.tUIDs[lesionNum][timepoint] &&
+                          readerReport.tUIDs[lesionNum][timepoint].studyUID
+                            ? readerReport.tUIDs[lesionNum][timepoint].studyUID
+                            : undefined;
                         fastify.addHeader(
                           lesionHeaders,
                           headerKeys,
