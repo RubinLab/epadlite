@@ -14750,14 +14750,13 @@ async function epaddb(fastify, options, done) {
               ).dataValues.id
             : undefined;
 
-          const studyID = study
-            ? (
-                await models.study.findOne({
-                  where: { studyuid: study },
-                  attributes: ['id'],
-                })
-              ).dataValues.id
+          const studyRec = study
+            ? await models.study.findOne({
+                where: { studyuid: study },
+                attributes: ['id'],
+              })
             : undefined;
+          const studyID = studyRec ? studyRec.dataValues.id : undefined;
 
           const qry = { study_id: studyID };
           if (subjectID) qry.subject_id = subjectID;
