@@ -14757,38 +14757,43 @@ async function epaddb(fastify, options, done) {
               })
             : undefined;
           const studyID = studyRec ? studyRec.dataValues.id : undefined;
-
-          const qry = { study_id: studyID };
-          if (subjectID) qry.subject_id = subjectID;
-          if (projectID) qry.project_id = projectID;
-          const significantSeries = await models.project_subject_study_series_significance.findAll({
-            where: qry,
-            raw: true,
-            attributes: [
-              'project_id',
-              'subject_id',
-              'study_id',
-              'series_uid',
-              'significance_order',
-            ],
-            order: [['significance_order', 'ASC']],
-          });
-          if (array) {
-            const significantSeriesArray = [];
-            for (let i = 0; i < significantSeries.length; i += 1) {
-              significantSeriesArray.push({
-                seriesUID: significantSeries[i].series_uid,
-                significanceOrder: significantSeries[i].significance_order,
-              });
-            }
-            resolve(significantSeriesArray);
+          if (!studyID) {
+            reject(new ResourceNotFoundError('Study', study));
           } else {
-            const significantSeriesMap = {};
-            for (let i = 0; i < significantSeries.length; i += 1) {
-              significantSeriesMap[significantSeries[i].series_uid] =
-                significantSeries[i].significance_order;
+            const qry = { study_id: studyID };
+            if (subjectID) qry.subject_id = subjectID;
+            if (projectID) qry.project_id = projectID;
+            const significantSeries = await models.project_subject_study_series_significance.findAll(
+              {
+                where: qry,
+                raw: true,
+                attributes: [
+                  'project_id',
+                  'subject_id',
+                  'study_id',
+                  'series_uid',
+                  'significance_order',
+                ],
+                order: [['significance_order', 'ASC']],
+              }
+            );
+            if (array) {
+              const significantSeriesArray = [];
+              for (let i = 0; i < significantSeries.length; i += 1) {
+                significantSeriesArray.push({
+                  seriesUID: significantSeries[i].series_uid,
+                  significanceOrder: significantSeries[i].significance_order,
+                });
+              }
+              resolve(significantSeriesArray);
+            } else {
+              const significantSeriesMap = {};
+              for (let i = 0; i < significantSeries.length; i += 1) {
+                significantSeriesMap[significantSeries[i].series_uid] =
+                  significantSeries[i].significance_order;
+              }
+              resolve(significantSeriesMap);
             }
-            resolve(significantSeriesMap);
           }
         } catch (err) {
           reject(new InternalError('Getting significant series', err));
