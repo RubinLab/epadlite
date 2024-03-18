@@ -1015,7 +1015,7 @@ async function other(fastify) {
             );
             datasets = [];
             studies = new Set();
-          } else if (studies.length > 0) {
+          } else if (studies.size > 0) {
             await fastify.addProjectReferences(params, epadAuth, studies);
             datasets = [];
             studies = new Set();
@@ -1465,7 +1465,7 @@ async function other(fastify) {
                         resolve(result);
                       })
                       .catch((error) => reject(error));
-                  } else if (studies.length > 0) {
+                  } else if (studies.size > 0) {
                     await fastify.addProjectReferences(params, epadAuth, studies);
                     await fastify.removeProcessing(params, query, zipDir);
                     resolve(result);
