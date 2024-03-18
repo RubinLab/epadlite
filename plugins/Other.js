@@ -1154,41 +1154,33 @@ async function other(fastify) {
       })
   );
 
-  fastify.decorate(
-    'getAimDicomInfo',
-    (jsonBuffer) =>
-      new Promise(async (resolve, reject) => {
-        try {
-          resolve(
-            JSON.stringify({
-              subject: jsonBuffer.ImageAnnotationCollection.person.id.value,
-              study:
-                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid
-                  .root,
-              subjectName: jsonBuffer.ImageAnnotationCollection.person.name.value,
-              studyDesc: '',
-              insertDate:
-                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate
-                  .value,
-              birthdate: jsonBuffer.ImageAnnotationCollection.person.birthDate.value,
-              sex: jsonBuffer.ImageAnnotationCollection.person.sex.value,
-              studyAccessionNumber:
-                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.accessionNumber
-                  .value,
-              studyTime:
-                jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-                  .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startTime
-                  .value,
-            })
-          );
-        } catch (err) {
-          reject(err);
-        }
-      })
-  );
+  fastify.decorate('getAimDicomInfo', (jsonBuffer) => {
+    try {
+      return JSON.stringify({
+        subject: jsonBuffer.ImageAnnotationCollection.person.id.value,
+        study:
+          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root,
+        subjectName: jsonBuffer.ImageAnnotationCollection.person.name.value,
+        studyDesc: '',
+        insertDate:
+          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate.value,
+        birthdate: jsonBuffer.ImageAnnotationCollection.person.birthDate.value,
+        sex: jsonBuffer.ImageAnnotationCollection.person.sex.value,
+        studyAccessionNumber:
+          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.accessionNumber
+            .value,
+        studyTime:
+          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startTime.value,
+      });
+    } catch (err) {
+      fastify.log.error(`Cannnot get DICOM info from aim. Error: ${err.message}`);
+      return null;
+    }
+  });
   fastify.decorate(
     'getDicomInfo',
     (arrayBuffer, params, epadAuth) =>
