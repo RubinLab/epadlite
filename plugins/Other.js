@@ -341,7 +341,6 @@ async function other(fastify) {
       const patientId = csvRow['Medical record number']; // csv Medical record number
       const accessionNumber = csvRow['Accession number']; // csv Accession number
       const suid = csvRow.SUID; // csv SUID
-      let age = csvRow['Current age']; // csv Current age (or deceased)
       const birthDate = csvRow.DOB;
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
@@ -355,7 +354,6 @@ async function other(fastify) {
       if (patientId == null) throw TypeError("Missing 'Medical record number' field");
       if (accessionNumber == null) throw TypeError("Missing 'Accession number' field");
       if (suid == null) throw TypeError("Missing 'SUID' field");
-      if (age == null) throw TypeError("Missing 'Current age' field");
       if (birthDate == null) throw TypeError("Missing 'DOB' field");
       if (sex == null) throw TypeError("Missing 'Sex' field");
       if (modality == null) throw TypeError("Missing 'Modality' field");
@@ -379,12 +377,23 @@ async function other(fastify) {
 
       // generate comment, NN-year old (or deceased) female/male
       const comment = { value: ' ' };
-      if (age.toLowerCase() === 'deceased') {
-        comment.value = `${age} `;
+      let age = '';
+      const studyDate = new Date(date);
+      const dobDate = new Date(birthDate);
+      const timeDiff = studyDate.getTime() - dobDate.getTime();
+      const timeDiffDate = new Date(timeDiff);
+      const dayDiff = Math.round(timeDiff / (1000 * 3600 * 24));
+      const years = timeDiffDate.getFullYear() - 1970;
+      if (dayDiff <= 59) {
+        age = `${dayDiff}-day-old `;
+      } else if (years < 2) {
+        let months = (studyDate.getFullYear() - dobDate.getFullYear()) * 12;
+        months += studyDate.getMonth() - dobDate.getMonth();
+        age = `${months}-month-old `;
       } else {
-        age = age.substring(0, age.length - 6); // format age
-        comment.value = `${age}-year-old `;
+        age = `${years}-year-old `;
       }
+      comment.value = age;
 
       if (sex === 'F') {
         comment.value += 'female';
@@ -479,7 +488,6 @@ async function other(fastify) {
       seedData.aim.studyInstanceUid = suid; // csv SUID
       seedData.study.startTime = ''; // empty
       seedData.study.instanceUid = suid; // csv SUID
-      const studyDate = new Date(date);
       const dateArray = date.split('/');
       if (dateArray.length >= 3) {
         if (dateArray[0].length === 1) {
@@ -522,7 +530,6 @@ async function other(fastify) {
         seedData.person.name = `${nameArray[0].toUpperCase()}^^^^`;
       }
       seedData.person.patientId = patientId; // csv Medical record number
-      const dobDate = new Date(birthDate);
       const dobArray = birthDate.split('/');
       if (dobArray.length >= 3) {
         if (dobArray[0].length === 1) {
@@ -557,7 +564,7 @@ async function other(fastify) {
 
       seedData.image.push({ sopClassUid, sopInstanceUid });
 
-      const answers = fastify.getTeachingTemplateAnswers(seedData, 'nodule1', '', comment);
+      const answers = fastify.getTeachingTemplateAnswers(seedData, 'Teaching File', '', comment);
       const merged = { ...seedData.aim, ...answers };
       seedData.aim = merged;
 
