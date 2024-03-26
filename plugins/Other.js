@@ -1015,6 +1015,10 @@ async function other(fastify) {
             );
             datasets = [];
             studies = new Set();
+          } else if (studies.size > 0) {
+            await fastify.addProjectReferences(params, epadAuth, studies);
+            datasets = [];
+            studies = new Set();
           }
           await fastify.removeProcessing(params, query, dir);
           resolve({ success, errors });
@@ -1150,6 +1154,33 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate('getAimDicomInfo', (jsonBuffer) => {
+    try {
+      return JSON.stringify({
+        subject: jsonBuffer.ImageAnnotationCollection.person.id.value,
+        study:
+          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root,
+        subjectName: jsonBuffer.ImageAnnotationCollection.person.name.value,
+        studyDesc: '',
+        insertDate:
+          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate.value,
+        birthdate: jsonBuffer.ImageAnnotationCollection.person.birthDate.value,
+        sex: jsonBuffer.ImageAnnotationCollection.person.sex.value,
+        studyAccessionNumber:
+          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.accessionNumber
+            .value,
+        studyTime:
+          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startTime.value,
+      });
+    } catch (err) {
+      fastify.log.error(`Cannnot get DICOM info from aim. Error: ${err.message}`);
+      return null;
+    }
+  });
   fastify.decorate(
     'getDicomInfo',
     (arrayBuffer, params, epadAuth) =>
@@ -1434,6 +1465,10 @@ async function other(fastify) {
                         resolve(result);
                       })
                       .catch((error) => reject(error));
+                  } else if (studies.size > 0) {
+                    await fastify.addProjectReferences(params, epadAuth, studies);
+                    await fastify.removeProcessing(params, query, zipDir);
+                    resolve(result);
                   } else {
                     await fastify.removeProcessing(params, query, zipDir);
                     resolve(result);
@@ -1530,6 +1565,8 @@ async function other(fastify) {
                   .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
                   .then((res) => {
                     try {
+                      const dicomInfo = fastify.getAimDicomInfo(jsonBuffer, params, epadAuth);
+                      studies.add(dicomInfo);
                       resolve(res);
                     } catch (errProject) {
                       reject(errProject);
