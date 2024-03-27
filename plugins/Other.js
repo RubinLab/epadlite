@@ -1740,6 +1740,62 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate('computeVolumeStats', (rois) => {
+    let mean = 0;
+    let max = rois[0].Point_value[0];
+    let min = max;
+    let count = 0;
+    let sum = 0;
+    let longestDiameter = rois[0].LengthCm;
+
+    // Calculate Min, Max, volume and mean, and longest diameter.
+    for (let i = 0; i < rois.length; i += 1) {
+      if (rois[i].LengthCm > longestDiameter) {
+        longestDiameter = rois[i].LengthCm;
+      }
+
+      const values = rois[i].Point_value;
+      // eslint-disable-next-line no-loop-func
+      values.forEach((value) => {
+        if (value > max) {
+          max = value;
+        } else if (value < min) {
+          min = value;
+        }
+
+        sum += value;
+      });
+
+      count += values.length;
+    }
+
+    mean = sum / count;
+
+    let stdDev = 0;
+    let stdDevSum = 0;
+
+    // Calculate the standard deviation.
+    for (let i = 0; i < rois.length; i += 1) {
+      const values = rois[i].Point_value;
+
+      // eslint-disable-next-line no-loop-func
+      values.forEach((value) => {
+        stdDevSum += (value - mean) ** 2;
+      });
+    }
+
+    const stdDevMean = stdDevSum / count;
+    stdDev = Math.sqrt(stdDevMean);
+
+    return {
+      mean,
+      stdDev,
+      max,
+      min,
+      longestDiameter,
+    };
+  });
+
   fastify.decorate('createAimJsons', (filteredOsirixArr) => {
     try {
       const aimJsons = [];
@@ -1747,6 +1803,8 @@ async function other(fastify) {
         const aim = new Aim(el.seedData, fastify.enumAimType.imageAnnotation);
         const markupsToSave = el.rois.map((roi) => fastify.formMarupksToSave(roi));
         fastify.createAimMarkups(aim, markupsToSave);
+        const stats = fastify.computeVolumeStats(el.rois);
+        fastify.createVolumeCalcEntity(aim, stats);
         const aimJson = JSON.parse(aim.getAim());
         aimJsons.push(aimJson);
       });
@@ -1857,6 +1915,34 @@ async function other(fastify) {
     if (AreaCm2) {
       const areaId = aim.createAreaCalcEntity({ value: AreaCm2, unit: 'cm2' });
       aim.createImageAnnotationStatement(1, markupId, areaId);
+    }
+  });
+
+  fastify.decorate('createVolumeCalcEntity', (aim, shape) => {
+    const { mean, stdDev, min, max, longestDiameter } = shape;
+    const unit = 'linear';
+
+    if (mean) {
+      aim.createMeanCalcEntity({ mean, unit });
+    }
+
+    if (stdDev) {
+      aim.createStdDevCalcEntity({ stdDev, unit });
+    }
+
+    if (min) {
+      aim.createMinCalcEntity({ min, unit });
+    }
+
+    if (max) {
+      aim.createMaxCalcEntity({ max, unit });
+    }
+
+    if (longestDiameter) {
+      aim.createLengthCalcEntity({
+        value: longestDiameter,
+        unit: 'cm',
+      });
     }
   });
 
