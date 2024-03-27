@@ -1428,7 +1428,7 @@ async function dicomwebserver(fastify) {
             })
             .catch((error) => {
               reject(
-                new InternalError(`Error retrieving series's (${params.series}) instances`, error)
+                new InternalError(`Error retrieving series's (${params.series}) metadata`, error)
               );
             });
         } catch (err) {

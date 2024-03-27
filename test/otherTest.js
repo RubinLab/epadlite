@@ -16,6 +16,17 @@ describe('Other Tests', () => {
       .post(`/templates`)
       .send(jsonBuffer)
       .query({ username: 'admin' });
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/projects')
+      .query({ username: 'admin' })
+      .send({
+        projectId: 'osirix',
+        projectName: 'osirix',
+        projectDescription: 'testdesc',
+        defaultTemplate: 'ROI',
+        type: 'private',
+      });
   });
   after(async () => {
     await chai
@@ -233,6 +244,40 @@ describe('Other Tests', () => {
       .query({ username: 'admin' })
       .then((res) => {
         expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it.('osirix upload should be successful ', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .post('/projects/osirix/files')
+      .attach('files', 'test/data/Original_pre.xml', 'Original_pre.xml')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it.('should return correct longitudinal report for the osirix aim', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/osirix/subjects/Mda-1784-Vehicle-M1-Pre/aims?report=Longitudinal')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.admin.tTable[0][2].mean.value).to.be.eql('2.3772264243937538');
+        expect(res.body.admin.tTable[0][2].minimum.value).to.be.eql('0.48171499371528625');
+        expect(res.body.admin.tTable[0][2].maximum.value).to.be.eql('4.751214981079102');
+        expect(res.body.admin.tTable[0][2]['standard deviation'].value).to.be.eql(
+          '0.9284077443041251'
+        );
+        expect(res.body.admin.tTable[0][2].length.value).to.be.eql('2.042970657348633');
         done();
       })
       .catch((e) => {
