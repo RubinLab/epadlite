@@ -12,6 +12,7 @@ const seriesResponse7 = require('./data/seriesResponse7.json');
 const miracclSeriesResponsePre = require('./data/miracclSeriesResponsePre.json');
 const miracclSeriesResponseOn = require('./data/miracclSeriesResponseOn.json');
 const miracclSeriesResponsePost = require('./data/miracclSeriesResponsePost.json');
+const osirixImageMetadataResponse = require('./data/osirix_image_metadata.json');
 
 const config = require('../config/index');
 
@@ -178,6 +179,11 @@ beforeEach(() => {
       `${config.dicomWebConfig.qidoSubPath}/studies/1.3.6.1.4.1.14519.5.2.1.7695.4164.297906865092698577172413829097/series?includefield=SeriesDescription`
     )
     .reply(200, miracclSeriesResponsePost);
+  nock(config.dicomWebConfig.baseUrl)
+    .get(
+      `${config.dicomWebConfig.qidoSubPath}/studies/1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414/series/1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413/instances/1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416/metadata`
+    )
+    .reply(200, osirixImageMetadataResponse);
 });
 
 describe('Project Tests', () => {
