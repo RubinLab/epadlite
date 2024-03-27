@@ -2002,7 +2002,7 @@ async function other(fastify) {
           const answers = fastify.getTemplateAnswers(seedData, annotation.name, '');
           const merged = { ...seedData.aim, ...answers };
           seedData.aim = merged;
-          seedData.user = { loginName: username, name: username };
+          seedData.user = { loginName: { value: username }, name: { value: username } };
           resolve(seedData);
         } catch (err) {
           reject(new InternalError(`Getting data from image`, err));
