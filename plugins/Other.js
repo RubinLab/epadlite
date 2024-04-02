@@ -3402,7 +3402,7 @@ async function other(fastify) {
           if (rightsFilter) queryParts.push(`(${rightsFilter})`);
         } else if (key === 'studyDate' || key === 'date') {
           // replace -
-          // make stare starts with
+          // make date filter work with starts with
           queryParts.push(
             `(${fastify.getFieldName(key)}:/${cleanedValue.toLowerCase().replaceAll('-', '')}.*/)`
           );
