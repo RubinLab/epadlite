@@ -2858,7 +2858,11 @@ async function other(fastify) {
                   config.prefix ? `/${config.prefix}/decrypt` : '/decrypt'
                 ) &&
                 reqInfo.level !== 'ontology' &&
-                (await fastify.isCreatorOfObject(request, reqInfo)) === false &&
+                ((await fastify.isCreatorOfObject(request, reqInfo)) === false || // if the user is not the creator or it is the owner but url is users (only admins should be able to edit users)
+                  ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
+                    request.raw.url.startsWith(
+                      config.prefix ? `/${config.prefix}/users` : '/users'
+                    ))) &&
                 !(
                   reqInfo.level === 'worklist' &&
                   (await fastify.isAssigneeOfWorklist(
