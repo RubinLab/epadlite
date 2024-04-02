@@ -3402,8 +3402,9 @@ async function other(fastify) {
           if (rightsFilter) queryParts.push(`(${rightsFilter})`);
         } else if (key === 'studyDate' || key === 'date') {
           // replace -
+          // make stare starts with
           queryParts.push(
-            `(${fastify.getFieldName(key)}:/.*${cleanedValue.toLowerCase().replaceAll('-', '')}.*/)`
+            `(${fastify.getFieldName(key)}:/${cleanedValue.toLowerCase().replaceAll('-', '')}.*/)`
           );
         } else {
           queryParts.push(fastify.caseQry(key, value));
