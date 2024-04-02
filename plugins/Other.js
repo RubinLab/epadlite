@@ -2822,7 +2822,9 @@ async function other(fastify) {
                 fastify.hasAccessToProject(request, reqInfo.project) === undefined ||
                 (['project', 'worklist', 'user', 'aim'].includes(reqInfo.level) &&
                   fastify.isOwnerOfProject(request, reqInfo.project) === false &&
-                  (await fastify.isCreatorOfObject(request, reqInfo)) === false)
+                  ((await fastify.isCreatorOfObject(request, reqInfo)) === false || // if the user is not the creator or it is the owner but url is users (only admins should be able to edit users)
+                    ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
+                      request.raw.url.includes('/users/'))))
               )
                 reply.send(new UnauthorizedError('User has no access to project and/or resource'));
               break;
