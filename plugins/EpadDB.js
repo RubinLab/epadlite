@@ -6119,7 +6119,7 @@ async function epaddb(fastify, options, done) {
           new UnauthorizedError('User is not the assignee or the creator of the worklist')
         );
       } else {
-        // TODO if there are no requirements, the worklist completeness is not filled and adding progress to join makes the query to return nothing
+        // I get only the specific user's progress
         list = await models.worklist_study.findAll({
           where: {
             worklist_id: worklistIdKey,
@@ -6143,12 +6143,13 @@ async function epaddb(fastify, options, done) {
             where: { id: list[i].dataValues.project_id },
             attributes: ['projectid'],
           });
+          let completeness = 0;
           if (
             manualProgressMap[
               `${list[i].dataValues.worklist_id}-${list[i].dataValues.project_id}-${list[i].dataValues.subject_id}-${list[i].dataValues.study_id}-${userId}`
             ]
           ) {
-            const completeness = fastify.getManualProgressForUser(
+            completeness = fastify.getManualProgressForUser(
               manualProgressMap,
               list[i].dataValues.worklist_id,
               list[i].dataValues.project_id,
@@ -6173,6 +6174,15 @@ async function epaddb(fastify, options, done) {
               progressType: 'MANUAL',
             });
           } else {
+            // get average if there are multiple requirements
+            if (list[i].dataValues.progress && Array.isArray(list[i].dataValues.progress)) {
+              const completenessSum = list[i].dataValues.progress.reduce(
+                (sum, val) =>
+                  val.dataValues.completeness ? sum + val.dataValues.completeness : sum,
+                0
+              );
+              completeness = Math.floor(completenessSum / list[i].dataValues.progress.length);
+            }
             result.push({
               completionDate: list[i].dataValues.completedate,
               projectID: projectId.dataValues.projectid,
@@ -6186,10 +6196,7 @@ async function epaddb(fastify, options, done) {
               worklistDuedate,
               subjectName: list[i].dataValues.subject.dataValues.name,
               studyDescription: list[i].dataValues.study.dataValues.description,
-              completeness:
-                list[i].dataValues.progress && list[i].dataValues.progress[0]
-                  ? list[i].dataValues.progress[0].dataValues.completeness
-                  : 0, // I get only the specific user's progress
+              completeness, 
               progressType:
                 list[i].dataValues.progress && list[i].dataValues.progress[0] ? 'AUTO' : 'MANUAL',
             });
