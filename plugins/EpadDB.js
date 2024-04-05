@@ -6389,12 +6389,39 @@ async function epaddb(fastify, options, done) {
             where: { template_uid: templateUid },
           });
           await fastify.deleteTemplateInternal(request.params);
+          // remove it from all the projects if it is default template
+          await models.project.update(
+            {
+              defaulttemplate: null,
+              updated_by: request.epadAuth.username,
+              updatetime: Date.now(),
+            },
+            {
+              where: {
+                defaulttemplate: templateUid,
+              },
+            }
+          );
           reply
             .code(200)
             .send(
               `Template deleted from system and removed from ${deletednum + numDeleted} projects`
             );
         } else {
+          // remove it from this project if it is default template
+          await models.project.update(
+            {
+              defaulttemplate: null,
+              updated_by: request.epadAuth.username,
+              updatetime: Date.now(),
+            },
+            {
+              where: {
+                defaulttemplate: templateUid,
+                project_id: project.id,
+              },
+            }
+          );
           reply.code(200).send(`Template deleted from project`);
         }
       }
