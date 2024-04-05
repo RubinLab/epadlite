@@ -6418,7 +6418,7 @@ async function epaddb(fastify, options, done) {
             {
               where: {
                 defaulttemplate: templateUid,
-                project_id: project.id,
+                id: project.id,
               },
             }
           );
