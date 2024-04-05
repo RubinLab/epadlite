@@ -6383,45 +6383,23 @@ async function epaddb(fastify, options, done) {
         const numDeleted = await models.project_template.destroy({
           where: { project_id: project.id, template_uid: templateUid },
         });
+        // remove it from the project if it is default template
+        if (project.defaulttemplate === templateUid) {
+          project.defaulttemplate = null;
+          project.save();
+        }
         // if delete from all or it doesn't exist in any other project, delete from system
         if (request.query.all && request.query.all === 'true') {
           const deletednum = await models.project_template.destroy({
             where: { template_uid: templateUid },
           });
           await fastify.deleteTemplateInternal(request.params);
-          // remove it from all the projects if it is default template
-          await models.project.update(
-            {
-              defaulttemplate: null,
-              updated_by: request.epadAuth.username,
-              updatetime: Date.now(),
-            },
-            {
-              where: {
-                defaulttemplate: templateUid,
-              },
-            }
-          );
           reply
             .code(200)
             .send(
               `Template deleted from system and removed from ${deletednum + numDeleted} projects`
             );
         } else {
-          // remove it from this project if it is default template
-          await models.project.update(
-            {
-              defaulttemplate: null,
-              updated_by: request.epadAuth.username,
-              updatetime: Date.now(),
-            },
-            {
-              where: {
-                defaulttemplate: templateUid,
-                id: project.id,
-              },
-            }
-          );
           reply.code(200).send(`Template deleted from project`);
         }
       }
