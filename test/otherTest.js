@@ -264,7 +264,7 @@ describe('Other Tests', () => {
         done(e);
       });
   });
-  it.('should return correct longitudinal report for the osirix aim', (done) => {
+  it('should return correct longitudinal report for the osirix aim', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .get('/projects/osirix/subjects/Mda-1784-Vehicle-M1-Pre/aims?report=Longitudinal')
