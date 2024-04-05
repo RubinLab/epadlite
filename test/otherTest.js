@@ -33,6 +33,10 @@ describe('Other Tests', () => {
       .request(`http://${process.env.host}:${process.env.port}`)
       .delete('/templates/2.25.182468981370271895711046628549377576999')
       .query({ username: 'admin' });
+    await chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .delete('/projects/osirix')
+      .query({ username: 'admin' });
   });
 
   it('set an api key ', (done) => {
@@ -250,7 +254,7 @@ describe('Other Tests', () => {
         done(e);
       });
   });
-  it.('osirix upload should be successful ', (done) => {
+  it('osirix upload should be successful ', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
       .post('/projects/osirix/files')
