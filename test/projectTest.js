@@ -734,6 +734,21 @@ describe('Project Tests', () => {
         });
     });
 
+    it('project testtemplate should have no default template ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testtemplate')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.defaulttemplate).to.be.eql(null);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
     it('project testtemplate2 should still have ROI Only', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)

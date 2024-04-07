@@ -6366,6 +6366,11 @@ async function epaddb(fastify, options, done) {
       const project = await models.project.findOne({
         where: { projectid: request.params.project },
       });
+      const [templateContainer] = await fastify.getTemplatesFromUIDsInternal(
+        { format: 'summary' },
+        [templateUid]
+      );
+      const templateCode = templateContainer.Template[0].templateCodeValue;
       if (project === null) {
         reply.send(
           new BadRequestError(
@@ -6384,7 +6389,7 @@ async function epaddb(fastify, options, done) {
           where: { project_id: project.id, template_uid: templateUid },
         });
         // remove it from the project if it is default template
-        if (project.defaulttemplate === templateUid) {
+        if (project.defaulttemplate === templateCode) {
           project.defaulttemplate = null;
           project.save();
         }
