@@ -6373,6 +6373,11 @@ async function epaddb(fastify, options, done) {
       const project = await models.project.findOne({
         where: { projectid: request.params.project },
       });
+      const [templateContainer] = await fastify.getTemplatesFromUIDsInternal(
+        { format: 'summary' },
+        [templateUid]
+      );
+      const templateCode = templateContainer.Template[0].templateCodeValue;
       if (project === null) {
         reply.send(
           new BadRequestError(
@@ -6390,6 +6395,11 @@ async function epaddb(fastify, options, done) {
         const numDeleted = await models.project_template.destroy({
           where: { project_id: project.id, template_uid: templateUid },
         });
+        // remove it from the project if it is default template
+        if (project.defaulttemplate === templateCode) {
+          project.defaulttemplate = null;
+          project.save();
+        }
         // if delete from all or it doesn't exist in any other project, delete from system
         if (request.query.all && request.query.all === 'true') {
           const deletednum = await models.project_template.destroy({
