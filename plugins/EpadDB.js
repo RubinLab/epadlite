@@ -6175,7 +6175,11 @@ async function epaddb(fastify, options, done) {
             });
           } else {
             // get average if there are multiple requirements
-            if (list[i].dataValues.progress && Array.isArray(list[i].dataValues.progress)) {
+            if (
+              list[i].dataValues.progress &&
+              Array.isArray(list[i].dataValues.progress) &&
+              list[i].dataValues.progress.length > 0
+            ) {
               const completenessSum = list[i].dataValues.progress.reduce(
                 (sum, val) =>
                   val.dataValues.completeness ? sum + val.dataValues.completeness : sum,
@@ -6196,7 +6200,7 @@ async function epaddb(fastify, options, done) {
               worklistDuedate,
               subjectName: list[i].dataValues.subject.dataValues.name,
               studyDescription: list[i].dataValues.study.dataValues.description,
-              completeness, 
+              completeness,
               progressType:
                 list[i].dataValues.progress && list[i].dataValues.progress[0] ? 'AUTO' : 'MANUAL',
             });
