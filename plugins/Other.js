@@ -1452,38 +1452,37 @@ async function other(fastify) {
                     );
                   }
               }
-              pq.addAll(promisses).then(async (values) => {
-                try {
-                  for (let i = 0; i < values.length; i += 1) {
-                    if (values[i] && values[i].success) {
-                      // one success is enough
-                      result.success = true;
-                      // I cannot break because of errors accumulation, I am not sure about performance
-                      // break;
-                    }
-                    if (values[i] && values[i].errors && values[i].errors.length > 0)
-                      result.errors = result.errors.concat(values[i].errors);
+              const values = await pq.addAll(promisses);
+              try {
+                for (let i = 0; i < values.length; i += 1) {
+                  if (values[i] && values[i].success) {
+                    // one success is enough
+                    result.success = true;
+                    // I cannot break because of errors accumulation, I am not sure about performance
+                    // break;
                   }
-                  if (datasets.length > 0) {
-                    pqDicoms
-                      .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
-                      .then(async () => {
-                        await fastify.removeProcessing(params, query, zipDir);
-                        resolve(result);
-                      })
-                      .catch((error) => reject(error));
-                  } else if (studies.size > 0) {
-                    await fastify.addProjectReferences(params, epadAuth, studies);
-                    await fastify.removeProcessing(params, query, zipDir);
-                    resolve(result);
-                  } else {
-                    await fastify.removeProcessing(params, query, zipDir);
-                    resolve(result);
-                  }
-                } catch (saveDicomErr) {
-                  reject(saveDicomErr);
+                  if (values[i] && values[i].errors && values[i].errors.length > 0)
+                    result.errors = result.errors.concat(values[i].errors);
                 }
-              });
+                if (datasets.length > 0) {
+                  pqDicoms
+                    .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
+                    .then(async () => {
+                      await fastify.removeProcessing(params, query, zipDir);
+                      resolve(result);
+                    })
+                    .catch((error) => reject(error));
+                } else if (studies.size > 0) {
+                  await fastify.addProjectReferences(params, epadAuth, studies);
+                  await fastify.removeProcessing(params, query, zipDir);
+                  resolve(result);
+                } else {
+                  await fastify.removeProcessing(params, query, zipDir);
+                  resolve(result);
+                }
+              } catch (saveDicomErr) {
+                reject(saveDicomErr);
+              }
             } catch (errDir) {
               reject(errDir);
             }
