@@ -1555,7 +1555,7 @@ async function other(fastify) {
               ) {
                 // aim saving via upload, ignore SEG Only annotations if they don't have calculations (like pyradiomics)
                 try {
-                  const res = fastify.saveAimJsonWithProjectRef(
+                  const res = await fastify.saveAimJsonWithProjectRef(
                     jsonBuffer,
                     params,
                     epadAuth,
