@@ -13385,7 +13385,6 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getMonthlyTeachingStats', async (request, reply) => {
     // eslint-disable-next-line prefer-const
     let { year } = request.query;
-    if (!year) year = new Date().getFullYear();
     let yearFilter;
     if (year) yearFilter = ` where year = '${year}'`;
 
