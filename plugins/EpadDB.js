@@ -13385,7 +13385,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getMonthlyTeachingStats', async (request, reply) => {
     // eslint-disable-next-line prefer-const
     const stats = await fastify.orm.query(
-      `select year, month, numOfAims from epadstatistics_monthly_teaching `
+      `select year, month, numOfAims from epadstatistics_monthly_teaching order by year, month`
     );
     reply.send(stats && stats[0] ? stats[0] : null);
   });
