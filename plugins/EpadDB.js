@@ -13387,7 +13387,7 @@ async function epaddb(fastify, options, done) {
     const stats = await fastify.orm.query(
       `select year, month, numOfAims from epadstatistics_monthly_teaching `
     );
-    reply.send(stats);
+    reply.send(stats && stats[0] ? stats[0] : null);
   });
 
   fastify.decorate('getTemplateStats', async (request, reply) => {
