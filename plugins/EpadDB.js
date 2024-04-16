@@ -13382,6 +13382,14 @@ async function epaddb(fastify, options, done) {
     reply.send(statsEdited);
   });
 
+  fastify.decorate('getMonthlyTeachingStats', async (request, reply) => {
+    // eslint-disable-next-line prefer-const
+    const stats = await fastify.orm.query(
+      `select year, month, numOfAims from epadstatistics_monthly_teaching `
+    );
+    reply.send(stats);
+  });
+
   fastify.decorate('getTemplateStats', async (request, reply) => {
     // eslint-disable-next-line prefer-const
     let { year, host, template } = request.query;
