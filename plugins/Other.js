@@ -1381,111 +1381,106 @@ async function other(fastify) {
   fastify.decorate(
     'processFolder',
     (zipDir, params, query, epadAuth, filesOnly = false, zipFilesToIgnore = []) =>
-      new Promise((resolve, reject) => {
+      new Promise(async (resolve, reject) => {
         fastify.log.info(`Processing folder ${zipDir} filesonly: ${filesOnly}`);
         const datasets = [];
         // success variable is to check if there was at least one successful processing
         const result = { success: false, errors: [] };
         const studies = new Set();
-        fs.readdir(zipDir, async (err, files) => {
-          if (err) {
-            reject(new InternalError(`Reading directory ${zipDir}`, err));
-          } else {
-            try {
-              if (!filesOnly) {
-                // keep track of processing
-                for (let i = 0; i < files.length; i += 1) {
-                  if (files[i] !== '__MACOSX')
-                    if (fs.statSync(path.join(zipDir, files[i])).isDirectory() === true)
-                      // eslint-disable-next-line no-await-in-loop
-                      await fastify.addProcessing(
-                        params,
-                        query,
-                        path.join(zipDir, files[i]),
-                        false,
-                        1,
-                        '',
-                        epadAuth
-                      );
-                }
-                await fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
-              }
-              const promisses = [];
-              for (let i = 0; i < files.length; i += 1) {
-                if (files[i] !== '__MACOSX')
-                  if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
-                    try {
-                      if (!filesOnly) {
-                        // eslint-disable-next-line no-await-in-loop
-                        const subdirResult = await fastify.processFolder(
-                          path.join(zipDir, files[i]),
-                          params,
-                          query,
-                          epadAuth
-                        );
-                        if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
-                          result.errors = result.errors.concat(subdirResult.errors);
-                        }
-                        if (subdirResult && subdirResult.success) {
-                          result.success = result.success || subdirResult.success;
-                        }
-                      }
-                    } catch (folderErr) {
-                      reject(folderErr);
-                    }
-                  else {
-                    promisses.push(() =>
-                      fastify
-                        .processFile(
-                          zipDir,
-                          files[i],
-                          datasets,
-                          params,
-                          query,
-                          studies,
-                          epadAuth,
-                          zipFilesToIgnore
-                        )
-                        .catch((error) => {
-                          result.errors.push(error);
-                        })
-                    );
-                  }
-              }
-              const values = await pq.addAll(promisses);
-              try {
-                for (let i = 0; i < values.length; i += 1) {
-                  if (values[i] && values[i].success) {
-                    // one success is enough
-                    result.success = true;
-                    // I cannot break because of errors accumulation, I am not sure about performance
-                    // break;
-                  }
-                  if (values[i] && values[i].errors && values[i].errors.length > 0)
-                    result.errors = result.errors.concat(values[i].errors);
-                }
-                if (datasets.length > 0) {
-                  await pqDicoms.add(() =>
-                    fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
+        const files = fs.readdirSync(zipDir);
+        try {
+          if (!filesOnly) {
+            // keep track of processing
+            for (let i = 0; i < files.length; i += 1) {
+              if (files[i] !== '__MACOSX')
+                if (fs.statSync(path.join(zipDir, files[i])).isDirectory() === true)
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.addProcessing(
+                    params,
+                    query,
+                    path.join(zipDir, files[i]),
+                    false,
+                    1,
+                    '',
+                    epadAuth
                   );
-                  await fastify.removeProcessing(params, query, zipDir);
-                  resolve(result);
-                } else if (studies.size > 0) {
-                  await fastify.addProjectReferences(params, epadAuth, studies);
-                  await fastify.removeProcessing(params, query, zipDir);
-                  resolve(result);
-                } else {
-                  await fastify.removeProcessing(params, query, zipDir);
-                  resolve(result);
-                }
-              } catch (saveDicomErr) {
-                reject(saveDicomErr);
-              }
-            } catch (errDir) {
-              reject(errDir);
             }
+            await fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
           }
-        });
+          const promisses = [];
+          for (let i = 0; i < files.length; i += 1) {
+            if (files[i] !== '__MACOSX')
+              if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
+                try {
+                  if (!filesOnly) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const subdirResult = await fastify.processFolder(
+                      path.join(zipDir, files[i]),
+                      params,
+                      query,
+                      epadAuth
+                    );
+                    if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
+                      result.errors = result.errors.concat(subdirResult.errors);
+                    }
+                    if (subdirResult && subdirResult.success) {
+                      result.success = result.success || subdirResult.success;
+                    }
+                  }
+                } catch (folderErr) {
+                  reject(folderErr);
+                }
+              else {
+                promisses.push(() =>
+                  fastify
+                    .processFile(
+                      zipDir,
+                      files[i],
+                      datasets,
+                      params,
+                      query,
+                      studies,
+                      epadAuth,
+                      zipFilesToIgnore
+                    )
+                    .catch((error) => {
+                      result.errors.push(error);
+                    })
+                );
+              }
+          }
+          const values = await pq.addAll(promisses);
+          try {
+            for (let i = 0; i < values.length; i += 1) {
+              if (values[i] && values[i].success) {
+                // one success is enough
+                result.success = true;
+                // I cannot break because of errors accumulation, I am not sure about performance
+                // break;
+              }
+              if (values[i] && values[i].errors && values[i].errors.length > 0)
+                result.errors = result.errors.concat(values[i].errors);
+            }
+            if (datasets.length > 0) {
+              await pqDicoms.add(() =>
+                fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
+              );
+              await fastify.removeProcessing(params, query, zipDir);
+              resolve(result);
+            } else if (studies.size > 0) {
+              await fastify.addProjectReferences(params, epadAuth, studies);
+              await fastify.removeProcessing(params, query, zipDir);
+              resolve(result);
+            } else {
+              await fastify.removeProcessing(params, query, zipDir);
+              resolve(result);
+            }
+          } catch (saveDicomErr) {
+            reject(saveDicomErr);
+          }
+        } catch (errDir) {
+          reject(new InternalError(`Reading directory ${zipDir}`, errDir));
+        }
       })
   );
 
