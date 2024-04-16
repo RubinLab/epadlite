@@ -1381,114 +1381,106 @@ async function other(fastify) {
   fastify.decorate(
     'processFolder',
     (zipDir, params, query, epadAuth, filesOnly = false, zipFilesToIgnore = []) =>
-      new Promise((resolve, reject) => {
+      new Promise(async (resolve, reject) => {
         fastify.log.info(`Processing folder ${zipDir} filesonly: ${filesOnly}`);
         const datasets = [];
         // success variable is to check if there was at least one successful processing
         const result = { success: false, errors: [] };
         const studies = new Set();
-        fs.readdir(zipDir, async (err, files) => {
-          if (err) {
-            reject(new InternalError(`Reading directory ${zipDir}`, err));
-          } else {
-            try {
-              if (!filesOnly) {
-                // keep track of processing
-                for (let i = 0; i < files.length; i += 1) {
-                  if (files[i] !== '__MACOSX')
-                    if (fs.statSync(path.join(zipDir, files[i])).isDirectory() === true)
-                      // eslint-disable-next-line no-await-in-loop
-                      await fastify.addProcessing(
-                        params,
-                        query,
-                        path.join(zipDir, files[i]),
-                        false,
-                        1,
-                        '',
-                        epadAuth
-                      );
-                }
-                await fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
-              }
-              const promisses = [];
-              for (let i = 0; i < files.length; i += 1) {
-                if (files[i] !== '__MACOSX')
-                  if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
-                    try {
-                      if (!filesOnly) {
-                        // eslint-disable-next-line no-await-in-loop
-                        const subdirResult = await fastify.processFolder(
-                          path.join(zipDir, files[i]),
-                          params,
-                          query,
-                          epadAuth
-                        );
-                        if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
-                          result.errors = result.errors.concat(subdirResult.errors);
-                        }
-                        if (subdirResult && subdirResult.success) {
-                          result.success = result.success || subdirResult.success;
-                        }
-                      }
-                    } catch (folderErr) {
-                      reject(folderErr);
-                    }
-                  else {
-                    promisses.push(() =>
-                      fastify
-                        .processFile(
-                          zipDir,
-                          files[i],
-                          datasets,
-                          params,
-                          query,
-                          studies,
-                          epadAuth,
-                          zipFilesToIgnore
-                        )
-                        .catch((error) => {
-                          result.errors.push(error);
-                        })
-                    );
-                  }
-              }
-              pq.addAll(promisses).then(async (values) => {
-                try {
-                  for (let i = 0; i < values.length; i += 1) {
-                    if (values[i] && values[i].success) {
-                      // one success is enough
-                      result.success = true;
-                      // I cannot break because of errors accumulation, I am not sure about performance
-                      // break;
-                    }
-                    if (values[i] && values[i].errors && values[i].errors.length > 0)
-                      result.errors = result.errors.concat(values[i].errors);
-                  }
-                  if (datasets.length > 0) {
-                    pqDicoms
-                      .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
-                      .then(async () => {
-                        await fastify.removeProcessing(params, query, zipDir);
-                        resolve(result);
-                      })
-                      .catch((error) => reject(error));
-                  } else if (studies.size > 0) {
-                    await fastify.addProjectReferences(params, epadAuth, studies);
-                    await fastify.removeProcessing(params, query, zipDir);
-                    resolve(result);
-                  } else {
-                    await fastify.removeProcessing(params, query, zipDir);
-                    resolve(result);
-                  }
-                } catch (saveDicomErr) {
-                  reject(saveDicomErr);
-                }
-              });
-            } catch (errDir) {
-              reject(errDir);
+        const files = fs.readdirSync(zipDir);
+        try {
+          if (!filesOnly) {
+            // keep track of processing
+            for (let i = 0; i < files.length; i += 1) {
+              if (files[i] !== '__MACOSX')
+                if (fs.statSync(path.join(zipDir, files[i])).isDirectory() === true)
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.addProcessing(
+                    params,
+                    query,
+                    path.join(zipDir, files[i]),
+                    false,
+                    1,
+                    '',
+                    epadAuth
+                  );
             }
+            await fastify.updateProcessing(params, query, zipDir, true, undefined, epadAuth);
           }
-        });
+          const promisses = [];
+          for (let i = 0; i < files.length; i += 1) {
+            if (files[i] !== '__MACOSX')
+              if (fs.statSync(`${zipDir}/${files[i]}`).isDirectory() === true)
+                try {
+                  if (!filesOnly) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const subdirResult = await fastify.processFolder(
+                      path.join(zipDir, files[i]),
+                      params,
+                      query,
+                      epadAuth
+                    );
+                    if (subdirResult && subdirResult.errors && subdirResult.errors.length > 0) {
+                      result.errors = result.errors.concat(subdirResult.errors);
+                    }
+                    if (subdirResult && subdirResult.success) {
+                      result.success = result.success || subdirResult.success;
+                    }
+                  }
+                } catch (folderErr) {
+                  reject(folderErr);
+                }
+              else {
+                promisses.push(() =>
+                  fastify
+                    .processFile(
+                      zipDir,
+                      files[i],
+                      datasets,
+                      params,
+                      query,
+                      studies,
+                      epadAuth,
+                      zipFilesToIgnore
+                    )
+                    .catch((error) => {
+                      result.errors.push(error);
+                    })
+                );
+              }
+          }
+          const values = await pq.addAll(promisses);
+          try {
+            for (let i = 0; i < values.length; i += 1) {
+              if (values[i] && values[i].success) {
+                // one success is enough
+                result.success = true;
+                // I cannot break because of errors accumulation, I am not sure about performance
+                // break;
+              }
+              if (values[i] && values[i].errors && values[i].errors.length > 0)
+                result.errors = result.errors.concat(values[i].errors);
+            }
+            if (datasets.length > 0) {
+              await pqDicoms.add(() =>
+                fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
+              );
+              await fastify.removeProcessing(params, query, zipDir);
+              resolve(result);
+            } else if (studies.size > 0) {
+              await fastify.addProjectReferences(params, epadAuth, studies);
+              await fastify.removeProcessing(params, query, zipDir);
+              resolve(result);
+            } else {
+              await fastify.removeProcessing(params, query, zipDir);
+              resolve(result);
+            }
+          } catch (saveDicomErr) {
+            reject(saveDicomErr);
+          }
+        } catch (errDir) {
+          reject(new InternalError(`Reading directory ${zipDir}`, errDir));
+        }
       })
   );
 
@@ -1535,26 +1527,20 @@ async function other(fastify) {
             } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
               const jsonBuffer = JSON.parse(buffer.toString());
               if ('TemplateContainer' in jsonBuffer) {
-                // is it a template?
-                fastify
-                  .saveTemplateInternal(jsonBuffer)
-                  .then(async () => {
-                    try {
-                      await fastify.addProjectTemplateRelInternal(
-                        jsonBuffer.TemplateContainer.uid,
-                        params.project,
-                        query,
-                        epadAuth
-                      );
-                      fastify.log.info(`Saving successful for ${filename}`);
-                      resolve({ success: true, errors: [] });
-                    } catch (errProject) {
-                      reject(errProject);
-                    }
-                  })
-                  .catch((err) => {
-                    reject(err);
-                  });
+                try {
+                  // is it a template?
+                  await fastify.saveTemplateInternal(jsonBuffer);
+                  await fastify.addProjectTemplateRelInternal(
+                    jsonBuffer.TemplateContainer.uid,
+                    params.project,
+                    query,
+                    epadAuth
+                  );
+                  fastify.log.info(`Saving successful for ${filename}`);
+                  resolve({ success: true, errors: [] });
+                } catch (errProject) {
+                  reject(errProject);
+                }
               } else if (
                 (query.forceSave && query.forceSave === 'true') ||
                 (jsonBuffer.ImageAnnotationCollection &&
@@ -1568,135 +1554,121 @@ async function other(fastify) {
                         .calculationEntityCollection.CalculationEntity.length > 6)))
               ) {
                 // aim saving via upload, ignore SEG Only annotations if they don't have calculations (like pyradiomics)
-                fastify
-                  .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
-                  .then((res) => {
-                    try {
-                      const dicomInfo = fastify.getAimDicomInfo(jsonBuffer, params, epadAuth);
-                      studies.add(dicomInfo);
-                      resolve(res);
-                    } catch (errProject) {
-                      reject(errProject);
-                    }
-                  })
-                  .catch((err) => {
-                    reject(err);
-                  });
+                try {
+                  const res = await fastify.saveAimJsonWithProjectRef(
+                    jsonBuffer,
+                    params,
+                    epadAuth,
+                    filename
+                  );
+                  const dicomInfo = fastify.getAimDicomInfo(jsonBuffer, params, epadAuth);
+                  studies.add(dicomInfo);
+                  resolve(res);
+                } catch (errProject) {
+                  reject(errProject);
+                }
               } else {
                 reject(new Error(`SEG Only aim upload not supported (${filename})`));
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
-              fastify
-                .parseOsirix(`${dir}/${filename}`)
-                .then((osirixObj) => {
-                  const { filteredOsirix, nonSupported } = fastify.filterOsirixAnnotations(
-                    osirixObj.Images
-                  );
-                  const keys = Object.keys(filteredOsirix);
-                  const values = Object.values(filteredOsirix);
-                  const { username } = epadAuth;
-                  const promiseArr = [];
-                  const result = { errors: [] };
-                  values.forEach((annotation) => {
-                    promiseArr.push(
-                      fastify.getImageMetaDataforOsirix(annotation, username).catch((error) => {
-                        result.errors.push(error);
-                      })
-                    );
-                  });
-                  Promise.all(promiseArr).then((seedDataArr) => {
-                    if (result.errors.length === promiseArr.length) {
-                      reject(new InternalError(`Can not find the image`, result.errors[0]));
-                    } else {
-                      seedDataArr.forEach((seedData, i) => {
-                        if (seedData) {
-                          filteredOsirix[keys[i]] = { ...values[i], seedData };
-                        }
-                      });
-                      const aimJsons = fastify.createAimJsons(Object.values(filteredOsirix));
-                      const aimsavePromises = [];
-                      aimJsons.forEach((jsonBuffer) => {
-                        aimsavePromises.push(
-                          fastify
-                            .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
-                            .catch((error) => {
-                              result.errors.push(error);
-                            })
-                        );
-                      });
-                      Promise.all(aimsavePromises)
-                        .then(() => {
-                          try {
-                            const uploadMsg = 'Upload Failed as ';
-                            let errMessage = 'none of the files were uploaded successfully';
-                            if (result.errors.length === promiseArr.length) {
-                              reject(new InternalError(uploadMsg, new Error(errMessage)));
-                            } else {
-                              // eslint-disable-next-line no-lonely-if
-                              if (nonSupported.length) {
-                                errMessage = `Not supported shapes in: ${nonSupported.join(', ')}`;
-                                const error = new InternalError(
-                                  'Upload completed with errors',
-                                  new Error(errMessage)
-                                );
-                                if (result.errors.length > 0) {
-                                  fastify.log.info(`Saving successful`);
-                                  resolve({ success: true, errors: [...result.errors, error] });
-                                } else {
-                                  fastify.log.info(`Saving successful`);
-                                  resolve({ success: true, errors: [error] });
-                                }
-                              } else {
-                                fastify.log.info(`Saving successful`);
-                                resolve({ success: true, errors: result.errors });
-                              }
-                            }
-                          } catch (errProject) {
-                            reject(errProject);
-                          }
-                        })
-                        .catch((err) => {
-                          const uploadMsg = 'Upload Failed as ';
-                          const errMessage = 'none of the files were uploaded successfully';
-                          reject(new InternalError(uploadMsg + errMessage, err));
-                        });
-                    }
-                  });
-                })
-                .catch(() => {
-                  reject(
-                    new BadRequestError(
-                      'Uploading files',
-                      new Error(`Unsupported filetype for file ${dir}/${filename}`)
-                    )
+              try {
+                const osirixObj = await fastify.parseOsirix(`${dir}/${filename}`);
+                const { filteredOsirix, nonSupported } = fastify.filterOsirixAnnotations(
+                  osirixObj.Images
+                );
+                const keys = Object.keys(filteredOsirix);
+                const values = Object.values(filteredOsirix);
+                const { username } = epadAuth;
+                const promiseArr = [];
+                const result = { errors: [] };
+                values.forEach((annotation) => {
+                  promiseArr.push(
+                    fastify.getImageMetaDataforOsirix(annotation, username).catch((error) => {
+                      result.errors.push(error);
+                    })
                   );
                 });
+                const seedDataArr = await Promise.all(promiseArr);
+                if (result.errors.length === promiseArr.length) {
+                  reject(new InternalError(`Can not find the image`, result.errors[0]));
+                } else {
+                  seedDataArr.forEach((seedData, i) => {
+                    if (seedData) {
+                      filteredOsirix[keys[i]] = { ...values[i], seedData };
+                    }
+                  });
+                  const aimJsons = fastify.createAimJsons(Object.values(filteredOsirix));
+                  const aimsavePromises = [];
+                  aimJsons.forEach((jsonBuffer) => {
+                    aimsavePromises.push(
+                      fastify
+                        .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
+                        .catch((error) => {
+                          result.errors.push(error);
+                        })
+                    );
+                  });
+                  try {
+                    await Promise.all(aimsavePromises);
+                    try {
+                      const uploadMsg = 'Upload Failed as ';
+                      let errMessage = 'none of the files were uploaded successfully';
+                      if (result.errors.length === promiseArr.length) {
+                        reject(new InternalError(uploadMsg, new Error(errMessage)));
+                      } else {
+                        // eslint-disable-next-line no-lonely-if
+                        if (nonSupported.length) {
+                          errMessage = `Not supported shapes in: ${nonSupported.join(', ')}`;
+                          const error = new InternalError(
+                            'Upload completed with errors',
+                            new Error(errMessage)
+                          );
+                          if (result.errors.length > 0) {
+                            fastify.log.info(`Saving successful`);
+                            resolve({ success: true, errors: [...result.errors, error] });
+                          } else {
+                            fastify.log.info(`Saving successful`);
+                            resolve({ success: true, errors: [error] });
+                          }
+                        } else {
+                          fastify.log.info(`Saving successful`);
+                          resolve({ success: true, errors: result.errors });
+                        }
+                      }
+                    } catch (errProject) {
+                      reject(errProject);
+                    }
+                  } catch (err) {
+                    const uploadMsg = 'Upload Failed as ';
+                    const errMessage = 'none of the files were uploaded successfully';
+                    reject(new InternalError(uploadMsg + errMessage, err));
+                  }
+                }
+              } catch (err) {
+                reject(err);
+              }
             } else if (
               filename.endsWith('zip') &&
               !filename.startsWith('__MACOSX') &&
               !zipFilesToIgnore.includes(path.join(dir, filename))
             ) {
-              fastify
-                .processZip(dir, filename, params, query, epadAuth)
-                .then((result) => {
-                  resolve(result);
-                })
-                .catch((err) => reject(err));
+              const result = await fastify.processZip(dir, filename, params, query, epadAuth);
+              resolve(result);
             } else if (fastify.checkFileType(filename) && filename !== '.DS_Store')
-              // check .DS_Store just in case
-              fastify
-                .saveOtherFileToProjectInternal(
+              try {
+                // check .DS_Store just in case
+                await fastify.saveOtherFileToProjectInternal(
                   filename,
                   params,
                   query,
                   buffer,
                   Buffer.byteLength(buffer),
                   epadAuth
-                )
-                .then(() => {
-                  resolve({ success: true, errors: [] });
-                })
-                .catch((err) => reject(err));
+                );
+                resolve({ success: true, errors: [] });
+              } catch (err) {
+                reject(err);
+              }
             else {
               // check to see if it is a dicom file with no dcm extension
               const ext = fastify.getExtension(filename);
