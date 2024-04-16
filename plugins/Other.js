@@ -2616,6 +2616,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/templatestats`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/teachingstats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
