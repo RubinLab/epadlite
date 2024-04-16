@@ -13390,7 +13390,8 @@ async function epaddb(fastify, options, done) {
     if (year) yearFilter = ` where year = '${year}'`;
 
     const stats = await fastify.orm.query(
-      `select year, month, numOfAims from epadstatistics_monthly_teaching ${yearFilter} order by year, month`
+      `select id, year, month, numOfAims as cumulative, numOfAims-(select numOfAims from epadstatistics_monthly_teaching where id = main
+        .id -1) as month_count from epadstatistics_monthly_teaching as main ${yearFilter} order by year, month`
     );
     reply.send(stats && stats[0] ? stats[0] : null);
   });
