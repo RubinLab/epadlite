@@ -1175,10 +1175,13 @@ async function other(fastify) {
             .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate.value,
         birthdate: jsonBuffer.ImageAnnotationCollection.person.birthDate.value,
         sex: jsonBuffer.ImageAnnotationCollection.person.sex.value,
-        studyAccessionNumber:
-          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.accessionNumber
-            .value,
+        studyAccessionNumber: jsonBuffer.ImageAnnotationCollection.imageAnnotations
+          .ImageAnnotation[0].imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy
+          .accessionNumber
+          ? jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
+              .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.accessionNumber
+              .value
+          : '',
         studyTime:
           jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
             .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startTime.value,
