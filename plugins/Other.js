@@ -1527,26 +1527,20 @@ async function other(fastify) {
             } else if (filename.endsWith('json') && !filename.startsWith('__MACOSX')) {
               const jsonBuffer = JSON.parse(buffer.toString());
               if ('TemplateContainer' in jsonBuffer) {
-                // is it a template?
-                fastify
-                  .saveTemplateInternal(jsonBuffer)
-                  .then(async () => {
-                    try {
-                      await fastify.addProjectTemplateRelInternal(
-                        jsonBuffer.TemplateContainer.uid,
-                        params.project,
-                        query,
-                        epadAuth
-                      );
-                      fastify.log.info(`Saving successful for ${filename}`);
-                      resolve({ success: true, errors: [] });
-                    } catch (errProject) {
-                      reject(errProject);
-                    }
-                  })
-                  .catch((err) => {
-                    reject(err);
-                  });
+                try {
+                  // is it a template?
+                  await fastify.saveTemplateInternal(jsonBuffer);
+                  await fastify.addProjectTemplateRelInternal(
+                    jsonBuffer.TemplateContainer.uid,
+                    params.project,
+                    query,
+                    epadAuth
+                  );
+                  fastify.log.info(`Saving successful for ${filename}`);
+                  resolve({ success: true, errors: [] });
+                } catch (errProject) {
+                  reject(errProject);
+                }
               } else if (
                 (query.forceSave && query.forceSave === 'true') ||
                 (jsonBuffer.ImageAnnotationCollection &&
@@ -1560,135 +1554,121 @@ async function other(fastify) {
                         .calculationEntityCollection.CalculationEntity.length > 6)))
               ) {
                 // aim saving via upload, ignore SEG Only annotations if they don't have calculations (like pyradiomics)
-                fastify
-                  .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
-                  .then((res) => {
-                    try {
-                      const dicomInfo = fastify.getAimDicomInfo(jsonBuffer, params, epadAuth);
-                      studies.add(dicomInfo);
-                      resolve(res);
-                    } catch (errProject) {
-                      reject(errProject);
-                    }
-                  })
-                  .catch((err) => {
-                    reject(err);
-                  });
+                try {
+                  const res = fastify.saveAimJsonWithProjectRef(
+                    jsonBuffer,
+                    params,
+                    epadAuth,
+                    filename
+                  );
+                  const dicomInfo = fastify.getAimDicomInfo(jsonBuffer, params, epadAuth);
+                  studies.add(dicomInfo);
+                  resolve(res);
+                } catch (errProject) {
+                  reject(errProject);
+                }
               } else {
                 reject(new Error(`SEG Only aim upload not supported (${filename})`));
               }
             } else if (filename.endsWith('xml') && !filename.startsWith('__MACOSX')) {
-              fastify
-                .parseOsirix(`${dir}/${filename}`)
-                .then((osirixObj) => {
-                  const { filteredOsirix, nonSupported } = fastify.filterOsirixAnnotations(
-                    osirixObj.Images
-                  );
-                  const keys = Object.keys(filteredOsirix);
-                  const values = Object.values(filteredOsirix);
-                  const { username } = epadAuth;
-                  const promiseArr = [];
-                  const result = { errors: [] };
-                  values.forEach((annotation) => {
-                    promiseArr.push(
-                      fastify.getImageMetaDataforOsirix(annotation, username).catch((error) => {
-                        result.errors.push(error);
-                      })
-                    );
-                  });
-                  Promise.all(promiseArr).then((seedDataArr) => {
-                    if (result.errors.length === promiseArr.length) {
-                      reject(new InternalError(`Can not find the image`, result.errors[0]));
-                    } else {
-                      seedDataArr.forEach((seedData, i) => {
-                        if (seedData) {
-                          filteredOsirix[keys[i]] = { ...values[i], seedData };
-                        }
-                      });
-                      const aimJsons = fastify.createAimJsons(Object.values(filteredOsirix));
-                      const aimsavePromises = [];
-                      aimJsons.forEach((jsonBuffer) => {
-                        aimsavePromises.push(
-                          fastify
-                            .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
-                            .catch((error) => {
-                              result.errors.push(error);
-                            })
-                        );
-                      });
-                      Promise.all(aimsavePromises)
-                        .then(() => {
-                          try {
-                            const uploadMsg = 'Upload Failed as ';
-                            let errMessage = 'none of the files were uploaded successfully';
-                            if (result.errors.length === promiseArr.length) {
-                              reject(new InternalError(uploadMsg, new Error(errMessage)));
-                            } else {
-                              // eslint-disable-next-line no-lonely-if
-                              if (nonSupported.length) {
-                                errMessage = `Not supported shapes in: ${nonSupported.join(', ')}`;
-                                const error = new InternalError(
-                                  'Upload completed with errors',
-                                  new Error(errMessage)
-                                );
-                                if (result.errors.length > 0) {
-                                  fastify.log.info(`Saving successful`);
-                                  resolve({ success: true, errors: [...result.errors, error] });
-                                } else {
-                                  fastify.log.info(`Saving successful`);
-                                  resolve({ success: true, errors: [error] });
-                                }
-                              } else {
-                                fastify.log.info(`Saving successful`);
-                                resolve({ success: true, errors: result.errors });
-                              }
-                            }
-                          } catch (errProject) {
-                            reject(errProject);
-                          }
-                        })
-                        .catch((err) => {
-                          const uploadMsg = 'Upload Failed as ';
-                          const errMessage = 'none of the files were uploaded successfully';
-                          reject(new InternalError(uploadMsg + errMessage, err));
-                        });
-                    }
-                  });
-                })
-                .catch(() => {
-                  reject(
-                    new BadRequestError(
-                      'Uploading files',
-                      new Error(`Unsupported filetype for file ${dir}/${filename}`)
-                    )
+              try {
+                const osirixObj = await fastify.parseOsirix(`${dir}/${filename}`);
+                const { filteredOsirix, nonSupported } = fastify.filterOsirixAnnotations(
+                  osirixObj.Images
+                );
+                const keys = Object.keys(filteredOsirix);
+                const values = Object.values(filteredOsirix);
+                const { username } = epadAuth;
+                const promiseArr = [];
+                const result = { errors: [] };
+                values.forEach((annotation) => {
+                  promiseArr.push(
+                    fastify.getImageMetaDataforOsirix(annotation, username).catch((error) => {
+                      result.errors.push(error);
+                    })
                   );
                 });
+                const seedDataArr = await Promise.all(promiseArr);
+                if (result.errors.length === promiseArr.length) {
+                  reject(new InternalError(`Can not find the image`, result.errors[0]));
+                } else {
+                  seedDataArr.forEach((seedData, i) => {
+                    if (seedData) {
+                      filteredOsirix[keys[i]] = { ...values[i], seedData };
+                    }
+                  });
+                  const aimJsons = fastify.createAimJsons(Object.values(filteredOsirix));
+                  const aimsavePromises = [];
+                  aimJsons.forEach((jsonBuffer) => {
+                    aimsavePromises.push(
+                      fastify
+                        .saveAimJsonWithProjectRef(jsonBuffer, params, epadAuth, filename)
+                        .catch((error) => {
+                          result.errors.push(error);
+                        })
+                    );
+                  });
+                  try {
+                    await Promise.all(aimsavePromises);
+                    try {
+                      const uploadMsg = 'Upload Failed as ';
+                      let errMessage = 'none of the files were uploaded successfully';
+                      if (result.errors.length === promiseArr.length) {
+                        reject(new InternalError(uploadMsg, new Error(errMessage)));
+                      } else {
+                        // eslint-disable-next-line no-lonely-if
+                        if (nonSupported.length) {
+                          errMessage = `Not supported shapes in: ${nonSupported.join(', ')}`;
+                          const error = new InternalError(
+                            'Upload completed with errors',
+                            new Error(errMessage)
+                          );
+                          if (result.errors.length > 0) {
+                            fastify.log.info(`Saving successful`);
+                            resolve({ success: true, errors: [...result.errors, error] });
+                          } else {
+                            fastify.log.info(`Saving successful`);
+                            resolve({ success: true, errors: [error] });
+                          }
+                        } else {
+                          fastify.log.info(`Saving successful`);
+                          resolve({ success: true, errors: result.errors });
+                        }
+                      }
+                    } catch (errProject) {
+                      reject(errProject);
+                    }
+                  } catch (err) {
+                    const uploadMsg = 'Upload Failed as ';
+                    const errMessage = 'none of the files were uploaded successfully';
+                    reject(new InternalError(uploadMsg + errMessage, err));
+                  }
+                }
+              } catch (err) {
+                reject(err);
+              }
             } else if (
               filename.endsWith('zip') &&
               !filename.startsWith('__MACOSX') &&
               !zipFilesToIgnore.includes(path.join(dir, filename))
             ) {
-              fastify
-                .processZip(dir, filename, params, query, epadAuth)
-                .then((result) => {
-                  resolve(result);
-                })
-                .catch((err) => reject(err));
+              const result = await fastify.processZip(dir, filename, params, query, epadAuth);
+              resolve(result);
             } else if (fastify.checkFileType(filename) && filename !== '.DS_Store')
-              // check .DS_Store just in case
-              fastify
-                .saveOtherFileToProjectInternal(
+              try {
+                // check .DS_Store just in case
+                await fastify.saveOtherFileToProjectInternal(
                   filename,
                   params,
                   query,
                   buffer,
                   Buffer.byteLength(buffer),
                   epadAuth
-                )
-                .then(() => {
-                  resolve({ success: true, errors: [] });
-                })
-                .catch((err) => reject(err));
+                );
+                resolve({ success: true, errors: [] });
+              } catch (err) {
+                reject(err);
+              }
             else {
               // check to see if it is a dicom file with no dcm extension
               const ext = fastify.getExtension(filename);
