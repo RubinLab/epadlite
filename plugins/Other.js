@@ -1465,13 +1465,11 @@ async function other(fastify) {
                     result.errors = result.errors.concat(values[i].errors);
                 }
                 if (datasets.length > 0) {
-                  pqDicoms
-                    .add(() => fastify.sendDicomsInternal(params, epadAuth, studies, datasets))
-                    .then(async () => {
-                      await fastify.removeProcessing(params, query, zipDir);
-                      resolve(result);
-                    })
-                    .catch((error) => reject(error));
+                  await pqDicoms.add(() =>
+                    fastify.sendDicomsInternal(params, epadAuth, studies, datasets)
+                  );
+                  await fastify.removeProcessing(params, query, zipDir);
+                  resolve(result);
                 } else if (studies.size > 0) {
                   await fastify.addProjectReferences(params, epadAuth, studies);
                   await fastify.removeProcessing(params, query, zipDir);
