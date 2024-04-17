@@ -612,5 +612,27 @@ async function otherRoutes(fastify) {
     },
     handler: fastify.processCsv,
   });
+
+  fastify.route({
+    method: 'POST',
+    url: '/miracclexport',
+    handler: fastify.getMiracclExport,
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          type: {
+            type: 'string',
+          },
+          metric: {
+            type: 'string',
+          },
+          exportcalcs: {
+            type: 'string',
+          },
+        },
+      },
+    },
+  });
 }
 module.exports = otherRoutes;

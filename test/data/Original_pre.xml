@@ -1,0 +1,4471 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Images</key>
+	<array>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>59</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.042103614658117294</real>
+					<key>AreaPix2</key>
+					<real>13.625728607177734</real>
+					<key>Center</key>
+					<string>(9.159781, 1.940960, 0.129375)</string>
+					<key>Dev</key>
+					<real>0.34337460994720459</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>0.78578692674636841</real>
+					<key>LengthPix</key>
+					<real>13.174656867980957</real>
+					<key>Max</key>
+					<real>2.009119987487793</real>
+					<key>Mean</key>
+					<real>1.4635564088821411</real>
+					<key>Median</key>
+					<real>1.4460159540176392</real>
+					<key>Min</key>
+					<real>0.85913997888565063</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>9</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(8.649812, 1.940960, 1.419486)</string>
+						<string>(8.407221, 1.940960, 0.687708)</string>
+						<string>(8.407221, 1.940960, -0.044070)</string>
+						<string>(8.407221, 1.940960, -0.784138)</string>
+						<string>(9.151284, 1.940960, -1.441333)</string>
+						<string>(9.862488, 1.940960, -0.709555)</string>
+						<string>(9.975926, 1.940960, 0.022508)</string>
+						<string>(9.991928, 1.940960, 0.754286)</string>
+						<string>(9.603896, 1.940960, 1.486064)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(86.782303, 79.783269)</string>
+						<string>(86.157375, 78.863951)</string>
+						<string>(86.157375, 77.944632)</string>
+						<string>(86.157375, 77.014904)</string>
+						<string>(88.074118, 76.189276)</string>
+						<string>(89.906212, 77.108594)</string>
+						<string>(90.198435, 78.028272)</string>
+						<string>(90.239655, 78.947591)</string>
+						<string>(89.240063, 79.866909)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.1936730146408081</real>
+						<real>1.2801600694656372</real>
+						<real>1.1764010190963745</real>
+						<real>1.4999849796295166</real>
+						<real>1.9040399789810181</real>
+						<real>1.9642499685287476</real>
+						<real>1.6687349081039429</real>
+						<real>1.2073049545288086</real>
+						<real>1.5548349618911743</real>
+						<real>1.9635900259017944</real>
+						<real>2.009119987487793</real>
+						<real>1.6891050338745117</real>
+						<real>1.2233649492263794</real>
+						<real>1.4460159540176392</real>
+						<real>1.8152419328689575</real>
+						<real>1.8798779249191284</real>
+						<real>1.6443569660186768</real>
+						<real>1.2440999746322632</real>
+						<real>0.85913997888565063</real>
+						<real>1.1357159614562988</real>
+						<real>1.2431728839874268</real>
+						<real>1.1496479511260986</real>
+						<real>0.90996593236923218</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>33.661796569824219</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>60</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.083685524761676788</real>
+					<key>AreaPix2</key>
+					<real>27.082620620727539</real>
+					<key>Center</key>
+					<string>(9.369044, 1.552768, 0.220634)</string>
+					<key>Dev</key>
+					<real>0.60166394710540771</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.1373333930969238</real>
+					<key>LengthPix</key>
+					<real>18.542079925537109</real>
+					<key>Max</key>
+					<real>2.9594500064849854</real>
+					<key>Mean</key>
+					<real>1.8435112237930298</real>
+					<key>Median</key>
+					<real>1.8482849597930908</real>
+					<key>Min</key>
+					<real>0.81799197196960449</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>15</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(9.037847, 1.552768, 2.442428)</string>
+						<string>(8.585236, 1.552768, 1.710364)</string>
+						<string>(8.342642, 1.552768, 0.962013)</string>
+						<string>(8.294067, 1.552768, 0.213668)</string>
+						<string>(8.294067, 1.552768, -0.542973)</string>
+						<string>(8.407221, 1.552768, -1.291610)</string>
+						<string>(8.730677, 1.552768, -2.023388)</string>
+						<string>(9.473627, 1.552768, -2.001762)</string>
+						<string>(10.024216, 1.552768, -1.665640)</string>
+						<string>(10.299097, 1.552768, -0.925578)</string>
+						<string>(10.428537, 1.552768, -0.177227)</string>
+						<string>(10.460825, 1.552768, 0.596273)</string>
+						<string>(10.444823, 1.552768, 1.344618)</string>
+						<string>(10.234521, 1.552768, 2.076396)</string>
+						<string>(9.460095, 1.552768, 2.531919)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(87.781897, 81.068377)</string>
+						<string>(86.615950, 80.148700)</string>
+						<string>(85.991022, 79.208561)</string>
+						<string>(85.865889, 78.268422)</string>
+						<string>(85.865889, 77.317873)</string>
+						<string>(86.157375, 76.377375)</string>
+						<string>(86.990614, 75.458057)</string>
+						<string>(88.904485, 75.485223)</string>
+						<string>(90.322832, 75.907485)</string>
+						<string>(91.030937, 76.837214)</string>
+						<string>(91.364380, 77.777353)</string>
+						<string>(91.447557, 78.749081)</string>
+						<string>(91.406336, 79.689220)</string>
+						<string>(90.864584, 80.608538)</string>
+						<string>(88.869625, 81.180802)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.1722099781036377</real>
+						<real>1.3917800188064575</real>
+						<real>1.3891799449920654</real>
+						<real>1.8135601282119751</real>
+						<real>1.9587211608886719</real>
+						<real>1.8036540746688843</real>
+						<real>1.4825980663299561</real>
+						<real>1.1139171123504639</real>
+						<real>2.0960099697113037</real>
+						<real>2.6185948848724365</real>
+						<real>2.7222747802734375</real>
+						<real>2.4012448787689209</real>
+						<real>1.8482849597930908</real>
+						<real>1.2865499258041382</real>
+						<real>2.2969448566436768</real>
+						<real>2.8841948509216309</real>
+						<real>2.9594500064849854</real>
+						<real>2.5479400157928467</real>
+						<real>1.9183499813079834</real>
+						<real>1.297605037689209</real>
+						<real>2.2265100479125977</real>
+						<real>2.7856400012969971</real>
+						<real>2.8345458507537842</real>
+						<real>2.4511630535125732</real>
+						<real>1.86114501953125</real>
+						<real>1.2854269742965698</real>
+						<real>1.4257079362869263</real>
+						<real>1.9547369480133057</real>
+						<real>2.1608788967132568</real>
+						<real>1.9802788496017456</real>
+						<real>1.5268439054489136</real>
+						<real>0.99871796369552612</real>
+						<real>1.2920039892196655</real>
+						<real>1.3481639623641968</real>
+						<real>1.2319560050964355</real>
+						<real>1.0251359939575195</real>
+						<real>0.81799197196960449</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>68.209915161132812</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>61</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.12573686242103577</real>
+					<key>AreaPix2</key>
+					<real>40.691432952880859</real>
+					<key>Center</key>
+					<string>(9.366861, 1.164576, 0.177260)</string>
+					<key>Dev</key>
+					<real>0.8434106707572937</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.3697404861450195</real>
+					<key>LengthPix</key>
+					<real>22.738700866699219</real>
+					<key>Max</key>
+					<real>3.7321548461914062</real>
+					<key>Mean</key>
+					<real>2.1223666667938232</real>
+					<key>Median</key>
+					<real>1.9751040935516357</real>
+					<key>Min</key>
+					<real>0.6475139856338501</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>26</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(7.967212, 1.164576, -0.183980)</string>
+						<string>(8.003720, 1.164576, 0.511360)</string>
+						<string>(8.065521, 1.164576, 1.199394)</string>
+						<string>(8.208212, 1.164576, 1.832565)</string>
+						<string>(8.436938, 1.164576, 2.350841)</string>
+						<string>(8.717128, 1.164576, 2.733167)</string>
+						<string>(9.037391, 1.164576, 2.912563)</string>
+						<string>(9.376297, 1.164576, 2.918854)</string>
+						<string>(9.715145, 1.164576, 2.837385)</string>
+						<string>(10.044966, 1.164576, 2.664930)</string>
+						<string>(10.352283, 1.164576, 2.364050)</string>
+						<string>(10.609176, 1.164576, 1.906200)</string>
+						<string>(10.734457, 1.164576, 1.266295)</string>
+						<string>(10.748232, 1.164576, 0.566163)</string>
+						<string>(10.673077, 1.164576, -0.105298)</string>
+						<string>(10.631063, 1.164576, -0.793678)</string>
+						<string>(10.497405, 1.164576, -1.423193)</string>
+						<string>(10.277178, 1.164576, -1.950730)</string>
+						<string>(10.011428, 1.164576, -2.386492)</string>
+						<string>(9.690454, 1.164576, -2.621523)</string>
+						<string>(9.351742, 1.164576, -2.679338)</string>
+						<string>(9.024839, 1.164576, -2.580919)</string>
+						<string>(8.710926, 1.164576, -2.370703)</string>
+						<string>(8.419678, 1.164576, -2.014011)</string>
+						<string>(8.201983, 1.164576, -1.476077)</string>
+						<string>(8.038032, 1.164576, -0.862795)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(85.023894, 77.768869)</string>
+						<string>(85.117940, 78.642407)</string>
+						<string>(85.277146, 79.506776)</string>
+						<string>(85.644723, 80.302219)</string>
+						<string>(86.233934, 80.953313)</string>
+						<string>(86.955713, 81.433625)</string>
+						<string>(87.780724, 81.658995)</string>
+						<string>(88.653765, 81.666903)</string>
+						<string>(89.526647, 81.564554)</string>
+						<string>(90.376279, 81.347899)</string>
+						<string>(91.167949, 80.969908)</string>
+						<string>(91.829711, 80.394724)</string>
+						<string>(92.152439, 79.590817)</string>
+						<string>(92.187929, 78.711260)</string>
+						<string>(91.994322, 77.867715)</string>
+						<string>(91.886094, 77.002911)</string>
+						<string>(91.541783, 76.212068)</string>
+						<string>(90.974472, 75.549331)</string>
+						<string>(90.289887, 75.001894)</string>
+						<string>(89.463047, 74.706629)</string>
+						<string>(88.590506, 74.633995)</string>
+						<string>(87.748394, 74.757639)</string>
+						<string>(86.939736, 75.021725)</string>
+						<string>(86.189471, 75.469830)</string>
+						<string>(85.628678, 76.145633)</string>
+						<string>(85.206327, 76.916084)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.2971400022506714</real>
+						<real>1.7509700059890747</real>
+						<real>2.0580298900604248</real>
+						<real>2.0494499206542969</real>
+						<real>1.7663099765777588</real>
+						<real>1.3414700031280518</real>
+						<real>1.1805920600891113</real>
+						<real>1.9751040935516357</real>
+						<real>2.5858471393585205</real>
+						<real>2.7816810607910156</real>
+						<real>2.5772111415863037</real>
+						<real>2.1454110145568848</real>
+						<real>1.6230601072311401</real>
+						<real>1.8310049772262573</real>
+						<real>2.7259199619293213</real>
+						<real>3.2733447551727295</real>
+						<real>3.3452999591827393</real>
+						<real>3.0001049041748047</real>
+						<real>2.4217648506164551</real>
+						<real>1.7892899513244629</real>
+						<real>1.2109498977661133</real>
+						<real>1.9369100332260132</real>
+						<real>2.9774298667907715</real>
+						<real>3.6490700244903564</real>
+						<real>3.7321548461914062</real>
+						<real>3.3009250164031982</real>
+						<real>2.607680082321167</real>
+						<real>1.8458499908447266</real>
+						<real>1.1512999534606934</real>
+						<real>1.8908889293670654</real>
+						<real>2.9500899314880371</real>
+						<real>3.5874409675598145</real>
+						<real>3.6236200332641602</real>
+						<real>3.1880419254302979</real>
+						<real>2.5077910423278809</real>
+						<real>1.7933629751205444</real>
+						<real>1.2024869918823242</real>
+						<real>2.1353368759155273</real>
+						<real>2.8405797481536865</real>
+						<real>3.1268308162689209</real>
+						<real>2.8875358104705811</real>
+						<real>2.2556939125061035</real>
+						<real>1.5024628639221191</real>
+						<real>0.88313394784927368</real>
+						<real>1.8357839584350586</real>
+						<real>1.9343880414962769</real>
+						<real>1.7706600427627563</real>
+						<real>1.4523839950561523</real>
+						<real>1.1163959503173828</real>
+						<real>0.82177197933197021</real>
+						<real>0.92809796333312988</real>
+						<real>0.9540179967880249</real>
+						<real>0.84021300077438354</real>
+						<real>0.6475139856338501</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>114.60780334472656</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>62</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.17768444120883942</real>
+					<key>AreaPix2</key>
+					<real>57.502899169921875</real>
+					<key>Center</key>
+					<string>(9.366162, 0.776384, 0.105429)</string>
+					<key>Dev</key>
+					<real>1.0060473680496216</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.6395537853240967</real>
+					<key>LengthPix</key>
+					<real>27.159040451049805</real>
+					<key>Max</key>
+					<real>4.3133149147033691</real>
+					<key>Mean</key>
+					<real>2.3400459289550781</real>
+					<key>Median</key>
+					<real>2.2925760746002197</real>
+					<key>Min</key>
+					<real>0.63034200668334961</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>20</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(8.633810, 0.776384, 3.315361)</string>
+						<string>(8.067760, 0.776384, 2.567009)</string>
+						<string>(7.841456, 0.776384, 1.802091)</string>
+						<string>(7.744305, 0.776384, 1.070313)</string>
+						<string>(7.663439, 0.776384, 0.313387)</string>
+						<string>(7.663439, 0.776384, -0.418391)</string>
+						<string>(7.844762, 0.776384, -1.153649)</string>
+						<string>(8.174913, 0.776384, -2.079490)</string>
+						<string>(8.568946, 0.776384, -2.647151)</string>
+						<string>(9.361302, 0.776384, -3.362071)</string>
+						<string>(10.137369, 0.776384, -2.938036)</string>
+						<string>(10.557977, 0.776384, -2.206258)</string>
+						<string>(10.848861, 0.776384, -1.432764)</string>
+						<string>(10.848861, 0.776384, -0.676123)</string>
+						<string>(11.010589, 0.776384, 0.063938)</string>
+						<string>(11.026875, 0.776384, 0.812289)</string>
+						<string>(10.994586, 0.776384, 1.594073)</string>
+						<string>(10.671130, 0.776384, 2.359282)</string>
+						<string>(9.959640, 0.776384, 3.091054)</string>
+						<string>(9.199574, 0.776384, 3.357082)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(86.741083, 82.165026)</string>
+						<string>(85.282915, 81.224887)</string>
+						<string>(84.699944, 80.263928)</string>
+						<string>(84.449677, 79.344610)</string>
+						<string>(84.241367, 78.393702)</string>
+						<string>(84.241367, 77.474383)</string>
+						<string>(84.708461, 76.550686)</string>
+						<string>(85.558942, 75.387570)</string>
+						<string>(86.573994, 74.674429)</string>
+						<string>(88.615135, 73.776289)</string>
+						<string>(90.614319, 74.308998)</string>
+						<string>(91.697823, 75.228317)</string>
+						<string>(92.447149, 76.200045)</string>
+						<string>(92.447149, 77.150594)</string>
+						<string>(92.863768, 78.080322)</string>
+						<string>(92.905724, 79.020461)</string>
+						<string>(92.822548, 80.002599)</string>
+						<string>(91.989309, 80.963917)</string>
+						<string>(90.156479, 81.883236)</string>
+						<string>(88.198515, 82.217436)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.6840889453887939</real>
+						<real>1.9538639783859253</real>
+						<real>1.8679319620132446</real>
+						<real>1.5315299034118652</real>
+						<real>1.1263229846954346</real>
+						<real>2.3136100769042969</real>
+						<real>2.6340599060058594</real>
+						<real>2.6149499416351318</real>
+						<real>2.2887799739837646</real>
+						<real>1.782039999961853</real>
+						<real>1.2232999801635742</real>
+						<real>1.650238037109375</real>
+						<real>2.6879551410675049</real>
+						<real>3.3991551399230957</real>
+						<real>3.5886392593383789</real>
+						<real>3.3418781757354736</real>
+						<real>2.8425140380859375</real>
+						<real>2.2081491947174072</real>
+						<real>1.5115541219711304</real>
+						<real>2.4040799140930176</real>
+						<real>3.3614997863769531</real>
+						<real>3.8331899642944336</real>
+						<real>3.8060548305511475</real>
+						<real>3.427919864654541</real>
+						<real>2.875499963760376</real>
+						<real>2.248154878616333</real>
+						<real>1.602449893951416</real>
+						<real>1.0270799398422241</real>
+						<real>1.2443900108337402</real>
+						<real>2.4301998615264893</real>
+						<real>3.5848350524902344</real>
+						<real>4.254155158996582</real>
+						<real>4.3133149147033691</real>
+						<real>3.8799099922180176</real>
+						<real>3.176224946975708</real>
+						<real>2.349869966506958</real>
+						<real>1.5265599489212036</real>
+						<real>0.87145000696182251</real>
+						<real>1.1946219205856323</real>
+						<real>2.390388011932373</real>
+						<real>3.481191873550415</real>
+						<real>4.0516190528869629</real>
+						<real>4.0724968910217285</real>
+						<real>3.6811058521270752</real>
+						<real>3.0373198986053467</real>
+						<real>2.2925760746002197</real>
+						<real>1.5878720283508301</real>
+						<real>1.0064339637756348</real>
+						<real>1.9181008338928223</real>
+						<real>2.8276798725128174</real>
+						<real>3.5348577499389648</real>
+						<real>3.8213667869567871</real>
+						<real>3.566720724105835</real>
+						<real>2.8714108467102051</real>
+						<real>2.0059499740600586</real>
+						<real>1.2461398839950562</real>
+						<real>0.72897893190383911</real>
+						<real>1.3208400011062622</real>
+						<real>1.9729440212249756</real>
+						<real>2.4086160659790039</real>
+						<real>2.5050599575042725</real>
+						<real>2.2789080142974854</real>
+						<real>1.8546839952468872</real>
+						<real>1.395251989364624</real>
+						<real>1.0808639526367188</real>
+						<real>1.2520979642868042</real>
+						<real>1.2845789194107056</real>
+						<real>1.1429100036621094</real>
+						<real>0.8918910026550293</real>
+						<real>0.63034200668334961</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>163.80322265625</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>63</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.1941148042678833</real>
+					<key>AreaPix2</key>
+					<real>62.820152282714844</real>
+					<key>Center</key>
+					<string>(9.447778, 0.388192, 0.112783)</string>
+					<key>Dev</key>
+					<real>1.0705690383911133</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.7221355438232422</real>
+					<key>LengthPix</key>
+					<real>28.48883056640625</real>
+					<key>Max</key>
+					<real>4.6866898536682129</real>
+					<key>Mean</key>
+					<real>2.6224079132080078</real>
+					<key>Median</key>
+					<real>2.6802101135253906</real>
+					<key>Min</key>
+					<real>0.73634397983551025</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>29</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(7.706250, 0.388192, -0.349032)</string>
+						<string>(7.741382, 0.388192, 0.431816)</string>
+						<string>(7.799658, 0.388192, 1.207739)</string>
+						<string>(7.849338, 0.388192, 1.979119)</string>
+						<string>(8.014945, 0.388192, 2.672109)</string>
+						<string>(8.288345, 0.388192, 3.221879)</string>
+						<string>(8.617523, 0.388192, 3.610672)</string>
+						<string>(8.997127, 0.388192, 3.629960)</string>
+						<string>(9.368831, 0.388192, 3.462528)</string>
+						<string>(9.738154, 0.388192, 3.264287)</string>
+						<string>(10.104726, 0.388192, 3.033701)</string>
+						<string>(10.460213, 0.388192, 2.739920)</string>
+						<string>(10.782960, 0.388192, 2.318678)</string>
+						<string>(11.024135, 0.388192, 1.715320)</string>
+						<string>(11.127637, 0.388192, 0.965548)</string>
+						<string>(11.181726, 0.388192, 0.192759)</string>
+						<string>(11.171736, 0.388192, -0.549422)</string>
+						<string>(11.117777, 0.388192, -1.317001)</string>
+						<string>(10.970405, 0.388192, -2.022543)</string>
+						<string>(10.681369, 0.388192, -2.534558)</string>
+						<string>(10.368797, 0.388192, -2.983936)</string>
+						<string>(10.036238, 0.388192, -3.374150)</string>
+						<string>(9.669612, 0.388192, -3.593628)</string>
+						<string>(9.289168, 0.388192, -3.550437)</string>
+						<string>(8.950957, 0.388192, -3.197013)</string>
+						<string>(8.657814, 0.388192, -2.702428)</string>
+						<string>(8.349344, 0.388192, -2.236155)</string>
+						<string>(8.079021, 0.388192, -1.681599)</string>
+						<string>(7.842241, 0.388192, -1.066629)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(84.351643, 77.561516)</string>
+						<string>(84.442147, 78.542483)</string>
+						<string>(84.592267, 79.517258)</string>
+						<string>(84.720248, 80.486331)</string>
+						<string>(85.146859, 81.356921)</string>
+						<string>(85.851148, 82.047588)</string>
+						<string>(86.699127, 82.536020)</string>
+						<string>(87.677002, 82.560249)</string>
+						<string>(88.634530, 82.349908)</string>
+						<string>(89.585924, 82.100864)</string>
+						<string>(90.530229, 81.811180)</string>
+						<string>(91.445974, 81.442111)</string>
+						<string>(92.277389, 80.912911)</string>
+						<string>(92.898664, 80.154921)</string>
+						<string>(93.165294, 79.213000)</string>
+						<string>(93.304626, 78.242158)</string>
+						<string>(93.278892, 77.309768)</string>
+						<string>(93.139893, 76.345472)</string>
+						<string>(92.760257, 75.459114)</string>
+						<string>(92.015684, 74.815882)</string>
+						<string>(91.210485, 74.251339)</string>
+						<string>(90.353795, 73.761115)</string>
+						<string>(89.409353, 73.485393)</string>
+						<string>(88.429315, 73.539646)</string>
+						<string>(87.558070, 73.983653)</string>
+						<string>(86.802920, 74.604991)</string>
+						<string>(86.008288, 75.190758)</string>
+						<string>(85.311921, 75.887438)</string>
+						<string>(84.701966, 76.660009)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.2774780988693237</real>
+						<real>1.9274309873580933</real>
+						<real>2.2505669593811035</real>
+						<real>2.2347269058227539</real>
+						<real>1.943666934967041</real>
+						<real>2.1686599254608154</real>
+						<real>2.6995799541473389</real>
+						<real>2.9981899261474609</real>
+						<real>2.9868800640106201</real>
+						<real>2.6802101135253906</real>
+						<real>2.1542301177978516</real>
+						<real>1.5354299545288086</real>
+						<real>2.1461730003356934</real>
+						<real>3.2948882579803467</real>
+						<real>3.9773862361907959</real>
+						<real>4.0949883460998535</real>
+						<real>3.844163179397583</real>
+						<real>3.3889951705932617</real>
+						<real>2.7486610412597656</real>
+						<real>1.9733260869979858</real>
+						<real>1.2349480390548706</real>
+						<real>1.7362349033355713</real>
+						<real>2.9975399971008301</real>
+						<real>3.9213447570800781</real>
+						<real>4.2468299865722656</real>
+						<real>4.0921196937561035</real>
+						<real>3.7207348346710205</real>
+						<real>3.2802298069000244</real>
+						<real>2.7344248294830322</real>
+						<real>2.0637450218200684</real>
+						<real>1.37767493724823</real>
+						<real>1.6126899719238281</real>
+						<real>2.962785005569458</real>
+						<real>4.1296000480651855</real>
+						<real>4.6866898536682129</real>
+						<real>4.6381149291992188</real>
+						<real>4.1980400085449219</real>
+						<real>3.5578649044036865</real>
+						<real>2.7734148502349854</real>
+						<real>1.9209599494934082</real>
+						<real>1.1700049638748169</real>
+						<real>2.8379778861999512</real>
+						<real>3.8271088600158691</real>
+						<real>4.2368040084838867</real>
+						<real>4.1731691360473633</real>
+						<real>3.8345448970794678</real>
+						<real>3.326894998550415</real>
+						<real>2.6922609806060791</real>
+						<real>1.9911320209503174</real>
+						<real>1.3038740158081055</real>
+						<real>2.5025999546051025</real>
+						<real>3.3782517910003662</real>
+						<real>3.9602997303009033</real>
+						<real>4.1289029121398926</real>
+						<real>3.8337507247924805</real>
+						<real>3.1675949096679688</real>
+						<real>2.3391568660736084</real>
+						<real>1.5752189159393311</real>
+						<real>0.99704092741012573</real>
+						<real>1.9217519760131836</real>
+						<real>2.5860600471496582</real>
+						<real>2.9488320350646973</real>
+						<real>2.9415960311889648</real>
+						<real>2.6196479797363281</real>
+						<real>2.1165840625762939</real>
+						<real>1.5863039493560791</real>
+						<real>1.119636058807373</real>
+						<real>0.73634397983551025</real>
+						<real>1.7272440195083618</real>
+						<real>1.7114489078521729</real>
+						<real>1.4942070245742798</real>
+						<real>1.1656709909439087</real>
+						<real>0.83454298973083496</real>
+						<real>0.89290499687194824</real>
+						<real>0.78961998224258423</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>196.68058776855469</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>64</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.21100737154483795</real>
+					<key>AreaPix2</key>
+					<real>68.2869873046875</real>
+					<key>Center</key>
+					<string>(9.525471, 0.000000, 0.080493)</string>
+					<key>Dev</key>
+					<real>1.0872815847396851</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.8400030136108398</real>
+					<key>LengthPix</key>
+					<real>30.053081512451172</real>
+					<key>Max</key>
+					<real>4.7512149810791016</real>
+					<key>Mean</key>
+					<real>2.6860795021057129</real>
+					<key>Median</key>
+					<real>2.720844030380249</real>
+					<key>Min</key>
+					<real>0.7894899845123291</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>22</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(8.601237, 0.000000, 3.905984)</string>
+						<string>(8.132337, 0.000000, 3.157347)</string>
+						<string>(7.857458, 0.000000, 2.367566)</string>
+						<string>(7.857458, 0.000000, 1.627219)</string>
+						<string>(7.825170, 0.000000, 0.887151)</string>
+						<string>(7.792882, 0.000000, 0.080511)</string>
+						<string>(7.760594, 0.000000, -0.659550)</string>
+						<string>(8.003184, 0.000000, -1.391328)</string>
+						<string>(8.391216, 0.000000, -2.164828)</string>
+						<string>(8.827826, 0.000000, -2.896606)</string>
+						<string>(9.183573, 0.000000, -3.636667)</string>
+						<string>(9.927352, 0.000000, -3.761249)</string>
+						<string>(10.622553, 0.000000, -3.021187)</string>
+						<string>(11.172317, 0.000000, -2.272836)</string>
+						<string>(11.382622, 0.000000, -1.524485)</string>
+						<string>(11.447198, 0.000000, -0.767565)</string>
+						<string>(11.359183, 0.000000, -0.085439)</string>
+						<string>(11.236993, 0.000000, 0.833618)</string>
+						<string>(11.123742, 0.000000, 1.527494)</string>
+						<string>(10.881433, 0.000000, 2.292704)</string>
+						<string>(10.153656, 0.000000, 3.041055)</string>
+						<string>(9.393591, 0.000000, 3.589957)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(86.657171, 82.907014)</string>
+						<string>(85.449268, 81.966517)</string>
+						<string>(84.741163, 80.974327)</string>
+						<string>(84.741163, 80.044240)</string>
+						<string>(84.657988, 79.114511)</string>
+						<string>(84.574810, 78.101143)</string>
+						<string>(84.491634, 77.171414)</string>
+						<string>(85.116562, 76.252095)</string>
+						<string>(86.116154, 75.280367)</string>
+						<string>(87.240879, 74.361049)</string>
+						<string>(88.157295, 73.431320)</string>
+						<string>(90.073301, 73.274810)</string>
+						<string>(91.864176, 74.204538)</string>
+						<string>(93.280388, 75.144677)</string>
+						<string>(93.822140, 76.084816)</string>
+						<string>(93.988493, 77.035724)</string>
+						<string>(93.761764, 77.892660)</string>
+						<string>(93.447001, 79.047253)</string>
+						<string>(93.155254, 79.918960)</string>
+						<string>(92.531061, 80.880278)</string>
+						<string>(90.656275, 81.820416)</string>
+						<string>(88.698311, 82.509995)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.6154820919036865</real>
+						<real>1.6156051158905029</real>
+						<real>1.3135170936584473</real>
+						<real>0.87366902828216553</real>
+						<real>2.4165899753570557</real>
+						<real>2.5008389949798584</real>
+						<real>2.2856128215789795</real>
+						<real>1.8192239999771118</real>
+						<real>1.2363119125366211</real>
+						<real>2.8174901008605957</real>
+						<real>3.1294898986816406</real>
+						<real>3.1609499454498291</real>
+						<real>2.903939962387085</real>
+						<real>2.4113700389862061</real>
+						<real>1.7907500267028809</real>
+						<real>1.2064000368118286</real>
+						<real>0.7894899845123291</real>
+						<real>3.5327591896057129</real>
+						<real>4.0580310821533203</real>
+						<real>4.109593391418457</real>
+						<real>3.9306502342224121</real>
+						<real>3.619373083114624</real>
+						<real>3.0928311347961426</real>
+						<real>2.3387050628662109</real>
+						<real>1.5406371355056763</real>
+						<real>0.9123680591583252</real>
+						<real>3.4437148571014404</real>
+						<real>4.2265796661376953</real>
+						<real>4.3804798126220703</real>
+						<real>4.1596198081970215</real>
+						<real>3.8592448234558105</real>
+						<real>3.582899808883667</real>
+						<real>3.1957199573516846</real>
+						<real>2.5686450004577637</real>
+						<real>1.7973899841308594</real>
+						<real>1.1126699447631836</real>
+						<real>3.4566550254821777</real>
+						<real>4.4504847526550293</real>
+						<real>4.7512149810791016</real>
+						<real>4.547490119934082</real>
+						<real>4.1127800941467285</real>
+						<real>3.6154298782348633</real>
+						<real>3.0378949642181396</real>
+						<real>2.3188400268554688</real>
+						<real>1.5448299646377563</real>
+						<real>0.91422498226165771</real>
+						<real>3.1886138916015625</real>
+						<real>3.9962780475616455</real>
+						<real>4.2067737579345703</real>
+						<real>4.0408940315246582</real>
+						<real>3.7373049259185791</real>
+						<real>3.3899579048156738</real>
+						<real>2.9696810245513916</real>
+						<real>2.3978240489959717</real>
+						<real>1.6818230152130127</real>
+						<real>2.9103689193725586</real>
+						<real>3.6797246932983398</real>
+						<real>4.068272590637207</real>
+						<real>4.0589847564697266</real>
+						<real>3.6860458850860596</real>
+						<real>3.0988378524780273</real>
+						<real>2.455643892288208</real>
+						<real>1.8386368751525879</real>
+						<real>1.2776159048080444</real>
+						<real>2.5707240104675293</real>
+						<real>3.1309199333190918</real>
+						<real>3.2994000911712646</real>
+						<real>3.1278960704803467</real>
+						<real>2.720844030380249</real>
+						<real>2.2121639251708984</real>
+						<real>1.7124480009078979</real>
+						<real>1.2614400386810303</real>
+						<real>1.7894519567489624</real>
+						<real>2.1123180389404297</real>
+						<real>2.2599809169769287</real>
+						<real>2.1636719703674316</real>
+						<real>1.8453419208526611</real>
+						<real>1.2725050449371338</real>
+						<real>1.2563199996948242</real>
+						<real>1.1225500106811523</real>
+						<real>0.93268501758575439</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>217.57243347167969</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>65</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.20697353780269623</real>
+					<key>AreaPix2</key>
+					<real>66.981544494628906</real>
+					<key>Center</key>
+					<string>(9.520972, -0.388192, 0.169675)</string>
+					<key>Dev</key>
+					<real>0.91965001821517944</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.7873269319534302</real>
+					<key>LengthPix</key>
+					<real>29.537618637084961</real>
+					<key>Max</key>
+					<real>4.4287347793579102</real>
+					<key>Mean</key>
+					<real>2.7757699489593506</real>
+					<key>Median</key>
+					<real>2.8569629192352295</real>
+					<key>Min</key>
+					<real>0.76480197906494141</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>33</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(7.623969, -0.388192, 0.319205)</string>
+						<string>(7.670189, -0.388192, 1.059758)</string>
+						<string>(7.772435, -0.388192, 1.707079)</string>
+						<string>(7.892998, -0.388192, 2.268606)</string>
+						<string>(7.996944, -0.388192, 2.820946)</string>
+						<string>(8.242336, -0.388192, 3.287820)</string>
+						<string>(8.530036, -0.388192, 3.671014)</string>
+						<string>(8.849147, -0.388192, 3.931011)</string>
+						<string>(9.206052, -0.388192, 3.854995)</string>
+						<string>(9.549747, -0.388192, 3.602456)</string>
+						<string>(9.891862, -0.388192, 3.337144)</string>
+						<string>(10.234065, -0.388192, 3.074584)</string>
+						<string>(10.557515, -0.388192, 2.760228)</string>
+						<string>(10.858720, -0.388192, 2.382998)</string>
+						<string>(11.090426, -0.388192, 1.868487)</string>
+						<string>(11.224913, -0.388192, 1.213174)</string>
+						<string>(11.292323, -0.388192, 0.506909)</string>
+						<string>(11.301477, -0.388192, -0.185747)</string>
+						<string>(11.315255, -0.388192, -0.863166)</string>
+						<string>(11.254544, -0.388192, -1.536254)</string>
+						<string>(11.087124, -0.388192, -2.173858)</string>
+						<string>(10.840535, -0.388192, -2.706964)</string>
+						<string>(10.524270, -0.388192, -3.068362)</string>
+						<string>(10.194258, -0.388192, -3.328839)</string>
+						<string>(9.872798, -0.388192, -3.524208)</string>
+						<string>(9.540125, -0.388192, -3.609054)</string>
+						<string>(9.203445, -0.388192, -3.511132)</string>
+						<string>(8.909139, -0.388192, -3.161990)</string>
+						<string>(8.659378, -0.388192, -2.618936)</string>
+						<string>(8.432656, -0.388192, -2.050953)</string>
+						<string>(8.204220, -0.388192, -1.515145)</string>
+						<string>(7.978149, -0.388192, -0.948552)</string>
+						<string>(7.757360, -0.388192, -0.362787)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(84.139688, 78.401012)</string>
+						<string>(84.258753, 79.331350)</string>
+						<string>(84.522138, 80.144568)</string>
+						<string>(84.832719, 80.850003)</string>
+						<string>(85.100484, 81.543898)</string>
+						<string>(85.732626, 82.130425)</string>
+						<string>(86.473756, 82.611827)</string>
+						<string>(87.295799, 82.938453)</string>
+						<string>(88.215205, 82.842959)</string>
+						<string>(89.100577, 82.525695)</string>
+						<string>(89.981881, 82.192389)</string>
+						<string>(90.863408, 81.862545)</string>
+						<string>(91.696632, 81.467623)</string>
+						<string>(92.472552, 80.993713)</string>
+						<string>(93.069433, 80.347340)</string>
+						<string>(93.415876, 79.524089)</string>
+						<string>(93.589533, 78.636815)</string>
+						<string>(93.613112, 77.766644)</string>
+						<string>(93.648602, 76.915619)</string>
+						<string>(93.492210, 76.070033)</string>
+						<string>(93.060930, 75.269021)</string>
+						<string>(92.425706, 74.599290)</string>
+						<string>(91.610995, 74.145269)</string>
+						<string>(90.760866, 73.818042)</string>
+						<string>(89.932771, 73.572602)</string>
+						<string>(89.075790, 73.466014)</string>
+						<string>(88.208486, 73.589029)</string>
+						<string>(87.450339, 74.027647)</string>
+						<string>(86.806943, 74.709876)</string>
+						<string>(86.222900, 75.423425)</string>
+						<string>(85.634435, 76.096546)</string>
+						<string>(85.052070, 76.808352)</string>
+						<string>(84.483306, 77.544237)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.83971107006073</real>
+						<real>2.0313808917999268</real>
+						<real>2.4442110061645508</real>
+						<real>2.5957798957824707</real>
+						<real>2.4364888668060303</real>
+						<real>2.271359920501709</real>
+						<real>2.8109900951385498</real>
+						<real>3.1358599662780762</real>
+						<real>3.1967000961303711</real>
+						<real>2.9690699577331543</real>
+						<real>2.5058801174163818</real>
+						<real>1.9086600542068481</real>
+						<real>2.5468580722808838</real>
+						<real>3.393059253692627</real>
+						<real>3.7680902481079102</real>
+						<real>3.8190171718597412</real>
+						<real>3.7569141387939453</real>
+						<real>3.5993072986602783</real>
+						<real>3.2207200527191162</real>
+						<real>2.5573990345001221</real>
+						<real>1.7616170644760132</real>
+						<real>3.5176949501037598</real>
+						<real>4.1652898788452148</real>
+						<real>4.2520947456359863</real>
+						<real>4.071465015411377</real>
+						<real>3.8798997402191162</real>
+						<real>3.7685248851776123</real>
+						<real>3.549689769744873</real>
+						<real>2.9901149272918701</real>
+						<real>2.1693148612976074</real>
+						<real>1.3841549158096313</real>
+						<real>2.4329550266265869</real>
+						<real>3.6851749420166016</real>
+						<real>4.3785648345947266</real>
+						<real>4.4287347793579102</real>
+						<real>4.13177490234375</real>
+						<real>3.7586898803710938</real>
+						<real>3.4657900333404541</real>
+						<real>3.176224946975708</real>
+						<real>2.6707549095153809</real>
+						<real>1.9276299476623535</real>
+						<real>1.1910300254821777</real>
+						<real>2.2960078716278076</real>
+						<real>3.3782320022583008</real>
+						<real>3.9400789737701416</real>
+						<real>3.9616718292236328</real>
+						<real>3.7574679851531982</real>
+						<real>3.5268089771270752</real>
+						<real>3.3366189002990723</real>
+						<real>3.1442840099334717</real>
+						<real>2.7631888389587402</real>
+						<real>2.0966658592224121</real>
+						<real>1.3266109228134155</real>
+						<real>3.053945779800415</real>
+						<real>3.6313498020172119</real>
+						<real>3.8098857402801514</real>
+						<real>3.6714687347412109</real>
+						<real>3.2946598529815674</real>
+						<real>2.8569629192352295</real>
+						<real>2.4579658508300781</real>
+						<real>2.0300729274749756</real>
+						<real>1.521683931350708</real>
+						<real>2.8874878883361816</real>
+						<real>3.2875199317932129</real>
+						<real>3.2804999351501465</real>
+						<real>3.0005640983581543</real>
+						<real>2.599560022354126</real>
+						<real>2.1986639499664307</real>
+						<real>1.8163440227508545</real>
+						<real>1.4086439609527588</real>
+						<real>0.98701202869415283</real>
+						<real>2.5351378917694092</real>
+						<real>2.5847909450531006</real>
+						<real>2.402540922164917</real>
+						<real>2.041766881942749</real>
+						<real>1.6005599498748779</real>
+						<real>1.154168963432312</real>
+						<real>0.76480197906494141</real>
+						<real>1.5583750009536743</real>
+						<real>1.5383549928665161</real>
+						<real>1.3836549520492554</real>
+						<real>1.1623950004577637</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>227.61312866210938</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>66</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.21362787485122681</real>
+					<key>AreaPix2</key>
+					<real>69.135047912597656</real>
+					<key>Center</key>
+					<string>(9.486554, -0.776384, 0.278989)</string>
+					<key>Dev</key>
+					<real>0.82138818502426147</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.7934283018112183</real>
+					<key>LengthPix</key>
+					<real>30.020139694213867</real>
+					<key>Max</key>
+					<real>3.9397048950195312</real>
+					<key>Mean</key>
+					<real>2.697150707244873</real>
+					<key>Median</key>
+					<real>2.7056457996368408</real>
+					<key>Min</key>
+					<real>0.7781670093536377</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>33</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(7.493256, -0.776384, 1.130235)</string>
+						<string>(7.538596, -0.776384, 1.892014)</string>
+						<string>(7.716326, -0.776384, 2.462147)</string>
+						<string>(7.929326, -0.776384, 2.861610)</string>
+						<string>(8.131786, -0.776384, 3.243238)</string>
+						<string>(8.428217, -0.776384, 3.578255)</string>
+						<string>(8.753198, -0.776384, 3.830612)</string>
+						<string>(9.097056, -0.776384, 3.956038)</string>
+						<string>(9.460350, -0.776384, 3.813000)</string>
+						<string>(9.810958, -0.776384, 3.531905)</string>
+						<string>(10.163584, -0.776384, 3.257570)</string>
+						<string>(10.513374, -0.776384, 2.971769)</string>
+						<string>(10.824266, -0.776384, 2.573999)</string>
+						<string>(11.099125, -0.776384, 2.095186)</string>
+						<string>(11.277482, -0.776384, 1.491694)</string>
+						<string>(11.351669, -0.776384, 0.784530)</string>
+						<string>(11.364931, -0.776384, 0.053644)</string>
+						<string>(11.292599, -0.776384, -0.629179)</string>
+						<string>(11.215944, -0.776384, -1.289587)</string>
+						<string>(11.075245, -0.776384, -1.918483)</string>
+						<string>(10.858195, -0.776384, -2.510843)</string>
+						<string>(10.578744, -0.776384, -3.003654)</string>
+						<string>(10.240966, -0.776384, -3.325621)</string>
+						<string>(9.888758, -0.776384, -3.486665)</string>
+						<string>(9.551866, -0.776384, -3.511333)</string>
+						<string>(9.216853, -0.776384, -3.423657)</string>
+						<string>(8.895316, -0.776384, -3.173437)</string>
+						<string>(8.640524, -0.776384, -2.695590)</string>
+						<string>(8.392706, -0.776384, -2.117580)</string>
+						<string>(8.192403, -0.776384, -1.488217)</string>
+						<string>(8.015366, -0.776384, -0.862419)</string>
+						<string>(7.821575, -0.776384, -0.226132)</string>
+						<string>(7.622864, -0.776384, 0.416415)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(83.802961, 79.419889)</string>
+						<string>(83.919760, 80.376899)</string>
+						<string>(84.377600, 81.093148)</string>
+						<string>(84.926303, 81.594983)</string>
+						<string>(85.447849, 82.074420)</string>
+						<string>(86.211465, 82.495289)</string>
+						<string>(87.048632, 82.812322)</string>
+						<string>(87.934427, 82.969893)</string>
+						<string>(88.870284, 82.790202)</string>
+						<string>(89.773469, 82.437067)</string>
+						<string>(90.681847, 82.092425)</string>
+						<string>(91.582927, 81.733373)</string>
+						<string>(92.383796, 81.233669)</string>
+						<string>(93.091840, 80.632139)</string>
+						<string>(93.551304, 79.873982)</string>
+						<string>(93.742408, 78.985585)</string>
+						<string>(93.776575, 78.067388)</string>
+						<string>(93.590241, 77.209573)</string>
+						<string>(93.392776, 76.379914)</string>
+						<string>(93.030327, 75.589841)</string>
+						<string>(92.471201, 74.845672)</string>
+						<string>(91.751320, 74.226563)</string>
+						<string>(90.881190, 73.822083)</string>
+						<string>(89.973883, 73.619763)</string>
+						<string>(89.106032, 73.588776)</string>
+						<string>(88.243023, 73.698918)</string>
+						<string>(87.414734, 74.013267)</string>
+						<string>(86.758377, 74.613582)</string>
+						<string>(86.119988, 75.339723)</string>
+						<string>(85.603999, 76.130376)</string>
+						<string>(85.147938, 76.916561)</string>
+						<string>(84.648725, 77.715914)</string>
+						<string>(84.136843, 78.523135)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>2.0160360336303711</real>
+						<real>2.4337170124053955</real>
+						<real>2.580435037612915</real>
+						<real>2.4187679290771484</real>
+						<real>1.9631699323654175</real>
+						<real>1.3553099632263184</real>
+						<real>2.3362300395965576</real>
+						<real>2.9289000034332275</real>
+						<real>3.2260799407958984</real>
+						<real>3.2492198944091797</real>
+						<real>2.9879200458526611</real>
+						<real>2.4854700565338135</real>
+						<real>1.8816200494766235</real>
+						<real>2.4170641899108887</real>
+						<real>3.1287722587585449</real>
+						<real>3.4715452194213867</real>
+						<real>3.5662872791290283</real>
+						<real>3.6013391017913818</real>
+						<real>3.5554921627044678</real>
+						<real>3.2611062526702881</real>
+						<real>2.6579830646514893</real>
+						<real>1.8905221223831177</real>
+						<real>3.2520148754119873</real>
+						<real>3.8218498229980469</real>
+						<real>3.9397048950195312</real>
+						<real>3.8499298095703125</real>
+						<real>3.8167197704315186</real>
+						<real>3.901904821395874</real>
+						<real>3.8021397590637207</real>
+						<real>3.2607898712158203</real>
+						<real>2.411369800567627</real>
+						<real>2.5187950134277344</real>
+						<real>3.5165400505065918</real>
+						<real>3.9344298839569092</real>
+						<real>3.8836798667907715</real>
+						<real>3.6525499820709229</real>
+						<real>3.4707200527191162</real>
+						<real>3.442734956741333</real>
+						<real>3.3869099617004395</real>
+						<real>3.0099098682403564</real>
+						<real>2.2685248851776123</real>
+						<real>1.4286849498748779</real>
+						<real>2.4440128803253174</real>
+						<real>3.3788039684295654</real>
+						<real>3.7198588848114014</real>
+						<real>3.6098918914794922</real>
+						<real>3.4158408641815186</real>
+						<real>3.3188869953155518</real>
+						<real>3.3257508277893066</real>
+						<real>3.3273239135742188</real>
+						<real>3.0889430046081543</real>
+						<real>2.4671790599822998</real>
+						<real>1.6291990280151367</real>
+						<real>2.2963287830352783</real>
+						<real>3.0313708782196045</real>
+						<real>3.3905067443847656</real>
+						<real>3.3837988376617432</real>
+						<real>3.1788177490234375</real>
+						<real>2.9187538623809814</real>
+						<real>2.7056457996368408</real>
+						<real>2.5136938095092773</real>
+						<real>2.2132527828216553</real>
+						<real>1.7340178489685059</real>
+						<real>1.1624189615249634</real>
+						<real>2.8617839813232422</real>
+						<real>3.0792961120605469</real>
+						<real>2.9641680717468262</real>
+						<real>2.6816399097442627</real>
+						<real>2.4050519466400146</real>
+						<real>2.1836519241333008</real>
+						<real>1.9145159721374512</real>
+						<real>1.5199919939041138</real>
+						<real>1.0613160133361816</real>
+						<real>2.6541268825531006</real>
+						<real>2.5856008529663086</real>
+						<real>2.359853982925415</real>
+						<real>2.0448448657989502</real>
+						<real>1.6655219793319702</real>
+						<real>1.2177540063858032</real>
+						<real>0.7781670093536377</real>
+						<real>1.6482700109481812</real>
+						<real>1.6176550388336182</real>
+						<real>1.4742649793624878</real>
+						<real>1.2709449529647827</real>
+						<real>1.0321999788284302</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>229.2578125</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>67</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.24091364443302155</real>
+					<key>AreaPix2</key>
+					<real>77.965370178222656</real>
+					<key>Center</key>
+					<string>(9.388678, -1.164576, 0.581752)</string>
+					<key>Dev</key>
+					<real>0.78419768810272217</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.9283765554428101</real>
+					<key>LengthPix</key>
+					<real>32.5360107421875</real>
+					<key>Max</key>
+					<real>4.0439248085021973</real>
+					<key>Mean</key>
+					<real>2.6190280914306641</real>
+					<key>Median</key>
+					<real>2.6324098110198975</real>
+					<key>Min</key>
+					<real>0.80400598049163818</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>33</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(7.362540, -1.164576, 1.941260)</string>
+						<string>(7.323985, -1.164576, 2.680483)</string>
+						<string>(7.341473, -1.164576, 3.446683)</string>
+						<string>(7.713915, -1.164576, 3.977068)</string>
+						<string>(8.150563, -1.164576, 4.200913)</string>
+						<string>(8.601211, -1.164576, 4.227707)</string>
+						<string>(9.003829, -1.164576, 4.190698)</string>
+						<string>(9.357763, -1.164576, 4.018322)</string>
+						<string>(9.714644, -1.164576, 3.771006)</string>
+						<string>(10.072171, -1.164576, 3.461362)</string>
+						<string>(10.435305, -1.164576, 3.178002)</string>
+						<string>(10.792686, -1.164576, 2.868947)</string>
+						<string>(11.091019, -1.164576, 2.387777)</string>
+						<string>(11.339526, -1.164576, 1.807368)</string>
+						<string>(11.464541, -1.164576, 1.114901)</string>
+						<string>(11.478426, -1.164576, 0.355879)</string>
+						<string>(11.437540, -1.164576, -0.399620)</string>
+						<string>(11.283719, -1.164576, -1.072605)</string>
+						<string>(11.116634, -1.164576, -1.716009)</string>
+						<string>(10.895946, -1.164576, -2.300717)</string>
+						<string>(10.629268, -1.164576, -2.847827)</string>
+						<string>(10.316954, -1.164576, -3.300345)</string>
+						<string>(9.957662, -1.164576, -3.582879)</string>
+						<string>(9.583256, -1.164576, -3.644495)</string>
+						<string>(9.230929, -1.164576, -3.498458)</string>
+						<string>(8.893578, -1.164576, -3.238267)</string>
+						<string>(8.587187, -1.164576, -2.835742)</string>
+						<string>(8.371909, -1.164576, -2.229183)</string>
+						<string>(8.126038, -1.164576, -1.616217)</string>
+						<string>(7.952152, -1.164576, -0.925487)</string>
+						<string>(7.826509, -1.164576, -0.209687)</string>
+						<string>(7.665000, -1.164576, 0.496287)</string>
+						<string>(7.488372, -1.164576, 1.195617)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(83.466235, 80.438766)</string>
+						<string>(83.366912, 81.367437)</string>
+						<string>(83.411961, 82.330000)</string>
+						<string>(84.371393, 82.996312)</string>
+						<string>(85.496216, 83.277526)</string>
+						<string>(86.657105, 83.311189)</string>
+						<string>(87.694268, 83.264694)</string>
+						<string>(88.606021, 83.048140)</string>
+						<string>(89.525363, 82.737446)</string>
+						<string>(90.446362, 82.348439)</string>
+						<string>(91.381813, 81.992460)</string>
+						<string>(92.302445, 81.604201)</string>
+						<string>(93.070960, 80.999714)</string>
+						<string>(93.711127, 80.270564)</string>
+						<string>(94.033175, 79.400625)</string>
+						<string>(94.068939, 78.447081)</string>
+						<string>(93.963616, 77.497962)</string>
+						<string>(93.567370, 76.652503)</string>
+						<string>(93.136951, 75.844210)</string>
+						<string>(92.568443, 75.109650)</string>
+						<string>(91.881473, 74.422324)</string>
+						<string>(91.076933, 73.853836)</string>
+						<string>(90.151386, 73.498896)</string>
+						<string>(89.186900, 73.421484)</string>
+						<string>(88.279292, 73.604949)</string>
+						<string>(87.410257, 73.931823)</string>
+						<string>(86.620982, 74.437505)</string>
+						<string>(86.066416, 75.199516)</string>
+						<string>(85.433034, 75.969570)</string>
+						<string>(84.985097, 76.837326)</string>
+						<string>(84.661441, 77.736576)</string>
+						<string>(84.245381, 78.623475)</string>
+						<string>(83.790381, 79.502033)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.8135120868682861</real>
+						<real>1.4905140399932861</real>
+						<real>2.1363208293914795</real>
+						<real>2.5503389835357666</real>
+						<real>2.6324098110198975</real>
+						<real>2.3813459873199463</real>
+						<real>2.5395500659942627</real>
+						<real>3.2297201156616211</real>
+						<real>3.5041499137878418</real>
+						<real>3.4361600875854492</real>
+						<real>3.072160005569458</real>
+						<real>2.4771499633789062</real>
+						<real>1.8251999616622925</real>
+						<real>2.2364702224731445</real>
+						<real>2.933319091796875</real>
+						<real>3.3418781757354736</real>
+						<real>3.5147252082824707</real>
+						<real>3.612896203994751</real>
+						<real>3.6094672679901123</real>
+						<real>3.3240981101989746</real>
+						<real>2.7164032459259033</real>
+						<real>1.9490691423416138</real>
+						<real>2.8910248279571533</real>
+						<real>3.3907947540283203</real>
+						<real>3.5244448184967041</real>
+						<real>3.547529935836792</real>
+						<real>3.7365298271179199</real>
+						<real>4.0439248085021973</real>
+						<real>4.0288047790527344</real>
+						<real>3.4539749622344971</real>
+						<real>2.5439398288726807</real>
+						<real>1.6465948820114136</real>
+						<real>2.3713300228118896</real>
+						<real>3.15128493309021</real>
+						<real>3.3832850456237793</real>
+						<real>3.3310849666595459</real>
+						<real>3.2888898849487305</real>
+						<real>3.4088048934936523</real>
+						<real>3.6693699359893799</real>
+						<real>3.7612998485565186</real>
+						<real>3.3789348602294922</real>
+						<real>2.5463449954986572</real>
+						<real>1.5893449783325195</real>
+						<real>2.4198460578918457</real>
+						<real>3.2416670322418213</real>
+						<real>3.4864828586578369</real>
+						<real>3.372654914855957</real>
+						<real>3.2631168365478516</real>
+						<real>3.3247499465942383</real>
+						<real>3.5083620548248291</real>
+						<real>3.6200449466705322</real>
+						<real>3.3932468891143799</real>
+						<real>2.7121379375457764</real>
+						<real>1.7930769920349121</real>
+						<real>1.7172479629516602</real>
+						<real>2.4632549285888672</real>
+						<real>3.0352408885955811</real>
+						<real>3.236480712890625</real>
+						<real>3.1047718524932861</real>
+						<real>2.9046928882598877</real>
+						<real>2.8137478828430176</real>
+						<real>2.8035569190979004</real>
+						<real>2.7282209396362305</real>
+						<real>2.4455819129943848</real>
+						<real>1.9139728546142578</real>
+						<real>1.2631679773330688</real>
+						<real>1.782431960105896</real>
+						<real>2.3946840763092041</real>
+						<real>2.7751679420471191</real>
+						<real>2.8568160533905029</real>
+						<real>2.7014040946960449</real>
+						<real>2.4911279678344727</real>
+						<real>2.3674681186676025</real>
+						<real>2.2771799564361572</real>
+						<real>2.0363399982452393</real>
+						<real>1.5951600074768066</real>
+						<real>1.084104061126709</real>
+						<real>2.4184980392456055</real>
+						<real>2.5609769821166992</real>
+						<real>2.5383780002593994</real>
+						<real>2.3877179622650146</real>
+						<real>2.19728684425354</real>
+						<real>1.9845809936523438</real>
+						<real>1.6927379369735718</real>
+						<real>1.2705659866333008</real>
+						<real>0.80400598049163818</real>
+						<real>1.3595399856567383</real>
+						<real>1.5165799856185913</real>
+						<real>1.5692950487136841</real>
+						<real>1.519569993019104</real>
+						<real>1.4251250028610229</real>
+						<real>1.2924599647521973</real>
+						<real>1.0907000303268433</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>243.56961059570312</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>68</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.25891110301017761</real>
+					<key>AreaPix2</key>
+					<real>83.789772033691406</real>
+					<key>Center</key>
+					<string>(9.396126, -1.552768, 0.498601)</string>
+					<key>Dev</key>
+					<real>0.8945763111114502</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>2.0033857822418213</real>
+					<key>LengthPix</key>
+					<real>33.887737274169922</real>
+					<key>Max</key>
+					<real>4.2516899108886719</real>
+					<key>Mean</key>
+					<real>2.6031308174133301</real>
+					<key>Median</key>
+					<real>2.6855218410491943</real>
+					<key>Min</key>
+					<real>0.8242650032043457</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>25</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(7.275407, -1.552768, 3.556525)</string>
+						<string>(7.226830, -1.552768, 2.824747)</string>
+						<string>(7.324349, -1.552768, 2.107417)</string>
+						<string>(7.420819, -1.552768, 1.678973)</string>
+						<string>(7.511055, -1.552768, 1.204393)</string>
+						<string>(7.615152, -1.552768, 0.612840)</string>
+						<string>(7.695730, -1.552768, -0.168937)</string>
+						<string>(7.792882, -1.552768, -0.909005)</string>
+						<string>(8.084050, -1.552768, -1.690788)</string>
+						<string>(8.261780, -1.552768, -2.447423)</string>
+						<string>(8.682099, -1.552768, -3.204057)</string>
+						<string>(9.442165, -1.552768, -3.861259)</string>
+						<string>(10.185944, -1.552768, -3.462081)</string>
+						<string>(10.703419, -1.552768, -2.705161)</string>
+						<string>(11.107740, -1.552768, -1.948520)</string>
+						<string>(11.382622, -1.552768, -1.216742)</string>
+						<string>(11.592924, -1.552768, -0.476680)</string>
+						<string>(11.608926, -1.552768, 0.313387)</string>
+						<string>(11.666756, -1.552768, 1.034598)</string>
+						<string>(11.479486, -1.552768, 1.835237)</string>
+						<string>(11.204604, -1.552768, 2.567009)</string>
+						<string>(10.460825, -1.552768, 3.282214)</string>
+						<string>(9.717047, -1.552768, 3.930847)</string>
+						<string>(8.973268, -1.552768, 4.172006)</string>
+						<string>(8.229491, -1.552768, 4.063997)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(83.241776, 82.467996)</string>
+						<string>(83.116642, 81.548677)</string>
+						<string>(83.367851, 80.647503)</string>
+						<string>(83.616363, 80.109261)</string>
+						<string>(83.848816, 79.513057)</string>
+						<string>(84.116970, 78.769901)</string>
+						<string>(84.324545, 77.787763)</string>
+						<string>(84.574810, 76.858034)</string>
+						<string>(85.324873, 75.875896)</string>
+						<string>(85.782711, 74.925347)</string>
+						<string>(86.865480, 73.974799)</string>
+						<string>(88.823444, 73.149171)</string>
+						<string>(90.739450, 73.650650)</string>
+						<string>(92.072485, 74.601558)</string>
+						<string>(93.114035, 75.552106)</string>
+						<string>(93.822140, 76.471425)</string>
+						<string>(94.363892, 77.401154)</string>
+						<string>(94.405111, 78.393702)</string>
+						<string>(94.554087, 79.299740)</string>
+						<string>(94.071669, 80.305569)</string>
+						<string>(93.363564, 81.224887)</string>
+						<string>(91.447557, 82.123386)</string>
+						<string>(89.531549, 82.938245)</string>
+						<string>(87.615541, 83.241214)</string>
+						<string>(85.699535, 83.105524)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.9934611320495605</real>
+						<real>1.8381121158599854</real>
+						<real>1.4298750162124634</real>
+						<real>2.8421909809112549</real>
+						<real>2.7790288925170898</real>
+						<real>2.353626012802124</real>
+						<real>1.6950778961181641</real>
+						<real>1.0515779256820679</real>
+						<real>2.8486900329589844</real>
+						<real>3.6438999176025391</real>
+						<real>3.9119601249694824</real>
+						<real>3.7437400817871094</real>
+						<real>3.2523400783538818</real>
+						<real>2.5385100841522217</real>
+						<real>1.8006299734115601</real>
+						<real>1.2045799493789673</real>
+						<real>2.9344620704650879</real>
+						<real>3.4665920734405518</real>
+						<real>3.7144961357116699</real>
+						<real>3.827653169631958</real>
+						<real>3.7840921878814697</real>
+						<real>3.4225232601165771</real>
+						<real>2.7458672523498535</real>
+						<real>1.9486881494522095</real>
+						<real>1.2395200729370117</real>
+						<real>2.670569896697998</real>
+						<real>3.1472549438476562</real>
+						<real>3.2957549095153809</real>
+						<real>3.4257597923278809</real>
+						<real>3.8141548633575439</real>
+						<real>4.2516899108886719</real>
+						<real>4.2184796333312988</real>
+						<real>3.5572497844696045</real>
+						<real>2.5655398368835449</real>
+						<real>1.6082549095153809</real>
+						<real>2.2682349681854248</real>
+						<real>2.9001450538635254</real>
+						<real>3.0428249835968018</real>
+						<real>3.0129549503326416</real>
+						<real>3.149399995803833</real>
+						<real>3.5741050243377686</real>
+						<real>4.0662350654602051</real>
+						<real>4.1736798286437988</real>
+						<real>3.6587848663330078</real>
+						<real>2.6793100833892822</real>
+						<real>1.623710036277771</real>
+						<real>2.3956789970397949</real>
+						<real>3.1254079341888428</real>
+						<real>3.3956780433654785</real>
+						<real>3.4042580127716064</real>
+						<real>3.4392929077148438</real>
+						<real>3.6337728500366211</real>
+						<real>3.8861680030822754</real>
+						<real>3.95123291015625</real>
+						<real>3.5877268314361572</real>
+						<real>2.7671928405761719</real>
+						<real>1.7757740020751953</real>
+						<real>0.9821239709854126</real>
+						<real>2.5972857475280762</real>
+						<real>3.0745859146118164</real>
+						<real>3.2362227439880371</real>
+						<real>3.1460518836975098</real>
+						<real>3.0583317279815674</real>
+						<real>3.1007728576660156</real>
+						<real>3.1684978008270264</real>
+						<real>3.0735538005828857</real>
+						<real>2.6855218410491943</real>
+						<real>2.0184628963470459</real>
+						<real>1.2701339721679688</real>
+						<real>1.9170000553131104</real>
+						<real>2.4384241104125977</real>
+						<real>2.7587521076202393</real>
+						<real>2.8403999805450439</real>
+						<real>2.7542159557342529</real>
+						<real>2.6578800678253174</real>
+						<real>2.6296920776367188</real>
+						<real>2.5515000820159912</real>
+						<real>2.2353839874267578</real>
+						<real>1.6920360326766968</real>
+						<real>1.1093759536743164</real>
+						<real>2.1468238830566406</real>
+						<real>2.3886089324951172</real>
+						<real>2.4228720664978027</real>
+						<real>2.3224320411682129</real>
+						<real>2.1819779872894287</real>
+						<real>2.0942549705505371</real>
+						<real>2.0109870433807373</real>
+						<real>1.7978760004043579</real>
+						<real>1.3851809501647949</real>
+						<real>1.1870299577713013</real>
+						<real>1.3254150152206421</real>
+						<real>1.4062750339508057</real>
+						<real>1.4203150272369385</real>
+						<real>1.3729950189590454</real>
+						<real>1.3340599536895752</real>
+						<real>1.2838799953460693</real>
+						<real>1.1278799772262573</real>
+						<real>0.8242650032043457</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>255.1068115234375</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>69</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.28196990489959717</real>
+					<key>AreaPix2</key>
+					<real>91.252143859863281</real>
+					<key>Center</key>
+					<string>(9.423225, -1.940960, 0.689506)</string>
+					<key>Dev</key>
+					<real>1.0744472742080688</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>2.0429706573486328</real>
+					<key>LengthPix</key>
+					<real>35.453506469726562</real>
+					<key>Max</key>
+					<real>4.4235448837280273</real>
+					<key>Mean</key>
+					<real>2.5774686336517334</real>
+					<key>Median</key>
+					<real>2.6494741439819336</real>
+					<key>Min</key>
+					<real>0.48171499371528625</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>24</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(7.566575, -1.940960, 3.963987)</string>
+						<string>(7.049103, -1.940960, 3.207352)</string>
+						<string>(7.000526, -1.940960, 2.467291)</string>
+						<string>(7.000526, -1.940960, 1.710364)</string>
+						<string>(7.162254, -1.940960, 0.978586)</string>
+						<string>(7.453422, -1.940960, 0.238525)</string>
+						<string>(7.663439, -1.940960, -0.501537)</string>
+						<string>(7.890031, -1.940960, -1.241605)</string>
+						<string>(8.245778, -1.940960, -1.981666)</string>
+						<string>(8.504370, -1.940960, -2.721734)</string>
+						<string>(8.908691, -1.940960, -3.462081)</string>
+						<string>(9.701044, -1.940960, -3.636667)</string>
+						<string>(10.477115, -1.940960, -2.863174)</string>
+						<string>(10.946012, -1.940960, -2.131396)</string>
+						<string>(11.398621, -1.940960, -1.358182)</string>
+						<string>(11.754367, -1.940960, -0.626118)</string>
+						<string>(11.964669, -1.940960, 0.147090)</string>
+						<string>(11.912233, -1.940960, 0.832112)</string>
+						<string>(11.771827, -1.940960, 1.511541)</string>
+						<string>(11.507035, -1.940960, 2.304571)</string>
+						<string>(11.010589, -1.940960, 3.199069)</string>
+						<string>(10.250808, -1.940960, 3.939130)</string>
+						<string>(9.490743, -1.940960, 4.205152)</string>
+						<string>(8.746964, -1.940960, 4.172006)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(83.991838, 82.979885)</string>
+						<string>(82.658804, 82.029336)</string>
+						<string>(82.533670, 81.099607)</string>
+						<string>(82.533670, 80.148700)</string>
+						<string>(82.950289, 79.229381)</string>
+						<string>(83.700352, 78.299652)</string>
+						<string>(84.241367, 77.369924)</string>
+						<string>(84.825077, 76.440195)</string>
+						<string>(85.741491, 75.510466)</string>
+						<string>(86.407640, 74.580737)</string>
+						<string>(87.449188, 73.650650)</string>
+						<string>(89.490330, 73.431320)</string>
+						<string>(91.489513, 74.403048)</string>
+						<string>(92.697414, 75.322367)</string>
+						<string>(93.863359, 76.293736)</string>
+						<string>(94.779776, 77.213413)</string>
+						<string>(95.321527, 78.184782)</string>
+						<string>(95.186446, 79.045363)</string>
+						<string>(94.824749, 79.898920)</string>
+						<string>(94.142638, 80.895187)</string>
+						<string>(92.863768, 82.018926)</string>
+						<string>(90.906540, 82.948655)</string>
+						<string>(88.948576, 83.282854)</string>
+						<string>(87.032570, 83.241214)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>2.1988711357116699</real>
+						<real>1.8665250539779663</real>
+						<real>1.3296300172805786</real>
+						<real>3.1478040218353271</real>
+						<real>2.8467450141906738</real>
+						<real>2.216411828994751</real>
+						<real>1.4698529243469238</real>
+						<real>3.153670072555542</real>
+						<real>3.9923000335693359</real>
+						<real>4.2597098350524902</real>
+						<real>4.014009952545166</real>
+						<real>3.4044399261474609</real>
+						<real>2.5790700912475586</real>
+						<real>1.7552599906921387</real>
+						<real>1.1229399442672729</real>
+						<real>3.0623512268066406</real>
+						<real>3.7152581214904785</real>
+						<real>4.028439998626709</real>
+						<real>4.1114983558654785</real>
+						<real>3.9434771537780762</real>
+						<real>3.4319212436676025</real>
+						<real>2.6494741439819336</real>
+						<real>1.8209260702133179</real>
+						<real>1.1391900777816772</real>
+						<real>2.6901447772979736</real>
+						<real>3.1743898391723633</real>
+						<real>3.376079797744751</real>
+						<real>3.6039597988128662</real>
+						<real>4.0576949119567871</real>
+						<real>4.4235448837280273</real>
+						<real>4.236299991607666</real>
+						<real>3.4519498348236084</real>
+						<real>2.4005699157714844</real>
+						<real>1.4324849843978882</real>
+						<real>0.75343495607376099</real>
+						<real>2.3384149074554443</real>
+						<real>2.8802800178527832</real>
+						<real>2.9922199249267578</real>
+						<real>3.0157098770141602</real>
+						<real>3.2914998531341553</real>
+						<real>3.8854198455810547</real>
+						<real>4.4206147193908691</real>
+						<real>4.3919048309326172</real>
+						<real>3.674299955368042</real>
+						<real>2.5583798885345459</real>
+						<real>1.4726200103759766</real>
+						<real>0.72877001762390137</real>
+						<real>1.6620889902114868</real>
+						<real>2.5026428699493408</real>
+						<real>3.1681649684906006</real>
+						<real>3.5157978534698486</real>
+						<real>3.6992669105529785</real>
+						<real>3.8788750171661377</real>
+						<real>4.1143960952758789</real>
+						<real>4.2842798233032227</real>
+						<real>4.1571531295776367</real>
+						<real>3.5685648918151855</real>
+						<real>2.6003119945526123</real>
+						<real>1.5840109586715698</real>
+						<real>0.84598797559738159</real>
+						<real>2.077286958694458</real>
+						<real>2.6712028980255127</real>
+						<real>3.1108348369598389</real>
+						<real>3.3423898220062256</real>
+						<real>3.4264976978302002</real>
+						<real>3.5051877498626709</real>
+						<real>3.6281247138977051</real>
+						<real>3.6605038642883301</real>
+						<real>3.4262397289276123</real>
+						<real>2.8465137481689453</real>
+						<real>2.0114967823028564</real>
+						<real>1.1776409149169922</real>
+						<real>0.5976569652557373</real>
+						<real>1.9922759532928467</real>
+						<real>2.427299976348877</real>
+						<real>2.7480599880218506</real>
+						<real>2.9414880275726318</real>
+						<real>3.0362040996551514</real>
+						<real>3.082643985748291</real>
+						<real>3.0880439281463623</real>
+						<real>2.927772045135498</real>
+						<real>2.4712560176849365</real>
+						<real>1.8008999824523926</real>
+						<real>1.1452319622039795</real>
+						<real>0.66798001527786255</real>
+						<real>2.0461409091949463</real>
+						<real>2.18861985206604</real>
+						<real>2.1558959484100342</real>
+						<real>2.0821859836578369</real>
+						<real>2.0654189586639404</real>
+						<real>2.125359058380127</real>
+						<real>2.1590549945831299</real>
+						<real>1.9820699691772461</real>
+						<real>1.5330870151519775</real>
+						<real>0.98374497890472412</real>
+						<real>1.2107549905776978</real>
+						<real>1.2735450267791748</real>
+						<real>1.2945400476455688</real>
+						<real>1.3010400533676147</real>
+						<real>1.2828400135040283</real>
+						<real>1.2876499891281128</real>
+						<real>1.2888849973678589</real>
+						<real>1.1536200046539307</real>
+						<real>0.83531498908996582</real>
+						<real>0.48171499371528625</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>270.63421630859375</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>70</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.26233825087547302</real>
+					<key>AreaPix2</key>
+					<real>84.898880004882812</real>
+					<key>Center</key>
+					<string>(9.200715, -2.329152, 0.751232)</string>
+					<key>Dev</key>
+					<real>1.0756247043609619</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.9452575445175171</real>
+					<key>LengthPix</key>
+					<real>34.061138153076172</real>
+					<key>Max</key>
+					<real>4.5119357109069824</real>
+					<key>Mean</key>
+					<real>2.6999332904815674</real>
+					<key>Median</key>
+					<real>2.7555687427520752</real>
+					<key>Min</key>
+					<real>0.55250096321105957</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>32</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(6.837924, -2.329152, 1.650952)</string>
+						<string>(6.881171, -2.329152, 2.503705)</string>
+						<string>(7.020952, -2.329152, 3.287261)</string>
+						<string>(7.275502, -2.329152, 3.825408)</string>
+						<string>(7.671341, -2.329152, 4.032405)</string>
+						<string>(8.087802, -2.329152, 3.982498)</string>
+						<string>(8.504109, -2.329152, 3.912640)</string>
+						<string>(8.923429, -2.329152, 3.918015)</string>
+						<string>(9.339161, -2.329152, 3.957532)</string>
+						<string>(9.743799, -2.329152, 3.955145)</string>
+						<string>(10.143388, -2.329152, 3.834608)</string>
+						<string>(10.528233, -2.329152, 3.518077)</string>
+						<string>(10.877145, -2.329152, 3.043904)</string>
+						<string>(11.181681, -2.329152, 2.455114)</string>
+						<string>(11.436335, -2.329152, 1.780963)</string>
+						<string>(11.609566, -2.329152, 1.006061)</string>
+						<string>(11.592536, -2.329152, 0.171345)</string>
+						<string>(11.427535, -2.329152, -0.552429)</string>
+						<string>(11.159854, -2.329152, -1.187828)</string>
+						<string>(10.847646, -2.329152, -1.760967)</string>
+						<string>(10.525914, -2.329152, -2.311539)</string>
+						<string>(10.176698, -2.329152, -2.789600)</string>
+						<string>(9.797426, -2.329152, -3.156378)</string>
+						<string>(9.387401, -2.329152, -3.330631)</string>
+						<string>(8.971743, -2.329152, -3.263324)</string>
+						<string>(8.596981, -2.329152, -2.921906)</string>
+						<string>(8.288289, -2.329152, -2.392875)</string>
+						<string>(7.986442, -2.329152, -1.829015)</string>
+						<string>(7.680185, -2.329152, -1.247125)</string>
+						<string>(7.442295, -2.329152, -0.544667)</string>
+						<string>(7.199829, -2.329152, 0.154183)</string>
+						<string>(6.943223, -2.329152, 0.834523)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(82.114802, 80.074060)</string>
+						<string>(82.226201, 81.145359)</string>
+						<string>(82.586285, 82.129726)</string>
+						<string>(83.242022, 82.805785)</string>
+						<string>(84.261719, 83.065834)</string>
+						<string>(85.334544, 83.003138)</string>
+						<string>(86.406970, 82.915378)</string>
+						<string>(87.487149, 82.922126)</string>
+						<string>(88.558097, 82.971771)</string>
+						<string>(89.600463, 82.968772)</string>
+						<string>(90.629825, 82.817341)</string>
+						<string>(91.621203, 82.419697)</string>
+						<string>(92.520015, 81.823997)</string>
+						<string>(93.304509, 81.084313)</string>
+						<string>(93.960510, 80.237390)</string>
+						<string>(94.406764, 79.263892)</string>
+						<string>(94.362891, 78.215255)</string>
+						<string>(93.937842, 77.305990)</string>
+						<string>(93.248283, 76.507751)</string>
+						<string>(92.444020, 75.787731)</string>
+						<string>(91.615230, 75.096058)</string>
+						<string>(90.715629, 74.495478)</string>
+						<string>(89.738613, 74.034702)</string>
+						<string>(88.682365, 73.815788)</string>
+						<string>(87.611614, 73.900344)</string>
+						<string>(86.646210, 74.329259)</string>
+						<string>(85.851004, 74.993876)</string>
+						<string>(85.073430, 75.702237)</string>
+						<string>(84.284497, 76.433259)</string>
+						<string>(83.671685, 77.315743)</string>
+						<string>(83.047079, 78.193698)</string>
+						<string>(82.386057, 79.048392)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>2.6710200309753418</real>
+						<real>3.2439329624176025</real>
+						<real>3.1762168407440186</real>
+						<real>2.623499870300293</real>
+						<real>1.8702089786529541</real>
+						<real>1.1620619297027588</real>
+						<real>2.2150700092315674</real>
+						<real>3.3065500259399414</real>
+						<real>4.0519700050354004</real>
+						<real>4.2470998764038086</real>
+						<real>3.9323699474334717</real>
+						<real>3.2525999546051025</real>
+						<real>2.3866701126098633</real>
+						<real>1.3428980112075806</real>
+						<real>2.2216110229492188</real>
+						<real>3.1601412296295166</real>
+						<real>3.8116512298583984</real>
+						<real>4.1252140998840332</real>
+						<real>4.1614093780517578</real>
+						<real>3.8511481285095215</real>
+						<real>3.1775400638580322</real>
+						<real>2.3126702308654785</real>
+						<real>2.1791698932647705</real>
+						<real>2.9110047817230225</real>
+						<real>3.3698699474334717</real>
+						<real>3.5760147571563721</real>
+						<real>3.815504789352417</real>
+						<real>4.1879696846008301</real>
+						<real>4.3401145935058594</real>
+						<real>3.9376797676086426</real>
+						<real>3.0578849315643311</real>
+						<real>2.0316150188446045</real>
+						<real>1.7513099908828735</real>
+						<real>2.5772299766540527</real>
+						<real>3.0827000141143799</real>
+						<real>3.2108800411224365</real>
+						<real>3.2759850025177002</real>
+						<real>3.5899100303649902</real>
+						<real>4.1461300849914551</real>
+						<real>4.5071797370910645</real>
+						<real>4.240379810333252</real>
+						<real>3.3438448905944824</real>
+						<real>2.1805100440979004</real>
+						<real>1.1679749488830566</real>
+						<real>1.3339040279388428</real>
+						<real>1.9927049875259399</real>
+						<real>2.7623310089111328</real>
+						<real>3.3717968463897705</real>
+						<real>3.8079469203948975</real>
+						<real>4.1331291198730469</real>
+						<real>4.370366096496582</real>
+						<real>4.5119357109069824</real>
+						<real>4.4603128433227539</real>
+						<real>4.063201904296875</real>
+						<real>3.2605428695678711</real>
+						<real>2.2202179431915283</real>
+						<real>1.268123984336853</real>
+						<real>1.6595848798751831</real>
+						<real>2.2175099849700928</real>
+						<real>2.7555687427520752</real>
+						<real>3.1821718215942383</real>
+						<real>3.5127987861633301</real>
+						<real>3.7517068386077881</real>
+						<real>3.9418528079986572</real>
+						<real>4.0801405906677246</real>
+						<real>4.004030704498291</real>
+						<real>3.572138786315918</real>
+						<real>2.7968487739562988</real>
+						<real>1.8490859270095825</real>
+						<real>1.0018138885498047</real>
+						<real>1.6931159496307373</real>
+						<real>2.0780279636383057</real>
+						<real>2.392632007598877</real>
+						<real>2.6678159236907959</real>
+						<real>2.9633040428161621</real>
+						<real>3.2560920715332031</real>
+						<real>3.4508159160614014</real>
+						<real>3.4636681079864502</real>
+						<real>3.1814639568328857</real>
+						<real>2.5683479309082031</real>
+						<real>1.7933399677276611</real>
+						<real>1.1101319789886475</real>
+						<real>0.64745998382568359</real>
+						<real>1.8624329566955566</real>
+						<real>1.9077119827270508</real>
+						<real>1.8493109941482544</real>
+						<real>1.8758789300918579</real>
+						<real>2.0375549793243408</real>
+						<real>2.2419178485870361</real>
+						<real>2.3324759006500244</real>
+						<real>2.1177449226379395</real>
+						<real>1.5899490118026733</real>
+						<real>0.99006295204162598</real>
+						<real>0.55250096321105957</real>
+						<real>1.2085449695587158</real>
+						<real>1.2088700532913208</real>
+						<real>1.2019799947738647</real>
+						<real>1.2392899990081787</real>
+						<real>1.2817350625991821</real>
+						<real>1.32846999168396</real>
+						<real>1.3376350402832031</real>
+						<real>1.174875020980835</real>
+						<real>0.82179498672485352</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>278.0931396484375</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>71</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.24597898125648499</real>
+					<key>AreaPix2</key>
+					<real>79.604637145996094</real>
+					<key>Center</key>
+					<string>(8.959889, -2.717344, 0.821533)</string>
+					<key>Dev</key>
+					<real>1.0508252382278442</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.8864071369171143</real>
+					<key>LengthPix</key>
+					<real>33.171028137207031</real>
+					<key>Max</key>
+					<real>4.6856808662414551</real>
+					<key>Mean</key>
+					<real>2.6789352893829346</real>
+					<key>Median</key>
+					<real>2.6708500385284424</real>
+					<key>Min</key>
+					<real>0.76355093717575073</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>32</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(6.684578, -2.717344, 1.391793)</string>
+						<string>(6.753987, -2.717344, 2.215225)</string>
+						<string>(6.856654, -2.717344, 3.009506)</string>
+						<string>(6.984429, -2.717344, 3.686822)</string>
+						<string>(7.358861, -2.717344, 3.898326)</string>
+						<string>(7.761417, -2.717344, 3.781506)</string>
+						<string>(8.163411, -2.717344, 3.649940)</string>
+						<string>(8.571627, -2.717344, 3.629407)</string>
+						<string>(8.973078, -2.717344, 3.742803)</string>
+						<string>(9.359360, -2.717344, 3.899984)</string>
+						<string>(9.751227, -2.717344, 3.943491)</string>
+						<string>(10.138631, -2.717344, 3.715383)</string>
+						<string>(10.489127, -2.717344, 3.287534)</string>
+						<string>(10.800177, -2.717344, 2.745683)</string>
+						<string>(11.078257, -2.717344, 2.140624)</string>
+						<string>(11.273164, -2.717344, 1.415848)</string>
+						<string>(11.294761, -2.717344, 0.594481)</string>
+						<string>(11.237900, -2.717344, -0.172575)</string>
+						<string>(11.018301, -2.717344, -0.843186)</string>
+						<string>(10.726372, -2.717344, -1.428155)</string>
+						<string>(10.422582, -2.717344, -1.986367)</string>
+						<string>(10.078770, -2.717344, -2.441829)</string>
+						<string>(9.706230, -2.717344, -2.787304)</string>
+						<string>(9.306956, -2.717344, -2.965316)</string>
+						<string>(8.900049, -2.717344, -2.948044)</string>
+						<string>(8.515186, -2.717344, -2.721734)</string>
+						<string>(8.168748, -2.717344, -2.347242)</string>
+						<string>(7.834283, -2.717344, -1.905960)</string>
+						<string>(7.518258, -2.717344, -1.380646)</string>
+						<string>(7.259681, -2.717344, -0.737315)</string>
+						<string>(7.004438, -2.717344, -0.084729)</string>
+						<string>(6.758492, -2.717344, 0.584333)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(81.719770, 79.748482)</string>
+						<string>(81.898576, 80.782943)</string>
+						<string>(82.163048, 81.780783)</string>
+						<string>(82.492205, 82.631685)</string>
+						<string>(83.456753, 82.897392)</string>
+						<string>(84.493759, 82.750631)</string>
+						<string>(85.529312, 82.585353)</string>
+						<string>(86.580897, 82.559553)</string>
+						<string>(87.615048, 82.702012)</string>
+						<string>(88.610133, 82.899474)</string>
+						<string>(89.619599, 82.954131)</string>
+						<string>(90.617566, 82.667561)</string>
+						<string>(91.520462, 82.130063)</string>
+						<string>(92.321738, 81.449352)</string>
+						<string>(93.038084, 80.689227)</string>
+						<string>(93.540180, 79.778702)</string>
+						<string>(93.595811, 78.746833)</string>
+						<string>(93.449333, 77.783193)</string>
+						<string>(92.883638, 76.940723)</string>
+						<string>(92.131616, 76.205837)</string>
+						<string>(91.349037, 75.504560)</string>
+						<string>(90.463361, 74.932370)</string>
+						<string>(89.503686, 74.498361)</string>
+						<string>(88.475135, 74.274729)</string>
+						<string>(87.426926, 74.296425)</string>
+						<string>(86.435499, 74.580738)</string>
+						<string>(85.543059, 75.051201)</string>
+						<string>(84.681463, 75.605574)</string>
+						<string>(83.867368, 76.265522)</string>
+						<string>(83.201264, 77.073723)</string>
+						<string>(82.543743, 77.893551)</string>
+						<string>(81.910179, 78.734088)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>3.1498827934265137</real>
+						<real>2.8139758110046387</real>
+						<real>2.1143429279327393</real>
+						<real>1.3861979246139526</real>
+						<real>2.3012599945068359</real>
+						<real>3.2264699935913086</real>
+						<real>3.7151401042938232</real>
+						<real>3.725409984588623</real>
+						<real>3.3443799018859863</real>
+						<real>2.6708500385284424</real>
+						<real>1.5626081228256226</real>
+						<real>2.352802038192749</real>
+						<real>3.1374082565307617</real>
+						<real>3.6165792942047119</real>
+						<real>3.8185091018676758</real>
+						<real>3.7859971523284912</real>
+						<real>3.3747711181640625</real>
+						<real>2.6052782535552979</real>
+						<real>1.7883449792861938</real>
+						<real>2.5871398448944092</real>
+						<real>3.2178599834442139</real>
+						<real>3.5634598731994629</real>
+						<real>3.659714937210083</real>
+						<real>3.7845897674560547</real>
+						<real>3.9764249324798584</real>
+						<real>3.874769926071167</real>
+						<real>3.2834699153900146</real>
+						<real>2.3989498615264893</real>
+						<real>1.3664799928665161</real>
+						<real>2.1577448844909668</real>
+						<real>2.9778649806976318</real>
+						<real>3.4688348770141602</real>
+						<real>3.6228249073028564</real>
+						<real>3.670529842376709</real>
+						<real>3.8909299373626709</real>
+						<real>4.2283449172973633</real>
+						<real>4.2625651359558105</real>
+						<real>3.7246148586273193</real>
+						<real>2.7373099327087402</real>
+						<real>1.6512600183486938</real>
+						<real>1.6833959817886353</real>
+						<real>2.4222769737243652</real>
+						<real>3.1072468757629395</real>
+						<real>3.6247639656066895</real>
+						<real>4.0973787307739258</real>
+						<real>4.4810481071472168</real>
+						<real>4.6856808662414551</real>
+						<real>4.643639087677002</real>
+						<real>4.2912869453430176</real>
+						<real>3.6200449466705322</real>
+						<real>2.6959788799285889</real>
+						<real>1.7037019729614258</real>
+						<real>0.90104299783706665</real>
+						<real>1.878497838973999</real>
+						<real>2.415266752243042</real>
+						<real>2.8865039348602295</real>
+						<real>3.2771158218383789</real>
+						<real>3.6610198020935059</real>
+						<real>3.9627506732940674</real>
+						<real>4.1603789329528809</real>
+						<real>4.2269425392150879</real>
+						<real>3.9895827770233154</real>
+						<real>3.3674159049987793</real>
+						<real>2.4737038612365723</real>
+						<real>1.5268439054489136</real>
+						<real>0.76355093717575073</real>
+						<real>1.945512056350708</real>
+						<real>2.1939120292663574</real>
+						<real>2.3484599590301514</real>
+						<real>2.5157520771026611</real>
+						<real>2.84169602394104</real>
+						<real>3.2515559196472168</real>
+						<real>3.5388360023498535</real>
+						<real>3.5379719734191895</real>
+						<real>3.1410720348358154</real>
+						<real>2.4081840515136719</real>
+						<real>1.592460036277771</real>
+						<real>0.94532400369644165</real>
+						<real>1.6645499467849731</real>
+						<real>1.7338049411773682</real>
+						<real>1.6950869560241699</real>
+						<real>1.627937912940979</real>
+						<real>1.7363969087600708</real>
+						<real>2.0230560302734375</real>
+						<real>2.3112540245056152</real>
+						<real>2.3908770084381104</real>
+						<real>2.0966038703918457</real>
+						<real>1.5009299516677856</real>
+						<real>0.89099997282028198</real>
+						<real>1.2631449699401855</real>
+						<real>1.2300599813461304</real>
+						<real>1.1568050384521484</real>
+						<real>1.1339900493621826</real>
+						<real>1.2134850025177002</real>
+						<real>1.329509973526001</real>
+						<real>1.4251250028610229</real>
+						<real>1.4156999588012695</real>
+						<real>1.1872899532318115</real>
+						<real>0.78429001569747925</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>265.214599609375</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>72</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.23287111520767212</real>
+					<key>AreaPix2</key>
+					<real>75.362617492675781</real>
+					<key>Center</key>
+					<string>(8.744363, -3.105536, 0.877993)</string>
+					<key>Dev</key>
+					<real>0.96098881959915161</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.8659145832061768</real>
+					<key>LengthPix</key>
+					<real>32.893810272216797</real>
+					<key>Max</key>
+					<real>4.6725249290466309</real>
+					<key>Mean</key>
+					<real>2.6436262130737305</real>
+					<key>Median</key>
+					<real>2.6349399089813232</real>
+					<key>Min</key>
+					<real>0.98563498258590698</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>23</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(6.693356, -3.105536, 3.548242)</string>
+						<string>(6.693356, -3.105536, 2.799891)</string>
+						<string>(6.644782, -3.105536, 2.068113)</string>
+						<string>(6.547915, -3.105536, 1.311478)</string>
+						<string>(6.531628, -3.105536, 0.562841)</string>
+						<string>(6.757933, -3.105536, -0.202083)</string>
+						<string>(7.097678, -3.105536, -0.975583)</string>
+						<string>(7.469423, -3.105536, -1.707355)</string>
+						<string>(8.125495, -3.105536, -2.353133)</string>
+						<string>(8.947972, -3.105536, -2.639682)</string>
+						<string>(9.818445, -3.105536, -2.258874)</string>
+						<string>(10.206276, -3.105536, -1.818649)</string>
+						<string>(10.518777, -3.105536, -1.309561)</string>
+						<string>(10.744455, -3.105536, -0.750475)</string>
+						<string>(11.018449, -3.105536, -0.134552)</string>
+						<string>(11.038040, -3.105536, 0.514810)</string>
+						<string>(10.992066, -3.105536, 1.084080)</string>
+						<string>(10.912192, -3.105536, 1.973969)</string>
+						<string>(10.556952, -3.105536, 2.796587)</string>
+						<string>(10.137369, -3.105536, 3.481664)</string>
+						<string>(9.377588, -3.105536, 4.055714)</string>
+						<string>(8.633810, -3.105536, 3.548242)</string>
+						<string>(7.857458, -3.105536, 3.373655)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(81.742388, 82.457586)</string>
+						<string>(81.742388, 81.517447)</string>
+						<string>(81.617254, 80.598128)</string>
+						<string>(81.367725, 79.647579)</string>
+						<string>(81.325769, 78.707082)</string>
+						<string>(81.908741, 77.746123)</string>
+						<string>(82.783936, 76.774395)</string>
+						<string>(83.741571, 75.855076)</string>
+						<string>(85.431641, 75.043800)</string>
+						<string>(87.550380, 74.683813)</string>
+						<string>(89.792758, 75.162219)</string>
+						<string>(90.791825, 75.715260)</string>
+						<string>(91.596836, 76.354823)</string>
+						<string>(92.178196, 77.057189)</string>
+						<string>(92.884016, 77.830961)</string>
+						<string>(92.934485, 78.646747)</string>
+						<string>(92.816057, 79.361907)</string>
+						<string>(92.610301, 80.479859)</string>
+						<string>(91.695181, 81.513298)</string>
+						<string>(90.614319, 82.373946)</string>
+						<string>(88.657091, 83.095114)</string>
+						<string>(86.741083, 82.457586)</string>
+						<string>(84.741163, 82.238256)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.4670499563217163</real>
+						<real>2.3480598926544189</real>
+						<real>2.9715399742126465</real>
+						<real>3.1125900745391846</real>
+						<real>2.8987400531768799</real>
+						<real>2.4527099132537842</real>
+						<real>1.8378100395202637</real>
+						<real>1.8625820875167847</real>
+						<real>2.5109171867370605</real>
+						<real>3.004439115524292</real>
+						<real>3.1948120594024658</real>
+						<real>3.2050991058349609</real>
+						<real>3.0537152290344238</real>
+						<real>2.576195240020752</real>
+						<real>1.8301970958709717</real>
+						<real>1.1173460483551025</real>
+						<real>2.1683700084686279</real>
+						<real>2.9778299331665039</real>
+						<real>3.4711198806762695</real>
+						<real>3.6301498413085938</real>
+						<real>3.5585999488830566</real>
+						<real>3.5066249370574951</real>
+						<real>3.4522199630737305</real>
+						<real>3.1017599105834961</real>
+						<real>2.4050250053405762</real>
+						<real>1.6235098838806152</real>
+						<real>0.98563498258590698</real>
+						<real>1.7465249300003052</real>
+						<real>2.6349399089813232</real>
+						<real>3.4269299507141113</real>
+						<real>3.877155065536499</real>
+						<real>3.9950399398803711</real>
+						<real>3.9782199859619141</real>
+						<real>4.051300048828125</real>
+						<real>4.0923347473144531</real>
+						<real>3.7681150436401367</real>
+						<real>3.0062849521636963</real>
+						<real>2.0247800350189209</real>
+						<real>1.1109899282455444</real>
+						<real>1.3985400199890137</real>
+						<real>2.0632040500640869</real>
+						<real>2.8132388591766357</real>
+						<real>3.3700809478759766</real>
+						<real>3.7568960189819336</real>
+						<real>4.158440113067627</real>
+						<real>4.5195150375366211</real>
+						<real>4.6725249290466309</real>
+						<real>4.455021858215332</real>
+						<real>3.8302550315856934</real>
+						<real>2.9495179653167725</real>
+						<real>2.0048599243164062</real>
+						<real>1.1588720083236694</real>
+						<real>1.6397188901901245</real>
+						<real>2.1643619537353516</real>
+						<real>2.616635799407959</real>
+						<real>2.9507458209991455</real>
+						<real>3.2602167129516602</real>
+						<real>3.6341876983642578</real>
+						<real>3.9457228183746338</real>
+						<real>4.0934276580810547</real>
+						<real>4.0233807563781738</real>
+						<real>3.6123867034912109</real>
+						<real>2.8619937896728516</real>
+						<real>1.9530599117279053</real>
+						<real>1.1106898784637451</real>
+						<real>2.2243680953979492</real>
+						<real>2.3113079071044922</real>
+						<real>2.2696199417114258</real>
+						<real>2.3351759910583496</real>
+						<real>2.6646840572357178</real>
+						<real>3.1060800552368164</real>
+						<real>3.3880679607391357</real>
+						<real>3.3215401172637939</real>
+						<real>2.8220400810241699</real>
+						<real>2.0255401134490967</real>
+						<real>1.240164041519165</real>
+						<real>1.7858879566192627</real>
+						<real>1.7407709360122681</real>
+						<real>1.6321499347686768</real>
+						<real>2.023460865020752</real>
+						<real>2.3110108375549316</real>
+						<real>2.3239710330963135</real>
+						<real>1.9401929378509521</real>
+						<real>1.4290900230407715</real>
+						<real>1.2752350568771362</real>
+						<real>1.1413350105285645</real>
+						<real>1.4003599882125854</real>
+						<real>1.5212600231170654</real>
+						<real>1.4721850156784058</real>
+						<real>1.166100025177002</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>237.92636108398438</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>73</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.22021573781967163</real>
+					<key>AreaPix2</key>
+					<real>71.267036437988281</real>
+					<key>Center</key>
+					<string>(8.487725, -3.493728, 1.274001)</string>
+					<key>Dev</key>
+					<real>0.87041109800338745</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.7887353897094727</real>
+					<key>LengthPix</key>
+					<real>31.710788726806641</real>
+					<key>Max</key>
+					<real>4.294003963470459</real>
+					<key>Mean</key>
+					<real>2.5090131759643555</real>
+					<key>Median</key>
+					<real>2.4000298976898193</real>
+					<key>Min</key>
+					<real>0.84898799657821655</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>30</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(6.273640, -3.493728, 1.596295)</string>
+						<string>(6.324818, -3.493728, 2.431314)</string>
+						<string>(6.416076, -3.493728, 3.254114)</string>
+						<string>(6.547772, -3.493728, 3.997279)</string>
+						<string>(6.926460, -3.493728, 4.215974)</string>
+						<string>(7.331957, -3.493728, 4.061416)</string>
+						<string>(7.734890, -3.493728, 3.872176)</string>
+						<string>(8.144758, -3.493728, 3.810954)</string>
+						<string>(8.546828, -3.493728, 3.971378)</string>
+						<string>(8.942244, -3.493728, 4.196978)</string>
+						<string>(9.348499, -3.493728, 4.165890)</string>
+						<string>(9.721192, -3.493728, 3.813577)</string>
+						<string>(10.040093, -3.493728, 3.281516)</string>
+						<string>(10.348735, -3.493728, 2.718749)</string>
+						<string>(10.623670, -3.493728, 2.093042)</string>
+						<string>(10.728842, -3.493728, 1.279497)</string>
+						<string>(10.733521, -3.493728, 0.447351)</string>
+						<string>(10.533504, -3.493728, -0.262443)</string>
+						<string>(10.244692, -3.493728, -0.867465)</string>
+						<string>(9.935188, -3.493728, -1.425216)</string>
+						<string>(9.575235, -3.493728, -1.837651)</string>
+						<string>(9.181177, -3.493728, -2.076830)</string>
+						<string>(8.771859, -3.493728, -2.178522)</string>
+						<string>(8.359666, -3.493728, -2.142740)</string>
+						<string>(7.973588, -3.493728, -1.877727)</string>
+						<string>(7.627784, -3.493728, -1.453303)</string>
+						<string>(7.286321, -3.493728, -0.984152)</string>
+						<string>(6.971170, -3.493728, -0.437121)</string>
+						<string>(6.682463, -3.493728, 0.168874)</string>
+						<string>(6.420637, -3.493728, 0.824648)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(80.661176, 80.005394)</string>
+						<string>(80.793011, 81.054414)</string>
+						<string>(81.028101, 82.088079)</string>
+						<string>(81.367357, 83.021705)</string>
+						<string>(82.342874, 83.296451)</string>
+						<string>(83.387455, 83.102279)</string>
+						<string>(84.425422, 82.864539)</string>
+						<string>(85.481262, 82.787632)</string>
+						<string>(86.517014, 82.989168)</string>
+						<string>(87.535622, 83.272580)</string>
+						<string>(88.582155, 83.233530)</string>
+						<string>(89.542226, 82.790921)</string>
+						<string>(90.363733, 82.122506)</string>
+						<string>(91.158805, 81.415513)</string>
+						<string>(91.867050, 80.629450)</string>
+						<string>(92.137976, 79.607409)</string>
+						<string>(92.150034, 78.561994)</string>
+						<string>(91.634780, 77.670292)</string>
+						<string>(90.890782, 76.910218)</string>
+						<string>(90.093490, 76.209529)</string>
+						<string>(89.166235, 75.691389)</string>
+						<string>(88.151121, 75.390913)</string>
+						<string>(87.096701, 75.263159)</string>
+						<string>(86.034872, 75.308115)</string>
+						<string>(85.040321, 75.641046)</string>
+						<string>(84.149515, 76.174241)</string>
+						<string>(83.269889, 76.763623)</string>
+						<string>(82.458049, 77.450854)</string>
+						<string>(81.714324, 78.212152)</string>
+						<string>(81.039847, 79.035988)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>2.419950008392334</real>
+						<real>2.6746199131011963</real>
+						<real>2.4809200763702393</real>
+						<real>2.0781800746917725</real>
+						<real>1.5841799974441528</real>
+						<real>2.1830031871795654</real>
+						<real>2.6807160377502441</real>
+						<real>2.83921217918396</real>
+						<real>2.708402156829834</real>
+						<real>2.488692045211792</real>
+						<real>2.1751291751861572</real>
+						<real>1.4546248912811279</real>
+						<real>2.4000298976898193</real>
+						<real>3.2071948051452637</real>
+						<real>3.5793898105621338</real>
+						<real>3.5564398765563965</real>
+						<real>3.3331499099731445</real>
+						<real>3.1021649837493896</real>
+						<real>2.7863998413085938</real>
+						<real>2.2334399223327637</real>
+						<real>2.0431950092315674</real>
+						<real>2.9884500503540039</real>
+						<real>3.7334599494934082</real>
+						<real>4.1007447242736816</real>
+						<real>4.1081399917602539</real>
+						<real>3.985759973526001</real>
+						<real>3.8974549770355225</real>
+						<real>3.6718349456787109</real>
+						<real>3.0973448753356934</real>
+						<real>2.2461950778961182</real>
+						<real>1.3711199760437012</real>
+						<real>1.6825379133224487</real>
+						<real>2.3729419708251953</real>
+						<real>3.0165848731994629</real>
+						<real>3.4222760200500488</real>
+						<real>3.6655189990997314</real>
+						<real>3.9200589656829834</real>
+						<real>4.1994810104370117</real>
+						<real>4.294003963470459</real>
+						<real>3.9542360305786133</real>
+						<real>3.1730270385742188</real>
+						<real>2.2053458690643311</real>
+						<real>1.324180006980896</real>
+						<real>2.0045309066772461</real>
+						<real>2.4862167835235596</real>
+						<real>2.750924825668335</real>
+						<real>2.8830208778381348</real>
+						<real>3.0640077590942383</real>
+						<real>3.3835408687591553</real>
+						<real>3.6949467658996582</real>
+						<real>3.7829248905181885</real>
+						<real>3.5584647655487061</real>
+						<real>3.0041518211364746</real>
+						<real>2.2118339538574219</real>
+						<real>1.3819769620895386</real>
+						<real>2.2183198928833008</real>
+						<real>2.4530041217803955</real>
+						<real>2.3598001003265381</real>
+						<real>2.1603240966796875</real>
+						<real>2.186892032623291</real>
+						<real>2.5469639301300049</real>
+						<real>2.9842560291290283</real>
+						<real>3.1782240867614746</real>
+						<real>2.9746439456939697</real>
+						<real>2.3617439270019531</real>
+						<real>1.5462360382080078</real>
+						<real>0.84898799657821655</real>
+						<real>1.9345229864120483</real>
+						<real>1.955016016960144</real>
+						<real>1.8272789716720581</real>
+						<real>1.6856099367141724</real>
+						<real>1.6742699146270752</real>
+						<real>1.8382949829101562</real>
+						<real>2.1179878711700439</real>
+						<real>2.3268060684204102</real>
+						<real>2.2198050022125244</real>
+						<real>1.7333999872207642</real>
+						<real>1.0892879962921143</real>
+						<real>1.5881450176239014</real>
+						<real>1.5176850557327271</real>
+						<real>1.3186550140380859</real>
+						<real>1.1924899816513062</real>
+						<real>1.2237550020217896</real>
+						<real>1.3755949735641479</real>
+						<real>1.5325700044631958</real>
+						<real>1.6056950092315674</real>
+						<real>1.4760199785232544</real>
+						<real>1.0945999622344971</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>220.79316711425781</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>74</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.20926275849342346</real>
+					<key>AreaPix2</key>
+					<real>67.722389221191406</real>
+					<key>Center</key>
+					<string>(8.228540, -3.881920, 1.652732)</string>
+					<key>Dev</key>
+					<real>0.79831588268280029</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.7385344505310059</real>
+					<key>LengthPix</key>
+					<real>30.855993270874023</real>
+					<key>Max</key>
+					<real>4.0502848625183105</real>
+					<key>Mean</key>
+					<real>2.3624954223632812</real>
+					<key>Median</key>
+					<real>2.3265149593353271</real>
+					<key>Min</key>
+					<real>0.76547896862030029</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>20</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(6.402188, -3.881920, 4.446317)</string>
+						<string>(6.111305, -3.881920, 3.706255)</string>
+						<string>(6.030443, -3.881920, 2.933041)</string>
+						<string>(6.030443, -3.881920, 2.176121)</string>
+						<string>(6.240460, -3.881920, 1.436059)</string>
+						<string>(6.547915, -3.881920, 0.687708)</string>
+						<string>(6.968238, -3.881920, -0.052360)</string>
+						<string>(7.404847, -3.881920, -0.784138)</string>
+						<string>(7.809168, -3.881920, -1.516201)</string>
+						<string>(8.552947, -3.881920, -1.723928)</string>
+						<string>(9.312728, -3.881920, -1.457906)</string>
+						<string>(9.846486, -3.881920, -0.709555)</string>
+						<string>(10.218235, -3.881920, 0.039081)</string>
+						<string>(10.460825, -3.881920, 0.779143)</string>
+						<string>(10.460825, -3.881920, 1.510921)</string>
+						<string>(10.315384, -3.881920, 2.267556)</string>
+						<string>(9.927352, -3.881920, 3.016193)</string>
+						<string>(9.587606, -3.881920, 3.747971)</string>
+						<string>(8.843827, -3.881920, 4.438033)</string>
+						<string>(8.100049, -3.881920, 4.246873)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(80.992327, 83.585824)</string>
+						<string>(80.243000, 82.656095)</string>
+						<string>(80.034691, 81.684726)</string>
+						<string>(80.034691, 80.733818)</string>
+						<string>(80.575706, 79.804090)</string>
+						<string>(81.367725, 78.863951)</string>
+						<string>(82.450493, 77.934222)</string>
+						<string>(83.575218, 77.014904)</string>
+						<string>(84.616766, 76.095226)</string>
+						<string>(86.532774, 75.834256)</string>
+						<string>(88.490002, 76.168456)</string>
+						<string>(89.864992, 77.108594)</string>
+						<string>(90.822628, 78.049092)</string>
+						<string>(91.447557, 78.978821)</string>
+						<string>(91.447557, 79.898139)</string>
+						<string>(91.072893, 80.848688)</string>
+						<string>(90.073301, 81.789186)</string>
+						<string>(89.198107, 82.708505)</string>
+						<string>(87.282099, 83.575414)</string>
+						<string>(85.366093, 83.335264)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>2.49123215675354</real>
+						<real>2.8310842514038086</real>
+						<real>2.6892251968383789</real>
+						<real>2.2672040462493896</real>
+						<real>1.8148300647735596</real>
+						<real>1.358646035194397</real>
+						<real>3.2588999271392822</real>
+						<real>3.5413198471069336</real>
+						<real>3.3863399028778076</real>
+						<real>3.0347998142242432</real>
+						<real>2.6324999332427979</real>
+						<real>2.1095099449157715</real>
+						<real>1.4656949043273926</real>
+						<real>3.0834250450134277</real>
+						<real>3.7692749500274658</real>
+						<real>4.0502848625183105</real>
+						<real>3.9466099739074707</real>
+						<real>3.6825649738311768</real>
+						<real>3.3918399810791016</real>
+						<real>2.9582898616790771</real>
+						<real>2.2997000217437744</real>
+						<real>1.535984992980957</real>
+						<real>2.5102219581604004</real>
+						<real>2.9838378429412842</real>
+						<real>3.2645468711853027</real>
+						<real>3.4071178436279297</real>
+						<real>3.527094841003418</real>
+						<real>3.6758148670196533</real>
+						<real>3.6559379100799561</real>
+						<real>3.2230770587921143</real>
+						<real>2.4134109020233154</real>
+						<real>1.5023579597473145</real>
+						<real>0.76547896862030029</real>
+						<real>2.332319974899292</real>
+						<real>2.732219934463501</real>
+						<real>2.7844648361206055</real>
+						<real>2.7411208152770996</real>
+						<real>2.8013639450073242</real>
+						<real>3.0542037487030029</real>
+						<real>3.3320698738098145</real>
+						<real>3.3356819152832031</real>
+						<real>2.9694509506225586</real>
+						<real>2.3265149593353271</real>
+						<real>1.5737999677658081</real>
+						<real>1.98061203956604</real>
+						<real>2.4333479404449463</real>
+						<real>2.5197479724884033</real>
+						<real>2.2915439605712891</real>
+						<real>2.0640959739685059</real>
+						<real>2.1296520233154297</real>
+						<real>2.5284960269927979</real>
+						<real>2.9285280704498291</real>
+						<real>2.9898719787597656</real>
+						<real>2.6118719577789307</real>
+						<real>1.8921600580215454</real>
+						<real>1.1057039499282837</real>
+						<real>1.8472859859466553</real>
+						<real>2.1007349491119385</real>
+						<real>2.0692260265350342</real>
+						<real>1.8860039710998535</real>
+						<real>1.7665289640426636</real>
+						<real>1.8267120122909546</real>
+						<real>2.0276730060577393</real>
+						<real>2.2546348571777344</real>
+						<real>2.334662914276123</real>
+						<real>2.074815034866333</real>
+						<real>1.4923440217971802</real>
+						<real>1.478814959526062</real>
+						<real>1.6417050361633301</real>
+						<real>1.5532400608062744</real>
+						<real>1.3876199722290039</real>
+						<real>1.3334749937057495</real>
+						<real>1.6216200590133667</real>
+						<real>1.7197049856185913</real>
+						<real>1.6636099815368652</real>
+						<real>1.278080940246582</real>
+						<real>1.289106011390686</real>
+						<real>1.2267990112304688</real>
+						<real>1.2059459686279297</real>
+						<real>1.2239639759063721</real>
+						<real>1.0708110332489014</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>191.36212158203125</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>75</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.20591597259044647</real>
+					<key>AreaPix2</key>
+					<real>66.639289855957031</real>
+					<key>Center</key>
+					<string>(8.096353, -4.270112, 1.824901)</string>
+					<key>Dev</key>
+					<real>0.70568937063217163</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.7264623641967773</real>
+					<key>LengthPix</key>
+					<real>30.4713134765625</real>
+					<key>Max</key>
+					<real>3.7788448333740234</real>
+					<key>Mean</key>
+					<real>2.1660315990447998</real>
+					<key>Median</key>
+					<real>2.1333849430084229</real>
+					<key>Min</key>
+					<real>0.74777603149414062</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>28</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(5.949343, -4.270112, 3.909956)</string>
+						<string>(6.164130, -4.270112, 4.536142)</string>
+						<string>(6.521304, -4.270112, 4.817462)</string>
+						<string>(6.942806, -4.270112, 4.848847)</string>
+						<string>(7.374007, -4.270112, 4.710365)</string>
+						<string>(7.804913, -4.270112, 4.588662)</string>
+						<string>(8.239247, -4.270112, 4.513454)</string>
+						<string>(8.663693, -4.270112, 4.441045)</string>
+						<string>(9.078036, -4.270112, 4.274038)</string>
+						<string>(9.472581, -4.270112, 3.903895)</string>
+						<string>(9.821650, -4.270112, 3.369848)</string>
+						<string>(10.048786, -4.270112, 2.643693)</string>
+						<string>(10.181460, -4.270112, 1.895518)</string>
+						<string>(10.170863, -4.270112, 1.089734)</string>
+						<string>(10.060218, -4.270112, 0.254630)</string>
+						<string>(9.796520, -4.270112, -0.454508)</string>
+						<string>(9.464535, -4.270112, -1.030580)</string>
+						<string>(9.090067, -4.270112, -1.466633)</string>
+						<string>(8.676325, -4.270112, -1.696005)</string>
+						<string>(8.247285, -4.270112, -1.678557)</string>
+						<string>(7.837405, -4.270112, -1.481597)</string>
+						<string>(7.471594, -4.270112, -1.085528)</string>
+						<string>(7.133780, -4.270112, -0.526005)</string>
+						<string>(6.853571, -4.270112, 0.139407)</string>
+						<string>(6.573406, -4.270112, 0.792346)</string>
+						<string>(6.286118, -4.270112, 1.443262)</string>
+						<string>(6.129339, -4.270112, 2.229909)</string>
+						<string>(6.033902, -4.270112, 3.048987)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(79.825772, 82.912004)</string>
+						<string>(80.379072, 83.698668)</string>
+						<string>(81.299169, 84.052086)</string>
+						<string>(82.384979, 84.091518)</string>
+						<string>(83.495771, 83.917541)</string>
+						<string>(84.605805, 83.764651)</string>
+						<string>(85.724673, 83.670166)</string>
+						<string>(86.818061, 83.579198)</string>
+						<string>(87.885428, 83.369393)</string>
+						<string>(88.901797, 82.904385)</string>
+						<string>(89.801009, 82.233475)</string>
+						<string>(90.386123, 81.321219)</string>
+						<string>(90.727895, 80.381300)</string>
+						<string>(90.700598, 79.369014)</string>
+						<string>(90.415572, 78.319885)</string>
+						<string>(89.736272, 77.429011)</string>
+						<string>(88.881063, 76.705300)</string>
+						<string>(87.916419, 76.157495)</string>
+						<string>(86.850599, 75.869339)</string>
+						<string>(85.745373, 75.891254)</string>
+						<string>(84.689503, 76.138698)</string>
+						<string>(83.747161, 76.636270)</string>
+						<string>(82.876939, 77.339186)</string>
+						<string>(82.155105, 78.175136)</string>
+						<string>(81.433391, 78.995405)</string>
+						<string>(80.693319, 79.813142)</string>
+						<string>(80.289452, 80.801390)</string>
+						<string>(80.043601, 81.830387)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>2.7254202365875244</real>
+						<real>2.8643581867218018</real>
+						<real>2.4710390567779541</real>
+						<real>1.8409920930862427</real>
+						<real>1.2410440444946289</real>
+						<real>0.74777603149414062</real>
+						<real>2.488724946975708</real>
+						<real>3.1901848316192627</real>
+						<real>3.3789148330688477</real>
+						<real>3.1220099925994873</real>
+						<real>2.6550447940826416</real>
+						<real>2.1077549457550049</real>
+						<real>1.4870249032974243</real>
+						<real>2.1333849430084229</real>
+						<real>2.9665548801422119</real>
+						<real>3.5604748725891113</real>
+						<real>3.7788448333740234</real>
+						<real>3.6093399524688721</real>
+						<real>3.2018899917602539</real>
+						<real>2.6943900585174561</real>
+						<real>2.1152598857879639</real>
+						<real>1.5052449703216553</real>
+						<real>1.9074770212173462</real>
+						<real>2.4830520153045654</real>
+						<real>2.8168139457702637</real>
+						<real>3.0211608409881592</real>
+						<real>3.1265518665313721</real>
+						<real>3.1495749950408936</real>
+						<real>3.136847972869873</real>
+						<real>2.9542369842529297</real>
+						<real>2.4505908489227295</real>
+						<real>1.7048460245132446</real>
+						<real>0.9489479660987854</real>
+						<real>1.7445958852767944</real>
+						<real>2.4760258197784424</real>
+						<real>2.8087167739868164</real>
+						<real>2.7368638515472412</real>
+						<real>2.6067028045654297</real>
+						<real>2.6161198616027832</real>
+						<real>2.8036859035491943</real>
+						<real>2.9835119247436523</real>
+						<real>2.8598008155822754</real>
+						<real>2.3766958713531494</real>
+						<real>1.7105399370193481</real>
+						<real>1.0597349405288696</real>
+						<real>2.0924999713897705</real>
+						<real>2.4854040145874023</real>
+						<real>2.4518160820007324</real>
+						<real>2.1889441013336182</real>
+						<real>2.0427119731903076</real>
+						<real>2.1773879528045654</real>
+						<real>2.549015998840332</real>
+						<real>2.8461239337921143</real>
+						<real>2.7641520500183105</real>
+						<real>2.2424039840698242</real>
+						<real>1.4784120321273804</real>
+						<real>0.77727597951889038</real>
+						<real>1.9095749855041504</real>
+						<real>2.1736350059509277</real>
+						<real>2.1111030578613281</real>
+						<real>1.9058489799499512</real>
+						<real>1.8271979093551636</real>
+						<real>1.9320119619369507</real>
+						<real>2.1214709281921387</real>
+						<real>2.2611148357391357</real>
+						<real>2.1972060203552246</real>
+						<real>1.8026549816131592</real>
+						<real>1.1855969429016113</real>
+						<real>1.5764449834823608</real>
+						<real>1.7126849889755249</real>
+						<real>1.6465799808502197</real>
+						<real>1.5399149656295776</real>
+						<real>1.5442049503326416</real>
+						<real>1.6836949586868286</real>
+						<real>1.8352099657058716</real>
+						<real>1.8301399946212769</real>
+						<real>1.6181750297546387</real>
+						<real>1.2224550247192383</real>
+						<real>1.2414150238037109</real>
+						<real>1.3708800077438354</real>
+						<real>1.3742820024490356</real>
+						<real>1.296288013458252</real>
+						<real>1.246580958366394</real>
+						<real>1.2393989562988281</real>
+						<real>1.2403440475463867</real>
+						<real>1.1677049398422241</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>186.27871704101562</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>76</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.21680934727191925</real>
+					<key>AreaPix2</key>
+					<real>70.164649963378906</real>
+					<key>Center</key>
+					<string>(7.932069, -4.658304, 1.999081)</string>
+					<key>Dev</key>
+					<real>0.64474391937255859</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.8414613008499146</real>
+					<key>LengthPix</key>
+					<real>31.938480377197266</real>
+					<key>Max</key>
+					<real>3.3899550437927246</real>
+					<key>Mean</key>
+					<real>2.0651106834411621</real>
+					<key>Median</key>
+					<real>2.0737619400024414</real>
+					<key>Min</key>
+					<real>0.55026000738143921</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>21</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(5.868715, -4.658304, 4.895500)</string>
+						<string>(6.014156, -4.658304, 4.138865)</string>
+						<string>(5.981868, -4.658304, 3.407087)</string>
+						<string>(5.981868, -4.658304, 2.666734)</string>
+						<string>(6.062731, -4.658304, 1.918383)</string>
+						<string>(6.402188, -4.658304, 1.186605)</string>
+						<string>(6.531628, -4.658304, 0.438253)</string>
+						<string>(6.919663, -4.658304, -0.293518)</string>
+						<string>(7.259406, -4.658304, -1.042155)</string>
+						<string>(7.970612, -4.658304, -1.773933)</string>
+						<string>(8.714675, -4.658304, -1.699071)</string>
+						<string>(9.361302, -4.658304, -0.967293)</string>
+						<string>(9.668472, -4.658304, -0.202083)</string>
+						<string>(9.862488, -4.658304, 0.546268)</string>
+						<string>(10.056791, -4.658304, 1.286330)</string>
+						<string>(10.121367, -4.658304, 2.043250)</string>
+						<string>(10.105082, -4.658304, 2.775028)</string>
+						<string>(9.733333, -4.658304, 3.523379)</string>
+						<string>(9.102707, -4.658304, 4.255157)</string>
+						<string>(8.349499, -4.658304, 4.797767)</string>
+						<string>(7.615152, -4.658304, 4.853778)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(79.618072, 84.150123)</string>
+						<string>(79.992734, 83.199574)</string>
+						<string>(79.909557, 82.280255)</string>
+						<string>(79.909557, 81.350167)</string>
+						<string>(80.117867, 80.410029)</string>
+						<string>(80.992327, 79.490710)</string>
+						<string>(81.325769, 78.550571)</string>
+						<string>(82.325361, 77.631253)</string>
+						<string>(83.200556, 76.690755)</string>
+						<string>(85.032650, 75.771436)</string>
+						<string>(86.949392, 75.865486)</string>
+						<string>(88.615135, 76.784805)</string>
+						<string>(89.406416, 77.746123)</string>
+						<string>(89.906212, 78.686261)</string>
+						<string>(90.406744, 79.615990)</string>
+						<string>(90.573097, 80.566898)</string>
+						<string>(90.531141, 81.486217)</string>
+						<string>(89.573505, 82.426355)</string>
+						<string>(87.948984, 83.345674)</string>
+						<string>(86.008685, 84.027345)</string>
+						<string>(84.116970, 84.097713)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>2.7320241928100586</real>
+						<real>2.6116280555725098</real>
+						<real>2.0438110828399658</real>
+						<real>1.3595350980758667</real>
+						<real>0.78727304935455322</real>
+						<real>2.5294950008392334</real>
+						<real>3.03236985206604</real>
+						<real>3.0697648525238037</real>
+						<real>2.7171449661254883</real>
+						<real>2.1761999130249023</real>
+						<real>1.5680249929428101</real>
+						<real>0.98063993453979492</real>
+						<real>2.1310648918151855</real>
+						<real>2.8114049434661865</real>
+						<real>3.2582950592041016</real>
+						<real>3.3899550437927246</real>
+						<real>3.1654949188232422</real>
+						<real>2.6581399440765381</real>
+						<real>2.0099899768829346</real>
+						<real>1.3828649520874023</real>
+						<real>0.89015501737594604</real>
+						<real>1.8708689212799072</real>
+						<real>2.4156990051269531</real>
+						<real>2.6962649822235107</real>
+						<real>2.8557100296020508</real>
+						<real>2.9222049713134766</real>
+						<real>2.8511340618133545</real>
+						<real>2.6832518577575684</real>
+						<real>2.3527789115905762</real>
+						<real>1.8226779699325562</real>
+						<real>1.1881870031356812</real>
+						<real>2.4295859336853027</real>
+						<real>2.7425398826599121</real>
+						<real>2.6718478202819824</real>
+						<real>2.5370428562164307</real>
+						<real>2.5464599132537842</real>
+						<real>2.6602377891540527</real>
+						<real>2.6878437995910645</real>
+						<real>2.4113969802856445</real>
+						<real>1.8517948389053345</real>
+						<real>1.2252418994903564</real>
+						<real>0.70730698108673096</real>
+						<real>2.1132359504699707</real>
+						<real>2.4733080863952637</real>
+						<real>2.4138000011444092</real>
+						<real>2.2001760005950928</real>
+						<real>2.1460680961608887</real>
+						<real>2.2921919822692871</real>
+						<real>2.5290360450744629</real>
+						<real>2.6490240097045898</real>
+						<real>2.4233040809631348</real>
+						<real>1.833516001701355</real>
+						<real>1.1206079721450806</real>
+						<real>0.55026000738143921</real>
+						<real>1.9150829315185547</real>
+						<real>2.2076549530029297</real>
+						<real>2.1612420082092285</real>
+						<real>1.9599570035934448</real>
+						<real>1.894913911819458</real>
+						<real>1.980692982673645</real>
+						<real>2.0724658966064453</real>
+						<real>2.0737619400024414</real>
+						<real>1.8656729459762573</real>
+						<real>1.394900918006897</real>
+						<real>0.83429998159408569</real>
+						<real>1.7481750249862671</real>
+						<real>1.8779150247573853</real>
+						<real>1.8476899862289429</real>
+						<real>1.7671550512313843</real>
+						<real>1.7483049631118774</real>
+						<real>1.8162300586700439</real>
+						<real>1.8486000299453735</real>
+						<real>1.7269200086593628</real>
+						<real>1.4031549692153931</real>
+						<real>1.4849100112915039</real>
+						<real>1.5734249353408813</real>
+						<real>1.5230250358581543</real>
+						<real>1.141632080078125</real>
+						<real>1.0960559844970703</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>163.14373779296875</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>77</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.21101841330528259</real>
+					<key>AreaPix2</key>
+					<real>68.290565490722656</real>
+					<key>Center</key>
+					<string>(7.684639, -5.046496, 1.878222)</string>
+					<key>Dev</key>
+					<real>0.57158315181732178</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.8542068004608154</real>
+					<key>LengthPix</key>
+					<real>31.654088973999023</real>
+					<key>Max</key>
+					<real>2.9632198810577393</real>
+					<key>Mean</key>
+					<real>1.9532532691955566</real>
+					<key>Median</key>
+					<real>1.9913729429244995</real>
+					<key>Min</key>
+					<real>0.50940901041030884</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>30</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(5.690843, -5.046496, 4.941217)</string>
+						<string>(6.022144, -5.046496, 5.262133)</string>
+						<string>(6.434417, -5.046496, 5.163671)</string>
+						<string>(6.844431, -5.046496, 5.028766)</string>
+						<string>(7.256085, -5.046496, 4.923029)</string>
+						<string>(7.667511, -5.046496, 4.816010)</string>
+						<string>(8.074699, -5.046496, 4.692632)</string>
+						<string>(8.475040, -5.046496, 4.476919)</string>
+						<string>(8.858668, -5.046496, 4.151953)</string>
+						<string>(9.217036, -5.046496, 3.725136)</string>
+						<string>(9.552200, -5.046496, 3.227563)</string>
+						<string>(9.821652, -5.046496, 2.604291)</string>
+						<string>(9.842690, -5.046496, 1.774016)</string>
+						<string>(9.741940, -5.046496, 0.955770)</string>
+						<string>(9.508162, -5.046496, 0.261736)</string>
+						<string>(9.252094, -5.046496, -0.389205)</string>
+						<string>(8.953178, -5.046496, -0.962811)</string>
+						<string>(8.606832, -5.046496, -1.426035)</string>
+						<string>(8.228037, -5.046496, -1.772694)</string>
+						<string>(7.832580, -5.046496, -2.006748)</string>
+						<string>(7.431289, -5.046496, -2.105355)</string>
+						<string>(7.051028, -5.046496, -1.846499)</string>
+						<string>(6.819503, -5.046496, -1.182654)</string>
+						<string>(6.629852, -5.046496, -0.456894)</string>
+						<string>(6.427973, -5.046496, 0.230927)</string>
+						<string>(6.313282, -5.046496, 1.039298)</string>
+						<string>(6.124005, -5.046496, 1.767596)</string>
+						<string>(5.928520, -5.046496, 2.502696)</string>
+						<string>(5.823677, -5.046496, 3.302219)</string>
+						<string>(5.838438, -5.046496, 4.148795)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(79.159864, 84.207558)</string>
+						<string>(80.013312, 84.610717)</string>
+						<string>(81.075346, 84.487022)</string>
+						<string>(82.131561, 84.317546)</string>
+						<string>(83.192002, 84.184709)</string>
+						<string>(84.251852, 84.050262)</string>
+						<string>(85.300787, 83.895261)</string>
+						<string>(86.332088, 83.624266)</string>
+						<string>(87.320326, 83.216022)</string>
+						<string>(88.243503, 82.679815)</string>
+						<string>(89.106897, 82.054726)</string>
+						<string>(89.801017, 81.271723)</string>
+						<string>(89.855208, 80.228661)</string>
+						<string>(89.595675, 79.200715)</string>
+						<string>(88.993454, 78.328813)</string>
+						<string>(88.333806, 77.511047)</string>
+						<string>(87.563790, 76.790439)</string>
+						<string>(86.671584, 76.208500)</string>
+						<string>(85.695797, 75.772992)</string>
+						<string>(84.677075, 75.478956)</string>
+						<string>(83.643333, 75.355082)</string>
+						<string>(82.663762, 75.680273)</string>
+						<string>(82.067348, 76.514252)</string>
+						<string>(81.578794, 77.426007)</string>
+						<string>(81.058746, 78.290106)</string>
+						<string>(80.763297, 79.305651)</string>
+						<string>(80.275713, 80.220595)</string>
+						<string>(79.772132, 81.144090)</string>
+						<string>(79.502050, 82.148512)</string>
+						<string>(79.540077, 83.212049)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.9171099662780762</real>
+						<real>1.9813300371170044</real>
+						<real>1.6148600578308105</real>
+						<real>1.8366740942001343</real>
+						<real>2.2934930324554443</real>
+						<real>2.3704550266265869</real>
+						<real>2.0171411037445068</real>
+						<real>1.9948949813842773</real>
+						<real>2.5574398040771484</real>
+						<real>2.7658798694610596</real>
+						<real>2.5987498760223389</real>
+						<real>2.171069860458374</real>
+						<real>1.6351199150085449</real>
+						<real>1.6364699602127075</real>
+						<real>2.2330000400543213</real>
+						<real>2.7186050415039062</real>
+						<real>2.9632198810577393</real>
+						<real>2.9392950534820557</real>
+						<real>2.6449449062347412</real>
+						<real>2.1100399494171143</real>
+						<real>1.4576849937438965</real>
+						<real>1.8931769132614136</real>
+						<real>2.4215619564056396</real>
+						<real>2.7028429508209229</real>
+						<real>2.8139538764953613</real>
+						<real>2.7883570194244385</real>
+						<real>2.6186158657073975</real>
+						<real>2.3216049671173096</real>
+						<real>1.8853119611740112</real>
+						<real>1.3669369220733643</real>
+						<real>1.7240848541259766</real>
+						<real>2.3274178504943848</real>
+						<real>2.6366307735443115</real>
+						<real>2.6308257579803467</real>
+						<real>2.5407838821411133</real>
+						<real>2.5433638095855713</real>
+						<real>2.5634877681732178</real>
+						<real>2.4115259647369385</real>
+						<real>1.9913729429244995</real>
+						<real>1.4133238792419434</real>
+						<real>0.87165296077728271</real>
+						<real>2.1457440853118896</real>
+						<real>2.4926400184631348</real>
+						<real>2.4747118949890137</real>
+						<real>2.3358240127563477</real>
+						<real>2.3327999114990234</real>
+						<real>2.3980319499969482</real>
+						<real>2.4211440086364746</real>
+						<real>2.307204008102417</real>
+						<real>1.9421639442443848</real>
+						<real>1.3727879524230957</real>
+						<real>0.79963201284408569</real>
+						<real>1.946834921836853</real>
+						<real>2.2512328624725342</real>
+						<real>2.2488839626312256</real>
+						<real>2.0650949478149414</real>
+						<real>1.9887930154800415</real>
+						<real>1.9915469884872437</real>
+						<real>1.9299869537353516</real>
+						<real>1.7619119882583618</real>
+						<real>1.4230079650878906</real>
+						<real>0.94713300466537476</real>
+						<real>0.50940901041030884</real>
+						<real>1.6400150060653687</real>
+						<real>1.9546799659729004</real>
+						<real>2.0710949897766113</real>
+						<real>2.0551700592041016</real>
+						<real>1.9456449747085571</real>
+						<real>1.8343000411987305</real>
+						<real>1.7457050085067749</real>
+						<real>1.6181100606918335</real>
+						<real>1.4045850038528442</real>
+						<real>1.052090048789978</real>
+						<real>1.5793470144271851</real>
+						<real>1.7238060235977173</real>
+						<real>1.7573219537734985</real>
+						<real>1.6280460357666016</real>
+						<real>1.3582170009613037</real>
+						<real>1.1185020208358765</real>
+						<real>0.98292601108551025</real>
+						<real>0.90121501684188843</real>
+						<real>0.78504300117492676</real>
+						<real>0.98575204610824585</real>
+						<real>0.9208800196647644</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>164.07327270507812</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>78</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.2059599757194519</real>
+					<key>AreaPix2</key>
+					<real>66.653533935546875</real>
+					<key>Center</key>
+					<string>(7.418006, -5.434688, 1.752128)</string>
+					<key>Dev</key>
+					<real>0.54356849193572998</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.9127849340438843</real>
+					<key>LengthPix</key>
+					<real>32.155792236328125</real>
+					<key>Max</key>
+					<real>2.7464580535888672</real>
+					<key>Mean</key>
+					<real>1.8527437448501587</real>
+					<key>Median</key>
+					<real>1.9147700071334839</real>
+					<key>Min</key>
+					<real>0.60131502151489258</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>23</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(5.512971, -5.434688, 4.986935)</string>
+						<string>(5.658410, -5.434688, 4.246873)</string>
+						<string>(5.658410, -5.434688, 3.506806)</string>
+						<string>(5.804139, -5.434688, 2.766744)</string>
+						<string>(6.046444, -5.434688, 2.026391)</string>
+						<string>(6.159598, -5.434688, 1.294619)</string>
+						<string>(6.240460, -5.434688, 0.562841)</string>
+						<string>(6.289035, -5.434688, -0.168937)</string>
+						<string>(6.386187, -5.434688, -0.909005)</string>
+						<string>(6.467052, -5.434688, -1.649066)</string>
+						<string>(6.644782, -5.434688, -2.389134)</string>
+						<string>(7.388561, -5.434688, -2.156253)</string>
+						<string>(8.132337, -5.434688, -1.474480)</string>
+						<string>(8.746964, -5.434688, -0.726129)</string>
+						<string>(9.183573, -5.434688, 0.022508)</string>
+						<string>(9.474453, -5.434688, 0.779143)</string>
+						<string>(9.571608, -5.434688, 1.527494)</string>
+						<string>(9.587606, -5.434688, 2.284415)</string>
+						<string>(9.280437, -5.434688, 3.099344)</string>
+						<string>(8.811540, -5.434688, 3.839406)</string>
+						<string>(8.051475, -5.434688, 4.479749)</string>
+						<string>(7.291694, -5.434688, 4.895500)</string>
+						<string>(6.547915, -5.434688, 5.036940)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(78.701656, 84.264992)</string>
+						<string>(79.076319, 83.335264)</string>
+						<string>(79.076319, 82.405535)</string>
+						<string>(79.451718, 81.475807)</string>
+						<string>(80.075911, 80.545719)</string>
+						<string>(80.367397, 79.626400)</string>
+						<string>(80.575706, 78.707082)</string>
+						<string>(80.700840, 77.787763)</string>
+						<string>(80.951105, 76.858034)</string>
+						<string>(81.159416, 75.928306)</string>
+						<string>(81.617254, 74.998577)</string>
+						<string>(83.533262, 75.291136)</string>
+						<string>(85.449268, 76.147635)</string>
+						<string>(87.032570, 77.087774)</string>
+						<string>(88.157295, 78.028272)</string>
+						<string>(88.906620, 78.978821)</string>
+						<string>(89.156887, 79.918960)</string>
+						<string>(89.198107, 80.869867)</string>
+						<string>(88.406824, 81.893646)</string>
+						<string>(87.198923, 82.823375)</string>
+						<string>(85.240959, 83.627823)</string>
+						<string>(83.283731, 84.150123)</string>
+						<string>(81.367725, 84.327812)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.4574300050735474</real>
+						<real>1.6083600521087646</real>
+						<real>1.6094000339508057</real>
+						<real>1.382159948348999</real>
+						<real>1.4718030691146851</real>
+						<real>1.8230850696563721</real>
+						<real>1.9034761190414429</real>
+						<real>1.7045941352844238</real>
+						<real>1.2948920726776123</real>
+						<real>0.85750406980514526</real>
+						<real>1.6773749589920044</real>
+						<real>2.1498749256134033</real>
+						<real>2.3791048526763916</real>
+						<real>2.3163299560546875</real>
+						<real>2.0066399574279785</real>
+						<real>1.5703198909759521</real>
+						<real>1.1207699775695801</real>
+						<real>0.72845995426177979</real>
+						<real>1.906749963760376</real>
+						<real>2.3445050716400146</real>
+						<real>2.5766499042510986</real>
+						<real>2.5837550163269043</real>
+						<real>2.3897449970245361</real>
+						<real>2.042180061340332</real>
+						<real>1.558169960975647</real>
+						<real>1.0300799608230591</real>
+						<real>0.60131502151489258</real>
+						<real>2.0072910785675049</real>
+						<real>2.4753298759460449</real>
+						<real>2.7211470603942871</real>
+						<real>2.7464580535888672</real>
+						<real>2.6044590473175049</real>
+						<real>2.3383359909057617</real>
+						<real>1.9460870027542114</real>
+						<real>1.4640339612960815</real>
+						<real>0.99313497543334961</real>
+						<real>1.7614948749542236</real>
+						<real>2.2625308036804199</real>
+						<real>2.5429768562316895</real>
+						<real>2.5766458511352539</real>
+						<real>2.5108559131622314</real>
+						<real>2.4682857990264893</real>
+						<real>2.3688268661499023</real>
+						<real>2.0642578601837158</real>
+						<real>1.5721229314804077</real>
+						<real>1.0380629301071167</real>
+						<real>2.1805200576782227</real>
+						<real>2.4859440326690674</real>
+						<real>2.5114319324493408</real>
+						<real>2.4331319332122803</real>
+						<real>2.4126119613647461</real>
+						<real>2.3407919406890869</real>
+						<real>2.1405599117279053</real>
+						<real>1.8052200078964233</real>
+						<real>1.3681440353393555</real>
+						<real>0.91119599342346191</real>
+						<real>1.6229159832000732</real>
+						<real>2.0077469348907471</real>
+						<real>2.2604670524597168</real>
+						<real>2.2723739147186279</real>
+						<real>2.1204180717468262</real>
+						<real>2.013498067855835</real>
+						<real>1.8933749198913574</real>
+						<real>1.6779149770736694</real>
+						<real>1.3667939901351929</real>
+						<real>0.968517005443573</real>
+						<real>1.7989400625228882</real>
+						<real>2.0483450889587402</real>
+						<real>2.1298549175262451</real>
+						<real>2.0762948989868164</real>
+						<real>1.9147700071334839</real>
+						<real>1.7041699886322021</real>
+						<real>1.4607449769973755</real>
+						<real>1.2102349996566772</real>
+						<real>1.6109099388122559</real>
+						<real>1.7207820415496826</real>
+						<real>0.77407205104827881</real>
+						<real>0.71424001455307007</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>144.51400756835938</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>79</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.15426068007946014</real>
+					<key>AreaPix2</key>
+					<real>49.922416687011719</real>
+					<key>Center</key>
+					<string>(7.014158, -5.822880, 1.836446)</string>
+					<key>Dev</key>
+					<real>0.42014545202255249</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.6213300228118896</real>
+					<key>LengthPix</key>
+					<real>27.990808486938477</real>
+					<key>Max</key>
+					<real>2.5411100387573242</real>
+					<key>Mean</key>
+					<real>1.7851723432540894</real>
+					<key>Median</key>
+					<real>1.8276029825210571</real>
+					<key>Min</key>
+					<real>0.84394800662994385</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>30</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(5.189512, -5.822880, 4.442315)</string>
+						<string>(5.488487, -5.822880, 4.719432)</string>
+						<string>(5.854573, -5.822880, 4.680698)</string>
+						<string>(6.220656, -5.822880, 4.608235)</string>
+						<string>(6.587512, -5.822880, 4.543503)</string>
+						<string>(6.950776, -5.822880, 4.422905)</string>
+						<string>(7.306579, -5.822880, 4.229626)</string>
+						<string>(7.658103, -5.822880, 4.005162)</string>
+						<string>(8.003214, -5.822880, 3.746216)</string>
+						<string>(8.325331, -5.822880, 3.389585)</string>
+						<string>(8.612823, -5.822880, 2.920895)</string>
+						<string>(8.833675, -5.822880, 2.329154)</string>
+						<string>(8.912308, -5.822880, 1.643161)</string>
+						<string>(8.875648, -5.822880, 0.927185)</string>
+						<string>(8.704804, -5.822880, 0.288827)</string>
+						<string>(8.452781, -5.822880, -0.247649)</string>
+						<string>(8.135627, -5.822880, -0.623058)</string>
+						<string>(7.798047, -5.822880, -0.909800)</string>
+						<string>(7.455601, -5.822880, -1.181883)</string>
+						<string>(7.111491, -5.822880, -1.447941)</string>
+						<string>(6.758762, -5.822880, -1.654149)</string>
+						<string>(6.411077, -5.822880, -1.549639)</string>
+						<string>(6.197170, -5.822880, -1.018070)</string>
+						<string>(6.082035, -5.822880, -0.310359)</string>
+						<string>(6.034103, -5.822880, 0.433990)</string>
+						<string>(5.981537, -5.822880, 1.179214)</string>
+						<string>(5.882555, -5.822880, 1.906273)</string>
+						<string>(5.711607, -5.822880, 2.570143)</string>
+						<string>(5.510983, -5.822880, 3.193099)</string>
+						<string>(5.381766, -5.822880, 3.825165)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(77.868418, 83.580798)</string>
+						<string>(78.638592, 83.928934)</string>
+						<string>(79.581639, 83.880273)</string>
+						<string>(80.524689, 83.789241)</string>
+						<string>(81.469725, 83.707919)</string>
+						<string>(82.405513, 83.556411)</string>
+						<string>(83.322076, 83.313595)</string>
+						<string>(84.227617, 83.031612)</string>
+						<string>(85.116638, 82.706296)</string>
+						<string>(85.946430, 82.258273)</string>
+						<string>(86.687018, 81.669466)</string>
+						<string>(87.255942, 80.926070)</string>
+						<string>(87.458501, 80.064271)</string>
+						<string>(87.364064, 79.164803)</string>
+						<string>(86.923968, 78.362847)</string>
+						<string>(86.274741, 77.688882)</string>
+						<string>(85.457742, 77.217261)</string>
+						<string>(84.588116, 76.857036)</string>
+						<string>(83.705962, 76.515222)</string>
+						<string>(82.819516, 76.180974)</string>
+						<string>(81.910873, 75.921920)</string>
+						<string>(81.015220, 76.053212)</string>
+						<string>(80.464186, 76.721017)</string>
+						<string>(80.167594, 77.610098)</string>
+						<string>(80.044124, 78.545210)</string>
+						<string>(79.908704, 79.481425)</string>
+						<string>(79.653726, 80.394817)</string>
+						<string>(79.213358, 81.228819)</string>
+						<string>(78.696542, 82.011430)</string>
+						<string>(78.363668, 82.805485)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.4712951183319092</real>
+						<real>1.4436091184616089</real>
+						<real>1.2468860149383545</real>
+						<real>0.98361504077911377</real>
+						<real>1.5263099670410156</real>
+						<real>1.7900999784469604</real>
+						<real>1.9125449657440186</real>
+						<real>1.8486899137496948</real>
+						<real>1.6517249345779419</real>
+						<real>1.6590899229049683</real>
+						<real>2.0688600540161133</real>
+						<real>2.2593898773193359</real>
+						<real>2.2141499519348145</real>
+						<real>2.0067999362945557</real>
+						<real>1.7146250009536743</real>
+						<real>1.379675030708313</real>
+						<real>1.6853979825973511</real>
+						<real>2.103672981262207</real>
+						<real>2.4218480587005615</real>
+						<real>2.5411100387573242</real>
+						<real>2.4398660659790039</real>
+						<real>2.193619966506958</real>
+						<real>1.8559969663619995</real>
+						<real>1.4473029375076294</real>
+						<real>1.831541895866394</real>
+						<real>2.2043519020080566</real>
+						<real>2.4010767936706543</real>
+						<real>2.3925628662109375</real>
+						<real>2.2626597881317139</real>
+						<real>2.1296608448028564</real>
+						<real>1.9268728494644165</real>
+						<real>1.5674788951873779</real>
+						<real>1.8178559541702271</real>
+						<real>2.1801960468292236</real>
+						<real>2.376215934753418</real>
+						<real>2.3910119533538818</real>
+						<real>2.3037478923797607</real>
+						<real>2.1677761077880859</real>
+						<real>1.963655948638916</real>
+						<real>1.6394400596618652</real>
+						<real>1.2237479686737061</real>
+						<real>1.8276029825210571</real>
+						<real>2.022974967956543</real>
+						<real>2.1422069072723389</real>
+						<real>2.1065669059753418</real>
+						<real>1.963034987449646</real>
+						<real>1.7898569107055664</real>
+						<real>1.56694495677948</real>
+						<real>1.2680549621582031</real>
+						<real>0.91805398464202881</real>
+						<real>1.4988349676132202</real>
+						<real>1.7135300636291504</real>
+						<real>1.870959997177124</real>
+						<real>1.9067749977111816</real>
+						<real>1.8076499700546265</real>
+						<real>1.6153800487518311</real>
+						<real>1.3416650295257568</real>
+						<real>1.0309000015258789</real>
+						<real>1.2370679378509521</real>
+						<real>1.3126679658889771</real>
+						<real>1.3705019950866699</real>
+						<real>1.324070930480957</real>
+						<real>1.1257469654083252</real>
+						<real>0.84394800662994385</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>114.25102996826172</real>
+					<key>Type</key>
+					<integer>11</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>80</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.11107733845710754</real>
+					<key>AreaPix2</key>
+					<real>35.947261810302734</real>
+					<key>Center</key>
+					<string>(6.604317, -6.211072, 1.916154)</string>
+					<key>Dev</key>
+					<real>0.32566425204277039</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>1.3736641407012939</real>
+					<key>LengthPix</key>
+					<real>24.650150299072266</real>
+					<key>Max</key>
+					<real>2.1145319938659668</real>
+					<key>Mean</key>
+					<real>1.6363153457641602</real>
+					<key>Median</key>
+					<real>1.6325550079345703</real>
+					<key>Min</key>
+					<real>0.78473997116088867</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>16</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(4.866056, -6.211072, 3.897700)</string>
+						<string>(5.286664, -6.211072, 3.157347)</string>
+						<string>(5.593833, -6.211072, 2.425569)</string>
+						<string>(5.723273, -6.211072, 1.685508)</string>
+						<string>(5.804139, -6.211072, 0.928873)</string>
+						<string>(5.804139, -6.211072, 0.197095)</string>
+						<string>(5.933291, -6.211072, -0.542973)</string>
+						<string>(6.677070, -6.211072, -0.800996)</string>
+						<string>(7.420849, -6.211072, -0.360097)</string>
+						<string>(8.164912, -6.211072, 0.271957)</string>
+						<string>(8.320457, -6.211072, 1.075019)</string>
+						<string>(8.314121, -6.211072, 1.660378)</string>
+						<string>(8.079060, -6.211072, 2.416095)</string>
+						<string>(7.728303, -6.211072, 3.124201)</string>
+						<string>(6.984524, -6.211072, 3.722828)</string>
+						<string>(6.240460, -6.211072, 4.097144)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(77.035179, 82.896604)</string>
+						<string>(78.118684, 81.966517)</string>
+						<string>(78.909966, 81.047198)</string>
+						<string>(79.243408, 80.117469)</string>
+						<string>(79.451718, 79.166920)</string>
+						<string>(79.451718, 78.247602)</string>
+						<string>(79.784425, 77.317873)</string>
+						<string>(81.700432, 76.993724)</string>
+						<string>(83.616438, 77.547613)</string>
+						<string>(85.533182, 78.341652)</string>
+						<string>(85.933870, 79.350522)</string>
+						<string>(85.917551, 80.085897)</string>
+						<string>(85.312020, 81.035292)</string>
+						<string>(84.408457, 81.924876)</string>
+						<string>(82.492451, 82.676915)</string>
+						<string>(80.575706, 83.147164)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.6253999471664429</real>
+						<real>1.5286049842834473</real>
+						<real>1.350944995880127</real>
+						<real>1.1523599624633789</real>
+						<real>1.8158349990844727</real>
+						<real>1.9461899995803833</real>
+						<real>1.8716599941253662</real>
+						<real>1.6325550079345703</real>
+						<real>1.3305200338363647</real>
+						<real>1.0426950454711914</real>
+						<real>0.78473997116088867</real>
+						<real>1.604888916015625</real>
+						<real>1.8302569389343262</real>
+						<real>2.0190169811248779</real>
+						<real>2.0915179252624512</real>
+						<real>2.0148699283599854</real>
+						<real>1.8139549493789673</real>
+						<real>1.5315300226211548</real>
+						<real>1.2000559568405151</real>
+						<real>1.6315919160842896</real>
+						<real>1.8551489114761353</real>
+						<real>2.0231068134307861</real>
+						<real>2.0620648860931396</real>
+						<real>1.9481579065322876</real>
+						<real>1.742918848991394</real>
+						<real>1.5271018743515015</real>
+						<real>1.2756808996200562</real>
+						<real>1.9556640386581421</real>
+						<real>2.0968201160430908</real>
+						<real>2.1145319938659668</real>
+						<real>2.0365560054779053</real>
+						<real>1.8677519559860229</real>
+						<real>1.6229159832000732</real>
+						<real>1.3577760457992554</real>
+						<real>1.8728820085525513</real>
+						<real>1.86826491355896</real>
+						<real>1.8227429389953613</real>
+						<real>1.7099909782409668</real>
+						<real>1.5287129878997803</real>
+						<real>1.2931749820709229</real>
+						<real>1.3026649951934814</real>
+						<real>1.3436800241470337</real>
+						<real>1.3980200290679932</real>
+						<real>1.3980849981307983</real>
+						<real>1.3058500289916992</real>
+						<real>1.121055006980896</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>75.2705078125</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+		<dict>
+			<key>ImageHeight</key>
+			<integer>158</integer>
+			<key>ImageIndex</key>
+			<integer>81</integer>
+			<key>ImageTotalNum</key>
+			<integer>128</integer>
+			<key>ImageWidth</key>
+			<integer>128</integer>
+			<key>NumberOfROIs</key>
+			<integer>1</integer>
+			<key>ROIs</key>
+			<array>
+				<dict>
+					<key>AreaCm2</key>
+					<real>0.045239228755235672</real>
+					<key>AreaPix2</key>
+					<real>14.640487670898438</real>
+					<key>Center</key>
+					<string>(5.999120, -6.599264, 2.096006)</string>
+					<key>Dev</key>
+					<real>0.17379438877105713</real>
+					<key>IndexInImage</key>
+					<integer>0</integer>
+					<key>LengthCm</key>
+					<real>0.92250698804855347</real>
+					<key>LengthPix</key>
+					<real>16.624872207641602</real>
+					<key>Max</key>
+					<real>1.8059760332107544</real>
+					<key>Mean</key>
+					<real>1.521235466003418</real>
+					<key>Median</key>
+					<real>1.5483149290084839</real>
+					<key>Min</key>
+					<real>1.1456639766693115</real>
+					<key>Name</key>
+					<string>tumor</string>
+					<key>NumberOfPoints</key>
+					<integer>11</integer>
+					<key>Point_mm</key>
+					<array>
+						<string>(4.720614, -6.599264, 3.398512)</string>
+						<string>(5.270378, -6.599264, 2.666734)</string>
+						<string>(5.480680, -6.599264, 1.934956)</string>
+						<string>(5.609835, -6.599264, 1.194894)</string>
+						<string>(6.030443, -6.599264, 0.463116)</string>
+						<string>(6.774221, -6.599264, 0.197095)</string>
+						<string>(7.000526, -6.599264, 0.928873)</string>
+						<string>(7.113679, -6.599264, 1.660651)</string>
+						<string>(7.065105, -6.599264, 2.400712)</string>
+						<string>(6.321323, -6.599264, 3.107628)</string>
+						<string>(5.577547, -6.599264, 3.357082)</string>
+					</array>
+					<key>Point_px</key>
+					<array>
+						<string>(76.660516, 82.269486)</string>
+						<string>(78.076727, 81.350167)</string>
+						<string>(78.618480, 80.430849)</string>
+						<string>(78.951186, 79.501120)</string>
+						<string>(80.034691, 78.581802)</string>
+						<string>(81.950697, 78.247602)</string>
+						<string>(82.533670, 79.166920)</string>
+						<string>(82.825157, 80.086239)</string>
+						<string>(82.700024, 81.015968)</string>
+						<string>(80.784016, 81.904056)</string>
+						<string>(78.868010, 82.217436)</string>
+					</array>
+					<key>Point_value</key>
+					<array>
+						<real>1.6783750057220459</real>
+						<real>1.5290249586105347</real>
+						<real>1.2902100086212158</real>
+						<real>1.6946929693222046</real>
+						<real>1.6526509523391724</real>
+						<real>1.4934920072555542</real>
+						<real>1.2632620334625244</real>
+						<real>1.6530059576034546</real>
+						<real>1.6361068487167358</real>
+						<real>1.5926339626312256</real>
+						<real>1.492271900177002</real>
+						<real>1.3179929256439209</real>
+						<real>1.8059760332107544</real>
+						<real>1.7548919916152954</real>
+						<real>1.6117919683456421</real>
+						<real>1.4398560523986816</real>
+						<real>1.6240500211715698</real>
+						<real>1.5483149290084839</real>
+						<real>1.4293259382247925</real>
+						<real>1.292354941368103</real>
+						<real>1.1456639766693115</real>
+					</array>
+					<key>RadiusHeightCM</key>
+					<real>0.0</real>
+					<key>RadiusHeightPIX</key>
+					<real>0.0</real>
+					<key>RadiusWidthCM</key>
+					<real>0.0</real>
+					<key>RadiusWidthPIX</key>
+					<real>0.0</real>
+					<key>SOPInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895416</string>
+					<key>SeriesInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895413</string>
+					<key>StudyInstanceUID</key>
+					<string>1.2.276.0.7230010.3.1.4.0.14358.1629778242.895414</string>
+					<key>Total</key>
+					<real>31.945945739746094</real>
+					<key>Type</key>
+					<integer>15</integer>
+				</dict>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

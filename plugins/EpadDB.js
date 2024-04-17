@@ -721,6 +721,17 @@ async function epaddb(fastify, options, done) {
       const projectsLen = projects.length;
       for (let i = 0; i < projectsLen; i += 1) {
         const project = projects[i];
+        // if the mode is teaching get the count of teaching files
+        let numberOfTeachingFiles;
+        if (config.mode === 'teaching') {
+          // eslint-disable-next-line no-await-in-loop
+          const teachingFileCount = await fastify.orm.query(
+            `SELECT count(aim_uid) aimCount FROM project_aim WHERE template='99EPAD_947' and project_id=${project.id};`,
+            { raw: true, type: QueryTypes.SELECT }
+          );
+          numberOfTeachingFiles =
+            teachingFileCount && teachingFileCount[0] ? teachingFileCount[0].aimCount : 0;
+        }
         let numberOfSubjects = project.dataValues.project_subjects.length;
         if (project.projectid === config.XNATUploadProjectID) {
           // eslint-disable-next-line no-await-in-loop
@@ -755,6 +766,7 @@ async function epaddb(fastify, options, done) {
           // numberOfAnnotations:
           // numberOfStudies:
           numberOfSubjects,
+          numberOfTeachingFiles,
           // subjectIDs:
           description: project.dataValues.description,
           loginNames: [],
@@ -838,7 +850,7 @@ async function epaddb(fastify, options, done) {
   //     });
   // });
 
-  fastify.decorate('getPluginsForProject', async (request, reply) => {
+  fastify.decorate('getPluginsForProject', (request, reply) => {
     const paramProjectId = request.params.projectid;
     models.project
       .findOne({
@@ -6107,7 +6119,7 @@ async function epaddb(fastify, options, done) {
           new UnauthorizedError('User is not the assignee or the creator of the worklist')
         );
       } else {
-        // TODO if there are no requirements, the worklist completeness is not filled and adding progress to join makes the query to return nothing
+        // I get only the specific user's progress
         list = await models.worklist_study.findAll({
           where: {
             worklist_id: worklistIdKey,
@@ -6131,12 +6143,13 @@ async function epaddb(fastify, options, done) {
             where: { id: list[i].dataValues.project_id },
             attributes: ['projectid'],
           });
+          let completeness = 0;
           if (
             manualProgressMap[
               `${list[i].dataValues.worklist_id}-${list[i].dataValues.project_id}-${list[i].dataValues.subject_id}-${list[i].dataValues.study_id}-${userId}`
             ]
           ) {
-            const completeness = fastify.getManualProgressForUser(
+            completeness = fastify.getManualProgressForUser(
               manualProgressMap,
               list[i].dataValues.worklist_id,
               list[i].dataValues.project_id,
@@ -6161,6 +6174,19 @@ async function epaddb(fastify, options, done) {
               progressType: 'MANUAL',
             });
           } else {
+            // get average if there are multiple requirements
+            if (
+              list[i].dataValues.progress &&
+              Array.isArray(list[i].dataValues.progress) &&
+              list[i].dataValues.progress.length > 0
+            ) {
+              const completenessSum = list[i].dataValues.progress.reduce(
+                (sum, val) =>
+                  val.dataValues.completeness ? sum + val.dataValues.completeness : sum,
+                0
+              );
+              completeness = Math.floor(completenessSum / list[i].dataValues.progress.length);
+            }
             result.push({
               completionDate: list[i].dataValues.completedate,
               projectID: projectId.dataValues.projectid,
@@ -6174,10 +6200,7 @@ async function epaddb(fastify, options, done) {
               worklistDuedate,
               subjectName: list[i].dataValues.subject.dataValues.name,
               studyDescription: list[i].dataValues.study.dataValues.description,
-              completeness:
-                list[i].dataValues.progress && list[i].dataValues.progress[0]
-                  ? list[i].dataValues.progress[0].dataValues.completeness
-                  : 0, // I get only the specific user's progress
+              completeness,
               progressType:
                 list[i].dataValues.progress && list[i].dataValues.progress[0] ? 'AUTO' : 'MANUAL',
             });
@@ -6354,6 +6377,11 @@ async function epaddb(fastify, options, done) {
       const project = await models.project.findOne({
         where: { projectid: request.params.project },
       });
+      const [templateContainer] = await fastify.getTemplatesFromUIDsInternal(
+        { format: 'summary' },
+        [templateUid]
+      );
+      const templateCode = templateContainer.Template[0].templateCodeValue;
       if (project === null) {
         reply.send(
           new BadRequestError(
@@ -6371,6 +6399,11 @@ async function epaddb(fastify, options, done) {
         const numDeleted = await models.project_template.destroy({
           where: { project_id: project.id, template_uid: templateUid },
         });
+        // remove it from the project if it is default template
+        if (project.defaulttemplate === templateCode) {
+          project.defaulttemplate = null;
+          project.save();
+        }
         // if delete from all or it doesn't exist in any other project, delete from system
         if (request.query.all && request.query.all === 'true') {
           const deletednum = await models.project_template.destroy({
@@ -14738,46 +14771,50 @@ async function epaddb(fastify, options, done) {
               ).dataValues.id
             : undefined;
 
-          const studyID = study
-            ? (
-                await models.study.findOne({
-                  where: { studyuid: study },
-                  attributes: ['id'],
-                })
-              ).dataValues.id
+          const studyRec = study
+            ? await models.study.findOne({
+                where: { studyuid: study },
+                attributes: ['id'],
+              })
             : undefined;
-
-          const qry = { study_id: studyID };
-          if (subjectID) qry.subject_id = subjectID;
-          if (projectID) qry.project_id = projectID;
-          const significantSeries = await models.project_subject_study_series_significance.findAll({
-            where: qry,
-            raw: true,
-            attributes: [
-              'project_id',
-              'subject_id',
-              'study_id',
-              'series_uid',
-              'significance_order',
-            ],
-            order: [['significance_order', 'ASC']],
-          });
-          if (array) {
-            const significantSeriesArray = [];
-            for (let i = 0; i < significantSeries.length; i += 1) {
-              significantSeriesArray.push({
-                seriesUID: significantSeries[i].series_uid,
-                significanceOrder: significantSeries[i].significance_order,
-              });
-            }
-            resolve(significantSeriesArray);
+          const studyID = studyRec ? studyRec.dataValues.id : undefined;
+          if (!studyID) {
+            reject(new ResourceNotFoundError('Study', study));
           } else {
-            const significantSeriesMap = {};
-            for (let i = 0; i < significantSeries.length; i += 1) {
-              significantSeriesMap[significantSeries[i].series_uid] =
-                significantSeries[i].significance_order;
+            const qry = { study_id: studyID };
+            if (subjectID) qry.subject_id = subjectID;
+            if (projectID) qry.project_id = projectID;
+            const significantSeries = await models.project_subject_study_series_significance.findAll(
+              {
+                where: qry,
+                raw: true,
+                attributes: [
+                  'project_id',
+                  'subject_id',
+                  'study_id',
+                  'series_uid',
+                  'significance_order',
+                ],
+                order: [['significance_order', 'ASC']],
+              }
+            );
+            if (array) {
+              const significantSeriesArray = [];
+              for (let i = 0; i < significantSeries.length; i += 1) {
+                significantSeriesArray.push({
+                  seriesUID: significantSeries[i].series_uid,
+                  significanceOrder: significantSeries[i].significance_order,
+                });
+              }
+              resolve(significantSeriesArray);
+            } else {
+              const significantSeriesMap = {};
+              for (let i = 0; i < significantSeries.length; i += 1) {
+                significantSeriesMap[significantSeries[i].series_uid] =
+                  significantSeries[i].significance_order;
+              }
+              resolve(significantSeriesMap);
             }
-            resolve(significantSeriesMap);
           }
         } catch (err) {
           reject(new InternalError('Getting significant series', err));
