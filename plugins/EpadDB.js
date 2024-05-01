@@ -10477,6 +10477,7 @@ async function epaddb(fastify, options, done) {
                       {
                         project_aim_id: args.dataValues.id,
                         user_id: userId,
+                        updatetime: Date.now(),
                       },
                       {
                         project_aim_id: args.dataValues.id,
