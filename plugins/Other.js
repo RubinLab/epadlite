@@ -2492,8 +2492,13 @@ async function other(fastify) {
                 updated_by: 'admin',
                 updatetime: Date.now(),
               };
-              await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
-              await fastify.updateUserInWorklistCompleteness(userInfo.email, username);
+              await fastify.updateUserInternal(rowsUpdated, {
+                user: userInfo.email || userInfo.principal,
+              });
+              await fastify.updateUserInWorklistCompleteness(
+                userInfo.email || userInfo.principal,
+                username
+              );
               user = await fastify.getUserInternal({
                 user: username,
               });
