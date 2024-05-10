@@ -21,4 +21,5 @@ module.exports = {
   pollDW: 0,
   auditLog: true,
   versionAudit: true,
+  teachingProject: 'testaim3',
 };
