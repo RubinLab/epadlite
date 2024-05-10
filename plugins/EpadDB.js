@@ -13551,6 +13551,7 @@ async function epaddb(fastify, options, done) {
             num_of_tf: userTFStats[i].numOfTF,
             year,
             month,
+            updatetime: Date.now(),
           },
           {
             host,
