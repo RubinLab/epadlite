@@ -117,6 +117,33 @@ beforeEach(() => {
     .reply(200);
 
   nock(config.statsEpad)
+    .put('/epad/statistics/')
+    .query(
+      (query) =>
+        query.numOfUsers === '1' &&
+        query.numOfProjects === '3' &&
+        query.numOfPatients === '2' &&
+        query.numOfStudies === '2' &&
+        query.numOfSeries === '6' &&
+        query.numOfAims === '4' &&
+        query.numOfDSOs === '2' &&
+        query.numOfWorkLists === '0' &&
+        query.numOfFiles === '0' &&
+        query.numOfPlugins === '0' &&
+        query.numOfTemplates === '0' &&
+        query.host.endsWith('0.0.0.0:5987')
+    )
+    .reply(200);
+
+  nock(config.statsEpad)
+    .put(
+      '/epad/statistics/usertf',
+      (body) => body.length === 0 || (body[0].userId === 1 && body[0].numOfTF === 1)
+    )
+    .query((query) => query.host.endsWith('0.0.0.0:5987'))
+    .reply(200);
+
+  nock(config.statsEpad)
     .put(
       '/epad/statistics/templates/',
       (body) => JSON.stringify(body) === JSON.stringify(jsonBuffer)
@@ -422,6 +449,11 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testtemplate3')
+        .query({ username: 'admin' });
+      // delete the project created inside tests
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testtemplatedefault')
         .query({ username: 'admin' });
     });
 
@@ -3339,6 +3371,156 @@ describe('Project Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(0);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    // add a teaching file in lite and a regular aim
+    it('Teaching aim save to project testaim should be successful ', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/teaching_aim2.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim/aims')
+        .send(jsonBuffer)
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('Roi aim save to project testaim should be successful ', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim/aims')
+        .send(jsonBuffer)
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim should have 2 aims ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim/aims')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows.length).to.be.eql(2);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    // add a teaching file in another project
+    it('Teaching aim save to project testaim3 should be successful ', (done) => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/teaching_aim2.json'));
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim3/aims')
+        .send(jsonBuffer)
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim3 should have 1 aims ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/aims')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.rows.length).to.be.eql(1);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('should trigger statistics calculation and sending ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          console.log('projectsss', res.body);
+        });
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/epad/statistics/calc')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('should get statistics ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/epads/stats/')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql({
+            numOfUsers: 1,
+            numOfProjects: 3,
+            numOfPatients: 2,
+            numOfStudies: 2,
+            numOfSeries: 6,
+            numOfAims: 4,
+            numOfDSOs: 2,
+            numOfPacs: 0,
+            numOfAutoQueries: 0,
+            numOfWorkLists: 0,
+            numOfFiles: 0,
+            numOfTemplates: 0,
+            numOfPlugins: 0,
+          });
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('should get user TF statistics ', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/epads/stats/usertf')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.eql([
+            {
+              userId: 1,
+              numOfTF: 1,
+              templateCode: '99EPAD_947',
+              year: 2024,
+              month: 5,
+            },
+          ]);
           done();
         })
         .catch((e) => {
