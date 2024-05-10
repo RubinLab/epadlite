@@ -3508,7 +3508,7 @@ describe('Project Tests', () => {
       it('should get user TF statistics ', (done) => {
         chai
           .request(`http://${process.env.host}:${process.env.port}`)
-          .get('/epads/stats/usertf')
+          .get('/epads/usertfstats')
           .query({ username: 'admin' })
           .then((res) => {
             expect(res.statusCode).to.equal(200);

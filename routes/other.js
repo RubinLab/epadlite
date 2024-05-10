@@ -294,7 +294,7 @@ async function otherRoutes(fastify) {
 
   fastify.route({
     method: 'GET',
-    url: '/epads/stats/usertf',
+    url: '/epads/usertfstats',
     schema: {
       tags: ['stats'],
     },
