@@ -13388,7 +13388,7 @@ async function epaddb(fastify, options, done) {
 
           if (
             config.mode === 'teaching' &&
-            (hostname === 'stella.stanfordmed.org' || config.env === 'test')
+            (hostname.includes('stella.stanfordmed.org') || config.env === 'test')
           ) {
             // send user aim stats
             const userTFsEpadUrl = `/epad/statistics/usertf?host=${hostname}`;
@@ -13551,9 +13551,6 @@ async function epaddb(fastify, options, done) {
             num_of_tf: userTFStats[i].numOfTF,
             year,
             month,
-            creator: 'admin',
-            createdtime: Date.now(),
-            updatetime: Date.now(),
           },
           {
             host,
@@ -13563,7 +13560,7 @@ async function epaddb(fastify, options, done) {
             year,
             month,
           },
-          request.epadAuth.username
+          'admin'
         );
       }
       reply.send('User TF statistics saved');
