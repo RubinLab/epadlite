@@ -275,6 +275,31 @@ async function otherRoutes(fastify) {
     handler: fastify.saveStats,
   });
 
+  fastify.route({
+    method: 'PUT',
+    url: '/epad/statistics/usertf',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          host: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveUserTFStats,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/epads/stats/usertf',
+    schema: {
+      tags: ['stats'],
+    },
+    handler: fastify.getUserTFStats,
+  });
   // trigger statistics calculations. mainly for testing purposes
   fastify.route({
     method: 'GET',
