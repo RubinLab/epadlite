@@ -2481,19 +2481,24 @@ async function other(fastify) {
             // fallback get by email
             if ((!user || err.message === 'not filled') && userInfo) {
               user = await fastify.getUserInternal({
-                user: userInfo.email,
+                user: userInfo.email || userInfo.principal,
               });
               // update user db record here
               const rowsUpdated = {
                 username,
                 firstname: userInfo.given_name || userInfo.givenName,
                 lastname: userInfo.family_name || userInfo.surname,
-                email: userInfo.email,
+                email: userInfo.email || userInfo.principal,
                 updated_by: 'admin',
                 updatetime: Date.now(),
               };
-              await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
-              await fastify.updateUserInWorklistCompleteness(userInfo.email, username);
+              await fastify.updateUserInternal(rowsUpdated, {
+                user: userInfo.email || userInfo.principal,
+              });
+              await fastify.updateUserInWorklistCompleteness(
+                userInfo.email || userInfo.principal,
+                username
+              );
               user = await fastify.getUserInternal({
                 user: username,
               });
