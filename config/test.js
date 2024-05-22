@@ -8,7 +8,7 @@ module.exports = {
   logger: {
     level: 'error',
   },
-  mode: 'thick',
+  mode: 'teaching',
   thickDb: {
     name: 'test_epaddb',
     host: 'localhost',
@@ -21,4 +21,5 @@ module.exports = {
   pollDW: 0,
   auditLog: true,
   versionAudit: true,
+  teachingProject: 'testaim',
 };

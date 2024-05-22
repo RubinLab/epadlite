@@ -8992,7 +8992,12 @@ async function epaddb(fastify, options, done) {
           const numDeleted =
             aimUids.length > 0
               ? await fastify.deleteAimDB(
-                  { aim_uid: aimUids, ...(project ? { project_id: project.id } : {}) },
+                  {
+                    aim_uid: aimUids,
+                    ...(project && !(query.all && query.all === 'true')
+                      ? { project_id: project.id }
+                      : {}),
+                  },
                   epadAuth.username
                 )
               : 0;
@@ -13232,18 +13237,62 @@ async function epaddb(fastify, options, done) {
 
           let numOfAims = 0;
           const numOfTemplateAimsMap = {};
-          if (config.env !== 'test') {
-            const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
-            numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
-            const numOfTemplateAims = await models.project_aim.findAll({
-              group: ['template'],
-              attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
-              raw: true,
-              where: fastify.qryNotDeleted(),
+          let userTFStats = {};
+          const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
+          numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
+          const numOfTemplateAimsDB = await models.project_aim.findAll({
+            group: ['template'],
+            attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
+            raw: true,
+            where: fastify.qryNotDeleted(),
+          });
+          numOfTemplateAimsDB.forEach((item) => {
+            numOfTemplateAimsMap[item.template] = item.aimcount;
+          });
+
+          // get user based teaching stats
+          if (config.mode === 'teaching') {
+            const userTeachingAims = await models.user.findAll({
+              include: [
+                {
+                  model: models.project_aim,
+                  as: 'projectAims',
+                  // /* lite */
+                  where: {
+                    template: config.teachingTemplate,
+                    ...fastify.qryNotDeleted(),
+                  },
+                  include: [
+                    {
+                      model: models.project,
+                      where: {
+                        projectid: config.teachingProject ? config.teachingProject : 'lite',
+                      },
+                    },
+                  ],
+                },
+              ],
             });
-            numOfTemplateAims.forEach((item) => {
-              numOfTemplateAimsMap[item.template] = item.aimcount;
-            });
+            userTFStats = userTeachingAims.map((item) => ({
+              userId: item.id,
+              numOfTF: item.projectAims.length,
+            }));
+            const month = new Date().getMonth() + 1;
+            const year = new Date().getYear() + 1900;
+            for (let i = 0; i < userTFStats.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              await models.epadstatistics_usertf.create({
+                host: 'localhost',
+                template_code: userTFStats[i].template || config.teachingTemplate,
+                user_id: userTFStats[i].userId,
+                num_of_tf: userTFStats[i].numOfTF,
+                year,
+                month,
+                creator: 'admin',
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+              });
+            }
           }
 
           // TODO are these correct? check with thick
@@ -13340,6 +13389,25 @@ async function epaddb(fastify, options, done) {
                 headers: { 'Content-Type': 'text/plain' },
               });
               fastify.log.info(`Template statistics sent with success`);
+            }
+          }
+
+          if (
+            config.mode === 'teaching' &&
+            (hostname.includes('stella.stanfordmed.org') || config.env === 'test')
+          ) {
+            // send user aim stats
+            const userTFsEpadUrl = `/epad/statistics/usertf?host=${hostname}`;
+            // send to statistics collector
+            if (!config.disableStats) {
+              fastify.log.info(
+                `Sending user aim stats to ${request.defaults.baseURL}${encodeURI(userTFsEpadUrl)}`
+              );
+              // eslint-disable-next-line no-await-in-loop
+              await request.put(encodeURI(userTFsEpadUrl), userTFStats, {
+                headers: { 'Content-Type': 'application/json' },
+              });
+              fastify.log.info(`Teaching file statistics sent with success`);
             }
           }
 
@@ -13482,6 +13550,70 @@ async function epaddb(fastify, options, done) {
       reply.send('Template statistics saved');
     } catch (err) {
       reply.send(new InternalError('Saving template statistics', err));
+    }
+  });
+
+  fastify.decorate('saveUserTFStats', async (request, reply) => {
+    try {
+      const { host } = request.query;
+      const userTFStats = request.body;
+      const month = new Date().getMonth() + 1;
+      const year = new Date().getYear() + 1900;
+      for (let i = 0; i < userTFStats.length; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        await fastify.upsert(
+          models.epadstatistics_usertf,
+          {
+            host,
+            template_code: userTFStats[i].template || config.teachingTemplate,
+            user_id: userTFStats[i].userId,
+            num_of_tf: userTFStats[i].numOfTF,
+            year,
+            month,
+            updatetime: Date.now(),
+          },
+          {
+            host,
+            template_code: userTFStats[i].template || config.teachingTemplate,
+            user_id: userTFStats[i].userId,
+            num_of_tf: userTFStats[i].numOfTF,
+            year,
+            month,
+          },
+          'admin'
+        );
+      }
+      reply.send('User TF statistics saved');
+    } catch (err) {
+      reply.send(new InternalError('Saving User TF statistics', err));
+    }
+  });
+
+  fastify.decorate('getUserTFStats', async (request, reply) => {
+    try {
+      const { year, host } = request.query;
+      let where = {};
+      if (host)
+        where = {
+          ...where,
+          host: Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('host')), 'LIKE', `%${host}%`),
+        };
+      if (year) where = { ...where, year };
+      const userTFStatsDB = await models.epadstatistics_usertf.findAll({
+        attributes: ['user_id', 'num_of_tf', 'template_code', 'year', 'month', 'host'],
+        where,
+        raw: true,
+      });
+      const result = userTFStatsDB.map((record) => ({
+        userId: record.user_id,
+        numOfTF: record.num_of_tf,
+        templateCode: record.template_code,
+        year: record.year,
+        month: record.month,
+      }));
+      reply.send(result);
+    } catch (err) {
+      reply.send(new InternalError('Saving User TF statistics', err));
     }
   });
 

@@ -69,6 +69,9 @@ async function otherRoutes(fastify) {
           year: {
             type: 'string',
           },
+          host: {
+            type: 'string',
+          },
         },
       },
     },
@@ -104,6 +107,9 @@ async function otherRoutes(fastify) {
             type: 'string',
           },
           template: {
+            type: 'string',
+          },
+          host: {
             type: 'string',
           },
         },
@@ -292,6 +298,42 @@ async function otherRoutes(fastify) {
     handler: fastify.saveStats,
   });
 
+  fastify.route({
+    method: 'PUT',
+    url: '/epad/statistics/usertf',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          host: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveUserTFStats,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/epads/usertfstats',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          host: {
+            type: 'string',
+          },
+          year: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getUserTFStats,
+  });
   // trigger statistics calculations. mainly for testing purposes
   fastify.route({
     method: 'GET',
