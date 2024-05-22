@@ -69,6 +69,9 @@ async function otherRoutes(fastify) {
           year: {
             type: 'string',
           },
+          host: {
+            type: 'string',
+          },
         },
       },
     },
@@ -87,6 +90,9 @@ async function otherRoutes(fastify) {
             type: 'string',
           },
           template: {
+            type: 'string',
+          },
+          host: {
             type: 'string',
           },
         },
@@ -297,6 +303,17 @@ async function otherRoutes(fastify) {
     url: '/epads/usertfstats',
     schema: {
       tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          host: {
+            type: 'string',
+          },
+          year: {
+            type: 'string',
+          },
+        },
+      },
     },
     handler: fastify.getUserTFStats,
   });
