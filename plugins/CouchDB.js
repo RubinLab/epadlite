@@ -1335,7 +1335,7 @@ async function couchdb(fastify, options) {
             }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
             // if the method was called with just aimuid use the attachments on couchdb
-            if (existing._attachments && typeof aim === 'string' && attachments === [])
+            if (existing._attachments && typeof aim === 'string' && attachments.length === 0)
               attachments = existing._attachments;
             // auditLog is for aim changes, if input is just aimUID only project changes. no auditlog for now
             if (config.auditLog === true && existing.aim && typeof aim !== 'string') {
