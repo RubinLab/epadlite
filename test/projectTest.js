@@ -125,7 +125,7 @@ beforeEach(() => {
         query.numOfPatients === '2' &&
         query.numOfStudies === '2' &&
         query.numOfSeries === '6' &&
-        query.numOfAims === '4' &&
+        query.numOfAims === '3' &&
         query.numOfDSOs === '2' &&
         query.numOfWorkLists === '0' &&
         query.numOfFiles === '0' &&
@@ -3338,7 +3338,7 @@ describe('Project Tests', () => {
     it('project testaim3 should have no aim ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/testaim/aims')
+        .get('/projects/testaim3/aims')
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
@@ -3426,6 +3426,9 @@ describe('Project Tests', () => {
       // add a teaching file in another project
       it('Teaching aim save to project testaim3 should be successful ', (done) => {
         const jsonBuffer = JSON.parse(fs.readFileSync('test/data/teaching_aim2.json'));
+        // change the uid so it is a different aim
+        jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
+          '2.25.196033266344245780724364622116125952299';
         chai
           .request(`http://${process.env.host}:${process.env.port}`)
           .post('/projects/testaim3/aims')
@@ -3457,14 +3460,6 @@ describe('Project Tests', () => {
       it('should trigger statistics calculation and sending ', (done) => {
         chai
           .request(`http://${process.env.host}:${process.env.port}`)
-          .get('/projects')
-          .query({ username: 'admin' })
-          .then((res) => {
-            expect(res.statusCode).to.equal(200);
-            console.log('projectsss', res.body);
-          });
-        chai
-          .request(`http://${process.env.host}:${process.env.port}`)
           .get('/epad/statistics/calc')
           .query({ username: 'admin' })
           .then((res) => {
@@ -3489,7 +3484,7 @@ describe('Project Tests', () => {
               numOfPatients: 2,
               numOfStudies: 2,
               numOfSeries: 6,
-              numOfAims: 4,
+              numOfAims: 3,
               numOfDSOs: 2,
               numOfPacs: 0,
               numOfAutoQueries: 0,
@@ -3509,7 +3504,7 @@ describe('Project Tests', () => {
         chai
           .request(`http://${process.env.host}:${process.env.port}`)
           .get('/epads/usertfstats')
-          .query({ username: 'admin' })
+          .query({ username: 'admin', host: 'localhost' })
           .then((res) => {
             expect(res.statusCode).to.equal(200);
             expect(res.body).to.be.eql([
@@ -3517,8 +3512,8 @@ describe('Project Tests', () => {
                 userId: 1,
                 numOfTF: 1,
                 templateCode: '99EPAD_947',
-                year: 2024,
-                month: 5,
+                year: new Date().getYear() + 1900,
+                month: new Date().getMonth() + 1,
               },
             ]);
             done();
