@@ -10482,6 +10482,7 @@ async function epaddb(fastify, options, done) {
                       {
                         project_aim_id: args.dataValues.id,
                         user_id: userId,
+                        updatetime: Date.now(),
                       },
                       {
                         project_aim_id: args.dataValues.id,
@@ -13448,6 +13449,19 @@ async function epaddb(fastify, options, done) {
       {}
     );
     reply.send(statsEdited);
+  });
+
+  fastify.decorate('getMonthlyTeachingStats', async (request, reply) => {
+    // eslint-disable-next-line prefer-const
+    let { year } = request.query;
+    let yearFilter = '';
+    if (year) yearFilter = ` where year = '${year}'`;
+
+    const stats = await fastify.orm.query(
+      `select id, year, month, numOfAims as cumulative, numOfAims-(select numOfAims from epadstatistics_monthly_teaching where id = main
+        .id -1) as monthly from epadstatistics_monthly_teaching as main ${yearFilter} order by year, month`
+    );
+    reply.send(stats && stats[0] ? stats[0] : null);
   });
 
   fastify.decorate('getTemplateStats', async (request, reply) => {

@@ -80,6 +80,23 @@ async function otherRoutes(fastify) {
 
   fastify.route({
     method: 'GET',
+    url: '/epads/teachingstats',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          year: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getMonthlyTeachingStats,
+  });
+
+  fastify.route({
+    method: 'GET',
     url: '/epads/templatestats',
     schema: {
       tags: ['stats'],

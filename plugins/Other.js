@@ -2481,19 +2481,24 @@ async function other(fastify) {
             // fallback get by email
             if ((!user || err.message === 'not filled') && userInfo) {
               user = await fastify.getUserInternal({
-                user: userInfo.email,
+                user: userInfo.email || userInfo.principal,
               });
               // update user db record here
               const rowsUpdated = {
                 username,
                 firstname: userInfo.given_name || userInfo.givenName,
                 lastname: userInfo.family_name || userInfo.surname,
-                email: userInfo.email,
+                email: userInfo.email || userInfo.principal,
                 updated_by: 'admin',
                 updatetime: Date.now(),
               };
-              await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
-              await fastify.updateUserInWorklistCompleteness(userInfo.email, username);
+              await fastify.updateUserInternal(rowsUpdated, {
+                user: userInfo.email || userInfo.principal,
+              });
+              await fastify.updateUserInWorklistCompleteness(
+                userInfo.email || userInfo.principal,
+                username
+              );
               user = await fastify.getUserInternal({
                 user: username,
               });
@@ -2592,6 +2597,7 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/templatestats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/usertfstats`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/teachingstats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
