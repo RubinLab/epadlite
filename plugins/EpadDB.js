@@ -8992,7 +8992,12 @@ async function epaddb(fastify, options, done) {
           const numDeleted =
             aimUids.length > 0
               ? await fastify.deleteAimDB(
-                  { aim_uid: aimUids, ...(project ? { project_id: project.id } : {}) },
+                  {
+                    aim_uid: aimUids,
+                    ...(project && !(query.all && query.all === 'true')
+                      ? { project_id: project.id }
+                      : {}),
+                  },
                   epadAuth.username
                 )
               : 0;
@@ -13572,8 +13577,17 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getUserTFStats', async (request, reply) => {
     try {
+      const { year, host } = request.query;
+      let where = {};
+      if (host)
+        where = {
+          ...where,
+          host: Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('host')), 'LIKE', `%${host}%`),
+        };
+      if (year) where = { ...where, year };
       const userTFStatsDB = await models.epadstatistics_usertf.findAll({
-        attributes: ['user_id', 'num_of_tf', 'template_code', 'year', 'month'],
+        attributes: ['user_id', 'num_of_tf', 'template_code', 'year', 'month', 'host'],
+        where,
         raw: true,
       });
       const result = userTFStatsDB.map((record) => ({
