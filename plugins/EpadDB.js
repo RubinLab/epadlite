@@ -13603,6 +13603,11 @@ async function epaddb(fastify, options, done) {
         attributes: ['user_id', 'num_of_tf', 'template_code', 'year', 'month', 'host'],
         where,
         raw: true,
+        order: [
+          ['user_id', 'ASC'],
+          ['year', 'ASC'],
+          ['month', 'ASC'],
+        ],
       });
       const result = userTFStatsDB.map((record) => ({
         userId: record.user_id,
