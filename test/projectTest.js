@@ -6312,7 +6312,7 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_proj_temp.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({ query: 'project:reporting AND template_code:RECIST' })
         .then((res) => {
