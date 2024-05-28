@@ -1145,6 +1145,7 @@ async function other(fastify) {
                     aimJson.ImageAnnotationCollection.uniqueIdentifier.root
                   );
                 }
+                await fastify.purgeSearch();
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
                 if (filename) fastify.log.info(`Saving successful for ${filename}`);
                 resolve({ success: true, errors: [] });
@@ -1160,6 +1161,33 @@ async function other(fastify) {
         }
       })
   );
+
+  fastify.decorate(
+    'purgeSearch',
+    () =>
+      new Promise((resolve, reject) => {
+        try {
+          // purging all search calls
+          const url = `${config.authConfig.authServerUrl.replace('/keycloak', '/api/search/*')}`;
+          axios({
+            method: 'purge',
+            url,
+          })
+            .then(() => {
+              fastify.log.info(`Purged ${url}`);
+            })
+            .catch((err) => {
+              if (err.response.status !== 404 && err.response.status !== 412)
+                reject(new InternalError(`Purging search`, err));
+              else fastify.log.info(`Url ${url} not cached`);
+            });
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Purging search`, err));
+        }
+      })
+  );
+
 
   fastify.decorate('getAimDicomInfo', (jsonBuffer) => {
     try {
