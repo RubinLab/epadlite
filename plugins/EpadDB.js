@@ -9009,6 +9009,7 @@ async function epaddb(fastify, options, done) {
               await Promise.all(segDeletePromises);
               if (!skipCheckAndDeleteNoAimStudies)
                 await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+              await fastify.purgeSearch();
               resolve(`Aims deleted from system and removed from ${numDeleted} projects`);
             } else {
               // check if the aims to be deleted exist in any other project
@@ -9024,6 +9025,7 @@ async function epaddb(fastify, options, done) {
                 await Promise.all(segDeletePromises);
                 if (!skipCheckAndDeleteNoAimStudies)
                   await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                await fastify.purgeSearch();
                 resolve(`Aims deleted from system as they didn't exist in any other project`);
               } else {
                 const leftoverIds = [];
@@ -9067,6 +9069,7 @@ async function epaddb(fastify, options, done) {
                 // it doesn't filter the not deleted ones. does an extra check
                 if (!skipCheckAndDeleteNoAimStudies)
                   await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                await fastify.purgeSearch();
                 resolve(
                   `${leftovers.length} aims not deleted from system as they exist in other project`
                 );

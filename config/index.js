@@ -228,4 +228,6 @@ config.https = (process.env.HTTPS && process.env.HTTPS === 'true') || config.htt
 config.httpsLink =
   (process.env.HTTPS_LINK && process.env.HTTPS_LINK === 'true') || config.httpLink || false;
 
+config.hostname = process.env.HOSTNAME || config.hostname || 'http://hostname';
+
 module.exports = config;
