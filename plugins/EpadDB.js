@@ -13592,23 +13592,13 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('getUserTFStats', async (request, reply) => {
     try {
       const { year, host } = request.query;
-      let where = {};
-      if (host)
-        where = {
-          ...where,
-          host: Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('host')), 'LIKE', `%${host}%`),
-        };
-      if (year) where = { ...where, year };
-      const userTFStatsDB = await models.epadstatistics_usertf.findAll({
-        attributes: ['user_id', 'num_of_tf', 'template_code', 'year', 'month', 'host'],
-        where,
-        raw: true,
-        order: [
-          ['user_id', 'ASC'],
-          ['year', 'ASC'],
-          ['month', 'ASC'],
-        ],
-      });
+      let yearFilter = '';
+      if (year) yearFilter = ` where year = '${year}'`;
+      let hostFilter = '';
+      if (host) hostFilter = ` ${year ? 'and' : 'where'} host like '%${host}%'`;
+      const userTFStatsDB = await fastify.orm.query(
+        `select user_id, num_of_tf, template_code, year, month, host, (select max(num_of_tf) from epadstatistics_usertf where user_id = main.user_id) as mx from epadstatistics_usertf as main ${yearFilter} ${hostFilter} order by mx desc, user_id, year, month;`
+      );
       const result = userTFStatsDB.map((record) => ({
         userId: record.user_id,
         numOfTF: record.num_of_tf,
