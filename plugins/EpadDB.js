@@ -13597,7 +13597,8 @@ async function epaddb(fastify, options, done) {
       let hostFilter = '';
       if (host) hostFilter = ` ${year ? 'and' : 'where'} host like '%${host}%'`;
       const userTFStatsDB = await fastify.orm.query(
-        `select user_id, num_of_tf, template_code, year, month, host, (select max(num_of_tf) from epadstatistics_usertf where user_id = main.user_id) as mx from epadstatistics_usertf as main ${yearFilter} ${hostFilter} order by mx desc, user_id, year, month;`
+        `select user_id, num_of_tf, template_code, year, month, host, (select max(num_of_tf) from epadstatistics_usertf where user_id = main.user_id) as mx from epadstatistics_usertf as main ${yearFilter} ${hostFilter} order by mx desc, user_id, year, month;`,
+        { raw: true, type: QueryTypes.SELECT }
       );
       const result = userTFStatsDB.map((record) => ({
         userId: record.user_id,
