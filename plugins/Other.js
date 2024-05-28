@@ -1145,7 +1145,6 @@ async function other(fastify) {
                     aimJson.ImageAnnotationCollection.uniqueIdentifier.root
                   );
                 }
-                await fastify.purgeSearch();
                 await fastify.addProjectAimRelInternal(aimJson, params.project, epadAuth);
                 if (filename) fastify.log.info(`Saving successful for ${filename}`);
                 resolve({ success: true, errors: [] });

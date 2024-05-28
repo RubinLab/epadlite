@@ -1374,8 +1374,15 @@ async function couchdb(fastify, options) {
             db.multipart
               .insert(couchDoc, attachments, couchDoc._id)
               .then(() => {
-                // await fastify.getAimVersions(couchDoc._id);
-                resolve(`Aim ${couchDoc._id} is saved successfully`);
+                fastify
+                  .purgeSearch()
+                  .then(() => {
+                    // await fastify.getAimVersions(couchDoc._id);
+                    resolve(`Aim ${couchDoc._id} is saved successfully`);
+                  })
+                  .catch((err) => {
+                    reject(new InternalError(`Purging aim cache `, err));
+                  });
               })
               .catch((err) => {
                 reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
@@ -1383,8 +1390,15 @@ async function couchdb(fastify, options) {
           else
             db.insert(couchDoc, couchDoc._id)
               .then(() => {
-                // await fastify.getAimVersions(couchDoc._id);
-                resolve(`Aim ${couchDoc._id} is saved successfully`);
+                fastify
+                  .purgeSearch()
+                  .then(() => {
+                    // await fastify.getAimVersions(couchDoc._id);
+                    resolve(`Aim ${couchDoc._id} is saved successfully`);
+                  })
+                  .catch((err) => {
+                    reject(new InternalError(`Purging aim cache `, err));
+                  });
               })
               .catch((err) => {
                 reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
@@ -1497,7 +1511,14 @@ async function couchdb(fastify, options) {
           promisses.push(db.destroy(aimuid, existing._rev));
           Promise.all(promisses)
             .then(() => {
-              resolve();
+              fastify
+                .purgeSearch()
+                .then(() => {
+                  resolve();
+                })
+                .catch((err) => {
+                  reject(new InternalError(`Purging aim cache `, err));
+                });
             })
             .catch((err) => {
               reject(new InternalError(`Deleting aim ${aimuid}`, err));
