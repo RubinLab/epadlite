@@ -1167,7 +1167,7 @@ async function other(fastify) {
       new Promise((resolve, reject) => {
         try {
           // purging all search calls
-          const url = `${config.authConfig.authServerUrl.replace('/keycloak', '/api/search/*')}`;
+          const url = `${config.hostname}/api/search/*'`;
           axios({
             method: 'purge',
             url,
@@ -1186,7 +1186,6 @@ async function other(fastify) {
         }
       })
   );
-
 
   fastify.decorate('getAimDicomInfo', (jsonBuffer) => {
     try {
