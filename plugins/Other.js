@@ -1167,7 +1167,7 @@ async function other(fastify) {
       new Promise((resolve, reject) => {
         try {
           // purging all search calls
-          const url = `${config.baseUrl}/api/search/*'`;
+          const url = `${config.baseUrl}/api/search*'`;
           axios({
             method: 'purge',
             url,
