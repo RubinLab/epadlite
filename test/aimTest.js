@@ -452,7 +452,7 @@ describe('System AIM Tests', () => {
     it('search with subspecialty and modality ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({ fields: { subSpecialty: ['Body Imaging'], modality: ['MR', 'CT'] } })
         .then((res) => {
@@ -470,7 +470,7 @@ describe('System AIM Tests', () => {
     it('search with diagnosis only ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -492,7 +492,7 @@ describe('System AIM Tests', () => {
     it('search with diagnosis and anatomy on mycases only ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -515,7 +515,7 @@ describe('System AIM Tests', () => {
     it('search with diagnosis on mycases only ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -537,7 +537,7 @@ describe('System AIM Tests', () => {
     it('search with diagnosis on mycases = false ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -560,7 +560,7 @@ describe('System AIM Tests', () => {
     it('search with diagnosis on no mycases  ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -582,7 +582,7 @@ describe('System AIM Tests', () => {
     it('search with anatomy on mycases only and teaching files ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: { anatomy: ['lung'], myCases: true, teachingFiles: true },
@@ -600,7 +600,7 @@ describe('System AIM Tests', () => {
     it('no mycases  ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: { myCases: false },
@@ -619,7 +619,7 @@ describe('System AIM Tests', () => {
     it('search with modality on mycases only and teaching files and query ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: { modality: ['CT'], myCases: true, teachingFiles: true, query: 'lung' },
@@ -637,7 +637,7 @@ describe('System AIM Tests', () => {
     it('search with modality on mycases only, teaching files, query and project (testaim2) ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -661,7 +661,7 @@ describe('System AIM Tests', () => {
     it('search with modality on mycases only, teaching files, query and project (testaim) with no result', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -684,7 +684,7 @@ describe('System AIM Tests', () => {
     it('search with modality on mycases only, teaching files (false), query and project ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -707,7 +707,7 @@ describe('System AIM Tests', () => {
     it('search with modality for the collaborator', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'otheruser' })
         .send({
           fields: {
@@ -728,7 +728,7 @@ describe('System AIM Tests', () => {
     it('search with modality and filter ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -749,7 +749,7 @@ describe('System AIM Tests', () => {
     it('search with filter and DESC sort', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           filter: { name: 'teaching file' },
@@ -769,7 +769,7 @@ describe('System AIM Tests', () => {
     it('search with filter and DESC projectName sort', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           filter: { name: 'teaching file' },
@@ -789,7 +789,7 @@ describe('System AIM Tests', () => {
     it('search with modality and filter and DESC sort', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -812,7 +812,7 @@ describe('System AIM Tests', () => {
     it('search with modality and filter with modality and ASC sort', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -835,7 +835,7 @@ describe('System AIM Tests', () => {
     it('search with modality and filter with modality and DESC sort project', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -858,7 +858,7 @@ describe('System AIM Tests', () => {
     it('filter with projectName', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           filter: { projectName: 'testaim' },
@@ -878,7 +878,7 @@ describe('System AIM Tests', () => {
     it('search with projectName', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: { projectName: 'testaim' },
@@ -898,7 +898,7 @@ describe('System AIM Tests', () => {
     it('search with modality and filter with accession number starts with', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -920,7 +920,7 @@ describe('System AIM Tests', () => {
     it('search with modality and filter with accession number starts with should not return anything for mid word filter', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -941,7 +941,7 @@ describe('System AIM Tests', () => {
     it('search with patient name when there is a space in the name', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           fields: {
@@ -963,7 +963,7 @@ describe('System AIM Tests', () => {
     it('filter with patient name when there is a space in the name', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({
           filter: { patientName: 'Stella Demo' },

@@ -1161,6 +1161,32 @@ async function other(fastify) {
       })
   );
 
+  fastify.decorate(
+    'purgeSearch',
+    () =>
+      new Promise((resolve, reject) => {
+        try {
+          // purging all search calls
+          const url = `${config.baseUrl}/api/search*`;
+          axios({
+            method: 'purge',
+            url,
+          })
+            .then(() => {
+              fastify.log.info(`Purged ${url}`);
+            })
+            .catch((err) => {
+              if (err.response.status !== 404 && err.response.status !== 412)
+                reject(new InternalError(`Purging search`, err));
+              else fastify.log.info(`Url ${url} not cached`);
+            });
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Purging search`, err));
+        }
+      })
+  );
+
   fastify.decorate('getAimDicomInfo', (jsonBuffer) => {
     try {
       return JSON.stringify({
@@ -2836,9 +2862,6 @@ async function other(fastify) {
               break;
             case 'PUT': // check permissions
               if (
-                !request.raw.url.startsWith(
-                  config.prefix ? `/${config.prefix}/search` : '/search'
-                ) &&
                 !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
                 !request.raw.url.startsWith(
                   config.prefix ? `/${config.prefix}/decrypt` : '/decrypt'
@@ -2864,6 +2887,9 @@ async function other(fastify) {
               break;
             case 'POST':
               if (
+                !request.raw.url.startsWith(
+                  config.prefix ? `/${config.prefix}/search` : '/search'
+                ) &&
                 !fastify.hasCreatePermission(request, reqInfo.level) &&
                 !(
                   reqInfo.level === 'worklist' &&
