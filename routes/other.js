@@ -531,7 +531,7 @@ async function otherRoutes(fastify) {
   // so that we can support getting query or params with body
   fastify.route({
     method: 'POST',
-    url: '/search/',
+    url: '/search',
     handler: fastify.search,
     description: 'Supports query and fields search using both body and query',
     schema: {
