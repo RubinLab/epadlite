@@ -14734,6 +14734,24 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'clearSignificanceInternal',
+    (project, subject, study) =>
+      new Promise((resolve, reject) => {
+        // delete all significance orders for the study for this project
+        models.project_subject_study_series_significance
+          .destroy({
+            where: {
+              study_id: study,
+              subject_id: subject,
+              project_id: project,
+            },
+          })
+          .then(() => resolve('Significance deleted successfully'))
+          .catch((err) => reject(new InternalError('Deleting significance', err)));
+      })
+  );
+
+  fastify.decorate(
     'setSignificanceInternal',
     (project, subject, study, series, significanceOrder, username) =>
       new Promise((resolve, reject) => {
@@ -14844,34 +14862,44 @@ async function epaddb(fastify, options, done) {
               new Error('Request body should be an array')
             )
           );
-        const seriesPromises = [];
-        const errors = [];
-        request.body.forEach((series) => {
-          seriesPromises.push(
-            fastify
-              .setSignificanceInternal(
-                ids[0],
-                ids[1],
-                ids[2],
-                series.seriesUID,
-                series.significanceOrder,
-                request.epadAuth.username
-              )
-              .catch((err) => {
-                fastify.log.warn(
-                  `Could not set series significance for series ${series.seriesUID}. Error: ${err.message}`
-                );
-                errors.push(series.seriesUID);
-              })
-          );
-        });
+        // reset the existing significant series to start from scratch and avoif multiple series with same significance order
+        fastify
+          .clearSignificanceInternal(ids[0], ids[1], ids[2])
+          .then(() => {
+            const seriesPromises = [];
+            const errors = [];
+            request.body.forEach((series) => {
+              seriesPromises.push(
+                fastify
+                  .setSignificanceInternal(
+                    ids[0],
+                    ids[1],
+                    ids[2],
+                    series.seriesUID,
+                    series.significanceOrder,
+                    request.epadAuth.username
+                  )
+                  .catch((err) => {
+                    fastify.log.warn(
+                      `Could not set series significance for series ${series.seriesUID}. Error: ${err.message}`
+                    );
+                    errors.push(series.seriesUID);
+                  })
+              );
+            });
 
-        Promise.all(seriesPromises).then(() => {
-          if (errors.length === 0) {
-            reply.code(200).send('Significance orders set successfully');
-          } else
-            reply.code(200).send(`Significance orders couldn't be updated for ${' '.join(errors)}`);
-        });
+            Promise.all(seriesPromises).then(() => {
+              if (errors.length === 0) {
+                reply.code(200).send('Significance orders set successfully');
+              } else
+                reply
+                  .code(200)
+                  .send(`Significance orders couldn't be updated for ${' '.join(errors)}`);
+            });
+          })
+          .catch((err) => {
+            reply.send(new InternalError(`Couldn't clean the existing significance orders`, err));
+          });
       }
     });
   });
