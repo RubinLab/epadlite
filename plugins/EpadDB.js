@@ -5143,6 +5143,7 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  // make sure all assignees have access to the studies in the worklist
   fastify.decorate('updateWorklistAssigneeInternal', async (request, reply) => {
     let worklistID;
     const idPromiseArray = [];
@@ -5282,9 +5283,21 @@ async function epaddb(fastify, options, done) {
 
                   Promise.all(updateCompPromises)
                     .then(() => {
-                      reply
-                        .code(200)
-                        .send(`Worklist ${request.params.worklist} updated successfully`);
+                      fastify
+                        .checkAndAddProjectRightsForAllCasesInWorklist(worklistID, request.epadAuth)
+                        .then(() => {
+                          reply
+                            .code(200)
+                            .send(`Worklist ${request.params.worklist} updated successfully`);
+                        })
+                        .catch((errUpdateProjectAccess) => {
+                          reply.send(
+                            new InternalError(
+                              `Worklist assignee update project access ${request.params.worklist}`,
+                              errUpdateProjectAccess
+                            )
+                          );
+                        });
                     })
                     .catch((err) => {
                       reply.send(
@@ -5566,6 +5579,56 @@ async function epaddb(fastify, options, done) {
                 );
               }
               const useridonly = assigneesWithNoRights[0].map((item) => item.user_id);
+              Promise.all(addAssignees)
+                .then(() => resolve(useridonly))
+                .catch((err) => reject(err));
+            } else resolve();
+          })
+          .catch((err) => reject(err));
+      })
+  );
+
+  fastify.decorate(
+    'checkAndAddProjectRightsForAllCasesInWorklist',
+    (worklistId, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        const addAssignees = [];
+        // check if all assignees have rights for all projects associated with the worklist
+        // SELECT user_id, project_id FROM worklist_user wu, worklist_study ws WHERE wu.worklist_id = ${worklistId} AND ws.worklist_id = ${worklistId} AND wu.user_id NOT IN
+        // (SELECT user_id FROM project_user WHERE project_id = ws.project_id);
+        fastify.orm
+          .query(
+            `SELECT user_id, project_id FROM worklist_user wu, worklist_study ws WHERE wu.worklist_id = ${worklistId} AND ws.worklist_id = ${worklistId} AND wu.user_id NOT IN
+           (SELECT user_id FROM project_user WHERE project_id = ws.project_id);`,
+            {
+              raw: true,
+              type: QueryTypes.SELECT,
+            }
+          )
+          .then((assigneesWithNoRights) => {
+            // the return value is an array of values array and column def array
+            if (assigneesWithNoRights.length > 0) {
+              // we need to add them
+              // just push to relationPromiseArr
+              for (let i = 0; i < assigneesWithNoRights.length; i += 1) {
+                addAssignees.push(
+                  fastify.upsert(
+                    models.project_user,
+                    {
+                      role: 'Collaborator',
+                      updatetime: Date.now(),
+                      project_id: assigneesWithNoRights[i].project_id,
+                      user_id: assigneesWithNoRights[i].user_id,
+                    },
+                    {
+                      project_id: assigneesWithNoRights[i].project_id,
+                      user_id: assigneesWithNoRights[i].user_id,
+                    },
+                    epadAuth.username // TODO should we add as admin, user may not even have rights
+                  )
+                );
+              }
+              const useridonly = assigneesWithNoRights.map((item) => item.user_id);
               Promise.all(addAssignees)
                 .then(() => resolve(useridonly))
                 .catch((err) => reject(err));

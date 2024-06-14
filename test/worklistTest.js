@@ -324,37 +324,6 @@ describe('Worklist Tests', () => {
         done(e);
       });
   });
-  it("should update the new worklist's assignee", (done) => {
-    chai
-      .request(`http://${process.env.host}:${process.env.port}`)
-      .put('/worklists/testCreate?username=testCreator@gmail.com')
-      .send({
-        assigneeList: ['test2ndAssignee', 'testAssignee@gmail.com'],
-      })
-      .then((res) => {
-        expect(res.statusCode).to.equal(200);
-        done();
-      })
-      .catch((e) => {
-        done(e);
-      });
-  });
-  it('The new worklist should be updated with the new assignee data', (done) => {
-    chai
-      .request(`http://${process.env.host}:${process.env.port}`)
-      .get('/users/test2ndAssignee/worklists?username=testCreator@gmail.com')
-      .then((res) => {
-        expect(res.statusCode).to.equal(200);
-        expect(res.body.length).to.be.eql(1);
-        expect(res.body[0].name).to.be.eql('testUpdated2');
-        expect(res.body[0].workListID).to.be.eql('testCreate');
-        expect(res.body[0].duedate).to.be.eql('2019-12-31');
-        done();
-      })
-      .catch((e) => {
-        done(e);
-      });
-  });
 
   // TODO does not check study not in project!
   // study not in project
@@ -394,6 +363,74 @@ describe('Worklist Tests', () => {
         // should add one user
         expect(res.text.includes('Added users'));
         expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+
+  it(`test2ndAssignee shouldn't have access to the testStRelation project`, (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/testStRelation/users?username=testCreator@gmail.com')
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(2);
+        expect(res.body[0].username).to.be.eql('testCreator@gmail.com');
+        expect(res.body[0].role).to.be.eql('Owner');
+        expect(res.body[1].username).to.be.eql('testAssignee@gmail.com');
+        expect(res.body[1].role).to.be.eql('Member');
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it("should update the new worklist's assignee", (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .put('/worklists/testCreate?username=testCreator@gmail.com')
+      .send({
+        assigneeList: ['test2ndAssignee', 'testAssignee@gmail.com', 'testCreator@gmail.com'],
+      })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it('The new worklist should be updated with the new assignee data', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/users/test2ndAssignee/worklists?username=testCreator@gmail.com')
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(1);
+        expect(res.body[0].name).to.be.eql('testUpdated2');
+        expect(res.body[0].workListID).to.be.eql('testCreate');
+        expect(res.body[0].duedate).to.be.eql('2019-12-31');
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+  it(`test2ndAssignee should have access to the testStRelation project now`, (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/testStRelation/users?username=testCreator@gmail.com')
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(3);
+        expect(res.body[0].username).to.be.eql('testCreator@gmail.com');
+        expect(res.body[0].role).to.be.eql('Owner');
+        expect(res.body[1].username).to.be.eql('testAssignee@gmail.com');
+        expect(res.body[1].role).to.be.eql('Member');
+        expect(res.body[2].username).to.be.eql('test2ndAssignee');
+        expect(res.body[2].role).to.be.eql('Collaborator');
         done();
       })
       .catch((e) => {
