@@ -5285,10 +5285,18 @@ async function epaddb(fastify, options, done) {
                     .then(() => {
                       fastify
                         .checkAndAddProjectRightsForAllCasesInWorklist(worklistID, request.epadAuth)
-                        .then(() => {
+                        .then((addedUserIdProjectIdPairs) => {
                           reply
                             .code(200)
-                            .send(`Worklist ${request.params.worklist} updated successfully`);
+                            .send(
+                              addedUserIdProjectIdPairs && addedUserIdProjectIdPairs.length > 0
+                                ? `Worklist ${
+                                    request.params.worklist
+                                  } updated successfully. Added users with no access to projects as collaborators. Added user ID, project ID pairs are: ${JSON.stringify(
+                                    addedUserIdProjectIdPairs
+                                  )}`
+                                : `Worklist ${request.params.worklist} updated successfully`
+                            );
                         })
                         .catch((errUpdateProjectAccess) => {
                           reply.send(
@@ -5594,8 +5602,6 @@ async function epaddb(fastify, options, done) {
       new Promise(async (resolve, reject) => {
         const addAssignees = [];
         // check if all assignees have rights for all projects associated with the worklist
-        // SELECT user_id, project_id FROM worklist_user wu, worklist_study ws WHERE wu.worklist_id = ${worklistId} AND ws.worklist_id = ${worklistId} AND wu.user_id NOT IN
-        // (SELECT user_id FROM project_user WHERE project_id = ws.project_id);
         fastify.orm
           .query(
             `SELECT user_id, project_id FROM worklist_user wu, worklist_study ws WHERE wu.worklist_id = ${worklistId} AND ws.worklist_id = ${worklistId} AND wu.user_id NOT IN
@@ -5628,9 +5634,8 @@ async function epaddb(fastify, options, done) {
                   )
                 );
               }
-              const useridonly = assigneesWithNoRights.map((item) => item.user_id);
               Promise.all(addAssignees)
-                .then(() => resolve(useridonly))
+                .then(() => resolve(assigneesWithNoRights))
                 .catch((err) => reject(err));
             } else resolve();
           })
