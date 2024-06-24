@@ -15003,14 +15003,13 @@ async function epaddb(fastify, options, done) {
 
           // we do not really need subject id, study uid is supposed to be unique
           // ignore if we have it missing so that projects/:p/series calls and such works
-          const subjectID = subject
-            ? (
-                await models.subject.findOne({
-                  where: { subjectuid: subject },
-                  attributes: ['id'],
-                })
-              ).dataValues.id
+          const subjectRec = subject
+            ? await models.subject.findOne({
+                where: { subjectuid: subject },
+                attributes: ['id'],
+              })
             : undefined;
+          const subjectID = subjectRec ? subjectRec.dataValues.id : undefined;
 
           const studyRec = study
             ? await models.study.findOne({
