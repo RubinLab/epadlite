@@ -2290,6 +2290,7 @@ async function epaddb(fastify, options, done) {
       .findAll({
         include: ['queueplugin', 'queueproject'],
         required: false,
+        order: [['id', 'DESC']],
       })
       .then((eachRowObj) => {
         eachRowObj.forEach((data) => {
