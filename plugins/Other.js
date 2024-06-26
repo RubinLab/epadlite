@@ -341,7 +341,7 @@ async function other(fastify) {
       const patientId = csvRow['Medical record number']; // csv Medical record number
       const accessionNumber = csvRow['Accession number']; // csv Accession number
       const suid = csvRow.SUID; // csv SUID
-      const birthDate = csvRow.DOB;
+      const birthDate = csvRow.DOB || csvRow['Date of birth'];
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
       const bodyPart = csvRow['Body part']; // csv Body part
