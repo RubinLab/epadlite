@@ -9033,7 +9033,12 @@ async function epaddb(fastify, options, done) {
           // if there were no aim records in db but couchdb has some aims
           // we'd need to query couchdb for those to get the studyInfos
           if (studyInfos.length === 0 && aimUids.length > 0) {
-            const result = await fastify.getAimsInternal('summary', params, aimUids, epadAuth);
+            const result = await fastify.getAimsInternal(
+              'summary',
+              params,
+              { aims: aimUids },
+              epadAuth
+            );
             for (let i = 0; i < result.rows.length; i += 1) {
               if (
                 !studyInfos.includes({
@@ -9174,6 +9179,15 @@ async function epaddb(fastify, options, done) {
             // get unique studyUIDs
             const deleted = [];
             for (let i = 0; i < studyInfos.length; i += 1) {
+              if (!studyInfos[i].subject || !studyInfos[i].study) {
+                fastify.log.info(
+                  `Study info doesn't have the study or subject info, skipping ${JSON.stringify(
+                    studyInfos[i]
+                  )}`
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+              }
               // eslint-disable-next-line no-await-in-loop
               const leftoversCount = await models.project_aim.count({
                 where: {
