@@ -909,6 +909,7 @@ async function couchdb(fastify, options) {
       .getAimsFromUIDsInternal({ aim: true }, request.body)
       .then(async (res) => {
         const studyUIDs = [];
+        const templateCodes = [];
         for (let i = 0; i < res.length; i += 1) {
           const aim = res[i];
           const studyUID =
@@ -916,6 +917,8 @@ async function couchdb(fastify, options) {
               .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root;
           const patientID = aim.ImageAnnotationCollection.person.id.value;
           const params = { project: request.params.project, subject: patientID, study: studyUID };
+          const templateCode =
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code;
           // put the study in the project if it's not already been put
           if (!studyUIDs.includes(studyUID)) {
             // eslint-disable-next-line no-await-in-loop
@@ -933,6 +936,17 @@ async function couchdb(fastify, options) {
               );
             }
           }
+          if (!templateCodes.includes(templateCode)) {
+            // add the template of aim to the project
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.tryAddDefaultTemplateToProject(
+              templateCode,
+              request.params.project,
+              request.epadAuth
+            );
+            templateCodes.push(templateCode);
+          }
+
           // create a copy the aim with a new uid
           aim.ImageAnnotationCollection.uniqueIdentifier.root = fastify.generateUidInternal();
           aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier.root = fastify.generateUidInternal();
