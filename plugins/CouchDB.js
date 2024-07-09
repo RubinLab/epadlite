@@ -944,6 +944,7 @@ async function couchdb(fastify, options) {
               request.params.project,
               request.epadAuth
             );
+            templateCodes.push(templateCode);
           }
 
           // create a copy the aim with a new uid
