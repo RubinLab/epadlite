@@ -340,8 +340,15 @@ async function other(fastify) {
       const name = csvRow.Name; // csv Name
       const patientId = csvRow['Medical record number']; // csv Medical record number
       const accessionNumber = csvRow['Accession number']; // csv Accession number
+      if (
+        (!patientId || patientId.trim() === '') &&
+        (!accessionNumber || accessionNumber.trim() === '')
+      ) {
+        fastify.log.info('Skipping empty row in csv');
+        return;
+      }
       const suid = csvRow.SUID; // csv SUID
-      const birthDate = csvRow.DOB;
+      const birthDate = csvRow.DOB || csvRow['Date of birth'];
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
       const bodyPart = csvRow['Body part']; // csv Body part
