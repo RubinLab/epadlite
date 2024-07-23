@@ -7575,6 +7575,25 @@ async function epaddb(fastify, options, done) {
         );
       else {
         if (aim) {
+          // if aim is being modified/saved check if it already exits
+          // if query.overwrite = true continue
+          // else return 403
+          if (
+            !request.query ||
+            !request.query.overwrite ||
+            request.query.overwrite.toLowerCase() !== 'true'
+          ) {
+            const aimCount = await models.project_aim.count({
+              where: {
+                aim_uid: aimUid,
+                ...fastify.qryNotDeleted(),
+              },
+            });
+            if (aimCount > 0) {
+              reply.send(new ResourceAlreadyExistsError('Aim', aimUid));
+            }
+          }
+
           // get the uid from the json and check if it is same with param, then put as id in couch document
           if (aimUid !== aim.ImageAnnotationCollection.uniqueIdentifier.root) {
             reply.send(
