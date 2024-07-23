@@ -2535,6 +2535,28 @@ async function other(fastify) {
               user = await fastify.getUserInternal({
                 user: username,
               });
+              // in teaching mode, we need to create a private project
+              if (config.mode === 'teaching') {
+                // create a private project by user id
+                // should we have a shorter name?
+                // get default template from config
+                await fastify.createProjectInternal(
+                  `${rowsUpdated.firstname} ${rowsUpdated.lastname}`,
+                  `prj_${username}`,
+                  `${rowsUpdated.firstname} ${rowsUpdated.lastname}'s Private Folder`,
+                  config.defaultTemplate,
+                  'Private',
+                  epadAuth
+                );
+
+                // add teaching template to the project
+                await fastify.addProjectTemplateRelInternal(
+                  config.teachingTemplateUID,
+                  `prj_${username}`,
+                  {},
+                  epadAuth
+                );
+              }
             } else reject(err);
           }
           if (user) {
