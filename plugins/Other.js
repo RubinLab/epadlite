@@ -340,8 +340,15 @@ async function other(fastify) {
       const name = csvRow.Name; // csv Name
       const patientId = csvRow['Medical record number']; // csv Medical record number
       const accessionNumber = csvRow['Accession number']; // csv Accession number
+      if (
+        (!patientId || patientId.trim() === '') &&
+        (!accessionNumber || accessionNumber.trim() === '')
+      ) {
+        fastify.log.info('Skipping empty row in csv');
+        return;
+      }
       const suid = csvRow.SUID; // csv SUID
-      const birthDate = csvRow.DOB;
+      const birthDate = csvRow.DOB || csvRow['Date of birth'];
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
       const bodyPart = csvRow['Body part']; // csv Body part
@@ -1157,6 +1164,32 @@ async function other(fastify) {
             });
         } catch (err) {
           reject(err);
+        }
+      })
+  );
+
+  fastify.decorate(
+    'purgeSearch',
+    () =>
+      new Promise((resolve, reject) => {
+        try {
+          // purging all search calls
+          const url = `${config.baseUrl}/api/search*`;
+          axios({
+            method: 'purge',
+            url,
+          })
+            .then(() => {
+              fastify.log.info(`Purged ${url}`);
+            })
+            .catch((err) => {
+              if (err.response.status !== 404 && err.response.status !== 412)
+                reject(new InternalError(`Purging search`, err));
+              else fastify.log.info(`Url ${url} not cached`);
+            });
+          resolve();
+        } catch (err) {
+          reject(new InternalError(`Purging search`, err));
         }
       })
   );
@@ -2481,19 +2514,24 @@ async function other(fastify) {
             // fallback get by email
             if ((!user || err.message === 'not filled') && userInfo) {
               user = await fastify.getUserInternal({
-                user: userInfo.email,
+                user: userInfo.email || userInfo.principal,
               });
               // update user db record here
               const rowsUpdated = {
                 username,
                 firstname: userInfo.given_name || userInfo.givenName,
                 lastname: userInfo.family_name || userInfo.surname,
-                email: userInfo.email,
+                email: userInfo.email || userInfo.principal,
                 updated_by: 'admin',
                 updatetime: Date.now(),
               };
-              await fastify.updateUserInternal(rowsUpdated, { user: userInfo.email });
-              await fastify.updateUserInWorklistCompleteness(userInfo.email, username);
+              await fastify.updateUserInternal(rowsUpdated, {
+                user: userInfo.email || userInfo.principal,
+              });
+              await fastify.updateUserInWorklistCompleteness(
+                userInfo.email || userInfo.principal,
+                username
+              );
               user = await fastify.getUserInternal({
                 user: username,
               });
@@ -2591,6 +2629,8 @@ async function other(fastify) {
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/documentation`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/stats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/templatestats`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/usertfstats`) &&
+      !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epads/teachingstats`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/epad/statistics`) && // disabling auth for put is dangerous
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/download`) &&
       !req.raw.url.startsWith(`${fastify.getPrefixForRoute()}/ontology`) &&
@@ -2829,9 +2869,6 @@ async function other(fastify) {
               break;
             case 'PUT': // check permissions
               if (
-                !request.raw.url.startsWith(
-                  config.prefix ? `/${config.prefix}/search` : '/search'
-                ) &&
                 !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
                 !request.raw.url.startsWith(
                   config.prefix ? `/${config.prefix}/decrypt` : '/decrypt'
@@ -2857,6 +2894,9 @@ async function other(fastify) {
               break;
             case 'POST':
               if (
+                !request.raw.url.startsWith(
+                  config.prefix ? `/${config.prefix}/search` : '/search'
+                ) &&
                 !fastify.hasCreatePermission(request, reqInfo.level) &&
                 !(
                   reqInfo.level === 'worklist' &&

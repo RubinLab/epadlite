@@ -69,10 +69,30 @@ async function otherRoutes(fastify) {
           year: {
             type: 'string',
           },
+          host: {
+            type: 'string',
+          },
         },
       },
     },
     handler: fastify.getStats,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/epads/teachingstats',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          year: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getMonthlyTeachingStats,
   });
 
   fastify.route({
@@ -87,6 +107,9 @@ async function otherRoutes(fastify) {
             type: 'string',
           },
           template: {
+            type: 'string',
+          },
+          host: {
             type: 'string',
           },
         },
@@ -275,6 +298,42 @@ async function otherRoutes(fastify) {
     handler: fastify.saveStats,
   });
 
+  fastify.route({
+    method: 'PUT',
+    url: '/epad/statistics/usertf',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          host: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.saveUserTFStats,
+  });
+
+  fastify.route({
+    method: 'GET',
+    url: '/epads/usertfstats',
+    schema: {
+      tags: ['stats'],
+      query: {
+        type: 'object',
+        properties: {
+          host: {
+            type: 'string',
+          },
+          year: {
+            type: 'string',
+          },
+        },
+      },
+    },
+    handler: fastify.getUserTFStats,
+  });
   // trigger statistics calculations. mainly for testing purposes
   fastify.route({
     method: 'GET',
@@ -471,7 +530,7 @@ async function otherRoutes(fastify) {
 
   // so that we can support getting query or params with body
   fastify.route({
-    method: 'PUT',
+    method: 'POST',
     url: '/search',
     handler: fastify.search,
     description: 'Supports query and fields search using both body and query',

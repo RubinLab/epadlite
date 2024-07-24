@@ -2290,6 +2290,7 @@ async function epaddb(fastify, options, done) {
       .findAll({
         include: ['queueplugin', 'queueproject'],
         required: false,
+        order: [['id', 'DESC']],
       })
       .then((eachRowObj) => {
         eachRowObj.forEach((data) => {
@@ -5143,6 +5144,7 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  // make sure all assignees have access to the studies in the worklist
   fastify.decorate('updateWorklistAssigneeInternal', async (request, reply) => {
     let worklistID;
     const idPromiseArray = [];
@@ -5282,9 +5284,29 @@ async function epaddb(fastify, options, done) {
 
                   Promise.all(updateCompPromises)
                     .then(() => {
-                      reply
-                        .code(200)
-                        .send(`Worklist ${request.params.worklist} updated successfully`);
+                      fastify
+                        .checkAndAddProjectRightsForAllCasesInWorklist(worklistID, request.epadAuth)
+                        .then((addedUserIdProjectIdPairs) => {
+                          reply
+                            .code(200)
+                            .send(
+                              addedUserIdProjectIdPairs && addedUserIdProjectIdPairs.length > 0
+                                ? `Worklist ${
+                                    request.params.worklist
+                                  } updated successfully. Added users with no access to projects as collaborators. Added user ID, project ID pairs are: ${JSON.stringify(
+                                    addedUserIdProjectIdPairs
+                                  )}`
+                                : `Worklist ${request.params.worklist} updated successfully`
+                            );
+                        })
+                        .catch((errUpdateProjectAccess) => {
+                          reply.send(
+                            new InternalError(
+                              `Worklist assignee update project access ${request.params.worklist}`,
+                              errUpdateProjectAccess
+                            )
+                          );
+                        });
                     })
                     .catch((err) => {
                       reply.send(
@@ -5568,6 +5590,53 @@ async function epaddb(fastify, options, done) {
               const useridonly = assigneesWithNoRights[0].map((item) => item.user_id);
               Promise.all(addAssignees)
                 .then(() => resolve(useridonly))
+                .catch((err) => reject(err));
+            } else resolve();
+          })
+          .catch((err) => reject(err));
+      })
+  );
+
+  fastify.decorate(
+    'checkAndAddProjectRightsForAllCasesInWorklist',
+    (worklistId, epadAuth) =>
+      new Promise(async (resolve, reject) => {
+        const addAssignees = [];
+        // check if all assignees have rights for all projects associated with the worklist
+        fastify.orm
+          .query(
+            `SELECT user_id, project_id FROM worklist_user wu, worklist_study ws WHERE wu.worklist_id = ${worklistId} AND ws.worklist_id = ${worklistId} AND wu.user_id NOT IN
+           (SELECT user_id FROM project_user WHERE project_id = ws.project_id);`,
+            {
+              raw: true,
+              type: QueryTypes.SELECT,
+            }
+          )
+          .then((assigneesWithNoRights) => {
+            // the return value is an array of values array and column def array
+            if (assigneesWithNoRights.length > 0) {
+              // we need to add them
+              // just push to relationPromiseArr
+              for (let i = 0; i < assigneesWithNoRights.length; i += 1) {
+                addAssignees.push(
+                  fastify.upsert(
+                    models.project_user,
+                    {
+                      role: 'Collaborator',
+                      updatetime: Date.now(),
+                      project_id: assigneesWithNoRights[i].project_id,
+                      user_id: assigneesWithNoRights[i].user_id,
+                    },
+                    {
+                      project_id: assigneesWithNoRights[i].project_id,
+                      user_id: assigneesWithNoRights[i].user_id,
+                    },
+                    epadAuth.username // TODO should we add as admin, user may not even have rights
+                  )
+                );
+              }
+              Promise.all(addAssignees)
+                .then(() => resolve(assigneesWithNoRights))
                 .catch((err) => reject(err));
             } else resolve();
           })
@@ -8965,7 +9034,12 @@ async function epaddb(fastify, options, done) {
           // if there were no aim records in db but couchdb has some aims
           // we'd need to query couchdb for those to get the studyInfos
           if (studyInfos.length === 0 && aimUids.length > 0) {
-            const result = await fastify.getAimsInternal('summary', params, aimUids, epadAuth);
+            const result = await fastify.getAimsInternal(
+              'summary',
+              params,
+              { aims: aimUids },
+              epadAuth
+            );
             for (let i = 0; i < result.rows.length; i += 1) {
               if (
                 !studyInfos.includes({
@@ -8992,7 +9066,12 @@ async function epaddb(fastify, options, done) {
           const numDeleted =
             aimUids.length > 0
               ? await fastify.deleteAimDB(
-                  { aim_uid: aimUids, ...(project ? { project_id: project.id } : {}) },
+                  {
+                    aim_uid: aimUids,
+                    ...(project && !(query.all && query.all === 'true')
+                      ? { project_id: project.id }
+                      : {}),
+                  },
                   epadAuth.username
                 )
               : 0;
@@ -9004,6 +9083,7 @@ async function epaddb(fastify, options, done) {
               await Promise.all(segDeletePromises);
               if (!skipCheckAndDeleteNoAimStudies)
                 await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+              await fastify.purgeSearch();
               resolve(`Aims deleted from system and removed from ${numDeleted} projects`);
             } else {
               // check if the aims to be deleted exist in any other project
@@ -9019,6 +9099,7 @@ async function epaddb(fastify, options, done) {
                 await Promise.all(segDeletePromises);
                 if (!skipCheckAndDeleteNoAimStudies)
                   await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                await fastify.purgeSearch();
                 resolve(`Aims deleted from system as they didn't exist in any other project`);
               } else {
                 const leftoverIds = [];
@@ -9062,6 +9143,7 @@ async function epaddb(fastify, options, done) {
                 // it doesn't filter the not deleted ones. does an extra check
                 if (!skipCheckAndDeleteNoAimStudies)
                   await fastify.checkAndDeleteNoAimStudies(studyInfos, epadAuth);
+                await fastify.purgeSearch();
                 resolve(
                   `${leftovers.length} aims not deleted from system as they exist in other project`
                 );
@@ -9098,6 +9180,15 @@ async function epaddb(fastify, options, done) {
             // get unique studyUIDs
             const deleted = [];
             for (let i = 0; i < studyInfos.length; i += 1) {
+              if (!studyInfos[i].subject || !studyInfos[i].study) {
+                fastify.log.info(
+                  `Study info doesn't have the study or subject info, skipping ${JSON.stringify(
+                    studyInfos[i]
+                  )}`
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+              }
               // eslint-disable-next-line no-await-in-loop
               const leftoversCount = await models.project_aim.count({
                 where: {
@@ -10477,6 +10568,7 @@ async function epaddb(fastify, options, done) {
                       {
                         project_aim_id: args.dataValues.id,
                         user_id: userId,
+                        updatetime: Date.now(),
                       },
                       {
                         project_aim_id: args.dataValues.id,
@@ -13231,18 +13323,62 @@ async function epaddb(fastify, options, done) {
 
           let numOfAims = 0;
           const numOfTemplateAimsMap = {};
-          if (config.env !== 'test') {
-            const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
-            numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
-            const numOfTemplateAims = await models.project_aim.findAll({
-              group: ['template'],
-              attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
-              raw: true,
-              where: fastify.qryNotDeleted(),
+          let userTFStats = {};
+          const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
+          numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
+          const numOfTemplateAimsDB = await models.project_aim.findAll({
+            group: ['template'],
+            attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
+            raw: true,
+            where: fastify.qryNotDeleted(),
+          });
+          numOfTemplateAimsDB.forEach((item) => {
+            numOfTemplateAimsMap[item.template] = item.aimcount;
+          });
+
+          // get user based teaching stats
+          if (config.mode === 'teaching') {
+            const userTeachingAims = await models.user.findAll({
+              include: [
+                {
+                  model: models.project_aim,
+                  as: 'projectAims',
+                  // /* lite */
+                  where: {
+                    template: config.teachingTemplate,
+                    ...fastify.qryNotDeleted(),
+                  },
+                  include: [
+                    {
+                      model: models.project,
+                      where: {
+                        projectid: config.teachingProject ? config.teachingProject : 'lite',
+                      },
+                    },
+                  ],
+                },
+              ],
             });
-            numOfTemplateAims.forEach((item) => {
-              numOfTemplateAimsMap[item.template] = item.aimcount;
-            });
+            userTFStats = userTeachingAims.map((item) => ({
+              userId: item.id,
+              numOfTF: item.projectAims.length,
+            }));
+            const month = new Date().getMonth() + 1;
+            const year = new Date().getYear() + 1900;
+            for (let i = 0; i < userTFStats.length; i += 1) {
+              // eslint-disable-next-line no-await-in-loop
+              await models.epadstatistics_usertf.create({
+                host: 'localhost',
+                template_code: userTFStats[i].template || config.teachingTemplate,
+                user_id: userTFStats[i].userId,
+                num_of_tf: userTFStats[i].numOfTF,
+                year,
+                month,
+                creator: 'admin',
+                createdtime: Date.now(),
+                updatetime: Date.now(),
+              });
+            }
           }
 
           // TODO are these correct? check with thick
@@ -13342,6 +13478,25 @@ async function epaddb(fastify, options, done) {
             }
           }
 
+          if (
+            config.mode === 'teaching' &&
+            (hostname.includes('stella.stanfordmed.org') || config.env === 'test')
+          ) {
+            // send user aim stats
+            const userTFsEpadUrl = `/epad/statistics/usertf?host=${hostname}`;
+            // send to statistics collector
+            if (!config.disableStats) {
+              fastify.log.info(
+                `Sending user aim stats to ${request.defaults.baseURL}${encodeURI(userTFsEpadUrl)}`
+              );
+              // eslint-disable-next-line no-await-in-loop
+              await request.put(encodeURI(userTFsEpadUrl), userTFStats, {
+                headers: { 'Content-Type': 'application/json' },
+              });
+              fastify.log.info(`Teaching file statistics sent with success`);
+            }
+          }
+
           // done with calculating and sending the statistics
           // calculate a monthly cumulative if it is there is no record for the month
           const month = new Date().getMonth() + 1;
@@ -13380,6 +13535,19 @@ async function epaddb(fastify, options, done) {
       {}
     );
     reply.send(statsEdited);
+  });
+
+  fastify.decorate('getMonthlyTeachingStats', async (request, reply) => {
+    // eslint-disable-next-line prefer-const
+    let { year } = request.query;
+    let yearFilter = '';
+    if (year) yearFilter = ` where year = '${year}'`;
+
+    const stats = await fastify.orm.query(
+      `select id, year, month, numOfAims as cumulative, numOfAims-(select numOfAims from epadstatistics_monthly_teaching where id = main
+        .id -1) as monthly from epadstatistics_monthly_teaching as main ${yearFilter} order by year, month`
+    );
+    reply.send(stats && stats[0] ? stats[0] : null);
   });
 
   fastify.decorate('getTemplateStats', async (request, reply) => {
@@ -13468,6 +13636,66 @@ async function epaddb(fastify, options, done) {
       reply.send('Template statistics saved');
     } catch (err) {
       reply.send(new InternalError('Saving template statistics', err));
+    }
+  });
+
+  fastify.decorate('saveUserTFStats', async (request, reply) => {
+    try {
+      const { host } = request.query;
+      const userTFStats = request.body;
+      const month = new Date().getMonth() + 1;
+      const year = new Date().getYear() + 1900;
+      for (let i = 0; i < userTFStats.length; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        await fastify.upsert(
+          models.epadstatistics_usertf,
+          {
+            host,
+            template_code: userTFStats[i].template || config.teachingTemplate,
+            user_id: userTFStats[i].userId,
+            num_of_tf: userTFStats[i].numOfTF,
+            year,
+            month,
+            updatetime: Date.now(),
+          },
+          {
+            host,
+            template_code: userTFStats[i].template || config.teachingTemplate,
+            user_id: userTFStats[i].userId,
+            num_of_tf: userTFStats[i].numOfTF,
+            year,
+            month,
+          },
+          'admin'
+        );
+      }
+      reply.send('User TF statistics saved');
+    } catch (err) {
+      reply.send(new InternalError('Saving User TF statistics', err));
+    }
+  });
+
+  fastify.decorate('getUserTFStats', async (request, reply) => {
+    try {
+      const { year, host } = request.query;
+      let yearFilter = '';
+      if (year) yearFilter = ` where year = '${year}'`;
+      let hostFilter = '';
+      if (host) hostFilter = ` ${year ? 'and' : 'where'} host like '%${host}%'`;
+      const userTFStatsDB = await fastify.orm.query(
+        `select user_id, num_of_tf, template_code, year, month, host, (select max(num_of_tf) from epadstatistics_usertf where user_id = main.user_id) as mx from epadstatistics_usertf as main ${yearFilter} ${hostFilter} order by mx desc, user_id, year, month;`,
+        { raw: true, type: QueryTypes.SELECT }
+      );
+      const result = userTFStatsDB.map((record) => ({
+        userId: record.user_id,
+        numOfTF: record.num_of_tf,
+        templateCode: record.template_code,
+        year: record.year,
+        month: record.month,
+      }));
+      reply.send(result);
+    } catch (err) {
+      reply.send(new InternalError('Saving User TF statistics', err));
     }
   });
 
@@ -14589,6 +14817,24 @@ async function epaddb(fastify, options, done) {
   );
 
   fastify.decorate(
+    'clearSignificanceInternal',
+    (project, subject, study) =>
+      new Promise((resolve, reject) => {
+        // delete all significance orders for the study for this project
+        models.project_subject_study_series_significance
+          .destroy({
+            where: {
+              study_id: study,
+              subject_id: subject,
+              project_id: project,
+            },
+          })
+          .then(() => resolve('Significance deleted successfully'))
+          .catch((err) => reject(new InternalError('Deleting significance', err)));
+      })
+  );
+
+  fastify.decorate(
     'setSignificanceInternal',
     (project, subject, study, series, significanceOrder, username) =>
       new Promise((resolve, reject) => {
@@ -14699,34 +14945,44 @@ async function epaddb(fastify, options, done) {
               new Error('Request body should be an array')
             )
           );
-        const seriesPromises = [];
-        const errors = [];
-        request.body.forEach((series) => {
-          seriesPromises.push(
-            fastify
-              .setSignificanceInternal(
-                ids[0],
-                ids[1],
-                ids[2],
-                series.seriesUID,
-                series.significanceOrder,
-                request.epadAuth.username
-              )
-              .catch((err) => {
-                fastify.log.warn(
-                  `Could not set series significance for series ${series.seriesUID}. Error: ${err.message}`
-                );
-                errors.push(series.seriesUID);
-              })
-          );
-        });
+        // reset the existing significant series to start from scratch and avoif multiple series with same significance order
+        fastify
+          .clearSignificanceInternal(ids[0], ids[1], ids[2])
+          .then(() => {
+            const seriesPromises = [];
+            const errors = [];
+            request.body.forEach((series) => {
+              seriesPromises.push(
+                fastify
+                  .setSignificanceInternal(
+                    ids[0],
+                    ids[1],
+                    ids[2],
+                    series.seriesUID,
+                    series.significanceOrder,
+                    request.epadAuth.username
+                  )
+                  .catch((err) => {
+                    fastify.log.warn(
+                      `Could not set series significance for series ${series.seriesUID}. Error: ${err.message}`
+                    );
+                    errors.push(series.seriesUID);
+                  })
+              );
+            });
 
-        Promise.all(seriesPromises).then(() => {
-          if (errors.length === 0) {
-            reply.code(200).send('Significance orders set successfully');
-          } else
-            reply.code(200).send(`Significance orders couldn't be updated for ${' '.join(errors)}`);
-        });
+            Promise.all(seriesPromises).then(() => {
+              if (errors.length === 0) {
+                reply.code(200).send('Significance orders set successfully');
+              } else
+                reply
+                  .code(200)
+                  .send(`Significance orders couldn't be updated for ${' '.join(errors)}`);
+            });
+          })
+          .catch((err) => {
+            reply.send(new InternalError(`Couldn't clean the existing significance orders`, err));
+          });
       }
     });
   });
@@ -14762,14 +15018,13 @@ async function epaddb(fastify, options, done) {
 
           // we do not really need subject id, study uid is supposed to be unique
           // ignore if we have it missing so that projects/:p/series calls and such works
-          const subjectID = subject
-            ? (
-                await models.subject.findOne({
-                  where: { subjectuid: subject },
-                  attributes: ['id'],
-                })
-              ).dataValues.id
+          const subjectRec = subject
+            ? await models.subject.findOne({
+                where: { subjectuid: subject },
+                attributes: ['id'],
+              })
             : undefined;
+          const subjectID = subjectRec ? subjectRec.dataValues.id : undefined;
 
           const studyRec = study
             ? await models.study.findOne({

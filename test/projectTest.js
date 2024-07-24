@@ -117,6 +117,33 @@ beforeEach(() => {
     .reply(200);
 
   nock(config.statsEpad)
+    .put('/epad/statistics/')
+    .query(
+      (query) =>
+        query.numOfUsers === '1' &&
+        query.numOfProjects === '3' &&
+        query.numOfPatients === '2' &&
+        query.numOfStudies === '2' &&
+        query.numOfSeries === '6' &&
+        query.numOfAims === '3' &&
+        query.numOfDSOs === '2' &&
+        query.numOfWorkLists === '0' &&
+        query.numOfFiles === '0' &&
+        query.numOfPlugins === '0' &&
+        query.numOfTemplates === '1' &&
+        query.host.endsWith('0.0.0.0:5987')
+    )
+    .reply(200);
+
+  nock(config.statsEpad)
+    .put(
+      '/epad/statistics/usertf',
+      (body) => body.length === 0 || (body[0].userId === 1 && body[0].numOfTF === 1)
+    )
+    .query((query) => query.host.endsWith('0.0.0.0:5987'))
+    .reply(200);
+
+  nock(config.statsEpad)
     .put(
       '/epad/statistics/templates/',
       (body) => JSON.stringify(body) === JSON.stringify(jsonBuffer)
@@ -130,6 +157,24 @@ beforeEach(() => {
         query.templateLevelType === 'Image' &&
         query.templateDescription === 'Template used for collecting only ROIs' &&
         query.numOfAims === '0' &&
+        query.host.endsWith('0.0.0.0:5987')
+    )
+    .reply(200);
+
+  nock(config.statsEpad)
+    .put(
+      '/epad/statistics/templates/',
+      (body) => JSON.stringify(body) === JSON.stringify(jsonBuffer)
+    )
+    .query(
+      (query) =>
+        query.templateCode === 'ROI' &&
+        query.templateName === 'ROIOnly' &&
+        query.authors === 'amsnyder' &&
+        query.version === '2.0' &&
+        query.templateLevelType === 'Image' &&
+        query.templateDescription === 'Template used for collecting only ROIs' &&
+        query.numOfAims === '1' &&
         query.host.endsWith('0.0.0.0:5987')
     )
     .reply(200);
@@ -422,6 +467,11 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testtemplate3')
+        .query({ username: 'admin' });
+      // delete the project created inside tests
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testtemplatedefault')
         .query({ username: 'admin' });
     });
 
@@ -2081,6 +2131,12 @@ describe('Project Tests', () => {
           defaultTemplate: 'ROI',
           type: 'private',
         });
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/projects/testaim/templates')
+        .send(jsonBuffer)
+        .query({ username: 'admin' });
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects')
@@ -2116,6 +2172,10 @@ describe('Project Tests', () => {
       await chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .delete('/projects/testaim3')
+        .query({ username: 'admin' });
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/project/testaim/templates/2.25.121060836007636801627558943005335')
         .query({ username: 'admin' });
     });
     it('project testaim should have no aims ', (done) => {
@@ -2953,7 +3013,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('should copy 2.25.211702350959705566747388843359605362 to testaim3 project (adding the study to project too', (done) => {
+    it('should copy 2.25.211702350959705566747388843359605362 to testaim3 project (adding the study to project too)', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testaim3/fromprojects/testaim/aims/copy')
@@ -3172,6 +3232,20 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    it('should return 0 template for testaim3', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/templates')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('should copy 2.25.595281743701167154152556092956228240212 to testaim3 project (adding the study to project too)', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
@@ -3215,6 +3289,21 @@ describe('Project Tests', () => {
               `${config.dicomWebConfig.qidoSubPath}/studies/1.2.752.24.7.19011385.453825/series/${res.body.rows[0].ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].segmentationEntityCollection.SegmentationEntity[0].seriesInstanceUid.root}`
             )
             .reply(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should return 1 template for testaim3 and it should be ROI', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/templates')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].TemplateContainer.name).to.be.eql('ROI Only Template');
           done();
         })
         .catch((e) => {
@@ -3306,7 +3395,7 @@ describe('Project Tests', () => {
     it('project testaim3 should have no aim ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .get('/projects/testaim/aims')
+        .get('/projects/testaim3/aims')
         .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
@@ -3345,6 +3434,152 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    if (config.mode === 'teaching') {
+      // add a teaching file in lite and a regular aim
+      it('Teaching aim save to project testaim should be successful ', (done) => {
+        const jsonBuffer = JSON.parse(fs.readFileSync('test/data/teaching_aim2.json'));
+        chai
+          .request(`http://${process.env.host}:${process.env.port}`)
+          .post('/projects/testaim/aims')
+          .send(jsonBuffer)
+          .query({ username: 'admin' })
+          .then((res) => {
+            expect(res.statusCode).to.equal(200);
+            done();
+          })
+          .catch((e) => {
+            done(e);
+          });
+      });
+      it('Roi aim save to project testaim should be successful ', (done) => {
+        const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+        chai
+          .request(`http://${process.env.host}:${process.env.port}`)
+          .post('/projects/testaim/aims')
+          .send(jsonBuffer)
+          .query({ username: 'admin' })
+          .then((res) => {
+            expect(res.statusCode).to.equal(200);
+            done();
+          })
+          .catch((e) => {
+            done(e);
+          });
+      });
+      it('project testaim should have 2 aims ', (done) => {
+        chai
+          .request(`http://${process.env.host}:${process.env.port}`)
+          .get('/projects/testaim/aims')
+          .query({ username: 'admin' })
+          .then((res) => {
+            expect(res.statusCode).to.equal(200);
+            expect(res.body.rows.length).to.be.eql(2);
+            done();
+          })
+          .catch((e) => {
+            done(e);
+          });
+      });
+      // add a teaching file in another project
+      it('Teaching aim save to project testaim3 should be successful ', (done) => {
+        const jsonBuffer = JSON.parse(fs.readFileSync('test/data/teaching_aim2.json'));
+        // change the uid so it is a different aim
+        jsonBuffer.ImageAnnotationCollection.uniqueIdentifier.root =
+          '2.25.196033266344245780724364622116125952299';
+        chai
+          .request(`http://${process.env.host}:${process.env.port}`)
+          .post('/projects/testaim3/aims')
+          .send(jsonBuffer)
+          .query({ username: 'admin' })
+          .then((res) => {
+            expect(res.statusCode).to.equal(200);
+            done();
+          })
+          .catch((e) => {
+            done(e);
+          });
+      });
+      it('project testaim3 should have 1 aims ', (done) => {
+        chai
+          .request(`http://${process.env.host}:${process.env.port}`)
+          .get('/projects/testaim3/aims')
+          .query({ username: 'admin' })
+          .then((res) => {
+            expect(res.statusCode).to.equal(200);
+            expect(res.body.rows.length).to.be.eql(1);
+            done();
+          })
+          .catch((e) => {
+            done(e);
+          });
+      });
+
+      it('should trigger statistics calculation and sending ', (done) => {
+        chai
+          .request(`http://${process.env.host}:${process.env.port}`)
+          .get('/epad/statistics/calc')
+          .query({ username: 'admin' })
+          .then((res) => {
+            expect(res.statusCode).to.equal(200);
+            done();
+          })
+          .catch((e) => {
+            done(e);
+          });
+      });
+
+      it('should get statistics ', (done) => {
+        chai
+          .request(`http://${process.env.host}:${process.env.port}`)
+          .get('/epads/stats/')
+          .query({ username: 'admin' })
+          .then((res) => {
+            expect(res.statusCode).to.equal(200);
+            expect(res.body).to.be.eql({
+              numOfUsers: 1,
+              numOfProjects: 3,
+              numOfPatients: 2,
+              numOfStudies: 2,
+              numOfSeries: 6,
+              numOfAims: 3,
+              numOfDSOs: 2,
+              numOfPacs: 0,
+              numOfAutoQueries: 0,
+              numOfWorkLists: 0,
+              numOfFiles: 0,
+              numOfTemplates: 1,
+              numOfPlugins: 0,
+            });
+            done();
+          })
+          .catch((e) => {
+            done(e);
+          });
+      });
+
+      it('should get user TF statistics ', (done) => {
+        chai
+          .request(`http://${process.env.host}:${process.env.port}`)
+          .get('/epads/usertfstats')
+          .query({ username: 'admin', host: 'localhost' })
+          .then((res) => {
+            expect(res.statusCode).to.equal(200);
+            expect(res.body).to.be.eql([
+              {
+                userId: 1,
+                numOfTF: 1,
+                templateCode: '99EPAD_947',
+                year: new Date().getYear() + 1900,
+                month: new Date().getMonth() + 1,
+              },
+            ]);
+            done();
+          })
+          .catch((e) => {
+            done(e);
+          });
+      });
+    }
   });
   describe('Project File Tests', () => {
     before(async () => {
@@ -6134,7 +6369,7 @@ describe('Project Tests', () => {
       const jsonBuffer = JSON.parse(fs.readFileSync(`test/data/search_proj_temp.json`));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .put('/search')
+        .post('/search')
         .query({ username: 'admin' })
         .send({ query: 'project:reporting AND template_code:RECIST' })
         .then((res) => {

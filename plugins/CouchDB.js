@@ -909,6 +909,7 @@ async function couchdb(fastify, options) {
       .getAimsFromUIDsInternal({ aim: true }, request.body)
       .then(async (res) => {
         const studyUIDs = [];
+        const templateCodes = [];
         for (let i = 0; i < res.length; i += 1) {
           const aim = res[i];
           const studyUID =
@@ -916,6 +917,8 @@ async function couchdb(fastify, options) {
               .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root;
           const patientID = aim.ImageAnnotationCollection.person.id.value;
           const params = { project: request.params.project, subject: patientID, study: studyUID };
+          const templateCode =
+            aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code;
           // put the study in the project if it's not already been put
           if (!studyUIDs.includes(studyUID)) {
             // eslint-disable-next-line no-await-in-loop
@@ -933,6 +936,17 @@ async function couchdb(fastify, options) {
               );
             }
           }
+          if (!templateCodes.includes(templateCode)) {
+            // add the template of aim to the project
+            // eslint-disable-next-line no-await-in-loop
+            await fastify.tryAddDefaultTemplateToProject(
+              templateCode,
+              request.params.project,
+              request.epadAuth
+            );
+            templateCodes.push(templateCode);
+          }
+
           // create a copy the aim with a new uid
           aim.ImageAnnotationCollection.uniqueIdentifier.root = fastify.generateUidInternal();
           aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].uniqueIdentifier.root = fastify.generateUidInternal();
@@ -1335,7 +1349,7 @@ async function couchdb(fastify, options) {
             }
             fastify.log.info(`Updating document for aimuid ${couchDoc._id}`);
             // if the method was called with just aimuid use the attachments on couchdb
-            if (existing._attachments && typeof aim === 'string' && attachments === [])
+            if (existing._attachments && typeof aim === 'string' && attachments.length === 0)
               attachments = existing._attachments;
             // auditLog is for aim changes, if input is just aimUID only project changes. no auditlog for now
             if (config.auditLog === true && existing.aim && typeof aim !== 'string') {
@@ -1374,8 +1388,15 @@ async function couchdb(fastify, options) {
             db.multipart
               .insert(couchDoc, attachments, couchDoc._id)
               .then(() => {
-                // await fastify.getAimVersions(couchDoc._id);
-                resolve(`Aim ${couchDoc._id} is saved successfully`);
+                fastify
+                  .purgeSearch()
+                  .then(() => {
+                    // await fastify.getAimVersions(couchDoc._id);
+                    resolve(`Aim ${couchDoc._id} is saved successfully`);
+                  })
+                  .catch((err) => {
+                    reject(new InternalError(`Purging aim cache `, err));
+                  });
               })
               .catch((err) => {
                 reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
@@ -1383,8 +1404,15 @@ async function couchdb(fastify, options) {
           else
             db.insert(couchDoc, couchDoc._id)
               .then(() => {
-                // await fastify.getAimVersions(couchDoc._id);
-                resolve(`Aim ${couchDoc._id} is saved successfully`);
+                fastify
+                  .purgeSearch()
+                  .then(() => {
+                    // await fastify.getAimVersions(couchDoc._id);
+                    resolve(`Aim ${couchDoc._id} is saved successfully`);
+                  })
+                  .catch((err) => {
+                    reject(new InternalError(`Purging aim cache `, err));
+                  });
               })
               .catch((err) => {
                 reject(new InternalError(`Saving aim ${couchDoc._id} to couchdb`, err));
@@ -1497,7 +1525,14 @@ async function couchdb(fastify, options) {
           promisses.push(db.destroy(aimuid, existing._rev));
           Promise.all(promisses)
             .then(() => {
-              resolve();
+              fastify
+                .purgeSearch()
+                .then(() => {
+                  resolve();
+                })
+                .catch((err) => {
+                  reject(new InternalError(`Purging aim cache `, err));
+                });
             })
             .catch((err) => {
               reject(new InternalError(`Deleting aim ${aimuid}`, err));

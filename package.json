@@ -1,6 +1,6 @@
 {
   "name": "epadlite",
-  "version": "1.3",
+  "version": "1.4",
   "description": "Lightweight ePad Backend",
   "main": "server.js",
   "dependencies": {
