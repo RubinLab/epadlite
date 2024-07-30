@@ -10703,6 +10703,10 @@ async function epaddb(fastify, options, done) {
     models.user
       .findAll({
         include: ['projects'],
+        order: [
+          ['lastname', 'ASC'],
+          ['firstname', 'ASC'],
+        ],
       })
       .then((users) => {
         const result = [];
@@ -12307,6 +12311,10 @@ async function epaddb(fastify, options, done) {
         const projectUsers = await models.project_user.findAll({
           where: { project_id: projectId.id },
           raw: true,
+          order: [
+            ['lastname', 'ASC'],
+            ['firstname', 'ASC'],
+          ],
         });
         const userPromise = [];
         // get users
