@@ -305,6 +305,21 @@ describe('User Tests', () => {
       });
   });
 
+  it('should return 3 users for project test2', (done) => {
+    chai
+      .request(`http://${process.env.host}:${process.env.port}`)
+      .get('/projects/test2/users')
+      .query({ username: 'admin' })
+      .then((res) => {
+        expect(res.statusCode).to.equal(200);
+        expect(res.body.length).to.be.eql(3);
+        done();
+      })
+      .catch((e) => {
+        done(e);
+      });
+  });
+
   it('should delete the relation of project1 if the role is none', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

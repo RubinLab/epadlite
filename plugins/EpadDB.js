@@ -12294,12 +12294,15 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectUsers', async (request, reply) => {
     try {
-      const projectId = await models.project.findOne({
+      const projects = await models.project.findAll({
         where: { projectid: request.params.project },
-        attributes: ['id'],
-        raw: true,
+        include: ['users'],
+        order: [
+          [{ model: models.User }, 'lastname', 'ASC'],
+          [{ model: models.User }, 'firstname', 'ASC'],
+        ],
       });
-      if (projectId === null || !projectId.id)
+      if (projects === null || projects.length === 0)
         reply.send(
           new BadRequestError(
             'Getting project users',
@@ -12307,43 +12310,27 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
+        const [project] = projects;
         const result = [];
-        const projectUsers = await models.project_user.findAll({
-          where: { project_id: projectId.id },
-          raw: true,
-          order: [
-            ['lastname', 'ASC'],
-            ['firstname', 'ASC'],
-          ],
-        });
-        const userPromise = [];
-        // get users
-        projectUsers.forEach((el) => {
-          userPromise.push(
-            models.user.findOne({
-              where: { id: el.user_id },
-              raw: true,
-            })
-          );
-        });
-        const data = await Promise.all(userPromise);
-        data.forEach((user, index) => {
-          const permissions = user.permissions ? user.permissions.split(',') : '';
+        for (let i = 0; i < project.users.length; i += 1) {
+          const permissions = project.users[i].dataValues.permissions
+            ? project.users[i].dataValues.permissions.split(',')
+            : '';
           const obj = {
-            displayname: `${user.firstname} ${user.lastname}`,
-            username: user.username,
-            firstname: user.firstname,
-            lastname: user.lastname,
-            email: user.email,
+            displayname: `${project.users[i].dataValues.firstname} ${project.users[i].dataValues.lastname}`,
+            username: project.users[i].dataValues.username,
+            firstname: project.users[i].dataValues.firstname,
+            lastname: project.users[i].dataValues.lastname,
+            email: project.users[i].dataValues.email,
             permissions,
-            enabled: user.enabled,
-            admin: user.admin,
-            passwordexpired: user.passwordexpired,
-            creator: user.creator,
-            role: projectUsers[index].role,
+            enabled: project.users[i].dataValues.enabled,
+            admin: project.users[i].dataValues.admin,
+            passwordexpired: project.users[i].dataValues.passwordexpired,
+            creator: project.users[i].dataValues.creator,
+            role: project.users[i].dataValues.project_user.dataValues.role,
           };
           result.push(obj);
-        });
+        }
         reply.code(200).send(result);
       }
     } catch (err) {
