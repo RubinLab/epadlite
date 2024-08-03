@@ -327,6 +327,18 @@ async function epaddb(fastify, options, done) {
       .catch((err) => reply.send(err));
   });
 
+  fastify.decorate('addProjectUser', (projectId, userId, role, creator) => {
+    const entry = {
+      project_id: projectId,
+      user_id: userId,
+      role,
+      createdtime: Date.now(),
+      updatetime: Date.now(),
+      creator,
+    };
+    return models.project_user.create(entry);
+  });
+
   fastify.decorate(
     'createProjectInternal',
     (projectName, projectId, projectDescription, defaultTemplate, type, epadAuth) =>
@@ -359,15 +371,8 @@ async function epaddb(fastify, options, done) {
               // create relation as owner
               try {
                 const userId = await fastify.findUserIdInternal(epadAuth.username);
-                const entry = {
-                  project_id: project.id,
-                  user_id: userId,
-                  role: 'Owner',
-                  createdtime: Date.now(),
-                  updatetime: Date.now(),
-                  creator: epadAuth.username,
-                };
-                await models.project_user.create(entry);
+                await fastify.addProjectUser(project.id, userId, 'Owner', epadAuth.username);
+
                 // if there is default template add that template to project
                 await fastify.tryAddDefaultTemplateToProject(defaultTemplate, project, epadAuth);
                 // if teaching make sure both teeaching and significant image templates are added
@@ -10496,14 +10501,14 @@ async function epaddb(fastify, options, done) {
                         );
                       } else {
                         const projectId = project.dataValues.id;
-                        const entry = {
-                          project_id: projectId,
-                          user_id: id,
-                          role: body.projects[i].role,
-                          createdtime: Date.now(),
-                          updatetime: Date.now(),
-                        };
-                        queries.push(models.project_user.create(entry));
+                        queries.push(
+                          fastify.addProjectUser(
+                            projectId,
+                            id,
+                            body.projects[i].role,
+                            epadAuth.username
+                          )
+                        );
                       }
                     }
                   }

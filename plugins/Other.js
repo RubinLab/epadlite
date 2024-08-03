@@ -1183,7 +1183,7 @@ async function other(fastify) {
               fastify.log.info(`Purged ${url}`);
             })
             .catch((err) => {
-              if (err.response.status !== 404 && err.response.status !== 412)
+              if (err.response && err.response.status !== 404 && err.response.status !== 412)
                 reject(new InternalError(`Purging search`, err));
               else fastify.log.info(`Url ${url} not cached`);
             });
@@ -2535,6 +2535,32 @@ async function other(fastify) {
               user = await fastify.getUserInternal({
                 user: username,
               });
+              // in teaching mode, we need to create a private project
+              if (config.mode === 'teaching') {
+                const project = await fastify.getProjectInternal(`prj_${username}`);
+                if (!project) {
+                  // create a private project by user id
+                  await fastify.createProjectInternal(
+                    `${rowsUpdated.firstname} ${rowsUpdated.lastname}`,
+                    `prj_${username}`,
+                    `${rowsUpdated.firstname} ${rowsUpdated.lastname}'s Private Folder`,
+                    config.defaultTemplate,
+                    'Private',
+                    epadAuth
+                  );
+                  // add teaching template to the project
+                  // get default template from config
+                  await fastify.addProjectTemplateRelInternal(
+                    config.teachingTemplateUID,
+                    `prj_${username}`,
+                    {},
+                    epadAuth
+                  );
+                } else {
+                  const userId = await fastify.findUserIdInternal(epadAuth.username);
+                  await fastify.addProjectUser(project.id, userId, 'Owner', epadAuth.username);
+                }
+              }
             } else reject(err);
           }
           if (user) {
