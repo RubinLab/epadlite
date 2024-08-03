@@ -2558,7 +2558,7 @@ async function other(fastify) {
                   );
                 } else {
                   const userId = await fastify.findUserIdInternal(epadAuth.username);
-                  await fastify.addProjectUser(project.id, userId, 'Owner');
+                  await fastify.addProjectUser(project.id, userId, 'Owner', epadAuth.username);
                 }
               }
             } else reject(err);
