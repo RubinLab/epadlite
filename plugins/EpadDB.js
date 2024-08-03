@@ -12294,7 +12294,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectUsers', async (request, reply) => {
     try {
-      const projects = await models.project.findAll({
+      const project = await models.project.findOne({
         where: { projectid: request.params.project },
         include: ['users'],
         order: [
@@ -12302,7 +12302,7 @@ async function epaddb(fastify, options, done) {
           [{ model: models.User }, 'firstname', 'ASC'],
         ],
       });
-      if (projects === null || projects.length === 0)
+      if (project === null || !project.id)
         reply.send(
           new BadRequestError(
             'Getting project users',
@@ -12310,7 +12310,6 @@ async function epaddb(fastify, options, done) {
           )
         );
       else {
-        const [project] = projects;
         const result = [];
         for (let i = 0; i < project.users.length; i += 1) {
           const permissions = project.users[i].dataValues.permissions
