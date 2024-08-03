@@ -7712,27 +7712,31 @@ async function epaddb(fastify, options, done) {
 
           const userIdPromises = [];
           users.forEach((el) => {
-            userIdPromises.push(fastify.findUserIdInternal(el));
+            userIdPromises.push(fastify.findUserIdInternal(el).catch((error) => error));
           });
           const userIds = await Promise.all(userIdPromises);
           const usersRelationArr = [];
           userIds.forEach((userId) => {
-            usersRelationArr.push(
-              fastify.upsert(
-                models.project_aim_user,
-                {
-                  project_aim_id: projectAimRec.dataValues.id,
-                  user_id: userId,
-                  updatetime: Date.now(),
-                },
-                {
-                  project_aim_id: projectAimRec.dataValues.id,
-                  user_id: userId,
-                },
-                epadAuth.username,
-                transaction
-              )
-            );
+            if (userId instanceof Error) {
+              fastify.log.warn(`Couldn't add the user. Error:${userId.message}`);
+            } else {
+              usersRelationArr.push(
+                fastify.upsert(
+                  models.project_aim_user,
+                  {
+                    project_aim_id: projectAimRec.dataValues.id,
+                    user_id: userId,
+                    updatetime: Date.now(),
+                  },
+                  {
+                    project_aim_id: projectAimRec.dataValues.id,
+                    user_id: userId,
+                  },
+                  epadAuth.username,
+                  transaction
+                )
+              );
+            }
           });
           await Promise.all(usersRelationArr);
 
