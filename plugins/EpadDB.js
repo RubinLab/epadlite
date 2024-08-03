@@ -327,13 +327,14 @@ async function epaddb(fastify, options, done) {
       .catch((err) => reply.send(err));
   });
 
-  fastify.decorate('addProjectUser', (projectId, userId, role) => {
+  fastify.decorate('addProjectUser', (projectId, userId, role, creator) => {
     const entry = {
       project_id: projectId,
       user_id: userId,
       role,
       createdtime: Date.now(),
       updatetime: Date.now(),
+      creator,
     };
     return models.project_user.create(entry);
   });
@@ -370,7 +371,7 @@ async function epaddb(fastify, options, done) {
               // create relation as owner
               try {
                 const userId = await fastify.findUserIdInternal(epadAuth.username);
-                await fastify.addProjectUser(project.id, userId, 'Owner');
+                await fastify.addProjectUser(project.id, userId, 'Owner', epadAuth.username);
 
                 // if there is default template add that template to project
                 await fastify.tryAddDefaultTemplateToProject(defaultTemplate, project, epadAuth);
@@ -10500,7 +10501,14 @@ async function epaddb(fastify, options, done) {
                         );
                       } else {
                         const projectId = project.dataValues.id;
-                        queries.push(fastify.addProjectUser(projectId, id, body.projects[i].role));
+                        queries.push(
+                          fastify.addProjectUser(
+                            projectId,
+                            id,
+                            body.projects[i].role,
+                            epadAuth.username
+                          )
+                        );
                       }
                     }
                   }
