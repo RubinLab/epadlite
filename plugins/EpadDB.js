@@ -729,13 +729,22 @@ async function epaddb(fastify, options, done) {
         // if the mode is teaching get the count of teaching files
         let numberOfTeachingFiles;
         if (config.mode === 'teaching') {
-          // eslint-disable-next-line no-await-in-loop
-          const teachingFileCount = await fastify.orm.query(
-            `SELECT count(aim_uid) aimCount FROM project_aim WHERE template='99EPAD_947' and project_id=${project.id};`,
-            { raw: true, type: QueryTypes.SELECT }
-          );
-          numberOfTeachingFiles =
-            teachingFileCount && teachingFileCount[0] ? teachingFileCount[0].aimCount : 0;
+          if (!fastify.hasRoleInProject(project.projectid, request.epadAuth)) {
+            numberOfTeachingFiles = 0;
+          } else {
+            const userQry = fastify.isCollaborator(project.projectid, request.epadAuth)
+              ? ` AND user = ${request.epadAuth.username}`
+              : '';
+            const qry = `SELECT count(aim_uid) aimCount FROM project_aim WHERE template='99EPAD_947' and project_id=${project.id} ${userQry};`;
+
+            // eslint-disable-next-line no-await-in-loop
+            const teachingFileCount = await fastify.orm.query(qry, {
+              raw: true,
+              type: QueryTypes.SELECT,
+            });
+            numberOfTeachingFiles =
+              teachingFileCount && teachingFileCount[0] ? teachingFileCount[0].aimCount : 0;
+          }
         }
         let numberOfSubjects = project.dataValues.project_subjects.length;
         if (project.projectid === config.XNATUploadProjectID) {
