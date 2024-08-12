@@ -14956,7 +14956,7 @@ async function epaddb(fastify, options, done) {
           Array.isArray(seriesList) &&
           seriesList.length === 4
         ) {
-          const seriesOrder = { 'R CC': 0, 'L CC': 1, 'R MLO': 2, 'L MLO': 3 };
+          const seriesOrder = { 'R CC': 1, 'L CC': 2, 'R MLO': 3, 'L MLO': 4 };
 
           // Create a lookup table for the seriesList based on seriesDescription
           const seriesLookup = {};
