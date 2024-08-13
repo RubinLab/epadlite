@@ -15011,7 +15011,7 @@ async function epaddb(fastify, options, done) {
 
             Promise.all(seriesPromises).then(() => {
               if (errors.length === 0) {
-                reply.code(200).send('Significance orders set successfully');
+                reply.code(200).send(seriesList);
               } else
                 reply
                   .code(200)
