@@ -14948,7 +14948,7 @@ async function epaddb(fastify, options, done) {
               new Error('Request body should be an array')
             )
           );
-        const seriesList = request.body;
+        let seriesList = request.body;
         // if it is not forced and we have the 4 series selected, check if they are mammography seres and order them properly
         // R CC | L CC || R MLO | L MLO
         if (
@@ -14980,6 +14980,7 @@ async function epaddb(fastify, options, done) {
             Object.keys(seriesOrder).forEach((key) => {
               seriesLookup[key].significanceOrder = seriesOrder[key];
             });
+            seriesList = _.sortBy(seriesList, 'significanceOrder');
           }
         }
 
