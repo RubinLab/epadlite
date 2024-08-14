@@ -14948,13 +14948,49 @@ async function epaddb(fastify, options, done) {
               new Error('Request body should be an array')
             )
           );
+        let seriesList = request.body;
+        // if it is not forced and we have the 4 series selected, check if they are mammography seres and order them properly
+        // R CC | L CC || R MLO | L MLO
+        if (
+          !(request.query && request.query.force && request.query.force.toLowerCase() === 'true') &&
+          Array.isArray(seriesList) &&
+          seriesList.length === 4
+        ) {
+          const seriesOrder = { 'R CC': 1, 'L CC': 2, 'R MLO': 3, 'L MLO': 4 };
+
+          // Create a lookup table for the seriesList based on seriesDescription
+          const seriesLookup = {};
+          seriesList.forEach((series) => {
+            seriesLookup[series.seriesDescription] = series;
+          });
+
+          // Check if all seriesOrder keys exist in the seriesList
+          let allExist = true;
+          Object.keys(seriesOrder).forEach((key) => {
+            if (!Object.prototype.hasOwnProperty.call(seriesLookup, key)) {
+              allExist = false;
+            }
+          });
+
+          // If all keys exist, update the significanceOrder
+          if (allExist) {
+            fastify.log.info(
+              'Mamogram images with R CC | L CC || R MLO | L MLO, making sure the order is correct'
+            );
+            Object.keys(seriesOrder).forEach((key) => {
+              seriesLookup[key].significanceOrder = seriesOrder[key];
+            });
+            seriesList = _.sortBy(seriesList, 'significanceOrder');
+          }
+        }
+
         // reset the existing significant series to start from scratch and avoif multiple series with same significance order
         fastify
           .clearSignificanceInternal(ids[0], ids[1], ids[2])
           .then(() => {
             const seriesPromises = [];
             const errors = [];
-            request.body.forEach((series) => {
+            seriesList.forEach((series) => {
               seriesPromises.push(
                 fastify
                   .setSignificanceInternal(
@@ -14976,7 +15012,7 @@ async function epaddb(fastify, options, done) {
 
             Promise.all(seriesPromises).then(() => {
               if (errors.length === 0) {
-                reply.code(200).send('Significance orders set successfully');
+                reply.code(200).send(seriesList);
               } else
                 reply
                   .code(200)
