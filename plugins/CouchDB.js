@@ -978,7 +978,13 @@ async function couchdb(fastify, options) {
               // save the updated DSO
               seg.dict = dcmjs.data.DicomMetaDictionary.denaturalizeDataset(ds);
               // update the dict meta as it is not updated by denaturalizeDataset
-              seg.meta['00020003'].Value[0] = ds._meta.MediaStorageSOPInstanceUID;
+              if (
+                seg.meta &&
+                seg.meta['00020003'] &&
+                seg.meta['00020003'].Value &&
+                seg.meta['00020003'].Value[0]
+              )
+                seg.meta['00020003'].Value[0] = ds._meta.MediaStorageSOPInstanceUID;
               const buffer = seg.write();
               const { data, boundary } = dcmjs.utilities.message.multipartEncode([
                 toArrayBuffer(buffer),
