@@ -733,7 +733,7 @@ async function epaddb(fastify, options, done) {
             numberOfTeachingFiles = 0;
           } else {
             const userQry = fastify.isCollaborator(project.projectid, request.epadAuth)
-              ? ` AND user = ${request.epadAuth.username}`
+              ? ` AND user = '${request.epadAuth.username}'`
               : '';
             const qry = `SELECT count(aim_uid) aimCount FROM project_aim WHERE template='99EPAD_947' and project_id=${project.id} ${userQry};`;
 
