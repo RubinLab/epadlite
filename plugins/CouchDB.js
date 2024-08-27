@@ -302,10 +302,9 @@ async function couchdb(fastify, options) {
   // zip file path otherwise
   fastify.decorate(
     'downloadAims',
-    (downloadParams, aimsResult, epadAuth, params) =>
+    (downloadParams, aimsResult, epadAuth, params, offline) =>
       new Promise(async (resolve, reject) => {
         try {
-          const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
           const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
@@ -559,56 +558,49 @@ async function couchdb(fastify, options) {
                   .then((resObj) => {
                     try {
                       if (format === 'stream') {
-                        if (resObj.total_rows !== resObj.rows.length) {
-                          // get everything and send an email
-                          fastify
-                            .downloadAims(
-                              { aim: 'true', summary: 'true' },
-                              resObj,
-                              epadAuth,
-                              params
-                            )
-                            .then((result) => {
-                              fastify.log.info(`Zip file ready in ${result}`);
-                              // get the protocol and hostname from the request
-                              const link = `${config.httpsLink ? 'https' : request.protocol}://${
-                                request.hostname
-                              }${result}`;
-                              // send notification and/or email with link
-                              if (request)
-                                new EpadNotification(request, 'Download ready', link, false).notify(
-                                  fastify
-                                );
-                              if (config.notificationEmail) {
-                                fastify.nodemailer.sendMail(
-                                  {
-                                    from: config.notificationEmail.address,
-                                    to: epadAuth.email,
-                                    subject: 'ePAD - Download Ready',
-                                    html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
-                                  },
-                                  (err, info) => {
-                                    if (err)
-                                      fastify.log.error(
-                                        `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
-                                      );
-                                    else
-                                      fastify.log.info(
-                                        `Email accepted for ${JSON.stringify(info.accepted)}`
-                                      );
-                                  }
-                                );
-                              }
-                            })
-                            .catch((err) => reject(err));
-                          resolve({ total_rows: resObj.total_rows });
-                        } else {
-                          // download aims only
-                          fastify
-                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
-                            .then((result) => resolve(result))
-                            .catch((err) => reject(err));
-                        }
+                        // get everything and send an email
+                        fastify
+                          .downloadAims(
+                            { aim: 'true', summary: 'true' },
+                            resObj,
+                            epadAuth,
+                            params,
+                            true
+                          )
+                          .then((result) => {
+                            fastify.log.info(`Zip file ready in ${result}`);
+                            // get the protocol and hostname from the request
+                            const link = `${config.httpsLink ? 'https' : request.protocol}://${
+                              request.hostname
+                            }${result}`;
+                            // send notification and/or email with link
+                            if (request)
+                              new EpadNotification(request, 'Download ready', link, false).notify(
+                                fastify
+                              );
+                            if (config.notificationEmail) {
+                              fastify.nodemailer.sendMail(
+                                {
+                                  from: config.notificationEmail.address,
+                                  to: epadAuth.email,
+                                  subject: 'ePAD - Download Ready',
+                                  html: `Your ePAD download is ready and available <a href='http://${fastify.hostname}${result}'>here</a>. <br> Please download as soon as possible as the system will delete old files automatically. <br> ePAD Team`,
+                                },
+                                (err, info) => {
+                                  if (err)
+                                    fastify.log.error(
+                                      `Download ready for ${result} but could not send email to ${epadAuth.email}. Error: ${err.message}`
+                                    );
+                                  else
+                                    fastify.log.info(
+                                      `Email accepted for ${JSON.stringify(info.accepted)}`
+                                    );
+                                }
+                              );
+                            }
+                          })
+                          .catch((err) => reject(err));
+                        resolve({ total_rows: resObj.total_rows });
                       } else {
                         fastify
                           .getAllAimPages(resObj, db, dbFilter, format, all)
