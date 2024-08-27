@@ -305,6 +305,7 @@ async function couchdb(fastify, options) {
     (downloadParams, aimsResult, epadAuth, params) =>
       new Promise(async (resolve, reject) => {
         try {
+          const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
           const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
@@ -325,7 +326,9 @@ async function couchdb(fastify, options) {
             if (isThereDataToWrite) {
               const downloadFolder = path.join(__dirname, '../download');
               if (!fs.existsSync(downloadFolder)) fs.mkdirSync(downloadFolder);
-              const zipFilePath = `${downloadFolder}/annotations_${timestamp}.zip`;
+              const zipFilePath = offline
+                ? `${downloadFolder}/annotations_${timestamp}.zip`
+                : `${dir}/annotations.zip`;
               // create a file to stream archive data to.
               const output = fs.createWriteStream(zipFilePath);
               const archive = archiver('zip', {
@@ -339,15 +342,28 @@ async function couchdb(fastify, options) {
 
               output.on('close', () => {
                 fastify.log.info(`Created zip in ${zipFilePath}`);
-                fs.remove(dir, (error) => {
-                  if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
-                  else fastify.log.info(`${dir} deleted`);
-                });
-                resolve(
-                  `${
-                    config.prefix ? `/${config.prefix}` : ''
-                  }/download/annotations_${timestamp}.zip`
-                );
+                if (offline) {
+                  fs.remove(dir, (error) => {
+                    if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                    else fastify.log.info(`${dir} deleted`);
+                  });
+                  resolve(
+                    `${
+                      config.prefix ? `/${config.prefix}` : ''
+                    }/download/annotations_${timestamp}.zip`
+                  );
+                } else {
+                  const readStream = fs.createReadStream(`${dir}/annotations.zip`);
+                  // delete tmp folder after the file is sent
+                  readStream.once('end', () => {
+                    readStream.destroy(); // make sure stream closed, not close if download aborted.
+                    fs.remove(dir, (error) => {
+                      if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
+                      else fastify.log.info(`${dir} deleted`);
+                    });
+                  });
+                  resolve(readStream);
+                }
               });
               archive.finalize();
             } else {
