@@ -302,10 +302,9 @@ async function couchdb(fastify, options) {
   // zip file path otherwise
   fastify.decorate(
     'downloadAims',
-    (downloadParams, aimsResult, epadAuth, params) =>
+    (downloadParams, aimsResult, epadAuth, params, offline) =>
       new Promise(async (resolve, reject) => {
         try {
-          const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
           const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
@@ -566,7 +565,8 @@ async function couchdb(fastify, options) {
                               { aim: 'true', summary: 'true' },
                               resObj,
                               epadAuth,
-                              params
+                              params,
+                              true
                             )
                             .then((result) => {
                               fastify.log.info(`Zip file ready in ${result}`);
@@ -605,7 +605,7 @@ async function couchdb(fastify, options) {
                         } else {
                           // download aims only
                           fastify
-                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params, true)
                             .then((result) => resolve(result))
                             .catch((err) => reject(err));
                         }
