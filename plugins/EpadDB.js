@@ -13674,7 +13674,6 @@ async function epaddb(fastify, options, done) {
             host,
             template_code: userTFStats[i].template || config.teachingTemplate,
             user_id: userTFStats[i].userId,
-            num_of_tf: userTFStats[i].numOfTF,
             year,
             month,
           },
