@@ -733,7 +733,7 @@ async function epaddb(fastify, options, done) {
             numberOfTeachingFiles = 0;
           } else if (fastify.isCollaborator(project.projectid, request.epadAuth)){
             // eslint-disable-next-line no-await-in-loop
-            numberOfTeachingFiles = await fastify.getUserAIMCountInternal(
+            numberOfTeachingFiles = await fastify.getUserTeachingAIMCountInternal(
               project.projectid,
               request.epadAuth.username
             );
