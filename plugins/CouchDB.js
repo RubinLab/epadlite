@@ -2391,6 +2391,25 @@ async function couchdb(fastify, options) {
       })
   );
 
+  // gets users all aims
+  fastify.decorate(
+    'getUserAIMCountInternal',
+    (projectId, username) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const dbFilter = {
+            q: `user:${username} and project:${projectId}`,
+            limit: 200,
+          };
+          const aimsResult = await fastify.getAimsCouchInternal(db, dbFilter, 'summary');
+          resolve(aimsResult.total_rows);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate(
     'closeCouchDB',
     (instance) =>
