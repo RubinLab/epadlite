@@ -7394,7 +7394,9 @@ async function epaddb(fastify, options, done) {
         filter,
         request.epadAuth,
         request.query.bookmark,
-        request
+        request,
+        false,
+        true
       );
       if (request.query.report) {
         const collab = fastify.isCollaborator(request.params.project, request.epadAuth);
