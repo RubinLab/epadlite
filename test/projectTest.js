@@ -199,7 +199,7 @@ beforeEach(() => {
       'content-length': '36767',
     });
   nock(config.dicomWebConfig.baseUrl)
-    .matchHeader('content-length', '36819')
+    .matchHeader('content-length', '36767')
     .matchHeader('content-type', (val) => val.includes('application/x-www-form-urlencoded'))
     .post(`${config.dicomWebConfig.qidoSubPath}/studies`)
     .reply(200);

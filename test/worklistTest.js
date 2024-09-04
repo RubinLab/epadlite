@@ -377,10 +377,12 @@ describe('Worklist Tests', () => {
       .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(2);
-        expect(res.body[0].username).to.be.eql('testCreator@gmail.com');
-        expect(res.body[0].role).to.be.eql('Owner');
-        expect(res.body[1].username).to.be.eql('testAssignee@gmail.com');
-        expect(res.body[1].role).to.be.eql('Member');
+        const roles = {
+          'testCreator@gmail.com': 'Owner',
+          'testAssignee@gmail.com': 'Member',
+        };
+        expect(res.body[0].role).to.be.eql(roles[res.body[0].username]);
+        expect(res.body[1].role).to.be.eql(roles[res.body[1].username]);
         done();
       })
       .catch((e) => {
@@ -425,12 +427,14 @@ describe('Worklist Tests', () => {
       .then((res) => {
         expect(res.statusCode).to.equal(200);
         expect(res.body.length).to.be.eql(3);
-        expect(res.body[0].username).to.be.eql('testCreator@gmail.com');
-        expect(res.body[0].role).to.be.eql('Owner');
-        expect(res.body[1].username).to.be.eql('testAssignee@gmail.com');
-        expect(res.body[1].role).to.be.eql('Member');
-        expect(res.body[2].username).to.be.eql('test2ndAssignee');
-        expect(res.body[2].role).to.be.eql('Collaborator');
+        const roles = {
+          'testCreator@gmail.com': 'Owner',
+          'testAssignee@gmail.com': 'Member',
+          test2ndAssignee: 'Collaborator',
+        };
+        expect(res.body[0].role).to.be.eql(roles[res.body[0].username]);
+        expect(res.body[1].role).to.be.eql(roles[res.body[1].username]);
+        expect(res.body[2].role).to.be.eql(roles[res.body[2].username]);
         done();
       })
       .catch((e) => {

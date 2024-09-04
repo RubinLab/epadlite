@@ -302,9 +302,10 @@ async function couchdb(fastify, options) {
   // zip file path otherwise
   fastify.decorate(
     'downloadAims',
-    (downloadParams, aimsResult, epadAuth, params, offline) =>
+    (downloadParams, aimsResult, epadAuth, params) =>
       new Promise(async (resolve, reject) => {
         try {
+          const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
           const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory

@@ -9741,6 +9741,8 @@ async function epaddb(fastify, options, done) {
       )}`;
     }
     const dbDate = new Date(dateFromDB);
+    // adjust the timezone of the date in db to the current timezone
+    dbDate.setMinutes(dbDate.getMinutes() + dbDate.getTimezoneOffset());
     const month = dbDate.getMonth() + 1;
     const date = dbDate.getDate();
 
@@ -13676,7 +13678,6 @@ async function epaddb(fastify, options, done) {
             host,
             template_code: userTFStats[i].template || config.teachingTemplate,
             user_id: userTFStats[i].userId,
-            num_of_tf: userTFStats[i].numOfTF,
             year,
             month,
           },
