@@ -731,11 +731,14 @@ async function epaddb(fastify, options, done) {
         if (config.mode === 'teaching') {
           if (!fastify.hasRoleInProject(project.projectid, request.epadAuth)) {
             numberOfTeachingFiles = 0;
+          } else if (fastify.isCollaborator(project.projectid, request.epadAuth)){
+            // eslint-disable-next-line no-await-in-loop
+            numberOfTeachingFiles = await fastify.getUserTeachingAIMCountInternal(
+              project.projectid,
+              request.epadAuth.username
+            );
           } else {
-            const userQry = fastify.isCollaborator(project.projectid, request.epadAuth)
-              ? ` AND user = '${request.epadAuth.username}'`
-              : '';
-            const qry = `SELECT count(aim_uid) aimCount FROM project_aim WHERE template='99EPAD_947' and project_id=${project.id} ${userQry};`;
+            const qry = `SELECT count(aim_uid) aimCount FROM project_aim WHERE template='99EPAD_947' and project_id=${project.id};`;
 
             // eslint-disable-next-line no-await-in-loop
             const teachingFileCount = await fastify.orm.query(qry, {

@@ -2402,6 +2402,25 @@ async function couchdb(fastify, options) {
       })
   );
 
+  // gets users all aims
+  fastify.decorate(
+    'getUserTeachingAIMCountInternal',
+    (projectId, username) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const dbFilter = {
+            q: `user:"${username}" AND project:"${projectId}" AND template_code:"${config.teachingTemplate}"`,
+            limit: 2,
+          };
+          const aimsResult = await fastify.getAimsCouchInternal(db, dbFilter, 'summary');
+          resolve(aimsResult.total_rows);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
   fastify.decorate(
     'closeCouchDB',
     (instance) =>
