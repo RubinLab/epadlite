@@ -2400,7 +2400,7 @@ async function couchdb(fastify, options) {
           const db = fastify.couch.db.use(config.db);
           const dbFilter = {
             q: `user:"${username}" AND project:"${projectId}" AND template_code:"${config.teachingTemplate}"`,
-            limit: 200,
+            limit: 2,
           };
           const aimsResult = await fastify.getAimsCouchInternal(db, dbFilter, 'summary');
           resolve(aimsResult.total_rows);
