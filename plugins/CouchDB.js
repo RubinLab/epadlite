@@ -528,7 +528,7 @@ async function couchdb(fastify, options) {
   // add accessor methods with decorate
   fastify.decorate(
     'getAimsInternal',
-    (format, params, filter, epadAuth, bookmark, request, all = false) =>
+    (format, params, filter, epadAuth, bookmark, request, all = false, offline = false) =>
       new Promise((resolve, reject) => {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
@@ -558,7 +558,7 @@ async function couchdb(fastify, options) {
                   .then((resObj) => {
                     try {
                       if (format === 'stream') {
-                        if (resObj.total_rows !== resObj.rows.length) {
+                        if (offline) {
                           // get everything and send an email
                           fastify
                             .downloadAims(
@@ -605,7 +605,7 @@ async function couchdb(fastify, options) {
                         } else {
                           // download aims only
                           fastify
-                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params, true)
+                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params, false)
                             .then((result) => resolve(result))
                             .catch((err) => reject(err));
                         }
@@ -832,7 +832,9 @@ async function couchdb(fastify, options) {
         undefined,
         request.epadAuth,
         request.query.bookmark,
-        request
+        request,
+        false,
+        true
       );
       if (request.query.format === 'stream') {
         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
