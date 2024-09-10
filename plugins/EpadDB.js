@@ -7292,8 +7292,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
-      // sort by name when retrieving list of aims instead of creation date
-      const filter = { sort: 'name<string>' };
+      const filter = {};
       if (request.query.format === 'returnTable' && request.query.templatecode) {
         filter.template = request.query.templatecode;
       }
