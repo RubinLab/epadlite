@@ -343,7 +343,7 @@ async function epaddb(fastify, options, done) {
     'createProjectInternal',
     (projectName, projectId, projectDescription, defaultTemplate, type, epadAuth) =>
       new Promise((resolve, reject) => {
-        const reservedIds = ['lite', 'search', 'list', 'worklist'];
+        const reservedIds = ['lite', 'search', 'list', 'worklist', 'flex'];
         if (reservedIds.includes(projectId)) {
           reject(
             new BadRequestError(
