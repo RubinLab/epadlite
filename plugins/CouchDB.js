@@ -302,10 +302,9 @@ async function couchdb(fastify, options) {
   // zip file path otherwise
   fastify.decorate(
     'downloadAims',
-    (downloadParams, aimsResult, epadAuth, params) =>
+    (downloadParams, aimsResult, epadAuth, params, offline) =>
       new Promise(async (resolve, reject) => {
         try {
-          const offline = aimsResult.total_rows !== aimsResult.rows.length;
           const timestamp = new Date().getTime();
           const dir = `/tmp/tmp_${timestamp}`;
           // have a boolean just to avoid filesystem check for empty annotations directory
@@ -529,7 +528,7 @@ async function couchdb(fastify, options) {
   // add accessor methods with decorate
   fastify.decorate(
     'getAimsInternal',
-    (format, params, filter, epadAuth, bookmark, request, all = false) =>
+    (format, params, filter, epadAuth, bookmark, request, all = false, offline = false) =>
       new Promise((resolve, reject) => {
         try {
           if (config.auth && config.auth !== 'none' && epadAuth === undefined)
@@ -559,14 +558,15 @@ async function couchdb(fastify, options) {
                   .then((resObj) => {
                     try {
                       if (format === 'stream') {
-                        if (resObj.total_rows !== resObj.rows.length) {
+                        if (offline) {
                           // get everything and send an email
                           fastify
                             .downloadAims(
                               { aim: 'true', summary: 'true' },
                               resObj,
                               epadAuth,
-                              params
+                              params,
+                              true
                             )
                             .then((result) => {
                               fastify.log.info(`Zip file ready in ${result}`);
@@ -605,7 +605,7 @@ async function couchdb(fastify, options) {
                         } else {
                           // download aims only
                           fastify
-                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params)
+                            .downloadAims({ aim: 'true' }, resObj, epadAuth, params, false)
                             .then((result) => resolve(result))
                             .catch((err) => reject(err));
                         }
@@ -832,7 +832,9 @@ async function couchdb(fastify, options) {
         undefined,
         request.epadAuth,
         request.query.bookmark,
-        request
+        request,
+        false,
+        true
       );
       if (request.query.format === 'stream') {
         reply.header('Content-Disposition', `attachment; filename=annotations.zip`);
@@ -970,11 +972,21 @@ async function couchdb(fastify, options) {
               const seriesUID = fastify.generateUidInternal();
               const instanceUID = fastify.generateUidInternal();
               const ds = dcmjs.data.DicomMetaDictionary.naturalizeDataset(seg.dict);
+              ds._meta = dcmjs.data.DicomMetaDictionary.namifyDataset(seg.meta);
+
               ds.SeriesInstanceUID = seriesUID;
               ds.SOPInstanceUID = instanceUID;
-              ds.MediaStorageSOPInstanceUID = instanceUID;
+              ds._meta.MediaStorageSOPInstanceUID = instanceUID;
               // save the updated DSO
               seg.dict = dcmjs.data.DicomMetaDictionary.denaturalizeDataset(ds);
+              // update the dict meta as it is not updated by denaturalizeDataset
+              if (
+                seg.meta &&
+                seg.meta['00020003'] &&
+                seg.meta['00020003'].Value &&
+                seg.meta['00020003'].Value[0]
+              )
+                seg.meta['00020003'].Value[0] = ds._meta.MediaStorageSOPInstanceUID;
               const buffer = seg.write();
               const { data, boundary } = dcmjs.utilities.message.multipartEncode([
                 toArrayBuffer(buffer),
@@ -2383,6 +2395,25 @@ async function couchdb(fastify, options) {
             aims = aims.concat(newResult.rows);
           }
           resolve(aims);
+        } catch (err) {
+          reject(err);
+        }
+      })
+  );
+
+  // gets users all aims
+  fastify.decorate(
+    'getUserTeachingAIMCountInternal',
+    (projectId, username) =>
+      new Promise(async (resolve, reject) => {
+        try {
+          const db = fastify.couch.db.use(config.db);
+          const dbFilter = {
+            q: `user:"${username}" AND project:"${projectId}" AND template_code:"${config.teachingTemplate}"`,
+            limit: 2,
+          };
+          const aimsResult = await fastify.getAimsCouchInternal(db, dbFilter, 'summary');
+          resolve(aimsResult.total_rows);
         } catch (err) {
           reject(err);
         }

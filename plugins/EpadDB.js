@@ -327,6 +327,18 @@ async function epaddb(fastify, options, done) {
       .catch((err) => reply.send(err));
   });
 
+  fastify.decorate('addProjectUser', (projectId, userId, role, creator) => {
+    const entry = {
+      project_id: projectId,
+      user_id: userId,
+      role,
+      createdtime: Date.now(),
+      updatetime: Date.now(),
+      creator,
+    };
+    return models.project_user.create(entry);
+  });
+
   fastify.decorate(
     'createProjectInternal',
     (projectName, projectId, projectDescription, defaultTemplate, type, epadAuth) =>
@@ -359,15 +371,8 @@ async function epaddb(fastify, options, done) {
               // create relation as owner
               try {
                 const userId = await fastify.findUserIdInternal(epadAuth.username);
-                const entry = {
-                  project_id: project.id,
-                  user_id: userId,
-                  role: 'Owner',
-                  createdtime: Date.now(),
-                  updatetime: Date.now(),
-                  creator: epadAuth.username,
-                };
-                await models.project_user.create(entry);
+                await fastify.addProjectUser(project.id, userId, 'Owner', epadAuth.username);
+
                 // if there is default template add that template to project
                 await fastify.tryAddDefaultTemplateToProject(defaultTemplate, project, epadAuth);
                 // if teaching make sure both teeaching and significant image templates are added
@@ -724,13 +729,25 @@ async function epaddb(fastify, options, done) {
         // if the mode is teaching get the count of teaching files
         let numberOfTeachingFiles;
         if (config.mode === 'teaching') {
-          // eslint-disable-next-line no-await-in-loop
-          const teachingFileCount = await fastify.orm.query(
-            `SELECT count(aim_uid) aimCount FROM project_aim WHERE template='99EPAD_947' and project_id=${project.id};`,
-            { raw: true, type: QueryTypes.SELECT }
-          );
-          numberOfTeachingFiles =
-            teachingFileCount && teachingFileCount[0] ? teachingFileCount[0].aimCount : 0;
+          if (!fastify.hasRoleInProject(project.projectid, request.epadAuth)) {
+            numberOfTeachingFiles = 0;
+          } else if (fastify.isCollaborator(project.projectid, request.epadAuth)) {
+            // eslint-disable-next-line no-await-in-loop
+            numberOfTeachingFiles = await fastify.getUserTeachingAIMCountInternal(
+              project.projectid,
+              request.epadAuth.username
+            );
+          } else {
+            const qry = `SELECT count(aim_uid) aimCount FROM project_aim WHERE template='99EPAD_947' and project_id=${project.id};`;
+
+            // eslint-disable-next-line no-await-in-loop
+            const teachingFileCount = await fastify.orm.query(qry, {
+              raw: true,
+              type: QueryTypes.SELECT,
+            });
+            numberOfTeachingFiles =
+              teachingFileCount && teachingFileCount[0] ? teachingFileCount[0].aimCount : 0;
+          }
         }
         let numberOfSubjects = project.dataValues.project_subjects.length;
         if (project.projectid === config.XNATUploadProjectID) {
@@ -7275,8 +7292,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectAims', async (request, reply) => {
     try {
-      // sort by name when retrieving list of aims instead of creation date
-      const filter = { sort: 'name<string>' };
+      const filter = {};
       if (request.query.format === 'returnTable' && request.query.templatecode) {
         filter.template = request.query.templatecode;
       }
@@ -7380,7 +7396,9 @@ async function epaddb(fastify, options, done) {
         filter,
         request.epadAuth,
         request.query.bookmark,
-        request
+        request,
+        false,
+        true
       );
       if (request.query.report) {
         const collab = fastify.isCollaborator(request.params.project, request.epadAuth);
@@ -7708,27 +7726,31 @@ async function epaddb(fastify, options, done) {
 
           const userIdPromises = [];
           users.forEach((el) => {
-            userIdPromises.push(fastify.findUserIdInternal(el));
+            userIdPromises.push(fastify.findUserIdInternal(el).catch((error) => error));
           });
           const userIds = await Promise.all(userIdPromises);
           const usersRelationArr = [];
           userIds.forEach((userId) => {
-            usersRelationArr.push(
-              fastify.upsert(
-                models.project_aim_user,
-                {
-                  project_aim_id: projectAimRec.dataValues.id,
-                  user_id: userId,
-                  updatetime: Date.now(),
-                },
-                {
-                  project_aim_id: projectAimRec.dataValues.id,
-                  user_id: userId,
-                },
-                epadAuth.username,
-                transaction
-              )
-            );
+            if (userId instanceof Error) {
+              fastify.log.warn(`Couldn't add the user. Error:${userId.message}`);
+            } else {
+              usersRelationArr.push(
+                fastify.upsert(
+                  models.project_aim_user,
+                  {
+                    project_aim_id: projectAimRec.dataValues.id,
+                    user_id: userId,
+                    updatetime: Date.now(),
+                  },
+                  {
+                    project_aim_id: projectAimRec.dataValues.id,
+                    user_id: userId,
+                  },
+                  epadAuth.username,
+                  transaction
+                )
+              );
+            }
           });
           await Promise.all(usersRelationArr);
 
@@ -9721,6 +9743,8 @@ async function epaddb(fastify, options, done) {
       )}`;
     }
     const dbDate = new Date(dateFromDB);
+    // adjust the timezone of the date in db to the current timezone
+    dbDate.setMinutes(dbDate.getMinutes() + dbDate.getTimezoneOffset());
     const month = dbDate.getMonth() + 1;
     const date = dbDate.getDate();
 
@@ -10496,14 +10520,14 @@ async function epaddb(fastify, options, done) {
                         );
                       } else {
                         const projectId = project.dataValues.id;
-                        const entry = {
-                          project_id: projectId,
-                          user_id: id,
-                          role: body.projects[i].role,
-                          createdtime: Date.now(),
-                          updatetime: Date.now(),
-                        };
-                        queries.push(models.project_user.create(entry));
+                        queries.push(
+                          fastify.addProjectUser(
+                            projectId,
+                            id,
+                            body.projects[i].role,
+                            epadAuth.username
+                          )
+                        );
                       }
                     }
                   }
@@ -10703,6 +10727,10 @@ async function epaddb(fastify, options, done) {
     models.user
       .findAll({
         include: ['projects'],
+        order: [
+          ['lastname', 'ASC'],
+          ['firstname', 'ASC'],
+        ],
       })
       .then((users) => {
         const result = [];
@@ -12290,12 +12318,15 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getProjectUsers', async (request, reply) => {
     try {
-      const projectId = await models.project.findOne({
+      const project = await models.project.findOne({
         where: { projectid: request.params.project },
-        attributes: ['id'],
-        raw: true,
+        include: ['users'],
+        order: [
+          [{ model: models.User }, 'lastname', 'ASC'],
+          [{ model: models.User }, 'firstname', 'ASC'],
+        ],
       });
-      if (projectId === null || !projectId.id)
+      if (project === null || !project.id)
         reply.send(
           new BadRequestError(
             'Getting project users',
@@ -12304,38 +12335,25 @@ async function epaddb(fastify, options, done) {
         );
       else {
         const result = [];
-        const projectUsers = await models.project_user.findAll({
-          where: { project_id: projectId.id },
-          raw: true,
-        });
-        const userPromise = [];
-        // get users
-        projectUsers.forEach((el) => {
-          userPromise.push(
-            models.user.findOne({
-              where: { id: el.user_id },
-              raw: true,
-            })
-          );
-        });
-        const data = await Promise.all(userPromise);
-        data.forEach((user, index) => {
-          const permissions = user.permissions ? user.permissions.split(',') : '';
+        for (let i = 0; i < project.users.length; i += 1) {
+          const permissions = project.users[i].dataValues.permissions
+            ? project.users[i].dataValues.permissions.split(',')
+            : '';
           const obj = {
-            displayname: `${user.firstname} ${user.lastname}`,
-            username: user.username,
-            firstname: user.firstname,
-            lastname: user.lastname,
-            email: user.email,
+            displayname: `${project.users[i].dataValues.firstname} ${project.users[i].dataValues.lastname}`,
+            username: project.users[i].dataValues.username,
+            firstname: project.users[i].dataValues.firstname,
+            lastname: project.users[i].dataValues.lastname,
+            email: project.users[i].dataValues.email,
             permissions,
-            enabled: user.enabled,
-            admin: user.admin,
-            passwordexpired: user.passwordexpired,
-            creator: user.creator,
-            role: projectUsers[index].role,
+            enabled: project.users[i].dataValues.enabled,
+            admin: project.users[i].dataValues.admin,
+            passwordexpired: project.users[i].dataValues.passwordexpired,
+            creator: project.users[i].dataValues.creator,
+            role: project.users[i].dataValues.project_user.dataValues.role,
           };
           result.push(obj);
-        });
+        }
         reply.code(200).send(result);
       }
     } catch (err) {
@@ -13662,7 +13680,6 @@ async function epaddb(fastify, options, done) {
             host,
             template_code: userTFStats[i].template || config.teachingTemplate,
             user_id: userTFStats[i].userId,
-            num_of_tf: userTFStats[i].numOfTF,
             year,
             month,
           },
@@ -14945,13 +14962,49 @@ async function epaddb(fastify, options, done) {
               new Error('Request body should be an array')
             )
           );
+        let seriesList = request.body;
+        // if it is not forced and we have the 4 series selected, check if they are mammography seres and order them properly
+        // R CC | L CC || R MLO | L MLO
+        if (
+          !(request.query && request.query.force && request.query.force.toLowerCase() === 'true') &&
+          Array.isArray(seriesList) &&
+          seriesList.length === 4
+        ) {
+          const seriesOrder = { 'R CC': 1, 'L CC': 2, 'R MLO': 3, 'L MLO': 4 };
+
+          // Create a lookup table for the seriesList based on seriesDescription
+          const seriesLookup = {};
+          seriesList.forEach((series) => {
+            seriesLookup[series.seriesDescription] = series;
+          });
+
+          // Check if all seriesOrder keys exist in the seriesList
+          let allExist = true;
+          Object.keys(seriesOrder).forEach((key) => {
+            if (!Object.prototype.hasOwnProperty.call(seriesLookup, key)) {
+              allExist = false;
+            }
+          });
+
+          // If all keys exist, update the significanceOrder
+          if (allExist) {
+            fastify.log.info(
+              'Mamogram images with R CC | L CC || R MLO | L MLO, making sure the order is correct'
+            );
+            Object.keys(seriesOrder).forEach((key) => {
+              seriesLookup[key].significanceOrder = seriesOrder[key];
+            });
+            seriesList = _.sortBy(seriesList, 'significanceOrder');
+          }
+        }
+
         // reset the existing significant series to start from scratch and avoif multiple series with same significance order
         fastify
           .clearSignificanceInternal(ids[0], ids[1], ids[2])
           .then(() => {
             const seriesPromises = [];
             const errors = [];
-            request.body.forEach((series) => {
+            seriesList.forEach((series) => {
               seriesPromises.push(
                 fastify
                   .setSignificanceInternal(
@@ -14973,7 +15026,7 @@ async function epaddb(fastify, options, done) {
 
             Promise.all(seriesPromises).then(() => {
               if (errors.length === 0) {
-                reply.code(200).send('Significance orders set successfully');
+                reply.code(200).send(seriesList);
               } else
                 reply
                   .code(200)
