@@ -1485,7 +1485,7 @@ async function reporting(fastify) {
       // get series of the study
       const seriesList = await fastify.getStudySeriesInternal(
         { study },
-        { forceDicomweb: true },
+        { forceDicomweb: 'true' },
         epadAuth,
         true
       );

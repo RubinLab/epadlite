@@ -5938,7 +5938,7 @@ async function epaddb(fastify, options, done) {
             } else {
               const seriesArr = await fastify.getSeriesDicomOrNotInternal(
                 params,
-                { filterDSO: 'true', forceDicomweb: true },
+                { filterDSO: 'true', forceDicomweb: 'true' },
                 epadAuth
               );
               const sumOfImageCounts = _.reduce(
@@ -9439,7 +9439,7 @@ async function epaddb(fastify, options, done) {
             // for each seg see if it has an annotation, generate if not
             const seriesList = await fastify.getStudySeriesInternal(
               { study: studyInfo.studyUID },
-              { forceDicomweb: true },
+              { forceDicomweb: 'true' },
               epadAuth,
               true
             );
@@ -11344,7 +11344,7 @@ async function epaddb(fastify, options, done) {
           // get study series
           const studySeries = await fastify.getSeriesDicomOrNotInternal(
             { study: params.study },
-            { format: 'summary', forceDicomweb: true },
+            { format: 'summary', forceDicomweb: 'true' },
             epadAuth,
             true
           );
@@ -13329,7 +13329,7 @@ async function epaddb(fastify, options, done) {
 
           // always from dicomweb server
           const series = await fastify.getAllStudySeriesInternal(
-            { forceDicomweb: true },
+            { forceDicomweb: 'true' },
             undefined
           );
           const numOfDSOs = _.reduce(

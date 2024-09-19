@@ -442,7 +442,7 @@ async function dicomwebserver(fastify) {
         try {
           const studySeries = await fastify.getSeriesDicomOrNotInternal(
             { study: studyUid },
-            { format: 'summary', filterDSO: 'true' },
+            { format: 'summary', filterDSO: 'true', forceDicomweb: 'true' },
             epadAuth,
             true
           );
