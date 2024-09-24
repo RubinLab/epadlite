@@ -343,11 +343,12 @@ async function epaddb(fastify, options, done) {
     'createProjectInternal',
     (projectName, projectId, projectDescription, defaultTemplate, type, epadAuth) =>
       new Promise((resolve, reject) => {
-        if (projectId === 'lite') {
+        const reservedIds = ['lite', 'search', 'list', 'worklist', 'flex'];
+        if (reservedIds.includes(projectId)) {
           reject(
             new BadRequestError(
-              'Creating lite project',
-              new Error('lite project id is reserved for system. Use another project id')
+              'Creating project',
+              new Error(`${projectId} project id is reserved for system. Use another project id`)
             )
           );
         } else {
