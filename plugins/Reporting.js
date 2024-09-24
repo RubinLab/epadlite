@@ -1483,7 +1483,12 @@ async function reporting(fastify) {
   fastify.decorate('getSeriesUID', async (seriesDescription, study, epadAuth) => {
     try {
       // get series of the study
-      const seriesList = await fastify.getStudySeriesInternal({ study }, {}, epadAuth, true);
+      const seriesList = await fastify.getStudySeriesInternal(
+        { study },
+        { forceDicomweb: 'true' },
+        epadAuth,
+        true
+      );
       const series = seriesList.find((item) => item.seriesDescription === seriesDescription);
       return series.seriesUID;
     } catch (err) {
