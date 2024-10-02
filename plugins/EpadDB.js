@@ -13681,7 +13681,7 @@ async function epaddb(fastify, options, done) {
             updatetime: Date.now(),
           },
           {
-            host,
+            host: Sequelize.where(Sequelize.col('host'), 'LIKE', `%${host.split('|')[1]}%`),
             template_code: userTFStats[i].template || config.teachingTemplate,
             user_id: userTFStats[i].userId,
             year,
