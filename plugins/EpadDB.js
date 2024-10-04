@@ -5624,7 +5624,7 @@ async function epaddb(fastify, options, done) {
         fastify.orm
           .query(
             `SELECT user_id, project_id FROM worklist_user wu, worklist_study ws WHERE wu.worklist_id = ${worklistId} AND ws.worklist_id = ${worklistId} AND wu.user_id NOT IN
-           (SELECT user_id FROM project_user WHERE project_id = ws.project_id);`,
+           (SELECT user_id FROM project_user WHERE project_id = ws.project_id) GROUP BY user_id, project_id;`,
             {
               raw: true,
               type: QueryTypes.SELECT,
