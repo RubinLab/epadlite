@@ -6165,6 +6165,30 @@ async function epaddb(fastify, options, done) {
     }
   );
 
+  fastify.decorate('checkIfUserIsOwnerOfAnyWorklistProjectInternal', (worklistID, username) => {
+    fastify.orm
+      .query(
+        `SELECT project_id FROM worklist_study ws, worklist w WHERE w.worklistid = '${worklistID}' and ws.worklist_id = w.id AND ws.project_id IN (SELECT project_id FROM project_user pu, user u WHERE pu.user_id = u.id and u.username='${username}' and role='Owner') GROUP BY project_id;`,
+        {
+          raw: true,
+          type: QueryTypes.SELECT,
+        }
+      )
+      .then((ownedProjectsInWorklist) => {
+        // the return value is an array of values array and column def array
+        if (ownedProjectsInWorklist.length > 0) {
+          return true;
+        }
+        return false;
+      })
+      .catch((err) => {
+        throw new InternalError(
+          `Checking if the user is owner of at least oone of the projects in worklist ${worklistID}`,
+          err
+        );
+      });
+  });
+
   fastify.decorate('getWorklistStudies', async (request, reply) => {
     // get worklist name and id from worklist
     // get details from worklist_study table

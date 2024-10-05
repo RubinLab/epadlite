@@ -2840,6 +2840,20 @@ async function other(fastify) {
   // remove null in patient id
   fastify.decorate('replaceNull', (text) => text.replace('\u0000', ''));
 
+  fastify.decorate('validAssigneeAdder', (request) => {
+    // check if it is teaching
+    if (config.mode !== 'teaching') return false;
+    // check if the url is a worklist assignee add path
+    const regex = /\/worklists\/\w*$/g;
+    const found = request.raw.url.match(regex);
+    if (!found) return false;
+    // check if the user is owner of one of the projects
+    return fastify.checkIfUserIsOwnerOfAnyWorklistProjectInternal(
+      request.params.worklist,
+      request.epadAuth.username
+    );
+  });
+
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
       const reqInfo = fastify.getInfoFromRequest(request);
@@ -2865,7 +2879,8 @@ async function other(fastify) {
                   fastify.isOwnerOfProject(request, reqInfo.project) === false &&
                   ((await fastify.isCreatorOfObject(request, reqInfo)) === false || // if the user is not the creator or it is the owner but url is users (user should not be able to edit their user if they are not admin)
                     ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
-                      request.raw.url.includes(`/users/${request.epadAuth.username}`))))
+                      request.raw.url.includes(`/users/${request.epadAuth.username}`))) &&
+                  fastify.validAssigneeAdder(request, reqInfo) === false)
               )
                 reply.send(new UnauthorizedError('User has no access to project and/or resource'));
               break;
