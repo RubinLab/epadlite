@@ -2840,6 +2840,20 @@ async function other(fastify) {
   // remove null in patient id
   fastify.decorate('replaceNull', (text) => text.replace('\u0000', ''));
 
+  fastify.decorate('validAssigneeAdder', (request) => {
+    // check if it is teaching
+    if (config.mode !== 'teaching') return false;
+    // check if the url is a worklist assignee add path
+    const regex = /\/worklists\/\w*$/g;
+    const found = request.raw.url.match(regex);
+    if (!found) return false;
+    // check if the user is owner of one of the projects
+    return fastify.checkIfUserIsOwnerOfAnyWorklistProjectInternal(
+      request.params.worklist,
+      request.epadAuth.username
+    );
+  });
+
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
       const reqInfo = fastify.getInfoFromRequest(request);
@@ -2914,7 +2928,8 @@ async function other(fastify) {
                     request.epadAuth.username
                   )) &&
                   (request.query.annotationStatus || request.query.annotationStatus === 0)
-                )
+                ) &&
+                fastify.validAssigneeAdder(request, reqInfo) === false
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
