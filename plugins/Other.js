@@ -2879,8 +2879,7 @@ async function other(fastify) {
                   fastify.isOwnerOfProject(request, reqInfo.project) === false &&
                   ((await fastify.isCreatorOfObject(request, reqInfo)) === false || // if the user is not the creator or it is the owner but url is users (user should not be able to edit their user if they are not admin)
                     ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
-                      request.raw.url.includes(`/users/${request.epadAuth.username}`))) &&
-                  fastify.validAssigneeAdder(request, reqInfo) === false)
+                      request.raw.url.includes(`/users/${request.epadAuth.username}`))))
               )
                 reply.send(new UnauthorizedError('User has no access to project and/or resource'));
               break;
@@ -2929,7 +2928,8 @@ async function other(fastify) {
                     request.epadAuth.username
                   )) &&
                   (request.query.annotationStatus || request.query.annotationStatus === 0)
-                )
+                ) &&
+                fastify.validAssigneeAdder(request, reqInfo) === false
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
