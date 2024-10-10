@@ -5456,10 +5456,17 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getWorklistsOfCreator', async (request, reply) => {
     try {
+      // let the users who are the owners of at least one project in the worklist access the worklist. only on teaching though
+      const where =
+        config.mode === 'teaching'
+          ? Sequelize.literal(
+              `(SELECT count(project_id) FROM worklist_study ws WHERE ws.worklist_id = worklist.id AND ws.project_id IN (SELECT project_id FROM project_user pu, user u WHERE pu.user_id = u.id and u.username='${request.epadAuth.username}' and role='Owner') GROUP BY project_id)>0 or worklist.creator='${request.epadAuth.username}'`
+            )
+          : {
+              creator: request.epadAuth.username,
+            };
       const worklists = await models.worklist.findAll({
-        where: Sequelize.literal(
-          `(SELECT count(project_id) FROM worklist_study ws WHERE ws.worklist_id = worklist.id AND ws.project_id IN (SELECT project_id FROM project_user pu, user u WHERE pu.user_id = u.id and u.username='${request.epadAuth.username}' and role='Owner') GROUP BY project_id)>0 or worklist.creator='${request.epadAuth.username}'`
-        ),
+        where,
         include: ['users', 'studies', 'requirements'],
       });
       const result = [];
