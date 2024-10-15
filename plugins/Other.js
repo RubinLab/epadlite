@@ -345,10 +345,13 @@ async function other(fastify) {
         (!accessionNumber || accessionNumber.trim() === '')
       ) {
         fastify.log.info('Skipping empty row in csv');
-        return;
+        // nothing to get data from
+        return true;
       }
       const suid = csvRow.SUID; // csv SUID
       const birthDate = csvRow.DOB || csvRow['Date of birth'];
+      if (!birthDate.match(/(\d\d)\/(\d\d)\/(\d\d\d\d)/)) return false;
+
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
       const bodyPart = csvRow['Body part']; // csv Body part
@@ -599,7 +602,7 @@ async function other(fastify) {
 
       // writes new AIM file to output folder
       fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aimJSON));
-      fastify.log.info();
+      return true;
     }
   );
 
@@ -832,18 +835,26 @@ async function other(fastify) {
             })
             .on('end', () => {
               try {
+                const errors = [];
                 for (let i = 0; i < csvData.length; i += 1) {
-                  fastify.generateAIM(
-                    csvData[i],
-                    i + 2,
-                    enumAimType,
-                    specialtyMap,
-                    bodyPartMap,
-                    anatomyMap,
-                    diagnosisMap,
-                    SIDMap,
-                    dir
-                  );
+                  try {
+                    fastify.generateAIM(
+                      csvData[i],
+                      i + 2,
+                      enumAimType,
+                      specialtyMap,
+                      bodyPartMap,
+                      anatomyMap,
+                      diagnosisMap,
+                      SIDMap,
+                      dir
+                    );
+                  } catch (err) {
+                    fastify.log.info(
+                      `There is an issue with row ${i} with accession ${csvData[i]['Accession number']}`
+                    );
+                    errors.append({ ...err, row: i });
+                  }
                 }
               } catch (generateErr) {
                 fastify.log.info('Error in generating aims', generateErr);
@@ -872,8 +883,10 @@ async function other(fastify) {
           const dir = `/tmp/tmp_${timestamp}`;
           fs.mkdirSync(dir);
           fs.mkdirSync(`${dir}/annotations`);
-
-          await fastify.convertCsv2Aim(dir, csvFilePath);
+          const errors = await fastify.convertCsv2Aim(dir, csvFilePath);
+          if (errors.length > 0) {
+            resolve(errors);
+          }
 
           // make sure zip file and folder names are different
           let zipFilePath = '';
@@ -934,6 +947,14 @@ async function other(fastify) {
               throw new TypeError('File format is not .csv');
             }
             const result = await fastify.zipAims(`${dir}/${filenames[0]}`);
+            if (typeof result !== 'string') {
+              new EpadNotification(
+                request,
+                'CSV2AIM bootstrap error',
+                new InternalError('Bootstrap error', new Error(JSON.stringify(result))),
+                true
+              ).notify(fastify);
+            }
             fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${result}`);
             fs.remove(dir, (error) => {
               if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
