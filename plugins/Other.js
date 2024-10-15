@@ -386,6 +386,7 @@ async function other(fastify) {
       }
 
       // generate comment, NN-year old (or deceased) female/male
+      // modify it to put the generated comment to annotation name
       const comment = { value: ' ' };
       let age = '';
       const studyDate = new Date(date);
@@ -403,12 +404,12 @@ async function other(fastify) {
       } else {
         age = `${years}-year-old `;
       }
-      comment.value = age;
+      let annotationName = age;
 
       if (sex === 'F') {
-        comment.value += 'female';
+        annotationName += 'female';
       } else if (sex === 'M') {
-        comment.value += 'male';
+        annotationName += 'male';
       }
 
       // anatomies =['RID230', 'RIS10']; // coming from "Anatomy Detail" in template
@@ -574,7 +575,7 @@ async function other(fastify) {
 
       seedData.image.push({ sopClassUid, sopInstanceUid });
 
-      const answers = fastify.getTeachingTemplateAnswers(seedData, 'Teaching File', '', comment);
+      const answers = fastify.getTeachingTemplateAnswers(seedData, annotationName, '', comment);
       const merged = { ...seedData.aim, ...answers };
       seedData.aim = merged;
 
