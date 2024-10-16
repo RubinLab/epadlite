@@ -358,6 +358,7 @@ async function other(fastify) {
       const keywords = csvRow['Teaching file keywords']; // csv Teaching file keywords
       const specialty = csvRow.Specialty; // csv Specialty
       const reportAuthor = csvRow['Report author']; // csv Report author
+      const report = csvRow.REPORT;
 
       // Handle missing CSV fields
       if (name == null) throw TypeError("Missing 'Name' field");
@@ -387,7 +388,7 @@ async function other(fastify) {
 
       // generate comment, NN-year old (or deceased) female/male
       // modify it to put the generated comment to annotation name
-      const comment = { value: ' ' };
+      const comment = { value: report || ' ' };
       let age = '';
       const studyDate = new Date(date);
       const dobDate = new Date(birthDate);
