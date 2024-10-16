@@ -855,7 +855,7 @@ async function other(fastify) {
                         csvData[i]['Accession number']
                       }`
                     );
-                    errors.push({ error: err, row: i + 2 });
+                    errors.push({ error: err.message, row: i + 2 });
                   }
                 }
               } catch (generateErr) {
