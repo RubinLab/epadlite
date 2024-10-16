@@ -348,8 +348,6 @@ async function other(fastify) {
       }
       const suid = csvRow.SUID; // csv SUID
       const birthDate = csvRow.DOB || csvRow['Date of birth'];
-      if (!birthDate.match(/(\d\d)\/(\d\d)\/(\d\d\d\d)/))
-        throw TypeError('Birthdate not in DD/MM/YYYY format');
 
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
@@ -373,6 +371,8 @@ async function other(fastify) {
       if (reportAuthor == null) throw TypeError("Missing 'Report author' field");
 
       fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
+      if (!birthDate.match(/(\d\d)\/(\d\d)\/(\d\d\d\d)/))
+        throw TypeError(`Row: ${rowNum} Birthdate not in DD/MM/YYYY format`);
       fastify.log.info(fileName);
 
       // generate keywordsArray, tracking the RIDs in the teaching file keywords
@@ -834,8 +834,8 @@ async function other(fastify) {
               csvData.push(row);
             })
             .on('end', () => {
+              const errors = [];
               try {
-                const errors = [];
                 for (let i = 0; i < csvData.length; i += 1) {
                   try {
                     fastify.generateAIM(
@@ -851,16 +851,18 @@ async function other(fastify) {
                     );
                   } catch (err) {
                     fastify.log.info(
-                      `There is an issue with row ${i} with accession ${csvData[i]['Accession number']}`
+                      `There is an error ${err} on row ${i + 2} with accession ${
+                        csvData[i]['Accession number']
+                      }`
                     );
-                    errors.push({ ...err, row: i });
+                    errors.push({ ...err, row: i + 2 });
                   }
                 }
               } catch (generateErr) {
                 fastify.log.info('Error in generating aims', generateErr);
                 reject(generateErr);
               }
-              resolve();
+              resolve(errors);
             })
             .on('error', (err) => {
               fastify.log.info('Error in generating aims', err);
