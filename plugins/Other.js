@@ -853,7 +853,7 @@ async function other(fastify) {
                     fastify.log.info(
                       `There is an issue with row ${i} with accession ${csvData[i]['Accession number']}`
                     );
-                    errors.append({ ...err, row: i });
+                    errors.push({ ...err, row: i });
                   }
                 }
               } catch (generateErr) {
