@@ -855,7 +855,7 @@ async function other(fastify) {
                         csvData[i]['Accession number']
                       }`
                     );
-                    errors.push({ ...err, row: i + 2 });
+                    errors.push({ error: err, row: i + 2 });
                   }
                 }
               } catch (generateErr) {
@@ -957,7 +957,7 @@ async function other(fastify) {
                 true
               ).notify(fastify);
             }
-            fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${result}`);
+            fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${JSON.stringify(result)}`);
             fs.remove(dir, (error) => {
               if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
               fastify.log.info(`${dir} deleted`);
