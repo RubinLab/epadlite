@@ -965,7 +965,7 @@ async function other(fastify) {
 
             // csv -> zip of aims success!
             if (config.env === 'test') reply.code(200).send(result);
-            else {
+            else if (typeof result === 'string') {
               fastify.log.info(`Zip file ready in ${result}`);
               // get the protocol and hostname from the request
               const link = `${config.httpsLink ? 'https' : request.protocol}://${
