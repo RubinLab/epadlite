@@ -345,12 +345,11 @@ async function other(fastify) {
         (!accessionNumber || accessionNumber.trim() === '')
       ) {
         fastify.log.info('Skipping empty row in csv');
-        // nothing to get data from
-        return true;
       }
       const suid = csvRow.SUID; // csv SUID
       const birthDate = csvRow.DOB || csvRow['Date of birth'];
-      if (!birthDate.match(/(\d\d)\/(\d\d)\/(\d\d\d\d)/)) return false;
+      if (!birthDate.match(/(\d\d)\/(\d\d)\/(\d\d\d\d)/))
+        throw TypeError('Birthdate not in DD/MM/YYYY format');
 
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
@@ -604,7 +603,6 @@ async function other(fastify) {
 
       // writes new AIM file to output folder
       fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aimJSON));
-      return true;
     }
   );
 
@@ -886,7 +884,7 @@ async function other(fastify) {
           fs.mkdirSync(dir);
           fs.mkdirSync(`${dir}/annotations`);
           const errors = await fastify.convertCsv2Aim(dir, csvFilePath);
-          if (errors.length > 0) {
+          if (errors && errors.length > 0) {
             resolve(errors);
           }
 
