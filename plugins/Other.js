@@ -371,8 +371,8 @@ async function other(fastify) {
       if (reportAuthor == null) throw TypeError("Missing 'Report author' field");
 
       fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
-      if (!birthDate.match(/(\d\d)\/(\d\d)\/(\d\d\d\d)/))
-        throw TypeError(`Row: ${rowNum} Birthdate not in DD/MM/YYYY format`);
+      if (!birthDate.match(/(\d?\d)\/(\d?\d)\/(\d\d\d\d)/))
+        throw TypeError(`Row: ${rowNum} Birthdate ${birthDate} not in DD/MM/YYYY format`);
       fastify.log.info(fileName);
 
       // generate keywordsArray, tracking the RIDs in the teaching file keywords
