@@ -345,16 +345,17 @@ async function other(fastify) {
         (!accessionNumber || accessionNumber.trim() === '')
       ) {
         fastify.log.info('Skipping empty row in csv');
-        return;
       }
       const suid = csvRow.SUID; // csv SUID
       const birthDate = csvRow.DOB || csvRow['Date of birth'];
+
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
       const bodyPart = csvRow['Body part']; // csv Body part
       const keywords = csvRow['Teaching file keywords']; // csv Teaching file keywords
       const specialty = csvRow.Specialty; // csv Specialty
       const reportAuthor = csvRow['Report author']; // csv Report author
+      const report = csvRow.REPORT;
 
       // Handle missing CSV fields
       if (name == null) throw TypeError("Missing 'Name' field");
@@ -370,6 +371,8 @@ async function other(fastify) {
       if (reportAuthor == null) throw TypeError("Missing 'Report author' field");
 
       fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
+      if (!birthDate.match(/(\d?\d)\/(\d?\d)\/(\d\d\d\d)/))
+        throw TypeError(`Row: ${rowNum} Birthdate ${birthDate} not in DD/MM/YYYY format`);
       fastify.log.info(fileName);
 
       // generate keywordsArray, tracking the RIDs in the teaching file keywords
@@ -383,7 +386,8 @@ async function other(fastify) {
       }
 
       // generate comment, NN-year old (or deceased) female/male
-      const comment = { value: ' ' };
+      // modify it to put the generated comment to annotation name
+      const comment = { value: report || ' ' };
       let age = '';
       const studyDate = new Date(date);
       const dobDate = new Date(birthDate);
@@ -400,12 +404,12 @@ async function other(fastify) {
       } else {
         age = `${years}-year-old `;
       }
-      comment.value = age;
+      let annotationName = age;
 
       if (sex === 'F') {
-        comment.value += 'female';
+        annotationName += 'female';
       } else if (sex === 'M') {
-        comment.value += 'male';
+        annotationName += 'male';
       }
 
       // anatomies =['RID230', 'RIS10']; // coming from "Anatomy Detail" in template
@@ -571,7 +575,7 @@ async function other(fastify) {
 
       seedData.image.push({ sopClassUid, sopInstanceUid });
 
-      const answers = fastify.getTeachingTemplateAnswers(seedData, 'Teaching File', '', comment);
+      const answers = fastify.getTeachingTemplateAnswers(seedData, annotationName, '', comment);
       const merged = { ...seedData.aim, ...answers };
       seedData.aim = merged;
 
@@ -599,7 +603,6 @@ async function other(fastify) {
 
       // writes new AIM file to output folder
       fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aimJSON));
-      fastify.log.info();
     }
   );
 
@@ -831,25 +834,35 @@ async function other(fastify) {
               csvData.push(row);
             })
             .on('end', () => {
+              const errors = [];
               try {
                 for (let i = 0; i < csvData.length; i += 1) {
-                  fastify.generateAIM(
-                    csvData[i],
-                    i + 2,
-                    enumAimType,
-                    specialtyMap,
-                    bodyPartMap,
-                    anatomyMap,
-                    diagnosisMap,
-                    SIDMap,
-                    dir
-                  );
+                  try {
+                    fastify.generateAIM(
+                      csvData[i],
+                      i + 2,
+                      enumAimType,
+                      specialtyMap,
+                      bodyPartMap,
+                      anatomyMap,
+                      diagnosisMap,
+                      SIDMap,
+                      dir
+                    );
+                  } catch (err) {
+                    fastify.log.info(
+                      `There is an error ${err} on row ${i + 2} with accession ${
+                        csvData[i]['Accession number']
+                      }`
+                    );
+                    errors.push(err.message);
+                  }
                 }
               } catch (generateErr) {
                 fastify.log.info('Error in generating aims', generateErr);
                 reject(generateErr);
               }
-              resolve();
+              resolve(errors);
             })
             .on('error', (err) => {
               fastify.log.info('Error in generating aims', err);
@@ -872,8 +885,10 @@ async function other(fastify) {
           const dir = `/tmp/tmp_${timestamp}`;
           fs.mkdirSync(dir);
           fs.mkdirSync(`${dir}/annotations`);
-
-          await fastify.convertCsv2Aim(dir, csvFilePath);
+          const errors = await fastify.convertCsv2Aim(dir, csvFilePath);
+          if (errors && errors.length > 0) {
+            resolve(errors);
+          }
 
           // make sure zip file and folder names are different
           let zipFilePath = '';
@@ -934,7 +949,7 @@ async function other(fastify) {
               throw new TypeError('File format is not .csv');
             }
             const result = await fastify.zipAims(`${dir}/${filenames[0]}`);
-            fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${result}`);
+            fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${JSON.stringify(result)}`);
             fs.remove(dir, (error) => {
               if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
               fastify.log.info(`${dir} deleted`);
@@ -942,7 +957,7 @@ async function other(fastify) {
 
             // csv -> zip of aims success!
             if (config.env === 'test') reply.code(200).send(result);
-            else {
+            else if (typeof result === 'string') {
               fastify.log.info(`Zip file ready in ${result}`);
               // get the protocol and hostname from the request
               const link = `${config.httpsLink ? 'https' : request.protocol}://${
@@ -952,6 +967,13 @@ async function other(fastify) {
               // send notification and/or email with link
               if (request)
                 new EpadNotification(request, 'Download ready', link, false).notify(fastify);
+            } else {
+              new EpadNotification(
+                request,
+                'CSV2AIM bootstrap error',
+                new InternalError('Bootstrap error', new Error(JSON.stringify(result))),
+                true
+              ).notify(fastify);
             }
           } catch (filesErr) {
             fs.remove(dir, (error) => {
