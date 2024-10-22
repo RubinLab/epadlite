@@ -2847,6 +2847,11 @@ async function other(fastify) {
     const regex = /\/worklists\/\w*$/g;
     const found = request.raw.url.match(regex);
     if (!found) return false;
+    if (!request.body.assigneeList) return false;
+    const keys = request.body.keys();
+    // It shouldn't have anything other than assigneeList
+    if (keys.length > 1) return false;
+
     // check if the user is owner of one of the projects
     return fastify.checkIfUserIsOwnerOfAnyWorklistProjectInternal(
       request.params.worklist,
