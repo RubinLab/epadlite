@@ -5485,6 +5485,7 @@ async function epaddb(fastify, options, done) {
           subjectUIDs: [],
           assignees: [],
           requirements: [],
+          isCreator: worklists[i].creator === request.epadAuth.username,
         };
 
         for (let k = 0; k < worklists[i].requirements.length; k += 1) {
