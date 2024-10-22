@@ -5467,7 +5467,7 @@ async function epaddb(fastify, options, done) {
             };
       const worklists = await models.worklist.findAll({
         where,
-        include: ['users', 'studies', 'requirements'],
+        include: ['users', 'requirements'],
       });
       const result = [];
       for (let i = 0; i < worklists.length; i += 1) {
@@ -5479,10 +5479,6 @@ async function epaddb(fastify, options, done) {
           username: worklists[i].user_id,
           workListID: worklists[i].worklistid,
           description: worklists[i].description,
-          projectIDs: [],
-          studyStatus: [],
-          studyUIDs: [],
-          subjectUIDs: [],
           assignees: [],
           requirements: [],
           isCreator: worklists[i].creator === request.epadAuth.username,
@@ -5497,19 +5493,6 @@ async function epaddb(fastify, options, done) {
           obj.assignees.push(worklists[i].users[k].username);
         }
 
-        const studiesArr = worklists[i].studies;
-        const projects = [];
-        const subjects = [];
-        for (let k = 0; k < studiesArr.length; k += 1) {
-          projects.push(studiesArr[k].dataValues.project_id);
-          obj.studyStatus.push({
-            [studiesArr[k].dataValues.study_uid]: studiesArr[k].dataValues.status,
-          });
-          obj.studyUIDs.push(studiesArr[k].dataValues.study_uid);
-          subjects.push(studiesArr[k].dataValues.subject_uid);
-        }
-        obj.projectIDs = _.uniq(projects);
-        obj.subjectUIDs = _.uniq(subjects);
         result.push(obj);
       }
       reply.code(200).send(result);
