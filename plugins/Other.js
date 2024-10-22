@@ -949,14 +949,6 @@ async function other(fastify) {
               throw new TypeError('File format is not .csv');
             }
             const result = await fastify.zipAims(`${dir}/${filenames[0]}`);
-            if (typeof result !== 'string') {
-              new EpadNotification(
-                request,
-                'CSV2AIM bootstrap error',
-                new InternalError('Bootstrap error', new Error(JSON.stringify(result))),
-                true
-              ).notify(fastify);
-            }
             fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${JSON.stringify(result)}`);
             fs.remove(dir, (error) => {
               if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
@@ -975,6 +967,13 @@ async function other(fastify) {
               // send notification and/or email with link
               if (request)
                 new EpadNotification(request, 'Download ready', link, false).notify(fastify);
+            } else {
+              new EpadNotification(
+                request,
+                'CSV2AIM bootstrap error',
+                new InternalError('Bootstrap error', new Error(JSON.stringify(result))),
+                true
+              ).notify(fastify);
             }
           } catch (filesErr) {
             fs.remove(dir, (error) => {
