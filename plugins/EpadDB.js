@@ -5496,6 +5496,13 @@ async function epaddb(fastify, options, done) {
 
         result.push(obj);
       }
+      result.sort((a, b) => {
+        if (a.isCreator !== b.isCreator) {
+          return a.isCreator ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name); // Sort by name alphabetically
+      });
+
       reply.code(200).send(result);
     } catch (err) {
       if (err instanceof ResourceNotFoundError)
