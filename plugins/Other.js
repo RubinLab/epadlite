@@ -2355,7 +2355,6 @@ async function other(fastify) {
       // eslint-disable-next-line prefer-destructuring
       if (urlParts[1] === 'projects' && urlParts.length > 1) reqInfo.project = urlParts[2];
       if (urlParts[1] === 'worklists') {
-        reqInfo.level = 'worklist';
         // eslint-disable-next-line prefer-destructuring
         if (urlParts.length > 1) reqInfo.worklistId = urlParts[2];
       }
