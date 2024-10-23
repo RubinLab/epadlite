@@ -2342,6 +2342,7 @@ async function other(fastify) {
         users: 'user',
         worklists: 'worklist',
         ontology: 'ontology',
+        requirements: 'requirement',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -2356,7 +2357,7 @@ async function other(fastify) {
       if (urlParts[1] === 'worklists') {
         reqInfo.level = 'worklist';
         // eslint-disable-next-line prefer-destructuring
-        if (urlParts.length > 1) reqInfo.objectId = urlParts[2];
+        if (urlParts.length > 1) reqInfo.worklistId = urlParts[2];
       }
       return reqInfo;
     } catch (err) {
@@ -2947,10 +2948,15 @@ async function other(fastify) {
                 !(
                   reqInfo.level === 'worklist' &&
                   request.body &&
-                  ((request.body.assignees &&
-                    request.body.assignees.length === 1 &&
-                    request.body.assignees[0] === request.epadAuth.username) ||
-                    (reqInfo.objectId && (await fastify.isCreatorOfObject(request, reqInfo))))
+                  request.body.assignees &&
+                  request.body.assignees.length === 1 &&
+                  request.body.assignees[0] === request.epadAuth.username
+                ) &&
+                !(
+                  reqInfo.level === 'requirement' &&
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
                 )
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
