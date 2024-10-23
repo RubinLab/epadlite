@@ -2342,6 +2342,7 @@ async function other(fastify) {
         users: 'user',
         worklists: 'worklist',
         ontology: 'ontology',
+        requirements: 'requirement',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -2951,6 +2952,12 @@ async function other(fastify) {
                   ((request.body.assignees.length === 1 &&
                     request.body.assignees[0] === request.epadAuth.username) ||
                     (reqInfo.worklistid && (await fastify.isCreatorOfObject(request, reqInfo))))
+                ) &&
+                !(
+                  reqInfo.level === 'requirement' &&
+                  reqInfo.worklistid &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistid)) ===
+                    request.epadAuth.username
                 )
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
