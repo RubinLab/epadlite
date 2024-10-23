@@ -2760,7 +2760,7 @@ async function other(fastify) {
         }
         return false;
       }
-      return true;
+      return false;
     } catch (err) {
       if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
         throw new UnauthenticatedError('No epadauth in request');
