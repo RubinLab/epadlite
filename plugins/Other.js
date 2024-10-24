@@ -2952,7 +2952,7 @@ async function other(fastify) {
                   request.body.assignees[0] === request.epadAuth.username
                 ) &&
                 !(
-                  reqInfo.level === 'requirement' &&
+                  (reqInfo.level === 'requirement' || reqInfo.level === 'aim') &&
                   reqInfo.worklistId &&
                   (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
                     request.epadAuth.username
