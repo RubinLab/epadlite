@@ -2969,7 +2969,13 @@ async function other(fastify) {
                       config.prefix
                         ? `/${config.prefix}/users/${request.epadAuth.username}`
                         : `/users/${request.epadAuth.username}`
-                    )))
+                    ))) &&
+                !(
+                  reqInfo.level === 'requirement' &&
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
+                )
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
