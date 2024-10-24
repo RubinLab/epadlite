@@ -2364,6 +2364,7 @@ async function other(fastify) {
         users: 'user',
         worklists: 'worklist',
         ontology: 'ontology',
+        requirements: 'requirement',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -2376,9 +2377,8 @@ async function other(fastify) {
       // eslint-disable-next-line prefer-destructuring
       if (urlParts[1] === 'projects' && urlParts.length > 1) reqInfo.project = urlParts[2];
       if (urlParts[1] === 'worklists') {
-        reqInfo.level = 'worklist';
         // eslint-disable-next-line prefer-destructuring
-        if (urlParts.length > 1) reqInfo.objectId = urlParts[2];
+        if (urlParts.length > 1) reqInfo.worklistId = urlParts[2];
       }
       return reqInfo;
     } catch (err) {
@@ -2782,7 +2782,7 @@ async function other(fastify) {
         }
         return false;
       }
-      return true;
+      return false;
     } catch (err) {
       if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
         throw new UnauthenticatedError('No epadauth in request');
@@ -2862,6 +2862,25 @@ async function other(fastify) {
   // remove null in patient id
   fastify.decorate('replaceNull', (text) => text.replace('\u0000', ''));
 
+  fastify.decorate('validAssigneeAdder', (request) => {
+    // check if it is teaching
+    if (config.mode !== 'teaching') return false;
+    // check if the url is a worklist assignee add path
+    const regex = /\/worklists\/\w*$/g;
+    const found = request.raw.url.match(regex);
+    if (!found) return false;
+    if (!request.body.assigneeList) return false;
+    const keys = request.body.keys();
+    // It shouldn't have anything other than assigneeList
+    if (keys.length > 1) return false;
+
+    // check if the user is owner of one of the projects
+    return fastify.checkIfUserIsOwnerOfAnyWorklistProjectInternal(
+      request.params.worklist,
+      request.epadAuth.username
+    );
+  });
+
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
       const reqInfo = fastify.getInfoFromRequest(request);
@@ -2936,7 +2955,8 @@ async function other(fastify) {
                     request.epadAuth.username
                   )) &&
                   (request.query.annotationStatus || request.query.annotationStatus === 0)
-                )
+                ) &&
+                fastify.validAssigneeAdder(request, reqInfo) === false
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
@@ -2950,9 +2970,14 @@ async function other(fastify) {
                   reqInfo.level === 'worklist' &&
                   request.body &&
                   request.body.assignees &&
-                  ((request.body.assignees.length === 1 &&
-                    request.body.assignees[0] === request.epadAuth.username) ||
-                    (reqInfo.worklistid && (await fastify.isCreatorOfObject(request, reqInfo))))
+                  request.body.assignees.length === 1 &&
+                  request.body.assignees[0] === request.epadAuth.username
+                ) &&
+                !(
+                  reqInfo.level === 'requirement' &&
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
                 )
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
@@ -2966,7 +2991,13 @@ async function other(fastify) {
                       config.prefix
                         ? `/${config.prefix}/users/${request.epadAuth.username}`
                         : `/users/${request.epadAuth.username}`
-                    )))
+                    ))) &&
+                !(
+                  reqInfo.level === 'requirement' &&
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
+                )
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
