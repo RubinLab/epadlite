@@ -2850,7 +2850,7 @@ async function other(fastify) {
     const found = request.raw.url.match(regex);
     if (!found) return false;
     if (!request.body.assigneeList) return false;
-    const keys = request.body.keys();
+    const keys = Object.keys(request.body);
     // It shouldn't have anything other than assigneeList
     if (keys.length > 1) return false;
 
