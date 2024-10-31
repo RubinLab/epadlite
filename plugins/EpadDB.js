@@ -5458,7 +5458,9 @@ async function epaddb(fastify, options, done) {
     try {
       // let the users who are the owners of at least one project in the worklist access the worklist. only on teaching though
       const where =
-        config.mode === 'teaching'
+        config.mode === 'teaching' &&
+        request.query.addValidAssignees &&
+        request.query.addValidAssignees.toLowerCase() === 'true'
           ? Sequelize.literal(
               `(SELECT count(project_id) FROM worklist_study ws WHERE ws.worklist_id = worklist.id AND ws.project_id IN (SELECT project_id FROM project_user pu, user u WHERE pu.user_id = u.id and u.username='${request.epadAuth.username}' and role='Owner'))>0 or worklist.creator='${request.epadAuth.username}'`
             )
