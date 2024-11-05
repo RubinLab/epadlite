@@ -333,6 +333,7 @@ async function dicomwebserver(fastify) {
               // populate the subjects data by grouping the studies by patient id
               // and map each subject to epadlite subject object
               const result = _.chain(filteredStudies)
+                .filter((value) => typeof value === 'object')
                 .groupBy((value) => value['00100020'].Value[0])
                 .map((value) => {
                   // combine the modalities in each study to create patient modatities list
@@ -696,6 +697,7 @@ async function dicomwebserver(fastify) {
                 // get the patients's studies and map each study to epadlite study object
                 const result = await Promise.all(
                   _.chain(filteredStudies)
+                    .filter((value) => typeof value === 'object')
                     .map(async (value) => {
                       // update examptypes in db
                       // TODO we need to make sure it doesn't come there on pollDW
