@@ -2364,11 +2364,13 @@ async function other(fastify) {
         users: 'user',
         worklists: 'worklist',
         ontology: 'ontology',
+        requirements: 'requirement',
+        apikeys: 'apikeys',
+        appVersion: 'appVersion',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
-        if (reqInfo.method === 'POST') reqInfo.level = levels[urlParts[urlParts.length - 1]];
-        else reqInfo.level = urlParts[urlParts.length - 1];
+        reqInfo.level = levels[urlParts[urlParts.length - 1]];
       } else if (levels[urlParts[urlParts.length - 2]]) {
         reqInfo.level = levels[urlParts[urlParts.length - 2]];
         reqInfo.objectId = urlParts[urlParts.length - 1];
@@ -2376,9 +2378,8 @@ async function other(fastify) {
       // eslint-disable-next-line prefer-destructuring
       if (urlParts[1] === 'projects' && urlParts.length > 1) reqInfo.project = urlParts[2];
       if (urlParts[1] === 'worklists') {
-        reqInfo.level = 'worklist';
         // eslint-disable-next-line prefer-destructuring
-        if (urlParts.length > 1) reqInfo.objectId = urlParts[2];
+        if (urlParts.length > 1) reqInfo.worklistId = urlParts[2];
       }
       return reqInfo;
     } catch (err) {
@@ -2782,7 +2783,7 @@ async function other(fastify) {
         }
         return false;
       }
-      return true;
+      return false;
     } catch (err) {
       if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
         throw new UnauthenticatedError('No epadauth in request');
@@ -2816,6 +2817,7 @@ async function other(fastify) {
       fastify.log.info(
         `Checking isCreatorOfObject for url: ${request.raw.url} level:${reqInfo.level} object:${reqInfo.objectId}`
       );
+      if (!reqInfo.objectId) return false;
       const creator = await fastify.getObjectCreator(
         reqInfo.level,
         reqInfo.objectId,
@@ -2861,6 +2863,25 @@ async function other(fastify) {
 
   // remove null in patient id
   fastify.decorate('replaceNull', (text) => text.replace('\u0000', ''));
+
+  fastify.decorate('validAssigneeAdder', (request) => {
+    // check if it is teaching
+    if (config.mode !== 'teaching') return false;
+    // check if the url is a worklist assignee add path
+    const regex = /\/worklists\/\w*$/g;
+    const found = request.raw.url.match(regex);
+    if (!found) return false;
+    if (!request.body.assigneeList) return false;
+    const keys = Object.keys(request.body);
+    // It shouldn't have anything other than assigneeList
+    if (keys.length > 1) return false;
+
+    // check if the user is owner of one of the projects
+    return fastify.checkIfUserIsOwnerOfAnyWorklistProjectInternal(
+      request.params.worklist,
+      request.epadAuth.username
+    );
+  });
 
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
@@ -2916,12 +2937,16 @@ async function other(fastify) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
+              // reqInfo.worklistId identifies a worklist path.
+              // level is worklist only if it is editing/adding/getting a worklist itself
               if (
                 !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
                 !request.raw.url.startsWith(
                   config.prefix ? `/${config.prefix}/decrypt` : '/decrypt'
                 ) &&
                 reqInfo.level !== 'ontology' &&
+                reqInfo.level !== 'apikeys' &&
+                reqInfo.level !== 'appVersion' &&
                 ((await fastify.isCreatorOfObject(request, reqInfo)) === false || // if the user is not the creator or it is the owner but url is users (user should not be able to edit their user if they are not admin)
                   ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
                     request.raw.url.startsWith(
@@ -2930,17 +2955,25 @@ async function other(fastify) {
                         : `/users/${request.epadAuth.username}`
                     ))) &&
                 !(
-                  reqInfo.level === 'worklist' &&
+                  reqInfo.worklistId &&
                   (await fastify.isAssigneeOfWorklist(
-                    reqInfo.objectId,
+                    reqInfo.worklistId,
                     request.epadAuth.username
                   )) &&
                   (request.query.annotationStatus || request.query.annotationStatus === 0)
+                ) &&
+                fastify.validAssigneeAdder(request, reqInfo) === false &&
+                !(
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
                 )
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
+              // reqInfo.worklistId identifies a worklist path.
+              // level is worklist only if it is editing/adding/getting a worklist itself
               if (
                 !request.raw.url.startsWith(
                   config.prefix ? `/${config.prefix}/search` : '/search'
@@ -2950,23 +2983,37 @@ async function other(fastify) {
                   reqInfo.level === 'worklist' &&
                   request.body &&
                   request.body.assignees &&
-                  ((request.body.assignees.length === 1 &&
-                    request.body.assignees[0] === request.epadAuth.username) ||
-                    (reqInfo.worklistid && (await fastify.isCreatorOfObject(request, reqInfo))))
-                )
+                  request.body.assignees.length === 1 &&
+                  request.body.assignees[0] === request.epadAuth.username
+                ) &&
+                !(
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
+                ) &&
+                reqInfo.level !== 'ontology' &&
+                reqInfo.level !== 'apikeys' &&
+                reqInfo.level !== 'appVersion'
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner
               if (
                 reqInfo.level !== 'ontology' &&
+                reqInfo.level !== 'apikeys' &&
+                reqInfo.level !== 'appVersion' &&
                 ((await fastify.isCreatorOfObject(request, reqInfo)) === false || // if the user is not the creator or it is the owner but url is users (user should not be able to edit their user if they are not admin)
                   ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
                     request.raw.url.startsWith(
                       config.prefix
                         ? `/${config.prefix}/users/${request.epadAuth.username}`
                         : `/users/${request.epadAuth.username}`
-                    )))
+                    ))) &&
+                !(
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
+                )
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
