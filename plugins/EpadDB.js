@@ -11064,6 +11064,10 @@ async function epaddb(fastify, options, done) {
                   header = fastify.getCalculationHeaders(imageAnnotation, header);
                   // eslint-disable-next-line no-param-reassign
                   header = fastify.getOtherHeaders(imageAnnotation, header);
+                  header.push({
+                    id: 'template',
+                    title: 'Template',
+                  });
                   // eslint-disable-next-line no-param-reassign
                   header = fastify.arrayUnique(header, 'id');
                   // add values common to all annotations
@@ -11095,6 +11099,7 @@ async function epaddb(fastify, options, done) {
                     imageUid:
                       imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
                         .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
+                    template: imageAnnotation.typeCode[0]['iso:displayName'].value,
                   };
 
                   row = fastify.getCalculationData(imageAnnotation, row);
