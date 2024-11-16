@@ -2367,6 +2367,7 @@ async function other(fastify) {
         requirements: 'requirement',
         apikeys: 'apikeys',
         appVersion: 'appVersion',
+        processCsv: 'processCsv',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -2972,6 +2973,7 @@ async function other(fastify) {
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
+              console.log('level', reqInfo.level, reqInfo);
               // reqInfo.worklistId identifies a worklist path.
               // level is worklist only if it is editing/adding/getting a worklist itself
               if (
@@ -2993,7 +2995,8 @@ async function other(fastify) {
                 ) &&
                 reqInfo.level !== 'ontology' &&
                 reqInfo.level !== 'apikeys' &&
-                reqInfo.level !== 'appVersion'
+                reqInfo.level !== 'appVersion' &&
+                reqInfo.level !== 'processCsv'
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
