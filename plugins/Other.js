@@ -2367,6 +2367,7 @@ async function other(fastify) {
         requirements: 'requirement',
         apikeys: 'apikeys',
         appVersion: 'appVersion',
+        processCsv: 'processCsv',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -2993,7 +2994,8 @@ async function other(fastify) {
                 ) &&
                 reqInfo.level !== 'ontology' &&
                 reqInfo.level !== 'apikeys' &&
-                reqInfo.level !== 'appVersion'
+                reqInfo.level !== 'appVersion' &&
+                reqInfo.level !== 'processCsv'
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
