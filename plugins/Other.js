@@ -2973,7 +2973,6 @@ async function other(fastify) {
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
-              console.log('level', reqInfo.level, reqInfo);
               // reqInfo.worklistId identifies a worklist path.
               // level is worklist only if it is editing/adding/getting a worklist itself
               if (
