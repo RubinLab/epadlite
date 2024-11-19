@@ -9273,12 +9273,16 @@ async function epaddb(fastify, options, done) {
                 fastify.log.info(
                   `Deleted ${idsToDelete.length} significant series for study ${studyInfos[i].study} and project ${studyInfos[i].project}`
                 );
-                // eslint-disable-next-line no-await-in-loop
-                await fastify.deletePatientStudyFromProjectInternal({
-                  params: studyInfos[i],
-                  epadAuth,
-                  query: {},
-                });
+                try {
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.deletePatientStudyFromProjectInternal({
+                    params: studyInfos[i],
+                    epadAuth,
+                    query: {},
+                  });
+                } catch (be) {
+                  fastify.log.info(`Study ${studyInfos[i].study} not in system ${be.message}`);
+                }
                 deleted.push(studyInfos[i]);
               }
             }
