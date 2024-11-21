@@ -151,6 +151,7 @@ config.dimse = config.dimse
       ip: process.env.DIMSE_IP,
       port: process.env.DIMSE_PORT,
       sourceIp: process.env.DIMSE_SOURCE_IP,
+      sourceAet: process.env.DIMSE_SOURCE_AET,
     }
   : null;
 // eslint-disable-next-line no-nested-ternary
@@ -162,6 +163,7 @@ config.archiveDimse = config.archiveDimse
       ip: process.env.VNA_DIMSE_IP || process.env.ARCHIVE_DIMSE_IP,
       port: process.env.VNA_DIMSE_PORT || process.env.ARCHIVE_DIMSE_PORT,
       sourceIp: process.env.VNA_DIMSE_SOURCE_IP || process.env.ARCHIVE_DIMSE_SOURCE_IP,
+      sourceAet: process.env.VNA_DIMSE_SOURCE_AET || process.env.ARCHIVE_DIMSE_SOURCE_AET,
     }
   : null;
 config.pullStudyIds =
