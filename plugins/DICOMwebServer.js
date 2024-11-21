@@ -859,7 +859,7 @@ async function dicomwebserver(fastify) {
           dimse.findScu(
             JSON.stringify({
               source: {
-                aet: 'FINDSCU',
+                aet: dimseConf.sourceAet || 'FINDSCU',
                 ip: dimseConf.sourceIp || '127.0.0.1',
                 port: '9999',
               },
