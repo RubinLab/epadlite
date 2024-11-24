@@ -2368,6 +2368,8 @@ async function other(fastify) {
         apikeys: 'apikeys',
         appVersion: 'appVersion',
         processCsv: 'processCsv',
+        miracclexport: 'miracclexport',
+        waterfall: 'waterfall',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
@@ -2995,7 +2997,9 @@ async function other(fastify) {
                 reqInfo.level !== 'ontology' &&
                 reqInfo.level !== 'apikeys' &&
                 reqInfo.level !== 'appVersion' &&
-                reqInfo.level !== 'processCsv'
+                reqInfo.level !== 'processCsv' &&
+                reqInfo.level !== 'miracclexport' &&
+                reqInfo.level !== 'waterfall'
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
