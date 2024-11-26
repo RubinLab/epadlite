@@ -343,11 +343,12 @@ async function epaddb(fastify, options, done) {
     'createProjectInternal',
     (projectName, projectId, projectDescription, defaultTemplate, type, epadAuth) =>
       new Promise((resolve, reject) => {
-        if (projectId === 'lite') {
+        const reservedIds = ['lite', 'search', 'list', 'worklist', 'flex'];
+        if (reservedIds.includes(projectId)) {
           reject(
             new BadRequestError(
-              'Creating lite project',
-              new Error('lite project id is reserved for system. Use another project id')
+              'Creating project',
+              new Error(`${projectId} project id is reserved for system. Use another project id`)
             )
           );
         } else {
@@ -5455,11 +5456,20 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate('getWorklistsOfCreator', async (request, reply) => {
     try {
+      // let the users who are the owners of at least one project in the worklist access the worklist. only on teaching though
+      const where =
+        config.mode === 'teaching' &&
+        request.query.addValidAssignees &&
+        request.query.addValidAssignees.toLowerCase() === 'true'
+          ? Sequelize.literal(
+              `(SELECT count(project_id) FROM worklist_study ws WHERE ws.worklist_id = worklist.id AND ws.project_id IN (SELECT project_id FROM project_user pu, user u WHERE pu.user_id = u.id and u.username='${request.epadAuth.username}' and role='Owner'))>0 or worklist.creator='${request.epadAuth.username}'`
+            )
+          : {
+              creator: request.epadAuth.username,
+            };
       const worklists = await models.worklist.findAll({
-        where: {
-          creator: request.epadAuth.username,
-        },
-        include: ['users', 'studies', 'requirements'],
+        where,
+        include: ['users', 'requirements'],
       });
       const result = [];
       for (let i = 0; i < worklists.length; i += 1) {
@@ -5471,12 +5481,10 @@ async function epaddb(fastify, options, done) {
           username: worklists[i].user_id,
           workListID: worklists[i].worklistid,
           description: worklists[i].description,
-          projectIDs: [],
-          studyStatus: [],
-          studyUIDs: [],
-          subjectUIDs: [],
           assignees: [],
           requirements: [],
+          creator: worklists[i].creator,
+          isCreator: worklists[i].creator === request.epadAuth.username,
         };
 
         for (let k = 0; k < worklists[i].requirements.length; k += 1) {
@@ -5488,21 +5496,15 @@ async function epaddb(fastify, options, done) {
           obj.assignees.push(worklists[i].users[k].username);
         }
 
-        const studiesArr = worklists[i].studies;
-        const projects = [];
-        const subjects = [];
-        for (let k = 0; k < studiesArr.length; k += 1) {
-          projects.push(studiesArr[k].dataValues.project_id);
-          obj.studyStatus.push({
-            [studiesArr[k].dataValues.study_uid]: studiesArr[k].dataValues.status,
-          });
-          obj.studyUIDs.push(studiesArr[k].dataValues.study_uid);
-          subjects.push(studiesArr[k].dataValues.subject_uid);
-        }
-        obj.projectIDs = _.uniq(projects);
-        obj.subjectUIDs = _.uniq(subjects);
         result.push(obj);
       }
+      result.sort((a, b) => {
+        if (a.isCreator !== b.isCreator) {
+          return a.isCreator ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name); // Sort by name alphabetically
+      });
+
       reply.code(200).send(result);
     } catch (err) {
       if (err instanceof ResourceNotFoundError)
@@ -5623,7 +5625,7 @@ async function epaddb(fastify, options, done) {
         fastify.orm
           .query(
             `SELECT user_id, project_id FROM worklist_user wu, worklist_study ws WHERE wu.worklist_id = ${worklistId} AND ws.worklist_id = ${worklistId} AND wu.user_id NOT IN
-           (SELECT user_id FROM project_user WHERE project_id = ws.project_id);`,
+           (SELECT user_id FROM project_user WHERE project_id = ws.project_id) GROUP BY user_id, project_id;`,
             {
               raw: true,
               type: QueryTypes.SELECT,
@@ -5938,7 +5940,7 @@ async function epaddb(fastify, options, done) {
             } else {
               const seriesArr = await fastify.getSeriesDicomOrNotInternal(
                 params,
-                { filterDSO: 'true' },
+                { filterDSO: 'true', forceDicomweb: 'true' },
                 epadAuth
               );
               const sumOfImageCounts = _.reduce(
@@ -6163,6 +6165,30 @@ async function epaddb(fastify, options, done) {
       }
     }
   );
+
+  fastify.decorate('checkIfUserIsOwnerOfAnyWorklistProjectInternal', (worklistID, username) => {
+    fastify.orm
+      .query(
+        `SELECT project_id FROM worklist_study ws, worklist w WHERE w.worklistid = '${worklistID}' and ws.worklist_id = w.id AND ws.project_id IN (SELECT project_id FROM project_user pu, user u WHERE pu.user_id = u.id and u.username='${username}' and role='Owner') GROUP BY project_id;`,
+        {
+          raw: true,
+          type: QueryTypes.SELECT,
+        }
+      )
+      .then((ownedProjectsInWorklist) => {
+        // the return value is an array of values array and column def array
+        if (ownedProjectsInWorklist.length > 0) {
+          return true;
+        }
+        return false;
+      })
+      .catch((err) => {
+        throw new InternalError(
+          `Checking if the user is owner of at least oone of the projects in worklist ${worklistID}`,
+          err
+        );
+      });
+  });
 
   fastify.decorate('getWorklistStudies', async (request, reply) => {
     // get worklist name and id from worklist
@@ -9247,12 +9273,16 @@ async function epaddb(fastify, options, done) {
                 fastify.log.info(
                   `Deleted ${idsToDelete.length} significant series for study ${studyInfos[i].study} and project ${studyInfos[i].project}`
                 );
-                // eslint-disable-next-line no-await-in-loop
-                await fastify.deletePatientStudyFromProjectInternal({
-                  params: studyInfos[i],
-                  epadAuth,
-                  query: {},
-                });
+                try {
+                  // eslint-disable-next-line no-await-in-loop
+                  await fastify.deletePatientStudyFromProjectInternal({
+                    params: studyInfos[i],
+                    epadAuth,
+                    query: {},
+                  });
+                } catch (be) {
+                  fastify.log.info(`Study ${studyInfos[i].study} not in system ${be.message}`);
+                }
                 deleted.push(studyInfos[i]);
               }
             }
@@ -9439,7 +9469,7 @@ async function epaddb(fastify, options, done) {
             // for each seg see if it has an annotation, generate if not
             const seriesList = await fastify.getStudySeriesInternal(
               { study: studyInfo.studyUID },
-              {},
+              { forceDicomweb: 'true' },
               epadAuth,
               true
             );
@@ -11038,6 +11068,10 @@ async function epaddb(fastify, options, done) {
                   header = fastify.getCalculationHeaders(imageAnnotation, header);
                   // eslint-disable-next-line no-param-reassign
                   header = fastify.getOtherHeaders(imageAnnotation, header);
+                  header.push({
+                    id: 'template',
+                    title: 'Template',
+                  });
                   // eslint-disable-next-line no-param-reassign
                   header = fastify.arrayUnique(header, 'id');
                   // add values common to all annotations
@@ -11069,6 +11103,7 @@ async function epaddb(fastify, options, done) {
                     imageUid:
                       imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
                         .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
+                    template: imageAnnotation.typeCode[0]['iso:displayName'].value,
                   };
 
                   row = fastify.getCalculationData(imageAnnotation, row);
@@ -11344,7 +11379,7 @@ async function epaddb(fastify, options, done) {
           // get study series
           const studySeries = await fastify.getSeriesDicomOrNotInternal(
             { study: params.study },
-            { format: 'summary' },
+            { format: 'summary', forceDicomweb: 'true' },
             epadAuth,
             true
           );
@@ -13328,7 +13363,10 @@ async function epaddb(fastify, options, done) {
           }
 
           // always from dicomweb server
-          const series = await fastify.getAllStudySeriesInternal({}, undefined);
+          const series = await fastify.getAllStudySeriesInternal(
+            { forceDicomweb: 'true' },
+            undefined
+          );
           const numOfDSOs = _.reduce(
             series,
             (count, serie) => {
@@ -13677,7 +13715,7 @@ async function epaddb(fastify, options, done) {
             updatetime: Date.now(),
           },
           {
-            host,
+            host: Sequelize.where(Sequelize.col('host'), 'LIKE', `%${host.split('|')[1]}%`),
             template_code: userTFStats[i].template || config.teachingTemplate,
             user_id: userTFStats[i].userId,
             year,

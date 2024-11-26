@@ -1,6 +1,6 @@
 {
   "name": "epadlite",
-  "version": "1.5",
+  "version": "1.6",
   "description": "Lightweight ePad Backend",
   "main": "server.js",
   "dependencies": {
@@ -60,7 +60,7 @@
   "scripts": {
     "start": "node server.js",
     "pretest": "eslint --ignore-path .gitignore .",
-    "test": "NODE_ENV=test NODE_OPTIONS='--trace-warnings' mocha --timeout 20000"
+    "test": "NODE_ENV=test NODE_OPTIONS='--trace-warnings' mocha --timeout 20000 --exit"
   },
   "keywords": [
     "ePad",

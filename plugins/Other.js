@@ -345,16 +345,17 @@ async function other(fastify) {
         (!accessionNumber || accessionNumber.trim() === '')
       ) {
         fastify.log.info('Skipping empty row in csv');
-        return;
       }
       const suid = csvRow.SUID; // csv SUID
       const birthDate = csvRow.DOB || csvRow['Date of birth'];
+
       const sex = csvRow.Sex; // csv Sex
       const modality = csvRow.Modality; // csv Modality
       const bodyPart = csvRow['Body part']; // csv Body part
       const keywords = csvRow['Teaching file keywords']; // csv Teaching file keywords
       const specialty = csvRow.Specialty; // csv Specialty
       const reportAuthor = csvRow['Report author']; // csv Report author
+      const report = csvRow.REPORT;
 
       // Handle missing CSV fields
       if (name == null) throw TypeError("Missing 'Name' field");
@@ -370,6 +371,8 @@ async function other(fastify) {
       if (reportAuthor == null) throw TypeError("Missing 'Report author' field");
 
       fastify.log.info(`Row: ${rowNum}, Medical record number: ${patientId}, SUID: ${suid}`);
+      if (!birthDate.match(/(\d?\d)\/(\d?\d)\/(\d\d\d\d)/))
+        throw TypeError(`Row: ${rowNum} Birthdate ${birthDate} not in DD/MM/YYYY format`);
       fastify.log.info(fileName);
 
       // generate keywordsArray, tracking the RIDs in the teaching file keywords
@@ -383,7 +386,8 @@ async function other(fastify) {
       }
 
       // generate comment, NN-year old (or deceased) female/male
-      const comment = { value: ' ' };
+      // modify it to put the generated comment to annotation name
+      const comment = { value: report || ' ' };
       let age = '';
       const studyDate = new Date(date);
       const dobDate = new Date(birthDate);
@@ -400,12 +404,12 @@ async function other(fastify) {
       } else {
         age = `${years}-year-old `;
       }
-      comment.value = age;
+      let annotationName = age;
 
       if (sex === 'F') {
-        comment.value += 'female';
+        annotationName += 'female';
       } else if (sex === 'M') {
-        comment.value += 'male';
+        annotationName += 'male';
       }
 
       // anatomies =['RID230', 'RIS10']; // coming from "Anatomy Detail" in template
@@ -571,7 +575,7 @@ async function other(fastify) {
 
       seedData.image.push({ sopClassUid, sopInstanceUid });
 
-      const answers = fastify.getTeachingTemplateAnswers(seedData, 'Teaching File', '', comment);
+      const answers = fastify.getTeachingTemplateAnswers(seedData, annotationName, '', comment);
       const merged = { ...seedData.aim, ...answers };
       seedData.aim = merged;
 
@@ -599,7 +603,6 @@ async function other(fastify) {
 
       // writes new AIM file to output folder
       fs.writeFileSync(`${dir}/annotations/${fileName}`, JSON.stringify(aimJSON));
-      fastify.log.info();
     }
   );
 
@@ -831,25 +834,35 @@ async function other(fastify) {
               csvData.push(row);
             })
             .on('end', () => {
+              const errors = [];
               try {
                 for (let i = 0; i < csvData.length; i += 1) {
-                  fastify.generateAIM(
-                    csvData[i],
-                    i + 2,
-                    enumAimType,
-                    specialtyMap,
-                    bodyPartMap,
-                    anatomyMap,
-                    diagnosisMap,
-                    SIDMap,
-                    dir
-                  );
+                  try {
+                    fastify.generateAIM(
+                      csvData[i],
+                      i + 2,
+                      enumAimType,
+                      specialtyMap,
+                      bodyPartMap,
+                      anatomyMap,
+                      diagnosisMap,
+                      SIDMap,
+                      dir
+                    );
+                  } catch (err) {
+                    fastify.log.info(
+                      `There is an error ${err} on row ${i + 2} with accession ${
+                        csvData[i]['Accession number']
+                      }`
+                    );
+                    errors.push(err.message);
+                  }
                 }
               } catch (generateErr) {
                 fastify.log.info('Error in generating aims', generateErr);
                 reject(generateErr);
               }
-              resolve();
+              resolve(errors);
             })
             .on('error', (err) => {
               fastify.log.info('Error in generating aims', err);
@@ -872,8 +885,10 @@ async function other(fastify) {
           const dir = `/tmp/tmp_${timestamp}`;
           fs.mkdirSync(dir);
           fs.mkdirSync(`${dir}/annotations`);
-
-          await fastify.convertCsv2Aim(dir, csvFilePath);
+          const errors = await fastify.convertCsv2Aim(dir, csvFilePath);
+          if (errors && errors.length > 0) {
+            resolve(errors);
+          }
 
           // make sure zip file and folder names are different
           let zipFilePath = '';
@@ -934,7 +949,7 @@ async function other(fastify) {
               throw new TypeError('File format is not .csv');
             }
             const result = await fastify.zipAims(`${dir}/${filenames[0]}`);
-            fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${result}`);
+            fastify.log.info(`RESULT OF CONVERT CSV 2 AIM ${JSON.stringify(result)}`);
             fs.remove(dir, (error) => {
               if (error) fastify.log.warn(`Temp directory deletion error ${error.message}`);
               fastify.log.info(`${dir} deleted`);
@@ -942,7 +957,7 @@ async function other(fastify) {
 
             // csv -> zip of aims success!
             if (config.env === 'test') reply.code(200).send(result);
-            else {
+            else if (typeof result === 'string') {
               fastify.log.info(`Zip file ready in ${result}`);
               // get the protocol and hostname from the request
               const link = `${config.httpsLink ? 'https' : request.protocol}://${
@@ -952,6 +967,13 @@ async function other(fastify) {
               // send notification and/or email with link
               if (request)
                 new EpadNotification(request, 'Download ready', link, false).notify(fastify);
+            } else {
+              new EpadNotification(
+                request,
+                'CSV2AIM bootstrap error',
+                new InternalError('Bootstrap error', new Error(JSON.stringify(result))),
+                true
+              ).notify(fastify);
             }
           } catch (filesErr) {
             fs.remove(dir, (error) => {
@@ -2342,11 +2364,16 @@ async function other(fastify) {
         users: 'user',
         worklists: 'worklist',
         ontology: 'ontology',
+        requirements: 'requirement',
+        apikeys: 'apikeys',
+        appVersion: 'appVersion',
+        processCsv: 'processCsv',
+        miracclexport: 'miracclexport',
+        waterfall: 'waterfall',
       };
       if (urlParts[urlParts.length - 1] === 'download') reqInfo.methodText = 'DOWNLOAD';
       if (levels[urlParts[urlParts.length - 1]]) {
-        if (reqInfo.method === 'POST') reqInfo.level = levels[urlParts[urlParts.length - 1]];
-        else reqInfo.level = urlParts[urlParts.length - 1];
+        reqInfo.level = levels[urlParts[urlParts.length - 1]];
       } else if (levels[urlParts[urlParts.length - 2]]) {
         reqInfo.level = levels[urlParts[urlParts.length - 2]];
         reqInfo.objectId = urlParts[urlParts.length - 1];
@@ -2354,9 +2381,8 @@ async function other(fastify) {
       // eslint-disable-next-line prefer-destructuring
       if (urlParts[1] === 'projects' && urlParts.length > 1) reqInfo.project = urlParts[2];
       if (urlParts[1] === 'worklists') {
-        reqInfo.level = 'worklist';
         // eslint-disable-next-line prefer-destructuring
-        if (urlParts.length > 1) reqInfo.objectId = urlParts[2];
+        if (urlParts.length > 1) reqInfo.worklistId = urlParts[2];
       }
       return reqInfo;
     } catch (err) {
@@ -2760,7 +2786,7 @@ async function other(fastify) {
         }
         return false;
       }
-      return true;
+      return false;
     } catch (err) {
       if (config.auth && config.auth !== 'none' && request.epadAuth === undefined)
         throw new UnauthenticatedError('No epadauth in request');
@@ -2794,6 +2820,7 @@ async function other(fastify) {
       fastify.log.info(
         `Checking isCreatorOfObject for url: ${request.raw.url} level:${reqInfo.level} object:${reqInfo.objectId}`
       );
+      if (!reqInfo.objectId) return false;
       const creator = await fastify.getObjectCreator(
         reqInfo.level,
         reqInfo.objectId,
@@ -2839,6 +2866,25 @@ async function other(fastify) {
 
   // remove null in patient id
   fastify.decorate('replaceNull', (text) => text.replace('\u0000', ''));
+
+  fastify.decorate('validAssigneeAdder', (request) => {
+    // check if it is teaching
+    if (config.mode !== 'teaching') return false;
+    // check if the url is a worklist assignee add path
+    const regex = /\/worklists\/\w*$/g;
+    const found = request.raw.url.match(regex);
+    if (!found) return false;
+    if (!request.body.assigneeList) return false;
+    const keys = Object.keys(request.body);
+    // It shouldn't have anything other than assigneeList
+    if (keys.length > 1) return false;
+
+    // check if the user is owner of one of the projects
+    return fastify.checkIfUserIsOwnerOfAnyWorklistProjectInternal(
+      request.params.worklist,
+      request.epadAuth.username
+    );
+  });
 
   fastify.decorate('epadThickRightsCheck', async (request, reply) => {
     try {
@@ -2894,12 +2940,16 @@ async function other(fastify) {
             case 'GET': // filtering should be done in the methods
               break;
             case 'PUT': // check permissions
+              // reqInfo.worklistId identifies a worklist path.
+              // level is worklist only if it is editing/adding/getting a worklist itself
               if (
                 !request.raw.url.startsWith('/plugins') && // cavit added to let normal user to add remove projects to the plugin
                 !request.raw.url.startsWith(
                   config.prefix ? `/${config.prefix}/decrypt` : '/decrypt'
                 ) &&
                 reqInfo.level !== 'ontology' &&
+                reqInfo.level !== 'apikeys' &&
+                reqInfo.level !== 'appVersion' &&
                 ((await fastify.isCreatorOfObject(request, reqInfo)) === false || // if the user is not the creator or it is the owner but url is users (user should not be able to edit their user if they are not admin)
                   ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
                     request.raw.url.startsWith(
@@ -2908,17 +2958,25 @@ async function other(fastify) {
                         : `/users/${request.epadAuth.username}`
                     ))) &&
                 !(
-                  reqInfo.level === 'worklist' &&
+                  reqInfo.worklistId &&
                   (await fastify.isAssigneeOfWorklist(
-                    reqInfo.objectId,
+                    reqInfo.worklistId,
                     request.epadAuth.username
                   )) &&
                   (request.query.annotationStatus || request.query.annotationStatus === 0)
+                ) &&
+                fastify.validAssigneeAdder(request, reqInfo) === false &&
+                !(
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
                 )
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
             case 'POST':
+              // reqInfo.worklistId identifies a worklist path.
+              // level is worklist only if it is editing/adding/getting a worklist itself
               if (
                 !request.raw.url.startsWith(
                   config.prefix ? `/${config.prefix}/search` : '/search'
@@ -2928,23 +2986,40 @@ async function other(fastify) {
                   reqInfo.level === 'worklist' &&
                   request.body &&
                   request.body.assignees &&
-                  ((request.body.assignees.length === 1 &&
-                    request.body.assignees[0] === request.epadAuth.username) ||
-                    (reqInfo.worklistid && (await fastify.isCreatorOfObject(request, reqInfo))))
-                )
+                  request.body.assignees.length === 1 &&
+                  request.body.assignees[0] === request.epadAuth.username
+                ) &&
+                !(
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
+                ) &&
+                reqInfo.level !== 'ontology' &&
+                reqInfo.level !== 'apikeys' &&
+                reqInfo.level !== 'appVersion' &&
+                reqInfo.level !== 'processCsv' &&
+                reqInfo.level !== 'miracclexport' &&
+                reqInfo.level !== 'waterfall'
               )
                 reply.send(new UnauthorizedError('User has no access to create'));
               break;
             case 'DELETE': // check if owner
               if (
                 reqInfo.level !== 'ontology' &&
+                reqInfo.level !== 'apikeys' &&
+                reqInfo.level !== 'appVersion' &&
                 ((await fastify.isCreatorOfObject(request, reqInfo)) === false || // if the user is not the creator or it is the owner but url is users (user should not be able to edit their user if they are not admin)
                   ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
                     request.raw.url.startsWith(
                       config.prefix
                         ? `/${config.prefix}/users/${request.epadAuth.username}`
                         : `/users/${request.epadAuth.username}`
-                    )))
+                    ))) &&
+                !(
+                  reqInfo.worklistId &&
+                  (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
+                    request.epadAuth.username
+                )
               )
                 reply.send(new UnauthorizedError('User has no access to resource'));
               break;
