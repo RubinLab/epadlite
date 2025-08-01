@@ -11104,6 +11104,9 @@ async function epaddb(fastify, options, done) {
                       imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
                         .imageStudy.imageSeries.imageCollection.Image[0].sopInstanceUid.root,
                     template: imageAnnotation.typeCode[0]['iso:displayName'].value,
+                    accession:
+                      imageAnnotation.imageReferenceEntityCollection.ImageReferenceEntity[0]
+                        .imageStudy.accessionNumber.value,
                   };
 
                   row = fastify.getCalculationData(imageAnnotation, row);
@@ -11217,6 +11220,7 @@ async function epaddb(fastify, options, done) {
             { id: 'studyUid', title: 'Study_UID' },
             { id: 'seriesUid', title: 'Series_UID' },
             { id: 'imageUid', title: 'Image_UID' },
+            { id: 'accession', title: 'Accession_Number' },
           ];
           let data = [];
           const aims = aimsResult.rows;
