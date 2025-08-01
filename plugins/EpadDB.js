@@ -6165,7 +6165,7 @@ async function epaddb(fastify, options, done) {
           });
           promises.push(
             models.worklist_study.update(
-              { sortOrder: el.sortOrder },
+              { sortorder: el.sortOrder },
               {
                 where: {
                   worklist_id: worklist.id,
@@ -6325,7 +6325,7 @@ async function epaddb(fastify, options, done) {
           ],
         });
         const manualProgressMap = await fastify.getManualProgressMap(worklist.dataValues.id);
-        const result = [];
+        let result = [];
         for (let i = 0; i < list.length; i += 1) {
           // eslint-disable-next-line no-await-in-loop
           const projectId = await models.project.findOne({
@@ -6395,6 +6395,7 @@ async function epaddb(fastify, options, done) {
             });
           }
         }
+        result = _.sortBy(result, 'sortOrder');
         reply.code(200).send(Object.values(result));
       }
     } catch (err) {
