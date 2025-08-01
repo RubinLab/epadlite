@@ -6186,7 +6186,7 @@ async function epaddb(fastify, options, done) {
         }
       });
       Promise.all(promises)
-        .then(() => reply.code(200).send(`Deleted successfully`))
+        .then(() => reply.code(200).send(`Sort order updated successfully`))
         .catch((err) => {
           if (err instanceof ResourceNotFoundError)
             reply.send(
