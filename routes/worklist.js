@@ -392,34 +392,5 @@ async function routes(fastify) {
     },
     handler: fastify.addWithAimsUIDsToWorklist,
   });
-
-  fastify.route({
-    method: 'POST',
-    url: '/worklists/:worklist/studies',
-    schema: {
-      tags: ['worklist', 'user'],
-      params: {
-        type: 'object',
-        properties: {
-          worklist: {
-            type: 'string',
-          },
-        },
-      },
-      body: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            projectID: { type: 'string' },
-            subjectID: { type: 'string' },
-            studyUID: { type: 'string' },
-            sortOrder: { type: 'integer' },
-          },
-        },
-      },
-    },
-    handler: fastify.updateWorklistStudyOrder,
-  });
 }
 module.exports = routes;

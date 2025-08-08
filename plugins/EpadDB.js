@@ -6129,83 +6129,6 @@ async function epaddb(fastify, options, done) {
     }
   });
 
-  fastify.decorate('updateWorklistStudyOrder', async (request, reply) => {
-    if (!request.body || !Array.isArray(request.body) || request.body.length === 0) {
-      reply.send(
-        new BadRequestError(
-          'Update worklist study orders',
-          new Error('Missing study list in request')
-        )
-      );
-    } else {
-      // find worklist id
-      const promises = [];
-      const worklist = await models.worklist.findOne({
-        where: { worklistid: request.params.worklist },
-        attributes: ['id'],
-        raw: true,
-      });
-
-      request.body.forEach(async (el) => {
-        try {
-          const project = await models.project.findOne({
-            where: { projectid: el.projectID },
-            attributes: ['id'],
-            raw: true,
-          });
-          const subject = await models.subject.findOne({
-            where: { subjectuid: el.subjectID },
-            attributes: ['id'],
-            raw: true,
-          });
-          const study = await models.study.findOne({
-            where: { studyuid: el.studyUID },
-            attributes: ['id'],
-            raw: true,
-          });
-          promises.push(
-            models.worklist_study.update(
-              { sortorder: el.sortOrder },
-              {
-                where: {
-                  worklist_id: worklist.id,
-                  project_id: project.id,
-                  subject_id: subject.id,
-                  study_id: study.id,
-                },
-              }
-            )
-          );
-        } catch (err) {
-          reply.send(
-            new InternalError(
-              `Deleting study ${el.studyUID} from worklist ${request.params.worklist}`,
-              err
-            )
-          );
-        }
-      });
-      Promise.all(promises)
-        .then(() => reply.code(200).send(`Sort order updated successfully`))
-        .catch((err) => {
-          if (err instanceof ResourceNotFoundError)
-            reply.send(
-              new BadRequestError(
-                `Deleting studies ${request.body} from worklist ${request.params.worklist}`,
-                err
-              )
-            );
-          else
-            reply.send(
-              new InternalError(
-                `Deleting studies ${request.body} from worklist ${request.params.worklist}`,
-                err
-              )
-            );
-        });
-    }
-  });
-
   fastify.decorate('getManualProgressMap', async (worklistId) => {
     // I could not create association with composite foreign key
     const manualProgress = await models.project_subject_study_series_user_status.findAll({
@@ -6325,7 +6248,7 @@ async function epaddb(fastify, options, done) {
           ],
         });
         const manualProgressMap = await fastify.getManualProgressMap(worklist.dataValues.id);
-        let result = [];
+        const result = [];
         for (let i = 0; i < list.length; i += 1) {
           // eslint-disable-next-line no-await-in-loop
           const projectId = await models.project.findOne({
@@ -6395,7 +6318,6 @@ async function epaddb(fastify, options, done) {
             });
           }
         }
-        result = _.sortBy(result, 'sortOrder');
         reply.code(200).send(Object.values(result));
       }
     } catch (err) {
