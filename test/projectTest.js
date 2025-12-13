@@ -231,7 +231,7 @@ beforeEach(() => {
     .reply(200, osirixImageMetadataResponse);
 });
 
-describe('Project Tests', () => {
+describe.only('Project Tests', () => {
   it('projects should have no projects ', (done) => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)
@@ -246,26 +246,22 @@ describe('Project Tests', () => {
         done(e);
       });
   });
-  it('project create should be successful ', (done) => {
-    chai
-      .request(`http://${process.env.host}:${process.env.port}`)
-      .post('/projects')
-      .query({ username: 'admin' })
-      .send({
+
+  it('project create should be successful', async () => {
+    const res = await server.inject({
+      method: 'POST',
+      url: '/projects',
+      query: { username: 'admin' },
+      payload: {
         projectId: 'test',
         projectName: 'test',
         projectDescription: 'testdesc',
         defaultTemplate: 'ROI',
         type: 'private',
-      })
-      .query({ username: 'admin' })
-      .then((res) => {
-        expect(res.statusCode).to.equal(200);
-        done();
-      })
-      .catch((e) => {
-        done(e);
-      });
+      },
+    });
+
+    expect(res.statusCode).to.equal(200);
   });
   it('should fail creating lite project ', (done) => {
     chai

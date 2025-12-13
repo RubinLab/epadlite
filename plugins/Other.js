@@ -2342,6 +2342,7 @@ async function other(fastify) {
 
   fastify.decorate('getInfoFromRequest', (request) => {
     try {
+      // console.log(request);
       const reqInfo = {};
       reqInfo.method = request.raw.method;
       const methodText = { GET: 'GET', POST: 'CREATE', PUT: 'UPDATE', DELETE: 'DELETE' };
@@ -2695,9 +2696,11 @@ async function other(fastify) {
     ) {
       // if auth has been given in config, verify authentication
       const authHeader = req.headers['x-access-token'] || req.headers.authorization;
+      console.log('auth', authHeader);
       if (authHeader) {
         if (authHeader.startsWith('Bearer')) {
           req.epadAuth = await fastify.authCheck(authHeader, res);
+          console.log('epadauth', req.epadAuth);
         } else if (authHeader.startsWith('apikey')) {
           // apikey auth support
           // TODO should be https (&& req.protocol === 'https') it doesn't work because of nginx

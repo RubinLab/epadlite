@@ -105,6 +105,8 @@ fastify.register(
   }
 );
 
+fastify.register(require('./plugins/MariaDB'), { config });
+
 // register epaddb plugin we created
 // eslint-disable-next-line global-require
 fastify.register(require('./plugins/EpadDB'));
@@ -156,6 +158,7 @@ fastify.ready((err) => {
   fastify.swagger();
 
   fastify.addHook('onClose', async (instance) => {
+    console.log('closing');
     await fastify.closeDB(instance);
     await fastify.closeCouchDB(instance);
   });

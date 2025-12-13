@@ -23,10 +23,14 @@ const EpadNotification = require('../utils/EpadNotification');
 async function couchdb(fastify, options) {
   fastify.decorate('init', async () => {
     try {
+      console.log('couch db');
       await fastify.couch.db.list();
+      console.log('listed');
       fastify.log.info('Connected to couchdb server');
       return fastify.checkAndCreateDb();
     } catch (err) {
+      console.log('err', err);
+
       if (config.env !== 'test') {
         fastify.log.warn('Waiting for couchdb server');
         setTimeout(fastify.init, 3000);
@@ -45,8 +49,10 @@ async function couchdb(fastify, options) {
           // check if the db exists
           if (databases.indexOf(config.db) < 0) {
             await fastify.couch.db.create(config.db);
+            console.log('created', config.db);
           }
           const dicomDB = fastify.couch.db.use(config.db);
+          console.log('use');
           // define an empty design document
           let viewDoc = {};
           viewDoc.views = {};
@@ -91,6 +97,16 @@ async function couchdb(fastify, options) {
               resolve();
             }
           });
+          // await dicomDB.insert({ _id: 'dummy', code: 'TEST', something: true });
+
+          // // force view index build
+          // await new Promise((resolve2, reject2) => {
+          //   dicomDB.view('', 'templates_json', { limit: 1 }, (err) => {
+          //     if (err) reject2(err);
+          //     else resolve2();
+          //   });
+          // });
+          console.log('done init');
         } catch (err) {
           fastify.log.error(`Error connecting to couchdb: ${err.message}`);
           reject(new InternalError('Error connecting to couchdb', err));
@@ -1582,55 +1598,53 @@ async function couchdb(fastify, options) {
   fastify.decorate(
     'getTemplateInternal',
     (codeValue, format = 'json') =>
-      new Promise((resolve, reject) => {
+      new Promise(async (resolve, reject) => {
         try {
+          console.log('getTemplateInternal ');
           let view = 'templates_json';
           if (format) {
             if (format === 'json') view = 'templates_json';
             else if (format === 'summary') view = 'templates_summary';
           }
           const db = fastify.couch.db.use(config.db);
-          db.view(
-            'instances',
-            view,
-            {
-              startkey: [codeValue, '', ''],
-              endkey: [`${codeValue}\u9999`, '{}', '{}'],
-              reduce: true,
-              group_level: 3,
-            },
-            (error, body) => {
-              if (!error) {
-                const res = [];
-                if (body.rows.length > 1)
-                  fastify.log.warn(
-                    `Expecting one value but got ${body.rows.length}. Returning first`
-                  );
-                if (format === 'summary') {
-                  body.rows.forEach((template) => {
-                    res.push(template.key[2]);
-                  });
-                  resolve(res[0]);
-                } else if (format === 'stream') {
-                  body.rows.forEach((template) => {
-                    res.push(template.key[2]);
-                  });
-                  fastify
-                    .downloadTemplates(res)
-                    .then((result) => resolve(result[0]))
-                    .catch((err) => reject(err));
-                } else {
-                  // the default is json! The old APIs were XML, no XML in epadlite
-                  body.rows.forEach((template) => {
-                    res.push(template.key[2]);
-                  });
-                  resolve(res[0]);
-                }
-              } else {
-                reject(new InternalError('Getting templates from couchdb', error));
-              }
+          console.log('after use ');
+          const viewOptions = {
+            startkey: [codeValue, '', ''],
+            endkey: [`${codeValue}\u9999`, '{}', '{}'],
+            reduce: true,
+            group_level: 3,
+          };
+          try {
+            const body = await db.view('instances', view, viewOptions);
+            console.log('return body ', body, format);
+
+            const res = [];
+            if (body.rows.length > 1)
+              fastify.log.warn(`Expecting one value but got ${body.rows.length}. Returning first`);
+            if (format === 'summary') {
+              body.rows.forEach((template) => {
+                res.push(template.key[2]);
+              });
+              resolve(res[0]);
+            } else if (format === 'stream') {
+              body.rows.forEach((template) => {
+                res.push(template.key[2]);
+              });
+              fastify
+                .downloadTemplates(res)
+                .then((result) => resolve(result[0]))
+                .catch((err) => reject(err));
+            } else {
+              console.log('resolving');
+              // the default is json! The old APIs were XML, no XML in epadlite
+              body.rows.forEach((template) => {
+                res.push(template.key[2]);
+              });
+              resolve(res[0]);
             }
-          );
+          } catch (error) {
+            reject(new InternalError('Getting templates from couchdb', error));
+          }
         } catch (err) {
           reject(new InternalError('Getting templates', err));
         }
@@ -2460,17 +2474,15 @@ async function couchdb(fastify, options) {
   // register couchdb
   // disables eslint check as I want this module to be standalone to be (un)pluggable
   // eslint-disable-next-line global-require
-  fastify.register(require('fastify-couchdb'), {
-    // eslint-disable-line global-require
-    url: options.url,
-  });
-  fastify.after(async () => {
-    try {
-      await fastify.init();
-    } catch (err) {
+  const nano = require('nano')(options.url);
+
+  fastify.decorate('couch', nano);
+
+  fastify.after(() => {
+    fastify.init().catch((err) => {
       fastify.log.error(`Cannot connect to couchdb (err:${err}), shutting down the server`);
       fastify.close();
-    }
+    });
   });
 }
 // expose as plugin so the module using it can access the decorated methods
