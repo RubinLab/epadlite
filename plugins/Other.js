@@ -732,38 +732,48 @@ async function other(fastify) {
   fastify.decorate(
     'SIDMapSetup',
     () =>
-      new Promise(async (resolve, reject) => {
-        try {
-          const SIDMap = new Map();
+      new Promise((resolve, reject) => {
+        const SIDMap = new Map();
+        const SIDMapData = [];
 
-          const SIDMapData = [];
-          fs.createReadStream('config/FacultySIDMapping.csv')
-            .pipe(
-              parse({
-                delimiter: ',',
-                columns: true,
-                ltrim: true,
-              })
-            )
-            .on('data', (row) => {
-              SIDMapData.push(row);
-            })
-            .on('end', () => {
-              for (let i = 0; i < SIDMapData.length; i += 1) {
-                const SIDData = SIDMapData[i];
-                let last = SIDData['Last Name'];
-                const first = SIDData['First Name'];
-                const sid = SIDData['Payroll ID'];
-                if (last.charAt(last.length - 1) === first.charAt(0))
-                  last = last.substring(0, last.length - 2);
-                SIDMap.set(`${first} ${last}`.toLowerCase(), sid);
-              }
-              resolve(SIDMap);
-            });
-        } catch (err) {
-          fastify.log.info('Error in SID map setup', err);
+        const readStream = fs.createReadStream('config/FacultySIDMapping.csv');
+        const parser = parse({
+          delimiter: ',',
+          columns: true,
+          ltrim: true,
+        });
+
+        const cleanup = (err) => {
+          readStream.destroy();
+          parser.destroy();
           reject(err);
-        }
+        };
+
+        readStream.on('error', cleanup);
+        parser.on('error', cleanup);
+
+        parser.on('data', (row) => {
+          SIDMapData.push(row);
+        });
+
+        parser.on('end', () => {
+          // eslint-disable-next-line no-restricted-syntax
+          for (const SIDData of SIDMapData) {
+            let last = SIDData['Last Name'];
+            const first = SIDData['First Name'];
+            const sid = SIDData['Payroll ID'];
+
+            if (last.charAt(last.length - 1) === first.charAt(0)) {
+              last = last.substring(0, last.length - 2);
+            }
+
+            SIDMap.set(`${first} ${last}`.toLowerCase(), sid);
+          }
+
+          resolve(SIDMap);
+        });
+
+        readStream.pipe(parser);
       })
   );
 
