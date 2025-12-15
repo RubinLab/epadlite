@@ -1441,10 +1441,8 @@ async function dicomwebserver(fastify) {
 
   fastify.log.info(`Using DICOMwebServer: ${config.dicomWebConfig.baseUrl}`);
 
-  fastify.after(async () => {
-    try {
-      await fastify.initDicomWeb();
-    } catch (err) {
+  fastify.after(() => {
+    fastify.initDicomWeb().catch((err) => {
       // do not turn off the server if in test mode. shouldn't come here in development anyway
       if (config.env !== 'test') {
         fastify.log.error(
@@ -1452,15 +1450,15 @@ async function dicomwebserver(fastify) {
         );
         fastify.close();
       }
-    }
-
-    // need to add hook for close to remove the db if test;
-    fastify.addHook('onClose', (_instance, done) => {
-      if (config.env === 'test') {
-        // TODO logout from dicomwebserver
-        done();
-      }
     });
+
+    // // need to add hook for close to remove the db if test;
+    // fastify.addHook('onClose', (_instance, done) => {
+    //   if (config.env === 'test') {
+    //     // TODO logout from dicomwebserver
+    //     done();
+    //   }
+    // });
   });
 }
 // expose as plugin so the module using it can access the decorated methods
