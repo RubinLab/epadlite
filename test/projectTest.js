@@ -20,16 +20,6 @@ chai.use(chaiHttp);
 chai.use(deepEqualInAnyOrder);
 const { expect } = chai;
 
-let server;
-before(async () => {
-  process.env.host = '0.0.0.0';
-  process.env.port = 5987;
-  server = require('../server'); // eslint-disable-line
-  await server.ready();
-});
-after(() => {
-  server.close();
-});
 beforeEach(() => {
   const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
   const segBuffer = fs.readFileSync('test/data/testseg.dcm');
@@ -112,7 +102,7 @@ beforeEach(() => {
         query.numOfFiles === '0' &&
         query.numOfPlugins === '0' &&
         query.numOfTemplates === '1' &&
-        query.host.endsWith('0.0.0.0:5987')
+        query.host.endsWith('127.0.0.1:5987')
     )
     .reply(200);
 
@@ -131,7 +121,7 @@ beforeEach(() => {
         query.numOfFiles === '0' &&
         query.numOfPlugins === '0' &&
         query.numOfTemplates === '1' &&
-        query.host.endsWith('0.0.0.0:5987')
+        query.host.endsWith('127.0.0.1:5987')
     )
     .reply(200);
 
@@ -140,7 +130,7 @@ beforeEach(() => {
       '/epad/statistics/usertf',
       (body) => body.length === 0 || (body[0].userId === 1 && body[0].numOfTF === 1)
     )
-    .query((query) => query.host.endsWith('0.0.0.0:5987'))
+    .query((query) => query.host.endsWith('127.0.0.1:5987'))
     .reply(200);
 
   nock(config.statsEpad)
@@ -157,7 +147,7 @@ beforeEach(() => {
         query.templateLevelType === 'Image' &&
         query.templateDescription === 'Template used for collecting only ROIs' &&
         query.numOfAims === '0' &&
-        query.host.endsWith('0.0.0.0:5987')
+        query.host.endsWith('127.0.0.1:5987')
     )
     .reply(200);
 
@@ -175,7 +165,7 @@ beforeEach(() => {
         query.templateLevelType === 'Image' &&
         query.templateDescription === 'Template used for collecting only ROIs' &&
         query.numOfAims === '1' &&
-        query.host.endsWith('0.0.0.0:5987')
+        query.host.endsWith('127.0.0.1:5987')
     )
     .reply(200);
 
