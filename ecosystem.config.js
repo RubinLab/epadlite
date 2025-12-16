@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'ePADlite',
-      script: 'server.js',
+      script: 'app.js',
 
       // Options reference: https://pm2.io/doc/en/runtime/reference/ecosystem-file/
       // args: 'one two',

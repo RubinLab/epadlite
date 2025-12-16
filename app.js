@@ -2,8 +2,8 @@
 const buildServer = require('./server'); // eslint-disable-line
 const server = buildServer();
 
-const host = process.env.HOST || '0.0.0.0';
-const port = process.env.PORT || 5987;
+const host = process.env.host || '0.0.0.0';
+const port = process.env.port || 8080;
 
 async function start() {
   try {
