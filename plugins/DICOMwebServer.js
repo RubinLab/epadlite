@@ -954,8 +954,11 @@ async function dicomwebserver(fastify) {
               // check if the return value has series descriptions
               // if it has no series description in the first 3 (to cover series with no description), we need to get the descriptions from vna
               let seriesDescAvail = false;
-              for (let i = 0; i < res.length && i < 3; i += 1)
-                seriesDescAvail = seriesDescAvail || res[i]['0008103E'];
+              for (let i = 0; i < res.length && i < 3; i += 1) {
+                const descValue = res[i]['0008103E'] && res[i]['0008103E'].Value;
+                seriesDescAvail =
+                  seriesDescAvail || (descValue && Array.isArray(descValue) && !!descValue[0]);
+              }
               fastify.log.info(
                 `PACS DIMSE response ${JSON.stringify(res)}. Series available ${seriesDescAvail}`
               );
@@ -984,9 +987,12 @@ async function dicomwebserver(fastify) {
                 fastify.log.info(`ARCHIVE series description map ${JSON.stringify(map)}`);
                 // fill in the series descriptions retrieved from Sectra
                 res = res.map((item) => {
-                  if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
-                    // eslint-disable-next-line no-param-reassign
-                    item['0008103E'] = map[item['0020000E'].Value[0]];
+                  if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0]) {
+                    const desc = map[item['0020000E'].Value[0]];
+                    if (desc)
+                      // eslint-disable-next-line no-param-reassign
+                      item['0008103E'] = desc;
+                  }
                   return item;
                 });
               }
