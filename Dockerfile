@@ -1,4 +1,4 @@
-FROM node:20-bullseye-slim
+FROM node:20-bookworm-slim
   
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y bash git openssh-client libwrap0
@@ -13,7 +13,7 @@ COPY . /home/node/app/
 
 
 # Install app dependencies
-ENV NPM_CONFIG_LOGLEVEL warn
+ENV NPM_CONFIG_LOGLEVEL=warn
 RUN npm install --development
 
 # Expose the listening port of your app
