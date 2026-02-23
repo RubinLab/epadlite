@@ -1,7 +1,7 @@
-FROM node:lts-alpine
+FROM node:20-bullseye-slim
   
-RUN apk update && apk upgrade && \
-    apk add --no-cache bash git openssh
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y bash git openssh-client libwrap0
 
 RUN npm install pm2 -g
 

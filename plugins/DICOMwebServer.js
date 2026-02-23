@@ -11,8 +11,21 @@ window = {};
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
+let dimse = null;
+// try to require the native dimse module only if DIMSE configured
 // eslint-disable-next-line import/no-unresolved
-const dimse = config.dimse ? require('dicom-dimse-native') : null;
+if (config.dimse) {
+  try {
+    // eslint-disable-next-line global-require
+    dimse = require('dicom-dimse-native');
+  } catch (err) {
+    // don't crash if native module is not installed or fails to load
+    // warn and continue with DIMSE disabled
+    // eslint-disable-next-line no-console
+    console.warn('dicom-dimse-native not found; DIMSE functionality disabled.', err.message);
+    dimse = null;
+  }
+}
 
 // I need to import this after config as it uses config values
 // eslint-disable-next-line import/order
