@@ -166,7 +166,9 @@ async function couchdb(fastify, options) {
         ipes.push(imageAnnotation.imagingPhysicalEntityCollection.ImagingPhysicalEntity);
       }
       ipes.forEach((ipe) => {
-        row[ipe.label.value.toLowerCase()] = ipe.typeCode[0]['iso:displayName'].value;
+        row[ipe.label.value.toLowerCase()] = row[ipe.label.value.toLowerCase()]
+          ? `${row[ipe.label.value.toLowerCase()]}, ${ipe.typeCode[0]['iso:displayName'].value}`
+          : ipe.typeCode[0]['iso:displayName'].value;
         if (ipe.imagingPhysicalEntityCharacteristicCollection) {
           let ipcs = [];
           if (
@@ -183,7 +185,9 @@ async function couchdb(fastify, options) {
           }
 
           ipcs.forEach((ipc) => {
-            row[ipc.label.value.toLowerCase()] = ipc.typeCode[0]['iso:displayName'].value;
+            row[ipc.label.value.toLowerCase()] = row[ipc.label.value.toLowerCase()]
+              ? `${row[ipc.label.value.toLowerCase()]}, ${ipc.typeCode[0]['iso:displayName'].value}`
+              : ipc.typeCode[0]['iso:displayName'].value;
           });
         }
       });
@@ -201,7 +205,10 @@ async function couchdb(fastify, options) {
       }
       ioes.forEach((ioe) => {
         // imagingObservationEntity can have both ImagingObservationCharacteristic and imagingPhysicalEntityCharacteristic
-        row[ioe.label.value.toLowerCase()] = ioe.typeCode[0]['iso:displayName'].value;
+        row[ioe.label.value.toLowerCase()] = row[ioe.label.value.toLowerCase()]
+          ? `${row[ioe.label.value.toLowerCase()]}, ${ioe.typeCode[0]['iso:displayName'].value}`
+          : ioe.typeCode[0]['iso:displayName'].value;
+
         if (ioe.imagingObservationCharacteristicCollection) {
           let iocs = [];
           if (
@@ -222,9 +229,15 @@ async function couchdb(fastify, options) {
             ) {
               const iocq =
                 ioc.characteristicQuantificationCollection.CharacteristicQuantification[0];
-              row[ioc.label.value.toLowerCase()] = iocq.valueLabel.value;
+              row[ioc.label.value.toLowerCase()] = row[ioc.label.value.toLowerCase()]
+                ? `${row[ioc.label.value.toLowerCase()]}, ${iocq.valueLabel.value}`
+                : iocq.valueLabel.value;
             } else {
-              row[ioc.label.value.toLowerCase()] = ioc.typeCode[0][`iso:displayName`].value;
+              row[ioc.label.value.toLowerCase()] = row[ioc.label.value.toLowerCase()]
+                ? `${row[ioc.label.value.toLowerCase()]}, ${
+                    ioc.typeCode[0][`iso:displayName`].value
+                  }`
+                : ioc.typeCode[0][`iso:displayName`].value;
             }
           });
         }
@@ -243,7 +256,9 @@ async function couchdb(fastify, options) {
             );
           }
           ipcs.forEach((ipc) => {
-            row[ipc.label.value.toLowerCase()] = ipc.typeCode[0]['iso:displayName'].value;
+            row[ipc.label.value.toLowerCase()] = row[ipc.label.value.toLowerCase()]
+              ? `${row[ipc.label.value.toLowerCase()]}, ${ipc.typeCode[0]['iso:displayName'].value}`
+              : ipc.typeCode[0]['iso:displayName'].value;
           });
         }
       });

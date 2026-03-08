@@ -1,7 +1,7 @@
-FROM node:lts-alpine
+FROM node:20-bookworm-slim
   
-RUN apk update && apk upgrade && \
-    apk add --no-cache bash git openssh
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y bash git openssh-client libwrap0
 
 RUN npm install pm2 -g
 
@@ -13,7 +13,7 @@ COPY . /home/node/app/
 
 
 # Install app dependencies
-ENV NPM_CONFIG_LOGLEVEL warn
+ENV NPM_CONFIG_LOGLEVEL=warn
 RUN npm install --development
 
 # Expose the listening port of your app

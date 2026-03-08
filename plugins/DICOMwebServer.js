@@ -11,8 +11,21 @@ window = {};
 const config = require('../config/index');
 const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
+let dimse = null;
+// try to require the native dimse module only if DIMSE configured
 // eslint-disable-next-line import/no-unresolved
-const dimse = config.dimse ? require('dicom-dimse-native') : null;
+if (config.dimse) {
+  try {
+    // eslint-disable-next-line global-require
+    dimse = require('dicom-dimse-native');
+  } catch (err) {
+    // don't crash if native module is not installed or fails to load
+    // warn and continue with DIMSE disabled
+    // eslint-disable-next-line no-console
+    console.warn('dicom-dimse-native not found; DIMSE functionality disabled.', err.message);
+    dimse = null;
+  }
+}
 
 // I need to import this after config as it uses config values
 // eslint-disable-next-line import/order
@@ -941,8 +954,11 @@ async function dicomwebserver(fastify) {
               // check if the return value has series descriptions
               // if it has no series description in the first 3 (to cover series with no description), we need to get the descriptions from vna
               let seriesDescAvail = false;
-              for (let i = 0; i < res.length && i < 3; i += 1)
-                seriesDescAvail = seriesDescAvail || res[i]['0008103E'];
+              for (let i = 0; i < res.length && i < 3; i += 1) {
+                const descValue = res[i]['0008103E'] && res[i]['0008103E'].Value;
+                seriesDescAvail =
+                  seriesDescAvail || (descValue && Array.isArray(descValue) && !!descValue[0]);
+              }
               fastify.log.info(
                 `PACS DIMSE response ${JSON.stringify(res)}. Series available ${seriesDescAvail}`
               );
@@ -971,9 +987,12 @@ async function dicomwebserver(fastify) {
                 fastify.log.info(`ARCHIVE series description map ${JSON.stringify(map)}`);
                 // fill in the series descriptions retrieved from Sectra
                 res = res.map((item) => {
-                  if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0])
-                    // eslint-disable-next-line no-param-reassign
-                    item['0008103E'] = map[item['0020000E'].Value[0]];
+                  if (item['0020000E'] && item['0020000E'].Value && item['0020000E'].Value[0]) {
+                    const desc = map[item['0020000E'].Value[0]];
+                    if (desc)
+                      // eslint-disable-next-line no-param-reassign
+                      item['0008103E'] = desc;
+                  }
                   return item;
                 });
               }
@@ -1441,10 +1460,8 @@ async function dicomwebserver(fastify) {
 
   fastify.log.info(`Using DICOMwebServer: ${config.dicomWebConfig.baseUrl}`);
 
-  fastify.after(async () => {
-    try {
-      await fastify.initDicomWeb();
-    } catch (err) {
+  fastify.after(() => {
+    fastify.initDicomWeb().catch((err) => {
       // do not turn off the server if in test mode. shouldn't come here in development anyway
       if (config.env !== 'test') {
         fastify.log.error(
@@ -1452,15 +1469,15 @@ async function dicomwebserver(fastify) {
         );
         fastify.close();
       }
-    }
-
-    // need to add hook for close to remove the db if test;
-    fastify.addHook('onClose', (_instance, done) => {
-      if (config.env === 'test') {
-        // TODO logout from dicomwebserver
-        done();
-      }
     });
+
+    // // need to add hook for close to remove the db if test;
+    // fastify.addHook('onClose', (_instance, done) => {
+    //   if (config.env === 'test') {
+    //     // TODO logout from dicomwebserver
+    //     done();
+    //   }
+    // });
   });
 }
 // expose as plugin so the module using it can access the decorated methods
