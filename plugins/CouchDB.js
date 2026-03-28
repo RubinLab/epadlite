@@ -1,6 +1,7 @@
 /* eslint-disable no-async-promise-executor */
 /* eslint-disable no-underscore-dangle */
 const fp = require('fastify-plugin');
+const Nano = require('nano');
 const fs = require('fs-extra');
 const archiver = require('archiver');
 const atob = require('atob');
@@ -21,82 +22,85 @@ const {
 const EpadNotification = require('../utils/EpadNotification');
 
 async function couchdb(fastify, options) {
+  fastify.log.info(`Using db: ${config.db}`);
+
+  const couchUrl = options.url || process.env.COUCHDB_URL;
+  if (!couchUrl) {
+    throw new Error('CouchDB URL is required');
+  }
+
+  const nano = Nano({
+    url: couchUrl,
+  });
+
+  fastify.decorate('nano', nano);
+  fastify.decorate('couch', {
+    db: nano.db,
+  });
+
+  fastify.decorate('checkAndCreateDb', async () => {
+    try {
+      const databases = await fastify.couch.db.list();
+
+      if (!databases.includes(config.db)) {
+        await fastify.couch.db.create(config.db);
+      }
+
+      const dicomDB = fastify.couch.db.use(config.db);
+
+      let viewDoc = { views: {} };
+      let searchDoc = { indexes: {} };
+
+      try {
+        viewDoc = await dicomDB.get('_design/instances');
+      } catch (e) {
+        fastify.log.info('View document not found! Creating new one');
+      }
+
+      try {
+        searchDoc = await dicomDB.get('_design/search');
+      } catch (e) {
+        fastify.log.info('Search document not found! Creating new one');
+      }
+
+      viewDoc.views = {};
+      // eslint-disable-next-line no-restricted-syntax
+      for (const [key, value] of Object.entries(viewsjs.views)) {
+        viewDoc.views[key] = value;
+      }
+
+      searchDoc.indexes = searchDoc.indexes || {};
+      searchDoc.indexes.aimSearch = viewsjs.searchIndexes.aimSearch;
+
+      await dicomDB.insert(viewDoc, '_design/instances');
+      fastify.log.info('Design document updated successfully');
+
+      await dicomDB.insert(searchDoc, '_design/search');
+      fastify.log.info('Search design document updated successfully');
+    } catch (err) {
+      fastify.log.error(`Error connecting to couchdb: ${err.message}`);
+      throw new InternalError('Error connecting to couchdb', err);
+    }
+  });
+
   fastify.decorate('init', async () => {
     try {
       await fastify.couch.db.list();
       fastify.log.info('Connected to couchdb server');
-      return fastify.checkAndCreateDb();
+      await fastify.checkAndCreateDb();
     } catch (err) {
       if (config.env !== 'test') {
         fastify.log.warn('Waiting for couchdb server');
-        setTimeout(fastify.init, 3000);
-      } else throw new InternalError('No connection to couchdb', err);
+        setTimeout(() => {
+          fastify.init().catch((e) => {
+            fastify.log.error(`Retrying CouchDB init failed: ${e.message}`);
+          });
+        }, 3000);
+      } else {
+        fastify.log.warn(`CouchDB unavailable in test mode: ${err.message}`);
+      }
     }
-    return null;
   });
-
-  // Update the views in couchdb with the ones defined in the code
-  fastify.decorate(
-    'checkAndCreateDb',
-    () =>
-      new Promise(async (resolve, reject) => {
-        try {
-          const databases = await fastify.couch.db.list();
-          // check if the db exists
-          if (databases.indexOf(config.db) < 0) {
-            await fastify.couch.db.create(config.db);
-          }
-          const dicomDB = fastify.couch.db.use(config.db);
-          // define an empty design document
-          let viewDoc = {};
-          viewDoc.views = {};
-          let searchDoc = {};
-          searchDoc.indexes = {};
-          // try and get the design document
-          try {
-            viewDoc = await dicomDB.get('_design/instances');
-          } catch (e) {
-            fastify.log.info('View document not found! Creating new one');
-          }
-          try {
-            searchDoc = await dicomDB.get('_design/search');
-          } catch (e) {
-            fastify.log.info('Search document not found! Creating new one');
-          }
-          const keys = Object.keys(viewsjs.views);
-          const values = Object.values(viewsjs.views);
-          // clear views inside couch
-          viewDoc.views = {};
-          // update the views
-          for (let i = 0; i < keys.length; i += 1) {
-            viewDoc.views[keys[i]] = values[i];
-          }
-          searchDoc.indexes.aimSearch = viewsjs.searchIndexes.aimSearch;
-          // insert the updated/created design document
-          await dicomDB.insert(viewDoc, '_design/instances', (insertErr) => {
-            if (insertErr) {
-              fastify.log.error(`Error updating the design document ${insertErr.message}`);
-              reject(new InternalError('Error updating couchdb design document', insertErr));
-            } else {
-              fastify.log.info('Design document updated successfully ');
-              resolve();
-            }
-          });
-          await dicomDB.insert(searchDoc, '_design/search', (insertErr) => {
-            if (insertErr) {
-              fastify.log.error(`Error updating the search design document ${insertErr.message}`);
-              reject(new InternalError('Error updating search design document', insertErr));
-            } else {
-              fastify.log.info('Search design document updated successfully ');
-              resolve();
-            }
-          });
-        } catch (err) {
-          fastify.log.error(`Error connecting to couchdb: ${err.message}`);
-          reject(new InternalError('Error connecting to couchdb', err));
-        }
-      })
-  );
 
   fastify.decorate('getOtherHeaders', (imageAnnotation, header) => {
     // very clumsy, long code, but traverses once
@@ -1579,120 +1583,81 @@ async function couchdb(fastify, options) {
       });
   });
 
-  fastify.decorate(
-    'getTemplateInternal',
-    (codeValue, format = 'json') =>
-      new Promise((resolve, reject) => {
-        try {
-          let view = 'templates_json';
-          if (format) {
-            if (format === 'json') view = 'templates_json';
-            else if (format === 'summary') view = 'templates_summary';
-          }
-          const db = fastify.couch.db.use(config.db);
-          db.view(
-            'instances',
-            view,
-            {
-              startkey: [codeValue, '', ''],
-              endkey: [`${codeValue}\u9999`, '{}', '{}'],
-              reduce: true,
-              group_level: 3,
-            },
-            (error, body) => {
-              if (!error) {
-                const res = [];
-                if (body.rows.length > 1)
-                  fastify.log.warn(
-                    `Expecting one value but got ${body.rows.length}. Returning first`
-                  );
-                if (format === 'summary') {
-                  body.rows.forEach((template) => {
-                    res.push(template.key[2]);
-                  });
-                  resolve(res[0]);
-                } else if (format === 'stream') {
-                  body.rows.forEach((template) => {
-                    res.push(template.key[2]);
-                  });
-                  fastify
-                    .downloadTemplates(res)
-                    .then((result) => resolve(result[0]))
-                    .catch((err) => reject(err));
-                } else {
-                  // the default is json! The old APIs were XML, no XML in epadlite
-                  body.rows.forEach((template) => {
-                    res.push(template.key[2]);
-                  });
-                  resolve(res[0]);
-                }
-              } else {
-                reject(new InternalError('Getting templates from couchdb', error));
-              }
-            }
-          );
-        } catch (err) {
-          reject(new InternalError('Getting templates', err));
-        }
-      })
-  );
+  fastify.decorate('getTemplateInternal', async (codeValue, format = 'json') => {
+    try {
+      let view = 'templates_json';
+      if (format === 'summary') view = 'templates_summary';
 
-  fastify.decorate(
-    'getTemplatesInternal',
-    (query) =>
-      new Promise((resolve, reject) => {
-        try {
-          let type;
-          let format = 'json';
-          // eslint-disable-next-line prefer-destructuring
-          if (query.type) type = query.type.toLowerCase();
-          if (query.format) format = query.format.toLowerCase();
-          let view = 'templates_json';
-          if (format) {
-            if (format === 'json') view = 'templates_json';
-            else if (format === 'summary') view = 'templates_summary';
-          }
-          let filter = { reduce: true, group_level: 3 };
-          if (type)
-            filter = {
-              ...filter,
-              ...{ startkey: [type, '', ''], endkey: [`${type}\u9999`, '{}', '{}'] },
-            };
-          const db = fastify.couch.db.use(config.db);
-          db.view('instances', view, filter, (error, body) => {
-            if (!error) {
-              const res = [];
-              // lets filter only the emit values starting with template type (as view emits 2 for each doc)
-              const validTempateTypes = ['image', 'series', 'study'];
-              if (format === 'summary') {
-                body.rows.forEach((template) => {
-                  if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
-                });
-                resolve(res);
-              } else if (format === 'stream') {
-                body.rows.forEach((template) => {
-                  if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
-                });
-                fastify
-                  .downloadTemplates(res)
-                  .then((result) => resolve(result))
-                  .catch((err) => reject(err));
-              } else {
-                // the default is json! The old APIs were XML, no XML in epadlite
-                body.rows.forEach((template) => {
-                  if (validTempateTypes.includes(template.key[0])) res.push(template.key[2]);
-                });
-                resolve(res);
-              }
-            } else {
-              reject(new InternalError('Getting templates from couchdb', error));
-            }
-          });
-        } catch (err) {
-          reject(new InternalError('Getting templates', err));
+      const db = fastify.couch.db.use(config.db);
+
+      const body = await db.view('instances', view, {
+        startkey: [codeValue, '', ''],
+        endkey: [`${codeValue}\u9999`, '{}', '{}'],
+        reduce: true,
+        group_level: 3,
+      });
+
+      const res = [];
+
+      if (body.rows.length > 1) {
+        fastify.log.warn(`Expecting one value but got ${body.rows.length}. Returning first`);
+      }
+
+      body.rows.forEach((template) => {
+        res.push(template.key[2]);
+      });
+
+      if (format === 'stream') {
+        const result = await fastify.downloadTemplates(res);
+        return result[0];
+      }
+
+      return res[0];
+    } catch (err) {
+      throw new InternalError('Getting templates', err);
+    }
+  });
+
+  fastify.decorate('getTemplatesInternal', async (query) => {
+    try {
+      let type;
+      let format = 'json';
+
+      if (query.type) type = query.type.toLowerCase();
+      if (query.format) format = query.format.toLowerCase();
+
+      let view = 'templates_json';
+      if (format === 'summary') view = 'templates_summary';
+
+      let filter = { reduce: true, group_level: 3 };
+      if (type) {
+        filter = {
+          ...filter,
+          startkey: [type, '', ''],
+          endkey: [`${type}\u9999`, '{}', '{}'],
+        };
+      }
+
+      const db = fastify.couch.db.use(config.db);
+      const body = await db.view('instances', view, filter);
+
+      const res = [];
+      const validTempateTypes = ['image', 'series', 'study'];
+      body.rows.forEach((template) => {
+        if (validTempateTypes.includes(template.key[0])) {
+          res.push(template.key[2]);
         }
-      })
-  );
+      });
+
+      if (format === 'stream') {
+        return await fastify.downloadTemplates(res);
+      }
+
+      return res;
+    } catch (err) {
+      throw new InternalError('Getting templates', err);
+    }
+  });
 
   fastify.decorate('saveTemplate', (request, reply) => {
     // get the uid from the json and check if it is same with param, then put as id in couch document
@@ -1717,31 +1682,34 @@ async function couchdb(fastify, options) {
     }
   });
 
-  fastify.decorate(
-    'saveTemplateInternal',
-    (template) =>
-      new Promise((resolve, reject) => {
-        const couchDoc = {
-          _id: template.TemplateContainer.uid,
-          template,
-        };
-        const db = fastify.couch.db.use(config.db);
-        db.get(couchDoc._id, (error, existing) => {
-          if (!error) {
-            couchDoc._rev = existing._rev;
-            fastify.log.info(`Updating document for uid ${couchDoc._id}`);
-          }
+  fastify.decorate('saveTemplateInternal', async (template) => {
+    try {
+      const couchDoc = {
+        _id: template.TemplateContainer.uid,
+        template,
+      };
 
-          db.insert(couchDoc, couchDoc._id)
-            .then(() => {
-              resolve(`Template ${couchDoc._id} is saved successfully`);
-            })
-            .catch((err) => {
-              reject(new InternalError(`Saving template ${couchDoc._id} to couchdb`, err));
-            });
-        });
-      })
-  );
+      const db = fastify.couch.db.use(config.db);
+
+      try {
+        const existing = await db.get(couchDoc._id);
+        if (existing && existing._rev) {
+          couchDoc._rev = existing._rev;
+          fastify.log.info(`Updating document for uid ${couchDoc._id}`);
+        }
+      } catch (error) {
+        // doc does not exist yet, continue with insert
+        if (error && error.statusCode !== 404) {
+          throw error;
+        }
+      }
+
+      await db.insert(couchDoc, couchDoc._id);
+      return `Template ${couchDoc._id} is saved successfully`;
+    } catch (err) {
+      throw new InternalError(`Saving template ${template.TemplateContainer.uid} to couchdb`, err);
+    }
+  });
 
   fastify.decorate(
     'deleteTemplateInternal',
@@ -1885,46 +1853,42 @@ async function couchdb(fastify, options) {
   });
 
   // used to filter by project and handles the summary extraction itself
-  fastify.decorate(
-    'getTemplatesFromUIDsInternal',
-    (query, ids) =>
-      new Promise((resolve, reject) => {
-        try {
-          let format = 'json';
-          if (query.format) format = query.format.toLowerCase();
+  fastify.decorate('getTemplatesFromUIDsInternal', async (query, ids) => {
+    if (ids.length === 0) return [];
+    try {
+      let format = 'json';
+      if (query.format) format = query.format.toLowerCase();
 
-          const db = fastify.couch.db.use(config.db);
-          const res = [];
-          db.fetch({ keys: ids }).then((data) => {
-            if (format === 'summary') {
-              data.rows.forEach((item) => {
-                if (item.doc) {
-                  const summary = fastify.getSummaryFromTemplate(item.doc.template);
-                  res.push(summary);
-                }
-              });
-              resolve(res);
-            } else if (format === 'stream') {
-              data.rows.forEach((item) => {
-                if (item.doc) res.push(item.doc.template);
-              });
-              fastify
-                .downloadTemplates(res)
-                .then((result) => resolve(result))
-                .catch((err) => reject(err));
-            } else {
-              // the default is json! The old APIs were XML, no XML in epadlite
-              data.rows.forEach((item) => {
-                if (item.doc) res.push(item.doc.template);
-              });
-              resolve(res);
-            }
-          });
-        } catch (err) {
-          reject(new InternalError('Getting templates with uids and summary extraction', err));
-        }
-      })
-  );
+      const db = fastify.couch.db.use(config.db);
+      const data = await db.fetch({ keys: ids }, { include_docs: true });
+      const res = [];
+
+      if (format === 'summary') {
+        data.rows.forEach((item) => {
+          if (item.doc) {
+            const summary = fastify.getSummaryFromTemplate(item.doc.template);
+            res.push(summary);
+          }
+        });
+        return res;
+      }
+
+      if (format === 'stream') {
+        data.rows.forEach((item) => {
+          if (item.doc) res.push(item.doc.template);
+        });
+        return await fastify.downloadTemplates(res);
+      }
+
+      data.rows.forEach((item) => {
+        if (item.doc) res.push(item.doc.template);
+      });
+
+      return res;
+    } catch (err) {
+      throw new InternalError('Getting templates with uids and summary extraction', err);
+    }
+  });
 
   fastify.decorate('getAim', (request, reply) => {
     fastify
@@ -2435,43 +2399,22 @@ async function couchdb(fastify, options) {
       })
   );
 
-  fastify.decorate(
-    'closeCouchDB',
-    (instance) =>
-      new Promise(async (resolve, reject) => {
-        try {
-          if (config.env === 'test') {
-            try {
-              // if it is test remove the database
-              await instance.couch.db.destroy(config.db);
-              fastify.log.info('Destroying test database');
-            } catch (err) {
-              fastify.log.error(`Cannot destroy test database (err:${err.message})`);
-            }
-          }
-          resolve();
-        } catch (err) {
-          reject(new InternalError('close', err));
-        }
-      })
-  );
-
-  fastify.log.info(`Using db: ${config.db}`);
-  // register couchdb
-  // disables eslint check as I want this module to be standalone to be (un)pluggable
-  // eslint-disable-next-line global-require
-  fastify.register(require('fastify-couchdb'), {
-    // eslint-disable-line global-require
-    url: options.url,
-  });
-  fastify.after(async () => {
+  fastify.decorate('closeCouchDB', async (instance) => {
     try {
-      await fastify.init();
+      if (config.env === 'test') {
+        try {
+          await instance.couch.db.destroy(config.db);
+          fastify.log.info('Destroying test database');
+        } catch (err) {
+          fastify.log.error(`Cannot destroy test database (err:${err.message})`);
+        }
+      }
     } catch (err) {
-      fastify.log.error(`Cannot connect to couchdb (err:${err}), shutting down the server`);
-      fastify.close();
+      throw new InternalError('close', err);
     }
   });
+
+  await fastify.init();
 }
 // expose as plugin so the module using it can access the decorated methods
 module.exports = fp(couchdb);

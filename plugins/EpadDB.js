@@ -30,7 +30,7 @@ const {
 } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
 
-async function epaddb(fastify, options, done) {
+async function epaddb(fastify) {
   const models = {};
 
   fastify.decorate('initMariaDB', async () => {
@@ -54,238 +54,232 @@ async function epaddb(fastify, options, done) {
         logging: config.thickDb.logger === 'true' || config.thickDb.logger === true,
       };
 
-      // code from https://github.com/lyquocnam/fastify-sequelize/blob/master/index.js
-      // used sequelize itself to get the latest version with mariadb support
-      await new Promise(async (resolve, reject) => {
-        try {
-          const sequelize = new Sequelize(sequelizeConfig);
+      let sequelize;
+      try {
+        sequelize = new Sequelize(sequelizeConfig);
+        await sequelize.authenticate();
+      } catch (err) {
+        if (config.env === 'test') {
+          const dblessConfig = { ...sequelizeConfig, database: '' };
+          const bootstrap = new Sequelize(dblessConfig);
+          await bootstrap.query(`CREATE DATABASE ${config.thickDb.name};`);
+          await bootstrap.close();
+
+          sequelize = new Sequelize(sequelizeConfig);
           await sequelize.authenticate();
-          fastify.decorate('orm', sequelize);
-        } catch (err) {
-          if (config.env === 'test') {
-            try {
-              sequelizeConfig.database = '';
-              let sequelize = new Sequelize(sequelizeConfig);
-              await sequelize.query(`CREATE DATABASE ${config.thickDb.name};`);
-              sequelizeConfig.database = config.thickDb.name;
-              sequelize = new Sequelize(sequelizeConfig);
-              await sequelize.authenticate();
-              fastify.decorate('orm', sequelize);
-            } catch (testDBErr) {
-              reject(new InternalError('Creating test mariadb database', testDBErr));
-            }
-          } else {
-            reject(new InternalError(`Connecting to mariadb ${config.thickDb.name}`, err));
+        } else {
+          throw new InternalError(`Connecting to mariadb ${config.thickDb.name}`, err);
+        }
+      }
+
+      fastify.decorate('orm', sequelize);
+      try {
+        const filenames = fs.readdirSync(`${__dirname}/../models`);
+        for (let i = 0; i < filenames.length; i += 1) {
+          // eslint-disable-next-line import/no-dynamic-require, global-require
+          models[filenames[i].replace(/\.[^/.]+$/, '')] = require(path.join(
+            __dirname,
+            '/../models',
+            filenames[i]
+          ))(fastify.orm, Sequelize.DataTypes);
+        }
+
+        models.user.belongsToMany(models.project, {
+          through: 'project_user',
+          as: 'projects',
+          foreignKey: 'user_id',
+        });
+        models.worklist.hasMany(models.worklist_study, {
+          as: 'studies',
+          foreignKey: 'worklist_id',
+        });
+        models.worklist.hasMany(models.worklist_requirement, {
+          as: 'requirements',
+          foreignKey: 'worklist_id',
+        });
+        models.worklist_study.hasMany(models.worklist_study_completeness, {
+          as: 'progress',
+          foreignKey: 'worklist_study_id',
+        });
+        models.worklist_requirement.hasMany(models.worklist_study_completeness, {
+          foreignKey: 'worklist_requirement_id',
+        });
+
+        models.worklist_study.belongsTo(models.subject, {
+          foreignKey: 'subject_id',
+        });
+        models.worklist_study.belongsTo(models.study, {
+          foreignKey: 'study_id',
+        });
+
+        models.project.belongsToMany(models.user, {
+          through: 'project_user',
+          as: 'users',
+          foreignKey: 'project_id',
+        });
+
+        models.worklist.belongsToMany(models.user, {
+          through: 'worklist_user',
+          as: 'users',
+          foreignKey: 'worklist_id',
+        });
+
+        models.user.belongsToMany(models.worklist, {
+          through: 'worklist_user',
+          as: 'worklists',
+          foreignKey: 'user_id',
+        });
+        //  for plugins
+
+        models.plugin.belongsToMany(models.project, {
+          through: 'project_plugin',
+          as: 'pluginproject',
+          foreignKey: 'plugin_id',
+        });
+        models.project.belongsToMany(models.plugin, {
+          through: 'project_plugin',
+          as: 'projectplugin',
+          foreignKey: 'project_id',
+        });
+
+        models.plugin.belongsToMany(models.template, {
+          through: 'plugin_template',
+          as: 'plugintemplate',
+          foreignKey: 'plugin_id',
+        });
+        models.template.belongsToMany(models.plugin, {
+          through: 'plugin_template',
+          as: 'templateplugin',
+          foreignKey: 'template_id',
+        });
+
+        models.plugin.hasMany(models.plugin_parameters, {
+          as: 'defaultparameters',
+          foreignKey: 'plugin_id',
+        });
+        models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'plugin_id' });
+        models.plugin_queue.belongsTo(models.plugin, {
+          as: 'queueplugin',
+          foreignKey: 'plugin_id',
+        });
+        models.plugin_queue.belongsTo(models.project, {
+          as: 'queueproject',
+          foreignKey: 'project_id',
+        });
+        //  for plugins end
+
+        models.project.hasMany(models.project_subject, {
+          foreignKey: 'project_id',
+        });
+
+        models.subject.hasMany(models.project_subject, {
+          foreignKey: 'subject_id',
+        });
+
+        models.subject.hasMany(models.study, {
+          foreignKey: 'subject_id',
+        });
+
+        models.study.belongsTo(models.subject, {
+          foreignKey: 'subject_id',
+        });
+
+        models.nondicom_series.belongsTo(models.study, {
+          foreignKey: 'study_id',
+        });
+
+        models.project_subject.belongsTo(models.subject, {
+          foreignKey: 'subject_id',
+        });
+
+        models.project_subject.belongsTo(models.project, {
+          foreignKey: 'project_id',
+        });
+
+        models.study.hasMany(models.project_subject_study, {
+          foreignKey: 'study_id',
+        });
+
+        models.project_subject.belongsToMany(models.study, {
+          through: 'project_subject_study',
+          foreignKey: 'proj_subj_id',
+          otherKey: 'study_id',
+        });
+
+        models.project_subject_report.belongsTo(models.subject, {
+          foreignKey: 'subject_id',
+          onDelete: 'CASCADE',
+        });
+
+        models.project_subject_report.belongsTo(models.project, {
+          foreignKey: 'project_id',
+          onDelete: 'CASCADE',
+        });
+
+        models.project.hasMany(models.project_aim, {
+          foreignKey: 'project_id',
+        });
+
+        models.project_template.belongsTo(models.project, {
+          foreignKey: 'project_id',
+        });
+
+        models.project_aim.belongsTo(models.project, {
+          foreignKey: 'project_id',
+          onDelete: 'CASCADE',
+        });
+
+        models.project_aim.belongsToMany(models.user, {
+          through: 'project_aim_user',
+          as: 'users',
+          foreignKey: 'project_aim_id',
+        });
+
+        models.user.belongsToMany(models.project_aim, {
+          through: 'project_aim_user',
+          as: 'projectAims',
+          foreignKey: 'user_id',
+        });
+
+        models.project_subject_study_series_significance.belongsTo(models.project, {
+          foreignKey: 'project_id',
+          onDelete: 'CASCADE',
+        });
+
+        models.project_subject_study_series_significance.belongsTo(models.subject, {
+          foreignKey: 'subject_id',
+          onDelete: 'CASCADE',
+        });
+
+        models.project_subject_study_series_significance.belongsTo(models.study, {
+          foreignKey: 'study_id',
+          onDelete: 'CASCADE',
+        });
+
+        await fastify.orm.sync();
+        if (config.env === 'test') {
+          try {
+            await fastify.orm.query(
+              `INSERT IGNORE INTO user(username, firstname, lastname, email, admin, createdtime, updatetime) VALUES('admin', 'admin', 'admin', 'admin@gmail.com', true, ${Date.now()}, ${Date.now()})`
+            );
+          } catch (userCreateErr) {
+            throw new InternalError('Creating admin user in testdb', userCreateErr);
+          }
+          try {
+            await fastify.orm.query(
+              `INSERT IGNORE INTO registeredapps(apikey,name, email, organization, emailvalidationcode, ontologyname, hostname, epadtype, creator, createdtime, updatetime) VALUES('1111','testname','testemail','testorganization','testvalid', 'testontologyname', 'testontologyhost', 't', 'test', ${Date.now()}, ${Date.now()})`
+            );
+          } catch (apikeyerror) {
+            throw new InternalError('Creating apikey  in testdb', apikeyerror);
           }
         }
-        try {
-          const filenames = fs.readdirSync(`${__dirname}/../models`);
-          for (let i = 0; i < filenames.length; i += 1) {
-            // eslint-disable-next-line import/no-dynamic-require, global-require
-            models[filenames[i].replace(/\.[^/.]+$/, '')] = require(path.join(
-              __dirname,
-              '/../models',
-              filenames[i]
-            ))(fastify.orm, Sequelize.DataTypes);
-          }
-
-          models.user.belongsToMany(models.project, {
-            through: 'project_user',
-            as: 'projects',
-            foreignKey: 'user_id',
-          });
-          models.worklist.hasMany(models.worklist_study, {
-            as: 'studies',
-            foreignKey: 'worklist_id',
-          });
-          models.worklist.hasMany(models.worklist_requirement, {
-            as: 'requirements',
-            foreignKey: 'worklist_id',
-          });
-          models.worklist_study.hasMany(models.worklist_study_completeness, {
-            as: 'progress',
-            foreignKey: 'worklist_study_id',
-          });
-          models.worklist_requirement.hasMany(models.worklist_study_completeness, {
-            foreignKey: 'worklist_requirement_id',
-          });
-
-          models.worklist_study.belongsTo(models.subject, {
-            foreignKey: 'subject_id',
-          });
-          models.worklist_study.belongsTo(models.study, {
-            foreignKey: 'study_id',
-          });
-
-          models.project.belongsToMany(models.user, {
-            through: 'project_user',
-            as: 'users',
-            foreignKey: 'project_id',
-          });
-
-          models.worklist.belongsToMany(models.user, {
-            through: 'worklist_user',
-            as: 'users',
-            foreignKey: 'worklist_id',
-          });
-
-          models.user.belongsToMany(models.worklist, {
-            through: 'worklist_user',
-            as: 'worklists',
-            foreignKey: 'user_id',
-          });
-          //  for plugins
-
-          models.plugin.belongsToMany(models.project, {
-            through: 'project_plugin',
-            as: 'pluginproject',
-            foreignKey: 'plugin_id',
-          });
-          models.project.belongsToMany(models.plugin, {
-            through: 'project_plugin',
-            as: 'projectplugin',
-            foreignKey: 'project_id',
-          });
-
-          models.plugin.belongsToMany(models.template, {
-            through: 'plugin_template',
-            as: 'plugintemplate',
-            foreignKey: 'plugin_id',
-          });
-          models.template.belongsToMany(models.plugin, {
-            through: 'plugin_template',
-            as: 'templateplugin',
-            foreignKey: 'template_id',
-          });
-
-          models.plugin.hasMany(models.plugin_parameters, {
-            as: 'defaultparameters',
-            foreignKey: 'plugin_id',
-          });
-          models.plugin_parameters.belongsTo(models.plugin, { foreignKey: 'plugin_id' });
-          models.plugin_queue.belongsTo(models.plugin, {
-            as: 'queueplugin',
-            foreignKey: 'plugin_id',
-          });
-          models.plugin_queue.belongsTo(models.project, {
-            as: 'queueproject',
-            foreignKey: 'project_id',
-          });
-          //  for plugins end
-
-          models.project.hasMany(models.project_subject, {
-            foreignKey: 'project_id',
-          });
-
-          models.subject.hasMany(models.project_subject, {
-            foreignKey: 'subject_id',
-          });
-
-          models.subject.hasMany(models.study, {
-            foreignKey: 'subject_id',
-          });
-
-          models.study.belongsTo(models.subject, {
-            foreignKey: 'subject_id',
-          });
-
-          models.nondicom_series.belongsTo(models.study, {
-            foreignKey: 'study_id',
-          });
-
-          models.project_subject.belongsTo(models.subject, {
-            foreignKey: 'subject_id',
-          });
-
-          models.project_subject.belongsTo(models.project, {
-            foreignKey: 'project_id',
-          });
-
-          models.study.hasMany(models.project_subject_study, {
-            foreignKey: 'study_id',
-          });
-
-          models.project_subject.belongsToMany(models.study, {
-            through: 'project_subject_study',
-            foreignKey: 'proj_subj_id',
-            otherKey: 'study_id',
-          });
-
-          models.project_subject_report.belongsTo(models.subject, {
-            foreignKey: 'subject_id',
-            onDelete: 'CASCADE',
-          });
-
-          models.project_subject_report.belongsTo(models.project, {
-            foreignKey: 'project_id',
-            onDelete: 'CASCADE',
-          });
-
-          models.project.hasMany(models.project_aim, {
-            foreignKey: 'project_id',
-          });
-
-          models.project_template.belongsTo(models.project, {
-            foreignKey: 'project_id',
-          });
-
-          models.project_aim.belongsTo(models.project, {
-            foreignKey: 'project_id',
-            onDelete: 'CASCADE',
-          });
-
-          models.project_aim.belongsToMany(models.user, {
-            through: 'project_aim_user',
-            as: 'users',
-            foreignKey: 'project_aim_id',
-          });
-
-          models.user.belongsToMany(models.project_aim, {
-            through: 'project_aim_user',
-            as: 'projectAims',
-            foreignKey: 'user_id',
-          });
-
-          models.project_subject_study_series_significance.belongsTo(models.project, {
-            foreignKey: 'project_id',
-            onDelete: 'CASCADE',
-          });
-
-          models.project_subject_study_series_significance.belongsTo(models.subject, {
-            foreignKey: 'subject_id',
-            onDelete: 'CASCADE',
-          });
-
-          models.project_subject_study_series_significance.belongsTo(models.study, {
-            foreignKey: 'study_id',
-            onDelete: 'CASCADE',
-          });
-
-          await fastify.orm.sync();
-          if (config.env === 'test') {
-            try {
-              await fastify.orm.query(
-                `INSERT IGNORE INTO user(username, firstname, lastname, email, admin, createdtime, updatetime) VALUES('admin', 'admin', 'admin', 'admin@gmail.com', true, ${Date.now()}, ${Date.now()})`
-              );
-            } catch (userCreateErr) {
-              reject(new InternalError('Creating admin user in testdb', userCreateErr));
-            }
-            try {
-              await fastify.orm.query(
-                `INSERT IGNORE INTO registeredapps(apikey,name, email, organization, emailvalidationcode, ontologyname, hostname, epadtype, creator, createdtime, updatetime) VALUES('1111','testname','testemail','testorganization','testvalid', 'testontologyname', 'testontologyhost', 't', 'test', ${Date.now()}, ${Date.now()})`
-              );
-            } catch (apikeyerror) {
-              reject(new InternalError('Creating apikey  in testdb', apikeyerror));
-            }
-          }
-          fastify.log.info('Connected to mariadb server');
-          fastify.decorate('models', models);
-          resolve();
-        } catch (err) {
-          reject(new InternalError('Creating models and syncing db', err));
-        }
-      });
-      return fastify.afterDBReady();
+        fastify.log.info('Connected to mariadb server');
+        fastify.decorate('models', models);
+      } catch (err) {
+        throw new InternalError('Creating models and syncing db', err);
+      }
+      const returnVal = config.env === 'test' ? null : fastify.afterDBReady();
+      return returnVal;
     } catch (err) {
       if (config.env !== 'test') {
         fastify.log.warn(`Waiting for mariadb server. ${err.message}`);
@@ -356,7 +350,6 @@ async function epaddb(fastify, options, done) {
           if (validationErr) {
             reject(new BadRequestError('Creating project', new Error(validationErr)));
           }
-
           models.project
             .create({
               name: projectName,
@@ -373,7 +366,6 @@ async function epaddb(fastify, options, done) {
               try {
                 const userId = await fastify.findUserIdInternal(epadAuth.username);
                 await fastify.addProjectUser(project.id, userId, 'Owner', epadAuth.username);
-
                 // if there is default template add that template to project
                 await fastify.tryAddDefaultTemplateToProject(defaultTemplate, project, epadAuth);
                 // if teaching make sure both teeaching and significant image templates are added
@@ -391,7 +383,6 @@ async function epaddb(fastify, options, done) {
                       epadAuth
                     );
                 }
-
                 fastify.log.info(`Project with id ${project.id} is created successfully`);
                 resolve(`Project with id ${project.id} is created successfully`);
               } catch (errPU) {
@@ -417,31 +408,23 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.decorate(
-    'tryAddDefaultTemplateToProject',
-    (defaultTemplate, project, epadAuth) =>
-      new Promise(async (resolve) => {
-        if (defaultTemplate && defaultTemplate !== '') {
-          try {
-            // check if template exists in system
-            const template = await fastify.getTemplateInternal(defaultTemplate, 'summary');
-            await fastify.addProjectTemplateRelInternal(
-              template.containerUID,
-              project,
-              {},
-              epadAuth
-            );
+  fastify.decorate('tryAddDefaultTemplateToProject', async (defaultTemplate, project, epadAuth) => {
+    if (!defaultTemplate || defaultTemplate === '') {
+      return false;
+    }
 
-            resolve(true);
-          } catch (errTemplate) {
-            fastify.log.warn(
-              `Could not add template ${defaultTemplate} to project ${JSON.stringify(project)}`
-            );
-          }
-        }
-        resolve(false);
-      })
-  );
+    try {
+      const template = await fastify.getTemplateInternal(defaultTemplate, 'summary');
+      await fastify.addProjectTemplateRelInternal(template.containerUID, project, {}, epadAuth);
+      return true;
+    } catch (errTemplate) {
+      fastify.log.warn(
+        `Could not add template ${defaultTemplate} to project ${JSON.stringify(project)}`
+      );
+      fastify.log.warn(errTemplate);
+      return false;
+    }
+  });
 
   fastify.decorate('updateProject', (request, reply) => {
     if (request.params.project === 'lite') {
@@ -6524,40 +6507,44 @@ async function epaddb(fastify, options, done) {
         where: { projectid: request.params.project },
       });
       if (project === null) {
-        reply.send(
+        return reply.send(
           new BadRequestError(
             'Template saving to project',
             new ResourceNotFoundError('Project', request.params.project)
           )
         );
-      } else {
-        const templateUids = [];
-        const enabled = {};
-        const projectTemplates = await models.project_template.findAll({
-          where: { project_id: project.id },
-        });
-        // projects will be an array of Project instances with the specified name
-        for (let i = 0; i < projectTemplates.length; i += 1) {
-          templateUids.push(projectTemplates[i].template_uid);
-          enabled[projectTemplates[i].template_uid] = projectTemplates[i].enabled;
-        }
-        const result = await fastify.getTemplatesFromUIDsInternal(request.query, templateUids);
-        if (request.query.format === 'summary') {
-          // add enable disable
-          const editedResult = result;
-          for (let i = 0; i < editedResult.length; i += 1) {
-            editedResult[i].enabled = enabled[editedResult[i].containerUID] === 1;
-          }
-          reply.code(200).send(editedResult);
-        } else {
-          if (request.query.format === 'stream') {
-            reply.header('Content-Disposition', `attachment; filename=templates.zip`);
-          }
-          reply.code(200).send(result);
-        }
       }
+
+      const templateUids = [];
+      const enabled = {};
+
+      const projectTemplates = await models.project_template.findAll({
+        where: { project_id: project.id },
+      });
+      for (let i = 0; i < projectTemplates.length; i += 1) {
+        templateUids.push(projectTemplates[i].template_uid);
+        enabled[projectTemplates[i].template_uid] = projectTemplates[i].enabled;
+      }
+
+      const result = await fastify.getTemplatesFromUIDsInternal(request.query, templateUids);
+      if (request.query.format === 'summary') {
+        const editedResult = result.map((item) => ({
+          ...item,
+          enabled: enabled[item.containerUID] === 1,
+        }));
+
+        return reply.code(200).send(editedResult);
+      }
+
+      if (request.query.format === 'stream') {
+        reply.header('Content-Disposition', 'attachment; filename=templates.zip');
+      }
+
+      return reply.code(200).send(result);
     } catch (err) {
-      reply.send(new InternalError(`Getting templates for project ${request.params.project}`, err));
+      return reply.send(
+        new InternalError(`Getting templates for project ${request.params.project}`, err)
+      );
     }
   });
 
@@ -15423,15 +15410,7 @@ async function epaddb(fastify, options, done) {
       })
   );
 
-  fastify.after(async () => {
-    try {
-      await fastify.initMariaDB();
-      done();
-    } catch (err) {
-      fastify.log.error(`Cannot connect to mariadb (err:${err.message}), shutting down the server`);
-      fastify.close();
-    }
-  });
+  await fastify.initMariaDB();
 }
 // expose as plugin so the module using it can access the decorated methods
 module.exports = fp(epaddb);

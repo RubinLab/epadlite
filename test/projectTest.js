@@ -409,41 +409,46 @@ describe('Project Tests', () => {
       });
   });
 
-  describe('Project Template Tests', () => {
+  describe.only('Project Template Tests', () => {
     before(async () => {
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/projects')
-        .query({ username: 'admin' })
-        .send({
+      // eslint-disable-next-line no-underscore-dangle
+      await global.__SERVER__.inject({
+        method: 'POST',
+        url: '/projects?username=admin',
+        payload: {
           projectId: 'testtemplate',
           projectName: 'testtemplate',
           projectDescription: 'testdesc',
           defaultTemplate: 'ROI',
           type: 'private',
-        });
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/projects')
-        .query({ username: 'admin' })
-        .send({
+        },
+      });
+
+      // eslint-disable-next-line no-underscore-dangle
+      await global.__SERVER__.inject({
+        method: 'POST',
+        url: '/projects?username=admin',
+        payload: {
           projectId: 'testtemplate2',
           projectName: 'testtemplate2',
           projectDescription: 'test2desc',
           defaultTemplate: 'ROI',
           type: 'private',
-        });
-      await chai
-        .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/projects')
-        .query({ username: 'admin' })
-        .send({
+        },
+      });
+
+      // eslint-disable-next-line no-underscore-dangle
+      await global.__SERVER__.inject({
+        method: 'POST',
+        url: '/projects?username=admin',
+        payload: {
           projectId: 'testtemplate3',
           projectName: 'testtemplate3',
           projectDescription: 'test3desc',
           defaultTemplate: '',
           type: 'private',
-        });
+        },
+      });
     });
     after(async () => {
       await chai
@@ -465,7 +470,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' });
     });
 
-    it('project testtemplate should have no template ', (done) => {
+    it.only('project testtemplate should have no template ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate/templates')
@@ -479,7 +484,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it('project template save should be successful ', (done) => {
+    it.only('project template save should be successful ', (done) => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)

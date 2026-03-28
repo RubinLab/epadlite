@@ -4,15 +4,20 @@ before(async () => {
   const port = 5987;
   process.env.host = host;
   process.env.port = port;
-  const buildServer = require('../server'); // eslint-disable-line
+  // eslint-disable-next-line global-require
+  const buildServer = require('../server');
   server = buildServer();
+  await server.ready();
   await server.listen({ host, port });
   // eslint-disable-next-line no-underscore-dangle
   global.__SERVER__ = server;
 });
+
 after(async () => {
-  server.log.info('Trying to close the server');
-  await server.close();
+  if (server) {
+    await server.close();
+    server = undefined;
+  }
   // eslint-disable-next-line no-underscore-dangle
-  await global.__SERVER__.close();
+  global.__SERVER__ = undefined;
 });
