@@ -7,6 +7,7 @@ before(async () => {
   // eslint-disable-next-line global-require
   const buildServer = require('../server');
   server = buildServer();
+  server.hostname = `${host}:${port}`;
   await server.ready();
   await server.listen({ host, port });
   // eslint-disable-next-line no-underscore-dangle

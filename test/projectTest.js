@@ -470,7 +470,7 @@ describe('Project Tests', () => {
         .query({ username: 'admin' });
     });
 
-    it.only('project testtemplate should have no template ', (done) => {
+    it('project testtemplate should have no template ', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testtemplate/templates')
@@ -484,7 +484,7 @@ describe('Project Tests', () => {
           done(e);
         });
     });
-    it.only('project template save should be successful ', (done) => {
+    it('project template save should be successful ', (done) => {
       const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roiOnlyTemplate.json'));
       chai
         .request(`http://${process.env.host}:${process.env.port}`)

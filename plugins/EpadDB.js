@@ -6559,45 +6559,44 @@ async function epaddb(fastify) {
         [templateUid]
       );
       const templateCode = templateContainer.Template[0].templateCodeValue;
+
       if (project === null) {
-        reply.send(
+        return reply.send(
           new BadRequestError(
             'Deleting template from project',
             new ResourceNotFoundError('Project', request.params.project)
           )
         );
-      } else if (
-        request.query.all &&
-        request.query.all === 'true' &&
-        request.epadAuth.admin === false
-      )
-        reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
-      else {
-        const numDeleted = await models.project_template.destroy({
-          where: { project_id: project.id, template_uid: templateUid },
-        });
-        // remove it from the project if it is default template
-        if (project.defaulttemplate === templateCode) {
-          project.defaulttemplate = null;
-          project.save();
-        }
-        // if delete from all or it doesn't exist in any other project, delete from system
-        if (request.query.all && request.query.all === 'true') {
-          const deletednum = await models.project_template.destroy({
-            where: { template_uid: templateUid },
-          });
-          await fastify.deleteTemplateInternal(request.params);
-          reply
-            .code(200)
-            .send(
-              `Template deleted from system and removed from ${deletednum + numDeleted} projects`
-            );
-        } else {
-          reply.code(200).send(`Template deleted from project`);
-        }
       }
+      if (request.query.all && request.query.all === 'true' && request.epadAuth.admin === false) {
+        return reply.send(new UnauthorizedError('User is not admin, cannot delete from system'));
+      }
+      const numDeleted = await models.project_template.destroy({
+        where: { project_id: project.id, template_uid: templateUid },
+      });
+
+      // remove it from the project if it is default template
+      if (project.defaulttemplate === templateCode) {
+        project.defaulttemplate = null;
+        await project.save();
+      }
+
+      // if delete from all or it doesn't exist in any other project, delete from system
+      if (request.query.all && request.query.all === 'true') {
+        const deletednum = await models.project_template.destroy({
+          where: { template_uid: templateUid },
+        });
+        await fastify.deleteTemplateInternal(request.params);
+        return reply
+          .code(200)
+          .send(
+            `Template deleted from system and removed from ${deletednum + numDeleted} projects`
+          );
+      }
+
+      return reply.code(200).send('Template deleted from project');
     } catch (err) {
-      reply.send(
+      return reply.send(
         new InternalError(
           `Template ${request.params.uid} deletion from ${request.params.project}`,
           err
@@ -13397,253 +13396,255 @@ async function epaddb(fastify) {
       .catch((err) => reply.send(err));
   });
 
-  fastify.decorate(
-    'calcStats',
-    () =>
-      new Promise(async (resolve, reject) => {
-        try {
-          fastify.log.info('Getting stats');
-          const numOfUsers = await models.user.count();
-          const numOfProjects = await models.project.count();
+  fastify.decorate('calcStats', async () => {
+    try {
+      fastify.log.info('Getting stats');
+      const numOfUsers = await models.user.count();
+      const numOfProjects = await models.project.count();
 
-          let numOfPatients = 0;
-          if (config.env !== 'test' && config.mode !== 'lite') {
-            const qry = `SELECT COUNT(DISTINCT subject_id) AS count FROM project_subject;`;
-            numOfPatients = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
-          } else {
-            const patients = await fastify.getPatientsInternal({}, undefined, undefined, true);
-            numOfPatients = patients.length;
-          }
+      let numOfPatients = 0;
+      if (config.env !== 'test' && config.mode !== 'lite') {
+        const qry = `SELECT COUNT(DISTINCT subject_id) AS count FROM project_subject;`;
+        numOfPatients = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
+      } else {
+        const patients = await fastify.getPatientsInternal({}, undefined, undefined, true);
+        numOfPatients = patients.length;
+      }
 
-          let numOfStudies = 0;
-          if (config.env !== 'test' && config.mode !== 'lite') {
-            const qry = `SELECT COUNT(DISTINCT study_id) AS count FROM project_subject_study;`;
-            numOfStudies = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
-          } else {
-            // TODO this will be affected by limit!
-            const studies = await fastify.getPatientStudiesInternal(
-              {},
-              undefined,
-              { username: 'admin' },
-              {},
-              true
-            );
-            numOfStudies = studies.length;
-          }
+      let numOfStudies = 0;
+      if (config.env !== 'test' && config.mode !== 'lite') {
+        const qry = `SELECT COUNT(DISTINCT study_id) AS count FROM project_subject_study;`;
+        numOfStudies = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
+      } else {
+        // TODO this will be affected by limit!
+        const studies = await fastify.getPatientStudiesInternal(
+          {},
+          undefined,
+          { username: 'admin' },
+          {},
+          true
+        );
+        numOfStudies = studies.length;
+      }
 
-          // always from dicomweb server
-          const series = await fastify.getAllStudySeriesInternal(
-            { forceDicomweb: 'true' },
-            undefined
-          );
-          const numOfDSOs = _.reduce(
-            series,
-            (count, serie) => {
-              if (serie.isDSO) return count + 1;
-              return count;
-            },
-            0
-          );
-          const numOfSeries = series.length - numOfDSOs;
+      // always from dicomweb server
+      const series = await fastify.getAllStudySeriesInternal({ forceDicomweb: 'true' }, undefined);
+      const numOfDSOs = _.reduce(
+        series,
+        (count, serie) => {
+          if (serie.isDSO) return count + 1;
+          return count;
+        },
+        0
+      );
+      const numOfSeries = series.length - numOfDSOs;
 
-          let numOfAims = 0;
-          const numOfTemplateAimsMap = {};
-          let userTFStats = {};
-          const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
-          numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
-          const numOfTemplateAimsDB = await models.project_aim.findAll({
-            group: ['template'],
-            attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
-            raw: true,
-            where: fastify.qryNotDeleted(),
-          });
-          numOfTemplateAimsDB.forEach((item) => {
-            numOfTemplateAimsMap[item.template] = item.aimcount;
-          });
+      let numOfAims = 0;
+      const numOfTemplateAimsMap = {};
+      let userTFStats = {};
+      const qry = `SELECT COUNT(DISTINCT aim_uid) AS count FROM project_aim WHERE deleted is NULL;`;
+      numOfAims = (await fastify.orm.query(qry, { type: QueryTypes.SELECT }))[0].count;
+      const numOfTemplateAimsDB = await models.project_aim.findAll({
+        group: ['template'],
+        attributes: ['template', [Sequelize.fn('COUNT', 'aim_uid'), 'aimcount']],
+        raw: true,
+        where: fastify.qryNotDeleted(),
+      });
+      numOfTemplateAimsDB.forEach((item) => {
+        numOfTemplateAimsMap[item.template] = item.aimcount;
+      });
 
-          // get user based teaching stats
-          if (config.mode === 'teaching') {
-            const userTeachingAims = await models.user.findAll({
+      // get user based teaching stats
+      if (config.mode === 'teaching') {
+        const userTeachingAims = await models.user.findAll({
+          include: [
+            {
+              model: models.project_aim,
+              as: 'projectAims',
+              // /* lite */
+              where: {
+                template: config.teachingTemplate,
+                ...fastify.qryNotDeleted(),
+              },
               include: [
                 {
-                  model: models.project_aim,
-                  as: 'projectAims',
-                  // /* lite */
+                  model: models.project,
                   where: {
-                    template: config.teachingTemplate,
-                    ...fastify.qryNotDeleted(),
+                    projectid: config.teachingProject ? config.teachingProject : 'lite',
                   },
-                  include: [
-                    {
-                      model: models.project,
-                      where: {
-                        projectid: config.teachingProject ? config.teachingProject : 'lite',
-                      },
-                    },
-                  ],
                 },
               ],
-            });
-            userTFStats = userTeachingAims.map((item) => ({
-              userId: item.id,
-              numOfTF: item.projectAims.length,
-            }));
-            const month = new Date().getMonth() + 1;
-            const year = new Date().getYear() + 1900;
-            for (let i = 0; i < userTFStats.length; i += 1) {
-              // eslint-disable-next-line no-await-in-loop
-              await models.epadstatistics_usertf.create({
-                host: 'localhost',
-                template_code: userTFStats[i].template || config.teachingTemplate,
-                user_id: userTFStats[i].userId,
-                num_of_tf: userTFStats[i].numOfTF,
-                year,
-                month,
-                creator: 'admin',
-                createdtime: Date.now(),
-                updatetime: Date.now(),
-              });
-            }
-          }
-
-          // TODO are these correct? check with thick
-          const numOfFiles = await models.project_file.count();
-          // TODO make sure the migration moves the files to couch
-          const templates = await fastify.getTemplatesInternal('summary');
-          const numOfTemplates = templates.length;
-
-          const numOfPlugins = await models.plugin.count();
-
-          // no plans to implement these yet
-          // const numOfPacs = RemotePACService.getInstance().getRemotePACs().size();
-          // const numOfAutoQueries = new RemotePACQuery().getCount("");
-          const numOfWorkLists = await models.worklist.count();
-
-          // lets get both the hostname and the hostname from request
-          const hostname = `${os.hostname()}|${fastify.hostname}`;
-
-          // save to db
-          await models.epadstatistics.create({
-            host: hostname,
-            numOfUsers,
-            numOfProjects,
-            numOfPatients,
-            numOfStudies,
-            numOfSeries,
-            numOfAims,
-            numOfDSOs,
-            numOfWorkLists,
+            },
+          ],
+        });
+        userTFStats = userTeachingAims.map((item) => ({
+          userId: item.id,
+          numOfTF: item.projectAims.length,
+        }));
+        const month = new Date().getMonth() + 1;
+        const year = new Date().getYear() + 1900;
+        for (let i = 0; i < userTFStats.length; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          await models.epadstatistics_usertf.create({
+            host: 'localhost',
+            template_code: userTFStats[i].template || config.teachingTemplate,
+            user_id: userTFStats[i].userId,
+            num_of_tf: userTFStats[i].numOfTF,
+            year,
+            month,
             creator: 'admin',
             createdtime: Date.now(),
             updatetime: Date.now(),
-            numOfFiles,
-            numOfPlugins,
-            numOfTemplates,
           });
-
-          const request = Axios.create({
-            baseURL: config.statsEpad,
-          });
-          // generic stats url
-          const epadUrl = `/epad/statistics/?numOfUsers=${numOfUsers}&numOfProjects=${numOfProjects}&numOfPatients=${numOfPatients}&numOfStudies=${numOfStudies}&numOfSeries=${numOfSeries}&numOfAims=${numOfAims}&numOfDSOs=${numOfDSOs}&numOfWorkLists=${numOfWorkLists}&numOfFiles=${numOfFiles}&numOfPlugins=${numOfPlugins}&numOfTemplates=${numOfTemplates}&host=${hostname}`;
-
-          // send to statistics collector
-          if (!config.disableStats) {
-            fastify.log.info(
-              `Sending generic stats to ${request.defaults.baseURL}${encodeURI(epadUrl)}`
-            );
-            await request.put(encodeURI(epadUrl));
-            fastify.log.info(`Statistics sent with success`);
-          }
-
-          // get template stats
-          fastify.log.info('Getting template stats');
-          for (let i = 0; i < templates.length; i += 1) {
-            const templateCode = templates[i].TemplateContainer.Template[0].codeValue;
-            const templateName = templates[i].TemplateContainer.Template[0].name;
-            const { authors } = templates[i].TemplateContainer.Template[0];
-            const { version } = templates[i].TemplateContainer.Template[0];
-            const templateLevelType = templates[i].TemplateContainer.Template[0].templateType
-              ? templates[i].TemplateContainer.Template[0].templateType
-              : 'Image';
-            const templateDescription = templates[i].TemplateContainer.Template[0].description;
-            const numOfTemplateAims = numOfTemplateAimsMap[templateCode] || 0;
-            const templateText = JSON.stringify(templates[i]);
-
-            // save to db
-            // eslint-disable-next-line no-await-in-loop
-            await models.epadstatistics_template.create({
-              host: hostname,
-              templateCode,
-              templateName,
-              authors,
-              version,
-              templateLevelType,
-              templateDescription,
-              numOfAims: numOfTemplateAims,
-              templateText,
-              creator: 'admin',
-              createdtime: Date.now(),
-              updatetime: Date.now(),
-            });
-            // template stats url
-            const templatesEpadUrl = `/epad/statistics/templates/?templateCode=${templateCode}&templateName=${templateName}&authors=${authors}&version=${version}&templateLevelType=${templateLevelType}&templateDescription=${templateDescription}&numOfAims=${numOfTemplateAims}&host=${hostname}`;
-            // send to statistics collector
-            if (!config.disableStats) {
-              fastify.log.info(
-                `Sending template ${templateName} stats to ${request.defaults.baseURL}${encodeURI(
-                  templatesEpadUrl
-                )}`
-              );
-              // eslint-disable-next-line no-await-in-loop
-              await request.put(encodeURI(templatesEpadUrl), templateText, {
-                headers: { 'Content-Type': 'text/plain' },
-              });
-              fastify.log.info(`Template statistics sent with success`);
-            }
-          }
-
-          if (
-            config.mode === 'teaching' &&
-            (hostname.includes('stella.stanfordmed.org') || config.env === 'test')
-          ) {
-            // send user aim stats
-            const userTFsEpadUrl = `/epad/statistics/usertf?host=${hostname}`;
-            // send to statistics collector
-            if (!config.disableStats) {
-              fastify.log.info(
-                `Sending user aim stats to ${request.defaults.baseURL}${encodeURI(userTFsEpadUrl)}`
-              );
-              // eslint-disable-next-line no-await-in-loop
-              await request.put(encodeURI(userTFsEpadUrl), userTFStats, {
-                headers: { 'Content-Type': 'application/json' },
-              });
-              fastify.log.info(`Teaching file statistics sent with success`);
-            }
-          }
-
-          // done with calculating and sending the statistics
-          // calculate a monthly cumulative if it is there is no record for the month
-          const month = new Date().getMonth() + 1;
-          const monthlyStats = await models.epadstatistics_monthly.count({
-            where: {
-              $and: fastify.orm.where(
-                fastify.orm.fn('month', fastify.orm.col('createdtime')),
-                month
-              ),
-            },
-          });
-          if (monthlyStats === 0) {
-            await fastify.orm.query(
-              `insert into epadstatistics_monthly(numOfUsers, numOfProjects,numOfPatients,numOfStudies,numOfSeries,numOfAims,numOfDSOs,numOfWorkLists,numOfPacs,numOfAutoQueries,numOfFiles,numOfPlugins,numOfTemplates,creator,updatetime) (select sum(numOfUsers), sum(numOfProjects), sum(numOfPatients), sum(numOfStudies), sum(numOfSeries), sum(numOfAims),sum(numOfDSOs),sum(numOfWorkLists),sum(numOfPacs),sum(numOfAutoQueries),sum(numOfFiles),sum(numOfPlugins),sum(numOfTemplates),'admin',now()  from (select * from epadstatistics a where createdtime =(select max(createdtime) from epadstatistics b where b.host = a.host) group by host order by host) ab)`
-            );
-          }
-          resolve('Stats sent');
-        } catch (error) {
-          reject(new InternalError(`Sending statistics to ${config.statsEpad}`, error));
         }
-      })
-  );
+      }
+
+      // TODO are these correct? check with thick
+      const numOfFiles = await models.project_file.count();
+      // TODO make sure the migration moves the files to couch
+      const templates = await fastify.getTemplatesInternal('summary');
+      const numOfTemplates = templates.length;
+
+      const numOfPlugins = await models.plugin.count();
+
+      // no plans to implement these yet
+      // const numOfPacs = RemotePACService.getInstance().getRemotePACs().size();
+      // const numOfAutoQueries = new RemotePACQuery().getCount("");
+      const numOfWorkLists = await models.worklist.count();
+
+      // lets get both the hostname and the hostname from request
+      const hostname = `${os.hostname()}|${fastify.hostname}`;
+
+      // save to db
+      await models.epadstatistics.create({
+        host: hostname,
+        numOfUsers,
+        numOfProjects,
+        numOfPatients,
+        numOfStudies,
+        numOfSeries,
+        numOfAims,
+        numOfDSOs,
+        numOfWorkLists,
+        creator: 'admin',
+        createdtime: Date.now(),
+        updatetime: Date.now(),
+        numOfFiles,
+        numOfPlugins,
+        numOfTemplates,
+      });
+
+      const request = Axios.create({
+        baseURL: config.statsEpad,
+      });
+      // generic stats url
+      const epadUrl = `/epad/statistics/?numOfUsers=${numOfUsers}&numOfProjects=${numOfProjects}&numOfPatients=${numOfPatients}&numOfStudies=${numOfStudies}&numOfSeries=${numOfSeries}&numOfAims=${numOfAims}&numOfDSOs=${numOfDSOs}&numOfWorkLists=${numOfWorkLists}&numOfFiles=${numOfFiles}&numOfPlugins=${numOfPlugins}&numOfTemplates=${numOfTemplates}&host=${hostname}`;
+
+      // send to statistics collector
+      if (!config.disableStats) {
+        fastify.log.info(
+          `Sending generic stats to ${request.defaults.baseURL}${encodeURI(epadUrl)}`
+        );
+        try {
+          await request.put(encodeURI(epadUrl));
+          fastify.log.info(`Statistics sent with success`);
+        } catch (err) {
+          fastify.log.error({ err }, 'Sending generic stats failed');
+        }
+      }
+
+      // get template stats
+      fastify.log.info('Getting template stats');
+      for (let i = 0; i < templates.length; i += 1) {
+        const templateCode = templates[i].TemplateContainer.Template[0].codeValue;
+        const templateName = templates[i].TemplateContainer.Template[0].name;
+        const { authors } = templates[i].TemplateContainer.Template[0];
+        const { version } = templates[i].TemplateContainer.Template[0];
+        const templateLevelType = templates[i].TemplateContainer.Template[0].templateType
+          ? templates[i].TemplateContainer.Template[0].templateType
+          : 'Image';
+        const templateDescription = templates[i].TemplateContainer.Template[0].description;
+        const numOfTemplateAims = numOfTemplateAimsMap[templateCode] || 0;
+        const templateText = JSON.stringify(templates[i]);
+
+        // save to db
+        // eslint-disable-next-line no-await-in-loop
+        await models.epadstatistics_template.create({
+          host: hostname,
+          templateCode,
+          templateName,
+          authors,
+          version,
+          templateLevelType,
+          templateDescription,
+          numOfAims: numOfTemplateAims,
+          templateText,
+          creator: 'admin',
+          createdtime: Date.now(),
+          updatetime: Date.now(),
+        });
+        // template stats url
+        const templatesEpadUrl = `/epad/statistics/templates/?templateCode=${templateCode}&templateName=${templateName}&authors=${authors}&version=${version}&templateLevelType=${templateLevelType}&templateDescription=${templateDescription}&numOfAims=${numOfTemplateAims}&host=${hostname}`;
+        // send to statistics collector
+        if (!config.disableStats) {
+          fastify.log.info(
+            `Sending template ${templateName} stats to ${request.defaults.baseURL}${encodeURI(
+              templatesEpadUrl
+            )}`
+          );
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await request.put(encodeURI(templatesEpadUrl), templateText, {
+              headers: { 'Content-Type': 'text/plain' },
+            });
+            fastify.log.info(`Template statistics sent with success`);
+          } catch (err) {
+            fastify.log.error({ err, templateName }, 'Sending template stats failed');
+          }
+        }
+      }
+
+      if (
+        config.mode === 'teaching' &&
+        (hostname.includes('stella.stanfordmed.org') || config.env === 'test')
+      ) {
+        // send user aim stats
+        const userTFsEpadUrl = `/epad/statistics/usertf?host=${hostname}`;
+        // send to statistics collector
+        if (!config.disableStats) {
+          fastify.log.info(
+            `Sending user aim stats to ${request.defaults.baseURL}${encodeURI(userTFsEpadUrl)}`
+          );
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await request.put(encodeURI(userTFsEpadUrl), userTFStats, {
+              headers: { 'Content-Type': 'application/json' },
+            });
+            fastify.log.info(`Teaching file statistics sent with success`);
+          } catch (err) {
+            fastify.log.error({ err }, 'Sending user aim stats failed');
+          }
+        }
+      }
+
+      // done with calculating and sending the statistics
+      // calculate a monthly cumulative if it is there is no record for the month
+      const month = new Date().getMonth() + 1;
+      const monthlyStats = await models.epadstatistics_monthly.count({
+        where: {
+          $and: fastify.orm.where(fastify.orm.fn('month', fastify.orm.col('createdtime')), month),
+        },
+      });
+      if (monthlyStats === 0) {
+        await fastify.orm.query(
+          `insert into epadstatistics_monthly(numOfUsers, numOfProjects,numOfPatients,numOfStudies,numOfSeries,numOfAims,numOfDSOs,numOfWorkLists,numOfPacs,numOfAutoQueries,numOfFiles,numOfPlugins,numOfTemplates,creator,updatetime) (select sum(numOfUsers), sum(numOfProjects), sum(numOfPatients), sum(numOfStudies), sum(numOfSeries), sum(numOfAims),sum(numOfDSOs),sum(numOfWorkLists),sum(numOfPacs),sum(numOfAutoQueries),sum(numOfFiles),sum(numOfPlugins),sum(numOfTemplates),'admin',now()  from (select * from epadstatistics a where createdtime =(select max(createdtime) from epadstatistics b where b.host = a.host) group by host order by host) ab)`
+        );
+      }
+      return 'Stats sent';
+    } catch (error) {
+      throw new InternalError(`Sending statistics to ${config.statsEpad}`, error);
+    }
+  });
 
   fastify.decorate('getStats', async (request, reply) => {
     // eslint-disable-next-line prefer-const
@@ -14919,11 +14920,14 @@ async function epaddb(fastify) {
               const random = Math.random() * 1800 + 1;
               setTimeout(() => {
                 fastify.log.info(`Calculating and sending statistics at ${new Date()}`);
-                try {
-                  fastify.calcStats();
-                } catch (err) {
-                  fastify.log.error(`Could not send stats. Error: ${err.message}`);
-                }
+                fastify
+                  .calcStats()
+                  .then(() => {
+                    fastify.log.info('Periodic stats calculation completed');
+                  })
+                  .catch((err) => {
+                    fastify.log.error(`Could not send stats. Error: ${err.message}`);
+                  });
               }, random * 1000);
             });
             if (config.pollDW) {

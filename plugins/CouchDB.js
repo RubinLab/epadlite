@@ -1711,26 +1711,18 @@ async function couchdb(fastify, options) {
     }
   });
 
-  fastify.decorate(
-    'deleteTemplateInternal',
-    (params) =>
-      new Promise((resolve, reject) => {
-        const db = fastify.couch.db.use(config.db);
-        db.get(params.uid, (error, existing) => {
-          if (error) {
-            reject(new ResourceNotFoundError('Template', params.uid));
-          }
-
-          db.destroy(params.uid, existing._rev)
-            .then(() => {
-              resolve();
-            })
-            .catch((err) => {
-              reject(new InternalError(`Deleting template ${params.uid}`, err));
-            });
-        });
-      })
-  );
+  fastify.decorate('deleteTemplateInternal', async (params) => {
+    try {
+      const db = fastify.couch.db.use(config.db);
+      const existing = await db.get(params.uid);
+      await db.destroy(params.uid, existing._rev);
+    } catch (err) {
+      if (err && err.statusCode === 404) {
+        throw new ResourceNotFoundError('Template', params.uid);
+      }
+      throw new InternalError(`Deleting template ${params.uid}`, err);
+    }
+  });
 
   fastify.decorate(
     'downloadTemplates',
