@@ -205,7 +205,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'files'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -242,7 +245,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'files'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -264,7 +270,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'files'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -289,7 +298,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'files'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -413,7 +425,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'files'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -435,7 +450,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'files'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -460,7 +478,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'files'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -488,7 +509,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'files'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',

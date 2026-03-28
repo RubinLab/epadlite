@@ -6,13 +6,16 @@ async function routes(fastify) {
     schema: {
       tags: ['ontology'],
       querystring: {
-        codevalue: { type: 'string' },
-        codemeaning: { type: 'string' },
-        description: { type: 'string' },
-        schemaversion: { type: 'string' },
-        referenceuid: { type: 'string' },
-        referencename: { type: 'string' },
-        referencetype: { type: 'string' },
+        type: 'object',
+        properties: {
+          codevalue: { type: 'string' },
+          codemeaning: { type: 'string' },
+          description: { type: 'string' },
+          schemaversion: { type: 'string' },
+          referenceuid: { type: 'string' },
+          referencename: { type: 'string' },
+          referencetype: { type: 'string' },
+        },
       },
     },
 

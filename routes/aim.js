@@ -53,7 +53,10 @@ async function aimRoutes(fastify) {
     schema: {
       tags: ['aim'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -84,7 +87,10 @@ async function aimRoutes(fastify) {
     schema: {
       tags: ['aim'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -112,7 +118,10 @@ async function aimRoutes(fastify) {
     schema: {
       tags: ['aim'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -150,8 +159,11 @@ async function aimRoutes(fastify) {
     method: 'POST',
     url: '/aims/download',
     querystring: {
-      summary: { type: 'boolean' },
-      aim: { type: 'boolean' },
+      type: 'object',
+      properties: {
+        summary: { type: 'boolean' },
+        aim: { type: 'boolean' },
+      },
     },
     schema: {
       tags: ['aim'],

@@ -104,7 +104,10 @@ async function routes(fastify) {
         format = count returns a map of image_uid: aim counts for images under that series (it won't have images with no aims)`,
       tags: ['project', 'aim'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -142,7 +145,10 @@ async function routes(fastify) {
         format = count returns a map of series_uid: aim counts for series under that study (it won't have series with no aims)`,
       tags: ['project', 'aim'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -177,8 +183,11 @@ async function routes(fastify) {
         format = count returns a map of study_uid: aim counts for studies under that subject (it won't have studies with no aims)`,
       tags: ['project', 'aim'],
       querystring: {
-        format: { type: 'string' },
-        longitudinal_ref: { type: 'boolean' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+          longitudinal_ref: { type: 'boolean' },
+        },
       },
       params: {
         type: 'object',
@@ -210,7 +219,10 @@ async function routes(fastify) {
         format = count returns a map of subject_uid: aim counts for subjects under that project (it won't have subjects with no aims)`,
       tags: ['project', 'aim'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -232,8 +244,11 @@ async function routes(fastify) {
     method: 'POST',
     url: '/projects/:project/aims/download',
     querystring: {
-      summary: { type: 'boolean' },
-      aim: { type: 'boolean' },
+      type: 'object',
+      properties: {
+        summary: { type: 'boolean' },
+        aim: { type: 'boolean' },
+      },
     },
     schema: {
       tags: ['project', 'aim'],
@@ -262,7 +277,10 @@ async function routes(fastify) {
     method: 'POST',
     url: '/projects/:project/aims/delete',
     querystring: {
-      all: { type: 'string' },
+      type: 'object',
+      properties: {
+        all: { type: 'string' },
+      },
     },
     schema: {
       tags: ['project', 'aim'],
@@ -367,7 +385,10 @@ async function routes(fastify) {
     method: 'DELETE',
     url: '/projects/:project/aims',
     querystring: {
-      all: { type: 'string' },
+      type: 'object',
+      properties: {
+        all: { type: 'string' },
+      },
     },
     schema: {
       tags: ['project', 'aim'],
@@ -409,7 +430,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'aim'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -444,7 +468,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'aim'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
@@ -476,7 +503,10 @@ async function routes(fastify) {
     schema: {
       tags: ['project', 'aim'],
       querystring: {
-        format: { type: 'string' },
+        type: 'object',
+        properties: {
+          format: { type: 'string' },
+        },
       },
       params: {
         type: 'object',
