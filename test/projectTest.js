@@ -1722,7 +1722,14 @@ describe('Project Tests', () => {
         .request(`http://${process.env.host}:${process.env.port}`)
         .put('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantSeries')
         .query({ username: 'admin' })
-        .send([{ seriesUID: '0023.2015.09.28.3.3590', significanceOrder: 1 }])
+        .send([
+          {
+            seriesUID: '0023.2015.09.28.3.3590',
+            significanceOrder: 1,
+            pageOrder: 1,
+            displayState: { wwwl: '400/40' },
+          },
+        ])
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           done();
@@ -1744,7 +1751,11 @@ describe('Project Tests', () => {
           expect(res.body[0].patientName).to.be.eql('Phantom');
           expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
           expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[0].pageOrder).to.be.eql(1);
+          expect(res.body[0].displayState).to.be.eql({ wwwl: '400/40' });
           expect(res.body[1]).to.not.have.property('significanceOrder');
+          expect(res.body[1]).to.not.have.property('pageOrder');
+          expect(res.body[1]).to.not.have.property('displayState');
           done();
         })
         .catch((e) => {
@@ -1760,11 +1771,16 @@ describe('Project Tests', () => {
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(2);
+          console.log(res.body);
           expect(res.body[0].patientID).to.be.eql('3');
           expect(res.body[0].patientName).to.be.eql('Phantom');
           expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
           expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[0].pageOrder).to.be.eql(1);
+          expect(res.body[0].displayState).to.be.eql({ wwwl: '400/40' });
           expect(res.body[1]).to.not.have.property('significanceOrder');
+          expect(res.body[1]).to.not.have.property('pageOrder');
+          expect(res.body[1]).to.not.have.property('displayState');
           done();
         })
         .catch((e) => {
@@ -1782,6 +1798,8 @@ describe('Project Tests', () => {
           expect(res.body.length).to.be.eql(1);
           expect(res.body[0].seriesUID).to.be.eql('0023.2015.09.28.3.3590');
           expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[0].pageOrder).to.be.eql(1);
+          expect(res.body[0].displayState).to.be.eql({ wwwl: '400/40' });
           done();
         })
         .catch((e) => {
@@ -1799,6 +1817,8 @@ describe('Project Tests', () => {
           expect(res.body.length).to.be.eql(1);
           expect(res.body[0].seriesUID).to.be.eql('0023.2015.09.28.3.3590');
           expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[0].pageOrder).to.be.eql(1);
+          expect(res.body[0].displayState).to.be.eql({ wwwl: '400/40' });
           done();
         })
         .catch((e) => {
@@ -1833,7 +1853,11 @@ describe('Project Tests', () => {
           expect(res.body[0].patientName).to.be.eql('Phantom');
           expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
           expect(res.body[0]).to.not.have.property('significanceOrder');
+          expect(res.body[0]).to.not.have.property('pageOrder');
+          expect(res.body[0]).to.not.have.property('displayState');
           expect(res.body[1]).to.not.have.property('significanceOrder');
+          expect(res.body[1]).to.not.have.property('pageOrder');
+          expect(res.body[1]).to.not.have.property('displayState');
           done();
         })
         .catch((e) => {
@@ -2968,14 +2992,18 @@ describe('Project Tests', () => {
           expect(res.body[0].patientName).to.be.eql('Phantom');
           expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
           expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[0].pageOrder).to.equal(null);
+          expect(res.body[0].displayState).to.equal(null);
           expect(res.body[1]).to.not.have.property('significanceOrder');
+          expect(res.body[1]).to.not.have.property('pageOrder');
+          expect(res.body[1]).to.not.have.property('displayState');
           done();
         })
         .catch((e) => {
           done(e);
         });
     });
-    it('project testaim3 should have no studies ', (done) => {
+    it('project testaim3 should have no studies', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .get('/projects/testaim3/studies')
@@ -3044,7 +3072,11 @@ describe('Project Tests', () => {
           expect(res.body[0].patientName).to.be.eql('Phantom');
           expect(res.body[0].studyUID).to.be.eql('0023.2015.09.28.3');
           expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[0].pageOrder).to.equal(null);
+          expect(res.body[0].displayState).to.equal(null);
           expect(res.body[1]).to.not.have.property('significanceOrder');
+          expect(res.body[1]).to.not.have.property('pageOrder');
+          expect(res.body[1]).to.not.have.property('displayState');
           done();
         })
         .catch((e) => {
@@ -5928,6 +5960,8 @@ describe('Project Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body.length).to.be.eql(1);
           expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[0].pageOrder).to.equal(null);
+          expect(res.body[0].displayState).to.equal(null);
           done();
         })
         .catch((e) => {

@@ -1052,6 +1052,7 @@ async function dicomwebserver(fastify) {
               // populate an aim counts map containing each series
               const aimsCountMap = values[2] ? values[2] : [];
               const seriesSignificanceMap = values[1];
+              console.log('seriesSignificanceMap', seriesSignificanceMap);
               // map each series to epadlite series object
               let filtered = values[0].data;
               if (query.filterDSO === 'true')
@@ -1120,7 +1121,13 @@ async function dicomwebserver(fastify) {
                     ? value['00200011'].Value[0]
                     : 0,
                 significanceOrder: seriesSignificanceMap[value['0020000E'].Value[0]]
-                  ? seriesSignificanceMap[value['0020000E'].Value[0]]
+                  ? seriesSignificanceMap[value['0020000E'].Value[0]].significanceOrder
+                  : undefined,
+                pageOrder: seriesSignificanceMap[value['0020000E'].Value[0]]
+                  ? seriesSignificanceMap[value['0020000E'].Value[0]].pageOrder
+                  : undefined,
+                displayState: seriesSignificanceMap[value['0020000E'].Value[0]]
+                  ? seriesSignificanceMap[value['0020000E'].Value[0]].displayState
                   : undefined,
               }));
               resolve(result);

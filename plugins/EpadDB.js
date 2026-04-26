@@ -10534,7 +10534,13 @@ async function epaddb(fastify, options, done) {
               isNonDicomSeries: true,
               seriesNo: '',
               significanceOrder: seriesSignificanceMap[series[i].dataValues.seriesuid]
-                ? seriesSignificanceMap[series[i].dataValues.seriesuid]
+                ? seriesSignificanceMap[series[i].dataValues.seriesuid].significanceOrder
+                : undefined,
+              pageOrder: seriesSignificanceMap[series[i].dataValues.seriesuid]
+                ? seriesSignificanceMap[series[i].dataValues.seriesuid].pageOrder
+                : undefined,
+              displayState: seriesSignificanceMap[series[i].dataValues.seriesuid]
+                ? seriesSignificanceMap[series[i].dataValues.seriesuid].displayState
                 : undefined,
             });
           }
@@ -14973,7 +14979,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'setSignificanceInternal',
-    (project, subject, study, series, significanceOrder, username) =>
+    (project, subject, study, series, significanceOrder, username, pageOrder, displayState) =>
       new Promise((resolve, reject) => {
         if (significanceOrder === 0) {
           // delete the tuple
@@ -14998,6 +15004,8 @@ async function epaddb(fastify, options, done) {
                 project_id: project,
                 series_uid: series,
                 significance_order: significanceOrder,
+                page_order: pageOrder !== undefined ? pageOrder : null,
+                display_state: displayState !== undefined ? displayState : null,
                 updatetime: Date.now(),
               },
               {
@@ -15133,7 +15141,9 @@ async function epaddb(fastify, options, done) {
                     ids[2],
                     series.seriesUID,
                     series.significanceOrder,
-                    request.epadAuth.username
+                    request.epadAuth.username,
+                    series.pageOrder,
+                    series.displayState
                   )
                   .catch((err) => {
                     fastify.log.warn(
@@ -15222,8 +15232,13 @@ async function epaddb(fastify, options, done) {
                   'study_id',
                   'series_uid',
                   'significance_order',
+                  'page_order',
+                  'display_state',
                 ],
-                order: [['significance_order', 'ASC']],
+                order: [
+                  ['page_order', 'ASC'],
+                  ['significance_order', 'ASC'],
+                ],
               }
             );
             if (array) {
@@ -15232,14 +15247,19 @@ async function epaddb(fastify, options, done) {
                 significantSeriesArray.push({
                   seriesUID: significantSeries[i].series_uid,
                   significanceOrder: significantSeries[i].significance_order,
+                  pageOrder: significantSeries[i].page_order,
+                  displayState: significantSeries[i].display_state,
                 });
               }
               resolve(significantSeriesArray);
             } else {
               const significantSeriesMap = {};
               for (let i = 0; i < significantSeries.length; i += 1) {
-                significantSeriesMap[significantSeries[i].series_uid] =
-                  significantSeries[i].significance_order;
+                significantSeriesMap[significantSeries[i].series_uid] = {
+                  significanceOrder: significantSeries[i].significance_order,
+                  pageOrder: significantSeries[i].page_order,
+                  displayState: significantSeries[i].display_state,
+                };
               }
               resolve(significantSeriesMap);
             }
