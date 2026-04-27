@@ -14546,6 +14546,14 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
             fastify.log.warn('plugin relation foreign keys fixed');
+
+            await fastify.orm.query(
+              `ALTER TABLE project_subject_study_series_significance
+                ADD COLUMN IF NOT EXISTS page_order int(11) DEFAULT NULL AFTER significance_order,
+                ADD COLUMN IF NOT EXISTS display_state json DEFAULT NULL AFTER page_order;`,
+              { transaction: t }
+            );
+            fastify.log.warn('project_subject_study_series_significance table is altered');
           });
 
           // the db schema is updated successfully lets copy the files
