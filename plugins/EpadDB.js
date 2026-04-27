@@ -15255,8 +15255,14 @@ async function epaddb(fastify, options, done) {
                 significantSeriesArray.push({
                   seriesUID: significantSeries[i].series_uid,
                   significanceOrder: significantSeries[i].significance_order,
-                  pageOrder: significantSeries[i].page_order,
-                  displayState: significantSeries[i].display_state,
+                  pageOrder:
+                    significantSeries[i].page_order !== null
+                      ? significantSeries[i].page_order
+                      : undefined,
+                  displayState:
+                    significantSeries[i].display_state !== null
+                      ? significantSeries[i].display_state
+                      : undefined,
                 });
               }
               resolve(significantSeriesArray);
@@ -15265,8 +15271,14 @@ async function epaddb(fastify, options, done) {
               for (let i = 0; i < significantSeries.length; i += 1) {
                 significantSeriesMap[significantSeries[i].series_uid] = {
                   significanceOrder: significantSeries[i].significance_order,
-                  pageOrder: significantSeries[i].page_order,
-                  displayState: significantSeries[i].display_state,
+                  pageOrder:
+                    significantSeries[i].page_order !== null
+                      ? significantSeries[i].page_order
+                      : undefined,
+                  displayState:
+                    significantSeries[i].display_state !== null
+                      ? significantSeries[i].display_state
+                      : undefined,
                 };
               }
               resolve(significantSeriesMap);
