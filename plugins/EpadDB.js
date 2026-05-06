@@ -15132,6 +15132,43 @@ async function epaddb(fastify, options, done) {
             });
             seriesList = _.sortBy(seriesList, 'significanceOrder');
           }
+        } else if (
+          !(request.query && request.query.force && request.query.force.toLowerCase() === 'true') &&
+          Array.isArray(seriesList) &&
+          seriesList.length === 8
+        ) {
+          // R CC | L CC || R MLO | L MLO for each of: C-View (page 1), Breast Tomosynthesis (page 2)
+          const positionOrder = { 'R CC': 1, 'L CC': 2, 'R MLO': 3, 'L MLO': 4 };
+          const typePageOrder = { 'C-View': 1, 'Breast Tomosynthesis': 2 };
+
+          const allExist = Object.keys(positionOrder).every((pos) =>
+            Object.keys(typePageOrder).every((type) =>
+              seriesList.some(
+                (s) => s.seriesDescription.startsWith(pos) && s.seriesDescription.includes(type)
+              )
+            )
+          );
+
+          if (allExist) {
+            fastify.log.info(
+              'Mamogram images with 8 series (C-View + Breast Tomosynthesis), making sure the order is correct'
+            );
+            seriesList.forEach((series) => {
+              const pos = Object.keys(positionOrder).find((p) =>
+                series.seriesDescription.startsWith(p)
+              );
+              const type = Object.keys(typePageOrder).find((t) =>
+                series.seriesDescription.includes(t)
+              );
+              if (pos && type) {
+                // eslint-disable-next-line no-param-reassign
+                series.significanceOrder = positionOrder[pos];
+                // eslint-disable-next-line no-param-reassign
+                series.pageOrder = typePageOrder[type];
+              }
+            });
+            seriesList = _.sortBy(seriesList, ['pageOrder', 'significanceOrder']);
+          }
         }
 
         // reset the existing significant series to start from scratch and avoif multiple series with same significance order

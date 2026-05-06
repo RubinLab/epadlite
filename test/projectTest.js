@@ -1865,6 +1865,209 @@ describe('Project Tests', () => {
         });
     });
 
+    it('should set 8 mammography significant series for study 0023.2015.09.28.3 in scrambled order', (done) => {
+      // Send in reverse order — the auto-ordering logic should fix it
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantSeries')
+        .query({ username: 'admin' })
+        .send([
+          {
+            seriesUID: 'mammo.lmlo.bt',
+            seriesDescription: 'L MLO Breast Tomosynthesis Image',
+            significanceOrder: 8,
+            pageOrder: 2,
+          },
+          {
+            seriesUID: 'mammo.rmlo.cview',
+            seriesDescription: 'R MLO C-View',
+            significanceOrder: 7,
+            pageOrder: 1,
+          },
+          {
+            seriesUID: 'mammo.lcc.bt',
+            seriesDescription: 'L CC Breast Tomosynthesis Image',
+            significanceOrder: 6,
+            pageOrder: 2,
+          },
+          {
+            seriesUID: 'mammo.rcc.cview',
+            seriesDescription: 'R CC C-View',
+            significanceOrder: 5,
+            pageOrder: 1,
+          },
+          {
+            seriesUID: 'mammo.rmlo.bt',
+            seriesDescription: 'R MLO Breast Tomosynthesis Image',
+            significanceOrder: 4,
+            pageOrder: 2,
+          },
+          {
+            seriesUID: 'mammo.lmlo.cview',
+            seriesDescription: 'L MLO C-View',
+            significanceOrder: 3,
+            pageOrder: 1,
+          },
+          {
+            seriesUID: 'mammo.rcc.bt',
+            seriesDescription: 'R CC Breast Tomosynthesis Image',
+            significanceOrder: 2,
+            pageOrder: 2,
+          },
+          {
+            seriesUID: 'mammo.lcc.cview',
+            seriesDescription: 'L CC C-View',
+            significanceOrder: 1,
+            pageOrder: 1,
+          },
+        ])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('project teststudy should have 8 mammography significant series with correct auto-ordering', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantseries')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(8);
+          const byUID = {};
+          res.body.forEach((s) => {
+            byUID[s.seriesUID] = s;
+          });
+          // C-View series: page 1, significanceOrder R CC=1, L CC=2, R MLO=3, L MLO=4
+          expect(byUID['mammo.rcc.cview'].significanceOrder).to.be.eql(1);
+          expect(byUID['mammo.rcc.cview'].pageOrder).to.be.eql(1);
+          expect(byUID['mammo.lcc.cview'].significanceOrder).to.be.eql(2);
+          expect(byUID['mammo.lcc.cview'].pageOrder).to.be.eql(1);
+          expect(byUID['mammo.rmlo.cview'].significanceOrder).to.be.eql(3);
+          expect(byUID['mammo.rmlo.cview'].pageOrder).to.be.eql(1);
+          expect(byUID['mammo.lmlo.cview'].significanceOrder).to.be.eql(4);
+          expect(byUID['mammo.lmlo.cview'].pageOrder).to.be.eql(1);
+          // Breast Tomosynthesis series: page 2, same significanceOrder pattern
+          expect(byUID['mammo.rcc.bt'].significanceOrder).to.be.eql(1);
+          expect(byUID['mammo.rcc.bt'].pageOrder).to.be.eql(2);
+          expect(byUID['mammo.lcc.bt'].significanceOrder).to.be.eql(2);
+          expect(byUID['mammo.lcc.bt'].pageOrder).to.be.eql(2);
+          expect(byUID['mammo.rmlo.bt'].significanceOrder).to.be.eql(3);
+          expect(byUID['mammo.rmlo.bt'].pageOrder).to.be.eql(2);
+          expect(byUID['mammo.lmlo.bt'].significanceOrder).to.be.eql(4);
+          expect(byUID['mammo.lmlo.bt'].pageOrder).to.be.eql(2);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('should set 8 mammography significant series with force=true and keep the given order', (done) => {
+      // With force=true the auto-ordering logic is skipped; whatever is sent is saved as-is
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantSeries')
+        .query({ username: 'admin', force: 'true' })
+        .send([
+          {
+            seriesUID: 'mammo.rcc.cview',
+            seriesDescription: 'R CC C-View',
+            significanceOrder: 4,
+            pageOrder: 2,
+          },
+          {
+            seriesUID: 'mammo.lcc.cview',
+            seriesDescription: 'L CC C-View',
+            significanceOrder: 3,
+            pageOrder: 2,
+          },
+          {
+            seriesUID: 'mammo.rmlo.cview',
+            seriesDescription: 'R MLO C-View',
+            significanceOrder: 2,
+            pageOrder: 1,
+          },
+          {
+            seriesUID: 'mammo.lmlo.cview',
+            seriesDescription: 'L MLO C-View',
+            significanceOrder: 1,
+            pageOrder: 1,
+          },
+          {
+            seriesUID: 'mammo.rcc.bt',
+            seriesDescription: 'R CC Breast Tomosynthesis Image',
+            significanceOrder: 8,
+            pageOrder: 4,
+          },
+          {
+            seriesUID: 'mammo.lcc.bt',
+            seriesDescription: 'L CC Breast Tomosynthesis Image',
+            significanceOrder: 7,
+            pageOrder: 4,
+          },
+          {
+            seriesUID: 'mammo.rmlo.bt',
+            seriesDescription: 'R MLO Breast Tomosynthesis Image',
+            significanceOrder: 6,
+            pageOrder: 3,
+          },
+          {
+            seriesUID: 'mammo.lmlo.bt',
+            seriesDescription: 'L MLO Breast Tomosynthesis Image',
+            significanceOrder: 5,
+            pageOrder: 3,
+          },
+        ])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
+    it('project teststudy 8 mammography series with force=true should keep the manually assigned order', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/teststudy/subjects/3/studies/0023.2015.09.28.3/significantseries')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(8);
+          const byUID = {};
+          res.body.forEach((s) => {
+            byUID[s.seriesUID] = s;
+          });
+          // Ordering should match exactly what was sent — NOT auto-reordered
+          expect(byUID['mammo.rcc.cview'].significanceOrder).to.be.eql(4);
+          expect(byUID['mammo.rcc.cview'].pageOrder).to.be.eql(2);
+          expect(byUID['mammo.lcc.cview'].significanceOrder).to.be.eql(3);
+          expect(byUID['mammo.lcc.cview'].pageOrder).to.be.eql(2);
+          expect(byUID['mammo.rmlo.cview'].significanceOrder).to.be.eql(2);
+          expect(byUID['mammo.rmlo.cview'].pageOrder).to.be.eql(1);
+          expect(byUID['mammo.lmlo.cview'].significanceOrder).to.be.eql(1);
+          expect(byUID['mammo.lmlo.cview'].pageOrder).to.be.eql(1);
+          expect(byUID['mammo.rcc.bt'].significanceOrder).to.be.eql(8);
+          expect(byUID['mammo.rcc.bt'].pageOrder).to.be.eql(4);
+          expect(byUID['mammo.lcc.bt'].significanceOrder).to.be.eql(7);
+          expect(byUID['mammo.lcc.bt'].pageOrder).to.be.eql(4);
+          expect(byUID['mammo.rmlo.bt'].significanceOrder).to.be.eql(6);
+          expect(byUID['mammo.rmlo.bt'].pageOrder).to.be.eql(3);
+          expect(byUID['mammo.lmlo.bt'].significanceOrder).to.be.eql(5);
+          expect(byUID['mammo.lmlo.bt'].pageOrder).to.be.eql(3);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+
     it('project teststudy should have 1 nonDSO series and it should be 0023.2015.09.28.3.3590', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
