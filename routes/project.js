@@ -739,5 +739,22 @@ async function routes(fastify) {
     },
     handler: fastify.getSignificantSeries,
   });
+
+  fastify.route({
+    method: 'DELETE',
+    url: '/projects/:project/subjects/:subject/studies/:study/significantSeries',
+    schema: {
+      tags: ['project'],
+      params: {
+        type: 'object',
+        properties: {
+          project: { type: 'string' },
+          subject: { type: 'string' },
+          study: { type: 'string' },
+        },
+      },
+    },
+    handler: fastify.deleteSignificantSeries,
+  });
 }
 module.exports = routes;

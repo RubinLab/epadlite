@@ -15215,6 +15215,50 @@ async function epaddb(fastify, options, done) {
     });
   });
 
+  fastify.decorate('deleteSignificantSeries', (request, reply) => {
+    const promises = [];
+    promises.push(
+      models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.subject.findOne({
+        where: { subjectuid: request.params.subject },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.study.findOne({
+        where: { studyuid: request.params.study },
+        attributes: ['id'],
+      })
+    );
+
+    Promise.all(promises)
+      .then((result) => {
+        const ids = [];
+        let missingData = false;
+        for (let i = 0; i < result.length; i += 1)
+          // eslint-disable-next-line no-unused-expressions
+          result[i] ? ids.push(result[i].dataValues.id) : (missingData = true);
+        if (missingData || ids.length !== result.length) {
+          reply.send(new InternalError('Deleting significant series', new Error('Missing data')));
+        } else {
+          fastify
+            .clearSignificanceInternal(ids[0], ids[1], ids[2])
+            .then(() => reply.code(200).send('Significant series deleted successfully'))
+            .catch((err) => {
+              reply.send(new InternalError(`Couldn't delete significant series`, err));
+            });
+        }
+      })
+      .catch((err) => {
+        reply.send(new InternalError('Deleting significant series', err));
+      });
+  });
+
   fastify.decorate('getSignificantSeries', (request, reply) => {
     fastify
       .getSignificantSeriesInternal(
