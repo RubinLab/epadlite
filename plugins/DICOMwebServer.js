@@ -1011,18 +1011,21 @@ async function dicomwebserver(fastify) {
       new Promise((resolve, reject) => {
         try {
           const promisses = [];
+          let dimseUsed = 0;
           if (
             (!query.forceDicomweb || query.forceDicomweb.toLowerCase() === 'false') &&
             config.dimse
-          )
+          ) {
             promisses.push(fastify.getStudySeriesDIMSE(params.study));
-          else
-            promisses.push(
-              this.request.get(
-                `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
-                mainHeader
-              )
-            );
+            dimseUsed = 1;
+          }
+          // Do dicomweb call in any case to make sure we have the latest series description and to get the series that are not archived yet or that have no description in dimse response
+          promisses.push(
+            this.request.get(
+              `${config.dicomWebConfig.qidoSubPath}/studies/${params.study}/series?includefield=SeriesDescription`,
+              mainHeader
+            )
+          );
           promisses.push(
             fastify
               .getSignificantSeriesInternal(params.project, params.subject, params.study)
@@ -1050,11 +1053,15 @@ async function dicomwebserver(fastify) {
             .then((values) => {
               // handle success
               // populate an aim counts map containing each series
-              const aimsCountMap = values[2] ? values[2] : [];
-              const seriesSignificanceMap = values[1];
-              console.log('seriesSignificanceMap', seriesSignificanceMap);
+              const aimsCountMap = values[2+dimseUsed] ? values[2+dimseUsed] : [];
+              const seriesSignificanceMap = values[1+dimseUsed];
               // map each series to epadlite series object
-              let filtered = values[0].data;
+              // when dimse is used, prefer its result; fall back to qido (values[dimseUsed])
+              const seriesList =
+                dimseUsed && values[0] && values[0].data && values[0].data.length > 0
+                  ? values[0].data
+                  : values[dimseUsed].data;
+              let filtered = seriesList;
               if (query.filterDSO === 'true')
                 filtered = _.filter(
                   filtered,
