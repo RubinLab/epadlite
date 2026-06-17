@@ -10534,7 +10534,13 @@ async function epaddb(fastify, options, done) {
               isNonDicomSeries: true,
               seriesNo: '',
               significanceOrder: seriesSignificanceMap[series[i].dataValues.seriesuid]
-                ? seriesSignificanceMap[series[i].dataValues.seriesuid]
+                ? seriesSignificanceMap[series[i].dataValues.seriesuid].significanceOrder
+                : undefined,
+              pageOrder: seriesSignificanceMap[series[i].dataValues.seriesuid]
+                ? seriesSignificanceMap[series[i].dataValues.seriesuid].pageOrder
+                : undefined,
+              displayState: seriesSignificanceMap[series[i].dataValues.seriesuid]
+                ? seriesSignificanceMap[series[i].dataValues.seriesuid].displayState
                 : undefined,
             });
           }
@@ -14540,6 +14546,14 @@ async function epaddb(fastify, options, done) {
               { transaction: t }
             );
             fastify.log.warn('plugin relation foreign keys fixed');
+
+            await fastify.orm.query(
+              `ALTER TABLE project_subject_study_series_significance
+                ADD COLUMN IF NOT EXISTS page_order int(11) DEFAULT NULL AFTER significance_order,
+                ADD COLUMN IF NOT EXISTS display_state json DEFAULT NULL AFTER page_order;`,
+              { transaction: t }
+            );
+            fastify.log.warn('project_subject_study_series_significance table is altered');
           });
 
           // the db schema is updated successfully lets copy the files
@@ -14973,7 +14987,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'setSignificanceInternal',
-    (project, subject, study, series, significanceOrder, username) =>
+    (project, subject, study, series, significanceOrder, username, pageOrder, displayState) =>
       new Promise((resolve, reject) => {
         if (significanceOrder === 0) {
           // delete the tuple
@@ -14998,6 +15012,8 @@ async function epaddb(fastify, options, done) {
                 project_id: project,
                 series_uid: series,
                 significance_order: significanceOrder,
+                page_order: pageOrder !== undefined ? pageOrder : null,
+                display_state: displayState !== undefined ? displayState : null,
                 updatetime: Date.now(),
               },
               {
@@ -15116,6 +15132,43 @@ async function epaddb(fastify, options, done) {
             });
             seriesList = _.sortBy(seriesList, 'significanceOrder');
           }
+        } else if (
+          !(request.query && request.query.force && request.query.force.toLowerCase() === 'true') &&
+          Array.isArray(seriesList) &&
+          seriesList.length === 8
+        ) {
+          // R CC | L CC || R MLO | L MLO for each of: C-View (page 1), Breast Tomosynthesis (page 2)
+          const positionOrder = { 'R CC': 1, 'L CC': 2, 'R MLO': 3, 'L MLO': 4 };
+          const typePageOrder = { 'C-View': 1, 'Breast Tomosynthesis': 2 };
+
+          const allExist = Object.keys(positionOrder).every((pos) =>
+            Object.keys(typePageOrder).every((type) =>
+              seriesList.some(
+                (s) => s.seriesDescription.startsWith(pos) && s.seriesDescription.includes(type)
+              )
+            )
+          );
+
+          if (allExist) {
+            fastify.log.info(
+              'Mamogram images with 8 series (C-View + Breast Tomosynthesis), making sure the order is correct'
+            );
+            seriesList.forEach((series) => {
+              const pos = Object.keys(positionOrder).find((p) =>
+                series.seriesDescription.startsWith(p)
+              );
+              const type = Object.keys(typePageOrder).find((t) =>
+                series.seriesDescription.includes(t)
+              );
+              if (pos && type) {
+                // eslint-disable-next-line no-param-reassign
+                series.significanceOrder = positionOrder[pos];
+                // eslint-disable-next-line no-param-reassign
+                series.pageOrder = typePageOrder[type];
+              }
+            });
+            seriesList = _.sortBy(seriesList, ['pageOrder', 'significanceOrder']);
+          }
         }
 
         // reset the existing significant series to start from scratch and avoif multiple series with same significance order
@@ -15133,7 +15186,9 @@ async function epaddb(fastify, options, done) {
                     ids[2],
                     series.seriesUID,
                     series.significanceOrder,
-                    request.epadAuth.username
+                    request.epadAuth.username,
+                    series.pageOrder,
+                    series.displayState
                   )
                   .catch((err) => {
                     fastify.log.warn(
@@ -15158,6 +15213,50 @@ async function epaddb(fastify, options, done) {
           });
       }
     });
+  });
+
+  fastify.decorate('deleteSignificantSeries', (request, reply) => {
+    const promises = [];
+    promises.push(
+      models.project.findOne({
+        where: { projectid: request.params.project },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.subject.findOne({
+        where: { subjectuid: request.params.subject },
+        attributes: ['id'],
+      })
+    );
+    promises.push(
+      models.study.findOne({
+        where: { studyuid: request.params.study },
+        attributes: ['id'],
+      })
+    );
+
+    Promise.all(promises)
+      .then((result) => {
+        const ids = [];
+        let missingData = false;
+        for (let i = 0; i < result.length; i += 1)
+          // eslint-disable-next-line no-unused-expressions
+          result[i] ? ids.push(result[i].dataValues.id) : (missingData = true);
+        if (missingData || ids.length !== result.length) {
+          reply.send(new InternalError('Deleting significant series', new Error('Missing data')));
+        } else {
+          fastify
+            .clearSignificanceInternal(ids[0], ids[1], ids[2])
+            .then(() => reply.code(200).send('Significant series deleted successfully'))
+            .catch((err) => {
+              reply.send(new InternalError(`Couldn't delete significant series`, err));
+            });
+        }
+      })
+      .catch((err) => {
+        reply.send(new InternalError('Deleting significant series', err));
+      });
   });
 
   fastify.decorate('getSignificantSeries', (request, reply) => {
@@ -15222,8 +15321,13 @@ async function epaddb(fastify, options, done) {
                   'study_id',
                   'series_uid',
                   'significance_order',
+                  'page_order',
+                  'display_state',
                 ],
-                order: [['significance_order', 'ASC']],
+                order: [
+                  ['page_order', 'ASC'],
+                  ['significance_order', 'ASC'],
+                ],
               }
             );
             if (array) {
@@ -15232,14 +15336,31 @@ async function epaddb(fastify, options, done) {
                 significantSeriesArray.push({
                   seriesUID: significantSeries[i].series_uid,
                   significanceOrder: significantSeries[i].significance_order,
+                  pageOrder:
+                    significantSeries[i].page_order !== null
+                      ? significantSeries[i].page_order
+                      : undefined,
+                  displayState:
+                    significantSeries[i].display_state !== null
+                      ? significantSeries[i].display_state
+                      : undefined,
                 });
               }
               resolve(significantSeriesArray);
             } else {
               const significantSeriesMap = {};
               for (let i = 0; i < significantSeries.length; i += 1) {
-                significantSeriesMap[significantSeries[i].series_uid] =
-                  significantSeries[i].significance_order;
+                significantSeriesMap[significantSeries[i].series_uid] = {
+                  significanceOrder: significantSeries[i].significance_order,
+                  pageOrder:
+                    significantSeries[i].page_order !== null
+                      ? significantSeries[i].page_order
+                      : undefined,
+                  displayState:
+                    significantSeries[i].display_state !== null
+                      ? significantSeries[i].display_state
+                      : undefined,
+                };
               }
               resolve(significantSeriesMap);
             }
