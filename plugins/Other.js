@@ -2896,7 +2896,7 @@ async function other(fastify) {
     );
   });
 
-  fastify.decorate('epadThickRightsCheck', async (request, reply) => {
+  fastify.decorate('epadThickRightsCheck', async (request) => {
     try {
       const reqInfo = fastify.getInfoFromRequest(request);
       // check if user type is admin, if not admin
@@ -2909,7 +2909,7 @@ async function other(fastify) {
                 // check if it is a public project
                 const project = await fastify.getProjectInternal(reqInfo.project);
                 if (!project || project.type.toLowerCase() !== 'public')
-                  reply.send(new UnauthorizedError('User has no access to project'));
+                  throw new UnauthorizedError('User has no access to project');
               }
               break;
             case 'PUT': // check permissions
@@ -2923,7 +2923,7 @@ async function other(fastify) {
                     ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
                       request.raw.url.includes(`/users/${request.epadAuth.username}`))))
               )
-                reply.send(new UnauthorizedError('User has no access to project and/or resource'));
+                throw new UnauthorizedError('User has no access to project and/or resource');
               break;
             case 'POST':
               if (
@@ -2931,7 +2931,7 @@ async function other(fastify) {
                 (reqInfo.level === 'project' &&
                   !fastify.hasCreatePermission(request, reqInfo.level))
               )
-                reply.send(new UnauthorizedError('User has no access to project and/or to create'));
+                throw new UnauthorizedError('User has no access to project and/or to create');
               break;
             case 'DELETE': // check if owner
               if (
@@ -2940,7 +2940,7 @@ async function other(fastify) {
                   ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
                     request.raw.url.includes(`/users/${request.epadAuth.username}`)))
               )
-                reply.send(new UnauthorizedError('User has no access to project and/or resource'));
+                throw new UnauthorizedError('User has no access to project and/or resource');
               break;
             default:
               break;
@@ -2982,7 +2982,7 @@ async function other(fastify) {
                     request.epadAuth.username
                 )
               )
-                reply.send(new UnauthorizedError('User has no access to resource'));
+                throw new UnauthorizedError('User has no access to resource');
               break;
             case 'POST':
               // reqInfo.worklistId identifies a worklist path.
@@ -3011,7 +3011,7 @@ async function other(fastify) {
                 reqInfo.level !== 'miracclexport' &&
                 reqInfo.level !== 'waterfall'
               )
-                reply.send(new UnauthorizedError('User has no access to create'));
+                throw new UnauthorizedError('User has no access to create');
               break;
             case 'DELETE': // check if owner
               if (
@@ -3031,7 +3031,7 @@ async function other(fastify) {
                     request.epadAuth.username
                 )
               )
-                reply.send(new UnauthorizedError('User has no access to resource'));
+                throw new UnauthorizedError('User has no access to resource');
               break;
             default:
               break;
@@ -3039,7 +3039,7 @@ async function other(fastify) {
         }
       }
     } catch (err) {
-      reply.send(err);
+      throw err;
     }
   });
 
