@@ -3195,7 +3195,7 @@ async function other(fastify) {
                 { subject, study },
                 undefined,
                 request.epadAuth,
-                undefined,
+                {},
                 true
               );
               studyDescription = studyList?.[0]?.studyDescription ?? '';
