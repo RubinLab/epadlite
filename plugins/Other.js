@@ -2896,7 +2896,7 @@ async function other(fastify) {
     );
   });
 
-  fastify.decorate('epadThickRightsCheck', async (request, reply) => {
+  fastify.decorate('epadThickRightsCheck', async (request) => {
     try {
       const reqInfo = fastify.getInfoFromRequest(request);
       // check if user type is admin, if not admin
@@ -2909,7 +2909,7 @@ async function other(fastify) {
                 // check if it is a public project
                 const project = await fastify.getProjectInternal(reqInfo.project);
                 if (!project || project.type.toLowerCase() !== 'public')
-                  reply.send(new UnauthorizedError('User has no access to project'));
+                  throw new UnauthorizedError('User has no access to project');
               }
               break;
             case 'PUT': // check permissions
@@ -2923,7 +2923,7 @@ async function other(fastify) {
                     ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
                       request.raw.url.includes(`/users/${request.epadAuth.username}`))))
               )
-                reply.send(new UnauthorizedError('User has no access to project and/or resource'));
+                throw new UnauthorizedError('User has no access to project and/or resource');
               break;
             case 'POST':
               if (
@@ -2931,7 +2931,7 @@ async function other(fastify) {
                 (reqInfo.level === 'project' &&
                   !fastify.hasCreatePermission(request, reqInfo.level))
               )
-                reply.send(new UnauthorizedError('User has no access to project and/or to create'));
+                throw new UnauthorizedError('User has no access to project and/or to create');
               break;
             case 'DELETE': // check if owner
               if (
@@ -2940,7 +2940,7 @@ async function other(fastify) {
                   ((await fastify.isCreatorOfObject(request, reqInfo)) === true &&
                     request.raw.url.includes(`/users/${request.epadAuth.username}`)))
               )
-                reply.send(new UnauthorizedError('User has no access to project and/or resource'));
+                throw new UnauthorizedError('User has no access to project and/or resource');
               break;
             default:
               break;
@@ -2982,7 +2982,7 @@ async function other(fastify) {
                     request.epadAuth.username
                 )
               )
-                reply.send(new UnauthorizedError('User has no access to resource'));
+                throw new UnauthorizedError('User has no access to resource');
               break;
             case 'POST':
               // reqInfo.worklistId identifies a worklist path.
@@ -3011,7 +3011,7 @@ async function other(fastify) {
                 reqInfo.level !== 'miracclexport' &&
                 reqInfo.level !== 'waterfall'
               )
-                reply.send(new UnauthorizedError('User has no access to create'));
+                throw new UnauthorizedError('User has no access to create');
               break;
             case 'DELETE': // check if owner
               if (
@@ -3031,7 +3031,7 @@ async function other(fastify) {
                     request.epadAuth.username
                 )
               )
-                reply.send(new UnauthorizedError('User has no access to resource'));
+                throw new UnauthorizedError('User has no access to resource');
               break;
             default:
               break;
@@ -3039,7 +3039,7 @@ async function other(fastify) {
         }
       }
     } catch (err) {
-      reply.send(err);
+      throw err;
     }
   });
 
@@ -3149,6 +3149,83 @@ async function other(fastify) {
       }
     } catch (err) {
       reply.send(new InternalError(`Decrypt and add`, err));
+    }
+  });
+
+  fastify.decorate('encryptInternal', (queryParams) => {
+    if (!config.secret) throw new Error('No secret defined');
+    const key = crypto.createHash('sha256').update(config.secret, 'utf8').digest();
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    cipher.setAutoPadding(true);
+    const ciphertext = Buffer.concat([cipher.update(queryParams, 'utf8'), cipher.final()]);
+    const ivLenBuf = Buffer.alloc(4);
+    ivLenBuf.writeInt32BE(iv.length, 0);
+    return Buffer.concat([ivLenBuf, iv, ciphertext]).toString('base64');
+  });
+
+  fastify.decorate('exportLinks', async (request, reply) => {
+    if (reply.sent) return;
+    try {
+      const pairs = request.body;
+      const outputType = request.query.outputType || 'text';
+      const fetchStudyDesc = request.query.studyDesc === true || request.query.studyDesc === 'true';
+
+      const results = await Promise.all(
+        pairs.map(async ({ subject, study, aimuid }) => {
+          let comment = '';
+          let name = '';
+          if (aimuid) {
+            try {
+              const db = fastify.couch.db.use(config.db);
+              const aimDoc = await new Promise((resolve, reject) =>
+                db.get(aimuid, (err, body) => (err ? reject(err) : resolve(body)))
+              );
+              const imageAnnotation =
+                aimDoc?.aim?.ImageAnnotationCollection?.imageAnnotations?.ImageAnnotation;
+              const ia = Array.isArray(imageAnnotation) ? imageAnnotation[0] : imageAnnotation;
+              const rawComment = ia?.comment?.value ?? '';
+              comment = rawComment.split('~~')[1] || '';
+              name = ia?.name?.value ?? '';
+            } catch (_e) {
+              // AIM unavailable — leave name and comment empty
+            }
+          }
+
+          let studyDescription = '';
+          if (fetchStudyDesc) {
+            try {
+              const studyList = await fastify.getPatientStudiesInternal(
+                { subject, study },
+                undefined,
+                request.epadAuth,
+                {},
+                true
+              );
+              studyDescription = studyList?.[0]?.studyDescription ?? '';
+            } catch (_e) {
+              // DICOMweb unavailable — leave empty
+            }
+          }
+
+          const queryParams = `patientID=${subject}&studyUID=${study}`;
+          const encrypted = fastify.encryptInternal(queryParams);
+          const link = `${config.baseUrl}?arg=${encodeURIComponent(encrypted)}`;
+
+          return { study_desc: studyDescription, study_uid: study, name, comment, link };
+        })
+      );
+
+      if (outputType === 'json') {
+        reply.send(results);
+      } else {
+        const text = results
+          .map((r) => [r.study_uid, r.study_desc, r.name, r.comment, r.link].filter(Boolean).join('\t'))
+          .join('\n');
+        reply.type('text/plain').send(text);
+      }
+    } catch (err) {
+      reply.send(new InternalError('Generate links', err));
     }
   });
 
