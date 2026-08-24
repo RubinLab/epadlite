@@ -3193,9 +3193,9 @@ async function other(fastify) {
             try {
               const studyList = await fastify.getPatientStudiesInternal(
                 { subject, study },
-                {},
+                undefined,
                 request.epadAuth,
-                {},
+                undefined,
                 true
               );
               studyDescription = studyList?.[0]?.studyDescription ?? '';
