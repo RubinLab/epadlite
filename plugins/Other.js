@@ -3152,6 +3152,73 @@ async function other(fastify) {
     }
   });
 
+  fastify.decorate('encryptInternal', (queryParams) => {
+    if (!config.secret) throw new Error('No secret defined');
+    const key = crypto.createHash('sha256').update(config.secret, 'utf8').digest();
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    cipher.setAutoPadding(true);
+    const ciphertext = Buffer.concat([cipher.update(queryParams, 'utf8'), cipher.final()]);
+    const ivLenBuf = Buffer.alloc(4);
+    ivLenBuf.writeInt32BE(iv.length, 0);
+    return Buffer.concat([ivLenBuf, iv, ciphertext]).toString('base64');
+  });
+
+  fastify.decorate('exportLinks', async (request, reply) => {
+    try {
+      const pairs = request.body;
+      const outputType = request.query.outputType || 'text';
+      const fetchStudyDesc = request.query.studyDesc === true;
+
+      const results = await Promise.all(
+        pairs.map(async ({ subject, study, aimuid }) => {
+          const db = fastify.couch.db.use(config.db);
+          const aimDoc = await new Promise((resolve, reject) =>
+            db.get(aimuid, (err, body) => (err ? reject(err) : resolve(body)))
+          );
+          const imageAnnotation =
+            aimDoc?.aim?.ImageAnnotationCollection?.imageAnnotations?.ImageAnnotation;
+          const ia = Array.isArray(imageAnnotation) ? imageAnnotation[0] : imageAnnotation;
+          const rawComment = ia?.comment?.value ?? '';
+          const comment = rawComment.split('~~')[0];
+
+          let studyDescription = '';
+          if (fetchStudyDesc) {
+            try {
+              const studyList = await fastify.getPatientStudiesInternal(
+                { subject, study },
+                {},
+                request.epadAuth,
+                {},
+                true
+              );
+              studyDescription = studyList?.[0]?.studyDescription ?? '';
+            } catch (_e) {
+              // DICOMweb unavailable — leave empty
+            }
+          }
+
+          const queryParams = `patientID=${subject}&studyUID=${study}`;
+          const encrypted = fastify.encryptInternal(queryParams);
+          const link = `${config.baseUrl}?arg=${encodeURIComponent(encrypted)}`;
+
+          return { study_desc: studyDescription, study_uid: study, comment, link };
+        })
+      );
+
+      if (outputType === 'json') {
+        reply.send(results);
+      } else {
+        const text = results
+          .map((r) => `${r.study_uid}\t${r.study_desc}\t${r.comment}\t${r.link}`)
+          .join('\n');
+        reply.type('text/plain').send(text);
+      }
+    } catch (err) {
+      reply.send(new InternalError('Generate links', err));
+    }
+  });
+
   fastify.decorate('decryptInternal', async (encrypted) => {
     if (!config.secret) {
       throw new Error('No secret defined');

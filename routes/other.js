@@ -515,6 +515,34 @@ async function otherRoutes(fastify) {
 
   fastify.route({
     method: 'POST',
+    url: '/exportlinks',
+    schema: {
+      tags: ['link'],
+      querystring: {
+        type: 'object',
+        properties: {
+          outputType: { type: 'string', enum: ['json', 'text'], default: 'text' },
+          studyDesc: { type: 'boolean', default: false },
+        },
+      },
+      body: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['subject', 'study', 'aimuid'],
+          properties: {
+            subject: { type: 'string' },
+            study: { type: 'string' },
+            aimuid: { type: 'string' },
+          },
+        },
+      },
+    },
+    handler: fastify.exportLinks,
+  });
+
+  fastify.route({
+    method: 'POST',
     url: '/reports/waterfall',
     schema: {
       tags: ['report'],
