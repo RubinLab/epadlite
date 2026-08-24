@@ -69,6 +69,13 @@
       },
       "significanceOrder": {
         "type": "integer"
+      },
+      "pageOrder": {
+        "type": "integer"
+      },
+      "displayState": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     "required": [

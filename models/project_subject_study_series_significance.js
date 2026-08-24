@@ -42,6 +42,14 @@ module.exports = function (sequelize, DataTypes) {
         type: DataTypes.INTEGER(11),
         allowNull: false,
       },
+      page_order: {
+        type: DataTypes.INTEGER(11),
+        allowNull: true,
+      },
+      display_state: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
       creator: {
         type: DataTypes.STRING(128),
         allowNull: true,
