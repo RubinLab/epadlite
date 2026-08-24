@@ -3176,16 +3176,20 @@ async function other(fastify) {
           let comment = '';
           let name = '';
           if (aimuid) {
-            const db = fastify.couch.db.use(config.db);
-            const aimDoc = await new Promise((resolve, reject) =>
-              db.get(aimuid, (err, body) => (err ? reject(err) : resolve(body)))
-            );
-            const imageAnnotation =
-              aimDoc?.aim?.ImageAnnotationCollection?.imageAnnotations?.ImageAnnotation;
-            const ia = Array.isArray(imageAnnotation) ? imageAnnotation[0] : imageAnnotation;
-            const rawComment = ia?.comment?.value ?? '';
-            comment = rawComment.split('~~')[1] || '';
-            name = ia?.name?.value ?? '';
+            try {
+              const db = fastify.couch.db.use(config.db);
+              const aimDoc = await new Promise((resolve, reject) =>
+                db.get(aimuid, (err, body) => (err ? reject(err) : resolve(body)))
+              );
+              const imageAnnotation =
+                aimDoc?.aim?.ImageAnnotationCollection?.imageAnnotations?.ImageAnnotation;
+              const ia = Array.isArray(imageAnnotation) ? imageAnnotation[0] : imageAnnotation;
+              const rawComment = ia?.comment?.value ?? '';
+              comment = rawComment.split('~~')[1] || '';
+              name = ia?.name?.value ?? '';
+            } catch (_e) {
+              // AIM unavailable — leave name and comment empty
+            }
           }
 
           let studyDescription = '';
