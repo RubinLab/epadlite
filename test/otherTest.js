@@ -313,14 +313,14 @@ describe('Other Tests', () => {
     it('should return 200 with JSON array when outputType=json', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/exportlinks')
+        .put('/exportlinks')
         .query({ outputType: 'json', username: 'admin' })
         .send([{ subject, study: studyUID, aimuid: aimUID }])
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.an('array');
           expect(res.body).to.have.lengthOf(1);
-          expect(res.body[0]).to.have.all.keys('study_desc', 'study_uid', 'comment', 'link');
+          expect(res.body[0]).to.have.all.keys('study_desc', 'study_uid', 'name', 'comment', 'link');
           done();
         })
         .catch((e) => done(e));
@@ -329,13 +329,13 @@ describe('Other Tests', () => {
     it('should return correct study_uid and comment from AIM', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/exportlinks')
+        .put('/exportlinks')
         .query({ outputType: 'json', username: 'admin' })
         .send([{ subject, study: studyUID, aimuid: aimUID }])
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           expect(res.body[0].study_uid).to.equal(studyUID);
-          expect(res.body[0].comment).to.equal('CT /  / 37 / 2');
+          expect(res.body[0].comment).to.equal('');
           done();
         })
         .catch((e) => done(e));
@@ -344,7 +344,7 @@ describe('Other Tests', () => {
     it('should return empty study_desc when studyDesc is not set (default false)', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/exportlinks')
+        .put('/exportlinks')
         .query({ outputType: 'json', username: 'admin' })
         .send([{ subject, study: studyUID, aimuid: aimUID }])
         .then((res) => {
@@ -358,12 +358,12 @@ describe('Other Tests', () => {
     it('should return 200 with empty study_desc when studyDesc=true but DICOMweb unavailable', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/exportlinks')
+        .put('/exportlinks')
         .query({ outputType: 'json', studyDesc: true, username: 'admin' })
         .send([{ subject, study: studyUID, aimuid: aimUID }])
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body[0]).to.have.all.keys('study_desc', 'study_uid', 'comment', 'link');
+          expect(res.body[0]).to.have.all.keys('study_desc', 'study_uid', 'name', 'comment', 'link');
           done();
         })
         .catch((e) => done(e));
@@ -372,7 +372,7 @@ describe('Other Tests', () => {
     it('should return an encrypted link containing the base URL', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/exportlinks')
+        .put('/exportlinks')
         .query({ outputType: 'json', username: 'admin' })
         .send([{ subject, study: studyUID, aimuid: aimUID }])
         .then((res) => {
@@ -386,7 +386,7 @@ describe('Other Tests', () => {
     it('should return text output by default (no outputType param)', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/exportlinks')
+        .put('/exportlinks')
         .query({ username: 'admin' })
         .send([{ subject, study: studyUID, aimuid: aimUID }])
         .then((res) => {
@@ -402,7 +402,7 @@ describe('Other Tests', () => {
     it('should return multiple entries for multiple pairs', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/exportlinks')
+        .put('/exportlinks')
         .query({ outputType: 'json', username: 'admin' })
         .send([
           { subject, study: studyUID, aimuid: aimUID },
@@ -416,12 +416,27 @@ describe('Other Tests', () => {
         .catch((e) => done(e));
     });
 
+    it('should return 200 with empty comment when aimuid is omitted', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', username: 'admin' })
+        .send([{ subject, study: studyUID }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body[0].comment).to.equal('');
+          expect(res.body[0].study_uid).to.equal(studyUID);
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
     it('should return 400 for body missing required fields', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/exportlinks')
+        .put('/exportlinks')
         .query({ outputType: 'json', username: 'admin' })
-        .send([{ subject, study: studyUID }])
+        .send([{ subject }])
         .then((res) => {
           expect(res.statusCode).to.equal(400);
           done();
@@ -432,7 +447,7 @@ describe('Other Tests', () => {
     it('should return 500 for an invalid aimuid', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
-        .post('/exportlinks')
+        .put('/exportlinks')
         .query({ outputType: 'json', username: 'admin' })
         .send([{ subject, study: studyUID, aimuid: 'nonexistent-aim-uid' }])
         .then((res) => {

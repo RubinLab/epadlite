@@ -3172,15 +3172,20 @@ async function other(fastify) {
 
       const results = await Promise.all(
         pairs.map(async ({ subject, study, aimuid }) => {
-          const db = fastify.couch.db.use(config.db);
-          const aimDoc = await new Promise((resolve, reject) =>
-            db.get(aimuid, (err, body) => (err ? reject(err) : resolve(body)))
-          );
-          const imageAnnotation =
-            aimDoc?.aim?.ImageAnnotationCollection?.imageAnnotations?.ImageAnnotation;
-          const ia = Array.isArray(imageAnnotation) ? imageAnnotation[0] : imageAnnotation;
-          const rawComment = ia?.comment?.value ?? '';
-          const comment = rawComment.split('~~')[0];
+          let comment = '';
+          let name = '';
+          if (aimuid) {
+            const db = fastify.couch.db.use(config.db);
+            const aimDoc = await new Promise((resolve, reject) =>
+              db.get(aimuid, (err, body) => (err ? reject(err) : resolve(body)))
+            );
+            const imageAnnotation =
+              aimDoc?.aim?.ImageAnnotationCollection?.imageAnnotations?.ImageAnnotation;
+            const ia = Array.isArray(imageAnnotation) ? imageAnnotation[0] : imageAnnotation;
+            const rawComment = ia?.comment?.value ?? '';
+            comment = rawComment.split('~~')[1] || '';
+            name = ia?.name?.value ?? '';
+          }
 
           let studyDescription = '';
           if (fetchStudyDesc) {
@@ -3202,7 +3207,7 @@ async function other(fastify) {
           const encrypted = fastify.encryptInternal(queryParams);
           const link = `${config.baseUrl}?arg=${encodeURIComponent(encrypted)}`;
 
-          return { study_desc: studyDescription, study_uid: study, comment, link };
+          return { study_desc: studyDescription, study_uid: study, name, comment, link };
         })
       );
 
@@ -3210,7 +3215,7 @@ async function other(fastify) {
         reply.send(results);
       } else {
         const text = results
-          .map((r) => `${r.study_uid}\t${r.study_desc}\t${r.comment}\t${r.link}`)
+          .map((r) => `${r.study_uid}\t${r.study_desc}\t${r.name}\t${r.comment}\t${r.link}`)
           .join('\n');
         reply.type('text/plain').send(text);
       }

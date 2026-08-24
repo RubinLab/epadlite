@@ -514,7 +514,7 @@ async function otherRoutes(fastify) {
   });
 
   fastify.route({
-    method: 'POST',
+    method: 'PUT',
     url: '/exportlinks',
     schema: {
       tags: ['link'],
@@ -529,7 +529,7 @@ async function otherRoutes(fastify) {
         type: 'array',
         items: {
           type: 'object',
-          required: ['subject', 'study', 'aimuid'],
+          required: ['subject', 'study'],
           properties: {
             subject: { type: 'string' },
             study: { type: 'string' },
