@@ -3165,10 +3165,11 @@ async function other(fastify) {
   });
 
   fastify.decorate('exportLinks', async (request, reply) => {
+    if (reply.sent) return;
     try {
       const pairs = request.body;
       const outputType = request.query.outputType || 'text';
-      const fetchStudyDesc = request.query.studyDesc === true;
+      const fetchStudyDesc = request.query.studyDesc === true || request.query.studyDesc === 'true';
 
       const results = await Promise.all(
         pairs.map(async ({ subject, study, aimuid }) => {
