@@ -2980,7 +2980,8 @@ async function other(fastify) {
                   reqInfo.worklistId &&
                   (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
                     request.epadAuth.username
-                )
+                ) &&
+                reqInfo.level !== 'exportlinks'
               )
                 throw new UnauthorizedError('User has no access to resource');
               break;
@@ -3039,6 +3040,7 @@ async function other(fastify) {
         }
       }
     } catch (err) {
+      fastify.log.error(`Error in epadThickRightsCheck: ${err.message}`);
       throw err;
     }
   });
