@@ -289,6 +289,175 @@ describe('Other Tests', () => {
       });
   });
 
+  describe('Export Links Tests', () => {
+    const aimUID = '2.25.211702350959705565754863799143359605362';
+    const studyUID = '1.3.12.2.1107.5.8.2.484849.837749.68675556.20031107184420110';
+    const subject = '13116';
+
+    before(async () => {
+      const jsonBuffer = JSON.parse(fs.readFileSync('test/data/roi_sample_aim.json'));
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .post('/aims')
+        .send(jsonBuffer)
+        .query({ username: 'admin' });
+    });
+
+    after(async () => {
+      await chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete(`/aims/${aimUID}`)
+        .query({ username: 'admin' });
+    });
+
+    it('should return 200 with JSON array when outputType=json', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', username: 'admin' })
+        .send([{ subject, study: studyUID, aimuid: aimUID }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.be.an('array');
+          expect(res.body).to.have.lengthOf(1);
+          expect(res.body[0]).to.have.all.keys('study_desc', 'study_uid', 'name', 'comment', 'link');
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
+    it('should return correct study_uid and comment from AIM', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', username: 'admin' })
+        .send([{ subject, study: studyUID, aimuid: aimUID }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body[0].study_uid).to.equal(studyUID);
+          expect(res.body[0].comment).to.equal('');
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
+    it('should return empty study_desc when studyDesc is not set (default false)', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', username: 'admin' })
+        .send([{ subject, study: studyUID, aimuid: aimUID }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body[0].study_desc).to.equal('');
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
+    it('should return 200 with empty study_desc when studyDesc=true but DICOMweb unavailable', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', studyDesc: true, username: 'admin' })
+        .send([{ subject, study: studyUID, aimuid: aimUID }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body[0]).to.have.all.keys('study_desc', 'study_uid', 'name', 'comment', 'link');
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
+    it('should return an encrypted link containing the base URL', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', username: 'admin' })
+        .send([{ subject, study: studyUID, aimuid: aimUID }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body[0].link).to.match(/^http:\/\/localhost:5987\?arg=/);
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
+    it('should return text output by default (no outputType param)', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ username: 'admin' })
+        .send([{ subject, study: studyUID, aimuid: aimUID }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.text).to.be.a('string');
+          expect(res.text).to.include(studyUID);
+          expect(res.text).to.include('\t');
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
+    it('should return multiple entries for multiple pairs', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', username: 'admin' })
+        .send([
+          { subject, study: studyUID, aimuid: aimUID },
+          { subject, study: studyUID, aimuid: aimUID },
+        ])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body).to.have.lengthOf(2);
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
+    it('should return 200 with empty comment when aimuid is omitted', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', username: 'admin' })
+        .send([{ subject, study: studyUID }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body[0].comment).to.equal('');
+          expect(res.body[0].study_uid).to.equal(studyUID);
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
+    it('should return 400 for body missing required fields', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', username: 'admin' })
+        .send([{ subject }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(400);
+          done();
+        })
+        .catch((e) => done(e));
+    });
+
+    it('should return 500 for an invalid aimuid', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/exportlinks')
+        .query({ outputType: 'json', username: 'admin' })
+        .send([{ subject, study: studyUID, aimuid: 'nonexistent-aim-uid' }])
+        .then((res) => {
+          expect(res.statusCode).to.equal(500);
+          done();
+        })
+        .catch((e) => done(e));
+    });
+  });
+
   /* it('dcm upload should be successful ', done => {
     chai
       .request(`http://${process.env.host}:${process.env.port}`)

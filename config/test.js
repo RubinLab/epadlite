@@ -22,4 +22,6 @@ module.exports = {
   auditLog: true,
   versionAudit: true,
   teachingProject: 'testaim',
+  secret: 'testsecret',
+  baseUrl: 'http://localhost:5987',
 };
