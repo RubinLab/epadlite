@@ -2981,7 +2981,7 @@ async function other(fastify) {
                   (await fastify.getObjectCreator('worklist', reqInfo.worklistId)) ===
                     request.epadAuth.username
                 ) &&
-                !request.raw.url.startsWith('/exportlinks')
+                !request.raw.url.startsWith(`/${config.prefix}/exportlinks`)
               )
                 throw new UnauthorizedError('User has no access to resource');
               break;
