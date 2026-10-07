@@ -112,6 +112,12 @@ config.thickDb = config.thickDb || {
   logger: process.env.SQL_LOGGER || 'false',
 };
 config.maxConcurrent = config.maxConcurrent || 5;
+// number of plugin containers that can run at the same time for the study triggered plugins
+config.maxConcurrentPlugins =
+  parseInt(process.env.MAX_CONCURRENT_PLUGINS, 10) || config.maxConcurrentPlugins || 1;
+// plugin_id of a plugin that is run on the studies of teaching files. when it is triggered for a project
+// it is enabled for the project automatically
+config.teachingPluginId = process.env.TEACHING_PLUGIN_ID || config.teachingPluginId || '';
 config.disableStats = config.disableStats || false;
 config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
 config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;

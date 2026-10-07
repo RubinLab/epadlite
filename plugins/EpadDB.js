@@ -16,10 +16,12 @@ const { createOfflineAimSegmentation } = require('aimapi');
 // eslint-disable-next-line no-global-assign
 window = {};
 const globalMapQueueById = new Map();
+const { default: PQueue } = require('p-queue');
 const dcmjs = require('dcmjs');
 const config = require('../config/index');
 const appVersion = require('../package.json').version;
 const DockerService = require('../utils/Docker');
+const { collectPluginAimFiles } = require('../utils/pluginAims');
 const {
   InternalError,
   ResourceNotFoundError,
@@ -29,6 +31,11 @@ const {
   EpadError,
 } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
+
+// serializes the duplicate check and queue insert of study triggered plugins. enough as long as pm2 runs 1 instance
+const pqPluginTrigger = new PQueue({ concurrency: 1 });
+// limits the study triggered plugin containers running at the same time
+const pqPluginRun = new PQueue({ concurrency: config.maxConcurrentPlugins });
 
 async function epaddb(fastify, options, done) {
   const models = {};
@@ -2501,6 +2508,149 @@ async function epaddb(fastify, options, done) {
     }
   });
 
+  // gets the queue item with its plugin and project in the shape runPluginsQueueInternal expects
+  fastify.decorate('getPluginQueueRunObjectInternal', async (queueId) => {
+    const data = await models.plugin_queue.findOne({
+      include: ['queueplugin', 'queueproject'],
+      where: { id: queueId },
+    });
+    if (data === null) throw new ResourceNotFoundError('Plugin queue item', queueId);
+    const pluginObj = {
+      id: data.dataValues.id,
+      plugin_id: data.dataValues.plugin_id,
+      project_id: data.dataValues.project_id,
+      plugin_parametertype: data.dataValues.plugin_parametertype,
+      aim_uid: data.dataValues.aim_uid,
+      runtime_params: data.dataValues.runtime_params,
+      max_memory: data.dataValues.max_memory,
+      status: data.dataValues.status,
+      creator: data.dataValues.creator,
+      starttime: data.dataValues.starttime,
+      endtime: data.dataValues.endtime,
+    };
+    if (data.dataValues.queueplugin !== null) {
+      pluginObj.plugin = { ...data.dataValues.queueplugin.dataValues };
+    }
+    if (data.dataValues.queueproject !== null) {
+      pluginObj.project = { ...data.dataValues.queueproject.dataValues };
+    }
+    return pluginObj;
+  });
+
+  // creates the queue item for a study (if the plugin is enabled for the project and the study was not
+  // processed by the plugin before) and schedules it. returns {queued, queueId, reason}
+  // study level queue items keep the study in aim_uid as {<studyUID>: {type: 'study', subjectID, studyUID}}
+  fastify.decorate('triggerPluginForStudyInternal', async (request) => {
+    const { project: projectUid, subject: subjectUid, study: studyUid, pluginid } = request.params;
+    const force = request.query && request.query.force === 'true';
+
+    const created = await pqPluginTrigger.add(async () => {
+      const project = await models.project.findOne({ where: { projectid: projectUid } });
+      if (project === null) throw new ResourceNotFoundError('Project', projectUid);
+      const plugin = await models.plugin.findOne({ where: { plugin_id: pluginid } });
+      if (plugin === null) throw new ResourceNotFoundError('Plugin', pluginid);
+      if (plugin.enabled === 0) return { queued: false, reason: 'Plugin is disabled' };
+
+      let projectPlugin = await models.project_plugin.findOne({
+        where: { project_id: project.id, plugin_id: plugin.id },
+      });
+      // the teaching plugin is enabled for the (private) projects when it is first needed
+      if (projectPlugin === null && config.teachingPluginId === pluginid) {
+        projectPlugin = await models.project_plugin.create({
+          project_id: project.id,
+          plugin_id: plugin.id,
+          enabled: 1,
+          creator: request.epadAuth.username,
+          createdtime: Date.now(),
+          updatetime: Date.now(),
+          updated_by: request.epadAuth.username,
+        });
+      }
+      if (projectPlugin === null || projectPlugin.enabled === 0)
+        return { queued: false, reason: 'Plugin is not enabled for the project' };
+
+      const subject = await models.subject.findOne({ where: { subjectuid: subjectUid } });
+      const projectSubject =
+        subject === null
+          ? null
+          : await models.project_subject.findOne({
+              where: { project_id: project.id, subject_id: subject.id },
+              include: [{ model: models.study, where: { studyuid: studyUid } }],
+            });
+      if (projectSubject === null)
+        throw new ResourceNotFoundError('Study', `${studyUid} in project ${projectUid}`);
+
+      if (!force) {
+        const existing = await models.plugin_queue.findAll({
+          where: {
+            plugin_id: plugin.id,
+            project_id: project.id,
+            [Op.or]: [{ status: { [Op.ne]: 'error' } }, { status: null }],
+          },
+          attributes: ['id', 'aim_uid'],
+        });
+        const alreadyQueued = existing.find((row) => {
+          let aims = row.aim_uid;
+          if (typeof aims === 'string') {
+            try {
+              aims = JSON.parse(aims);
+            } catch (err) {
+              return false;
+            }
+          }
+          return !!(aims && aims[studyUid] && aims[studyUid].type === 'study');
+        });
+        if (alreadyQueued)
+          return {
+            queued: false,
+            queueId: alreadyQueued.id,
+            reason:
+              'Study is already queued or processed by the plugin, use force=true to run again',
+          };
+      }
+
+      const queueItem = await models.plugin_queue.create({
+        plugin_id: plugin.id,
+        project_id: project.id,
+        plugin_parametertype: 'default',
+        creator: request.epadAuth.username,
+        status: 'added',
+        runtime_params: {},
+        aim_uid: { [studyUid]: { type: 'study', subjectID: subjectUid, studyUID: studyUid } },
+        starttime: '1970-01-01 00:00:01',
+        endtime: '1970-01-01 00:00:01',
+      });
+      return { queued: true, queueId: queueItem.id };
+    });
+
+    if (created.queued) {
+      // updateStatusQueueProcessInternal doesn't wait for the db, and 'inqueue' must be written before
+      // the run writes 'waiting'
+      await models.plugin_queue.update({ status: 'inqueue' }, { where: { id: created.queueId } });
+      // not awaited, the plugin runs after the response. runPluginsQueueInternal handles its own errors
+      pqPluginRun
+        .add(async () => {
+          const pluginObj = await fastify.getPluginQueueRunObjectInternal(created.queueId);
+          await fastify.runPluginsQueueInternal([pluginObj], request);
+        })
+        .catch((err) => {
+          fastify.log.error(`study triggered plugin ${created.queueId} failed to start: ${err}`);
+          fastify.updateStatusQueueProcessInternal(created.queueId, 'error');
+        });
+    }
+    return created;
+  });
+
+  fastify.decorate('triggerPluginForStudy', async (request, reply) => {
+    try {
+      const result = await fastify.triggerPluginForStudyInternal(request);
+      reply.code(result.queued ? 202 : 200).send(result);
+    } catch (err) {
+      if (err instanceof EpadError) reply.send(err);
+      else reply.send(new InternalError('Triggering plugin for the study', err));
+    }
+  });
+
   fastify.decorate('runNextPluginInSubQueueInternal', async (paramQid, request) => {
     /* 
       This function is used to run sub child plugins when ever the parent plugin terminates its process.
@@ -2634,6 +2784,13 @@ async function epaddb(fastify, options, done) {
       })
       .catch((err) => new InternalError('error while getPluginDeafultParametersInternal', err));
   });
+  // study level plugin queue items keep their studies in aim_uid as
+  // {<studyUID>: {type: 'study', subjectID, studyUID}}
+  fastify.decorate('getPluginStudyEntriesInternal', (aims) =>
+    Object.values(aims || {}).filter(
+      (entry) => entry && entry.type === 'study' && entry.studyUID && entry.subjectID
+    )
+  );
   fastify.decorate(
     'createPluginfoldersInternal',
     (pluginparams, userfolder, aims, projectid, projectdbid, processmultipleaims, request) =>
@@ -2650,6 +2807,9 @@ async function epaddb(fastify, options, done) {
           }
           tempPluginparams = [...temValuesArray];
         }
+
+        // queue items created for a study (see triggerPluginForStudyInternal) have {type: 'study'} entries
+        const studyEntries = fastify.getPluginStudyEntriesInternal(aims);
 
         for (let i = 0; i < tempPluginparams.length; i += 1) {
           // output folder
@@ -2673,6 +2833,7 @@ async function epaddb(fastify, options, done) {
             if (
               tempPluginparams[i].paramid === 'aims' &&
               Object.keys(aims).length > 0 &&
+              studyEntries.length === 0 &&
               typeof processmultipleaims !== 'object'
             ) {
               try {
@@ -2741,7 +2902,65 @@ async function epaddb(fastify, options, done) {
                   isItFirstTimeGettingDicoms = true;
                 }
 
-                if (typeof processmultipleaims !== 'object' && Object.keys(aims).length > 0) {
+                if (studyEntries.length > 0) {
+                  // study level dicoms. all the series of the study are downloaded, the plugin decides what to process
+                  if (tempPluginparams[i].refreshdicoms === 1 || isItFirstTimeGettingDicoms) {
+                    if (fs.existsSync(inputfolder)) {
+                      fs.rmdirSync(inputfolder, { recursive: true });
+                      fs.mkdirSync(inputfolder, { recursive: true });
+                    }
+                    for (let studyCnt = 0; studyCnt < studyEntries.length; studyCnt += 1) {
+                      const studyEntry = studyEntries[studyCnt];
+                      fastify.log.info(`getting dicoms for study : ${studyEntry.studyUID}`);
+                      // eslint-disable-next-line no-await-in-loop
+                      const returnStudyFolder = await fastify.prepStudiesDownload(
+                        request.headers.origin,
+                        {
+                          project: projectid,
+                          subject: studyEntry.subjectID,
+                          study: studyEntry.studyUID,
+                        },
+                        { format: 'stream', includeAims: 'false' },
+                        request.epadAuth,
+                        'undefined',
+                        [{ subject: studyEntry.subjectID, study: studyEntry.studyUID }],
+                        true
+                      );
+                      const returnStudyFolderFullPath = path.join(
+                        __dirname,
+                        `../${returnStudyFolder}`
+                      );
+                      try {
+                        // the download is in <tmp folder>/<studyUID>/Patient-<id>/Study-<uid>/Series-<uid>/...
+                        fs.copySync(
+                          `${returnStudyFolderFullPath}/${studyEntry.studyUID}`,
+                          inputfolder
+                        );
+                        fastify.log.info(`copying folder ${returnStudyFolderFullPath} succeed`);
+                      } catch (err) {
+                        fastify.log.error(
+                          `file copy from ${returnStudyFolderFullPath} encountered error: -> ${err}`
+                        );
+                        reject(
+                          new InternalError(
+                            `file copy from ${returnStudyFolderFullPath} encountered error`,
+                            err
+                          )
+                        );
+                      }
+                      try {
+                        fs.removeSync(returnStudyFolderFullPath);
+                      } catch (err) {
+                        fastify.log.error(
+                          `removing study folder from tmp: ${returnStudyFolderFullPath} encountered error -> ${err}`
+                        );
+                      }
+                    }
+                  }
+                } else if (
+                  typeof processmultipleaims !== 'object' &&
+                  Object.keys(aims).length > 0
+                ) {
                   // aim level dicoms
                   if (tempPluginparams[i].refreshdicoms === 1 || isItFirstTimeGettingDicoms) {
                     if (fs.existsSync(inputfolder)) {
@@ -3830,7 +4049,7 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'uploadMergedAimPluginCalcInternal',
-    async (aimFileLocation, projectidParam) =>
+    async (aimFileLocation, projectidParam, epadAuth = 'admin') =>
       new Promise(async (resolve, reject) => {
         const fileArray = [];
         try {
@@ -3840,7 +4059,7 @@ async function epaddb(fastify, options, done) {
             fileArray,
             { project: projectidParam },
             { forceSave: 'true' },
-            'admin'
+            epadAuth
           );
 
           fastify.log.info(`uploading merged aim back to epad error: ${errors}`);
@@ -3869,6 +4088,44 @@ async function epaddb(fastify, options, done) {
         }
       })
   );
+  // uploads the aims a plugin left in its aims (modified input aims) or output (newly created aims) folders
+  // returns true if there was an error
+  fastify.decorate(
+    'pluginUploadAimsBackInternal',
+    async (pluginParameters, uploadAimsBackFlag, queueId, request) => {
+      if (uploadAimsBackFlag !== 1) {
+        fastify.log.info(`user set don't upload aims back flag`);
+        return false;
+      }
+      try {
+        const aimFiles = collectPluginAimFiles([
+          `${pluginParameters.relativeServerFolder}/aims`,
+          `${pluginParameters.relativeServerFolder}/output`,
+        ]);
+        fastify.log.info(`uploading ${aimFiles.length} aim(s) produced by the plugin`);
+        for (let i = 0; i < aimFiles.length; i += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          await fastify.uploadMergedAimPluginCalcInternal(
+            aimFiles[i],
+            pluginParameters.projectid,
+            request.epadAuth || 'admin'
+          );
+        }
+        return false;
+      } catch (err) {
+        fastify.log.error(`Error: uploading aims produced by the plugin, err: ${err}`);
+        await fastify.updateStatusQueueProcessInternal(queueId, 'error');
+        new EpadNotification(
+          request,
+          '',
+          new Error(`error happened while ${pluginParameters.pluginname} was uploading its aims`),
+          true
+        ).notify(fastify);
+        return true;
+      }
+    }
+  );
+
   // pyradiomics section--------
 
   fastify.decorate(
@@ -4147,7 +4404,7 @@ async function epaddb(fastify, options, done) {
   fastify.decorate('runPluginsQueueInternal', async (result, request) => {
     const pluginQueueList = [...result];
     try {
-      const seq = request.body.sequence || false;
+      const seq = (request.body && request.body.sequence) || false;
       if (seq) {
         for (let i = 0; i < pluginQueueList.length; i += 1) {
           // eslint-disable-next-line no-await-in-loop
@@ -4365,6 +4622,7 @@ async function epaddb(fastify, options, done) {
 
                 // this section needs to be executed if csv needs to be proecessed
                 // write plugin calculations to aim
+                let csvProcessed = false;
                 const csvArray = [];
                 fastify.findFilesAndSubfilesInternal(
                   `${pluginParameters.relativeServerFolder}/output`,
@@ -4386,6 +4644,7 @@ async function epaddb(fastify, options, done) {
                     }
                   }
                   if (csvfound !== null) {
+                    csvProcessed = true;
                     new EpadNotification(
                       request,
                       `${pluginParameters.pluginname} is processing output csv files `,
@@ -4625,79 +4884,19 @@ async function epaddb(fastify, options, done) {
                   }
                 } else {
                   fastify.log.info('no csv file found in output folder for the plugin');
-                  // upload aims without regarding pyradiomics or not just check upload back aim flag.this means epad will not process the csv file and will not write back into aim
-                  // but a plugin can still manipulate aim wihtout a csv. this is the case we cover here.
-                  if (uploadAimsBackFlag === 1) {
-                    const foundAimsAnyPlugin = [];
-                    try {
-                      try {
-                        fastify.log.info(
-                          `finding the aims for any plugin which has upload aim back flag is set and is not required to process csv file for feature values`
-                        );
-                        // eslint-disable-next-line no-await-in-loop
-                        fastify.findFilesAndSubfilesInternal(
-                          `${pluginParameters.relativeServerFolder}/aims`,
-                          foundAimsAnyPlugin,
-                          'json'
-                        );
-                        fastify.log.info(
-                          `found aims for any plugin : ${JSON.stringify(foundAimsAnyPlugin)}`
-                        );
-                      } catch (err) {
-                        containerErrorTrack = +1;
-                        fastify.log.error(`Error: finding aims for any plugin err: ${err}`);
-                        // eslint-disable-next-line no-await-in-loop
-                        await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-                        new EpadNotification(
-                          request,
-                          '',
-                          new Error(
-                            `error happened while lookingup for aims for any type of plugin which has "uploadaimback" flag set ${pluginParameters.pluginname} `
-                          ),
-                          true
-                        ).notify(fastify);
-                      }
-                      fastify.log.info(
-                        `uploading processed aim for any plugin with the aimid: ${JSON.stringify(
-                          foundAimsAnyPlugin
-                        )} by the plugin`
-                      );
-                      for (
-                        let foundAimsAnyPluginCnt = 0;
-                        foundAimsAnyPluginCnt < foundAimsAnyPlugin.length;
-                        foundAimsAnyPluginCnt += 1
-                      ) {
-                        // eslint-disable-next-line no-await-in-loop
-                        await fastify.uploadMergedAimPluginCalcInternal(
-                          foundAimsAnyPlugin[foundAimsAnyPluginCnt],
-                          pluginParameters.projectid
-                        );
-                      }
-                    } catch (err) {
-                      containerErrorTrack = +1;
-                      fastify.log.error(
-                        `Error : while uploading processed aim for any type of plugin with the aimid: ${JSON.stringify(
-                          foundAimsAnyPlugin
-                        )} by the plugin, err:${err}`
-                      );
-                      // eslint-disable-next-line no-await-in-loop
-                      await fastify.updateStatusQueueProcessInternal(queueId, 'error');
-                      new EpadNotification(
-                        request,
-                        '',
-                        new Error(
-                          `error happened while  ${
-                            pluginParameters.pluginname
-                          } was uploading back the aim for any type plugin with aimid: ${JSON.stringify(
-                            foundAimsAnyPlugin
-                          )}`
-                        ),
-                        true
-                      ).notify(fastify);
-                    }
-                  } else {
-                    fastify.log.info(`user set don't upload aims back flag`);
-                  }
+                }
+
+                // upload the aims the plugin produced, even if there are csv files in the output folder.
+                // if the csv was processed above (pyradiomics style), the merged aims are already uploaded there
+                if (!csvProcessed) {
+                  // eslint-disable-next-line no-await-in-loop
+                  const aimUploadFailed = await fastify.pluginUploadAimsBackInternal(
+                    pluginParameters,
+                    uploadAimsBackFlag,
+                    queueId,
+                    request
+                  );
+                  if (aimUploadFailed) containerErrorTrack += 1;
                 }
 
                 // tthis section needs to be executed if csv needs to be proecessed // section ends

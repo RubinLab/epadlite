@@ -207,6 +207,31 @@ async function routes(fastify) {
     },
     handler: fastify.addPluginsToQueue,
   });
+  // queues the plugin for all the series of the study. the plugin decides what to process
+  fastify.route({
+    method: 'POST',
+    url: '/projects/:project/subjects/:subject/studies/:study/plugins/:pluginid/trigger',
+    schema: {
+      tags: ['plugins'],
+      params: {
+        type: 'object',
+        properties: {
+          project: { type: 'string' },
+          subject: { type: 'string' },
+          study: { type: 'string' },
+          pluginid: { type: 'string' },
+        },
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          // run again even if the study was queued or processed before
+          force: { type: 'string' },
+        },
+      },
+    },
+    handler: fastify.triggerPluginForStudy,
+  });
   fastify.route({
     method: 'POST',
     url: '/pluginqueue/run',
