@@ -3104,13 +3104,26 @@ async function epaddb(fastify, options, done) {
         resolve(1);
       })
   );
-  fastify.decorate('getUserPluginDataPathInternal', async () => {
+  // the bind mounts of the epad_lite container. plugin containers are created by epadlite through the
+  // docker socket and their folders are the host paths of these mounts
+  fastify.decorate('getEpadLiteBindPointsInternal', async () => {
     const dock = new DockerService(fs, fastify, path);
     const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
+    // checkContainerExistance returns the error instead of throwing it
+    if (!inspectResultContainerEpadLite || !inspectResultContainerEpadLite.HostConfig) {
+      throw new InternalError(
+        `Cannot inspect the epad_lite container. The container must be named epad_lite and the user running epadlite must be allowed to use /var/run/docker.sock`,
+        inspectResultContainerEpadLite instanceof Error
+          ? inspectResultContainerEpadLite
+          : new Error('no container information')
+      );
+    }
+    return inspectResultContainerEpadLite.HostConfig.Binds || [];
+  });
+  fastify.decorate('getUserPluginDataPathInternal', async () => {
+    const epadLiteBindPoints = await fastify.getEpadLiteBindPointsInternal();
     let epadLitePwd = '';
     return new Promise((resolve, reject) => {
-      const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
-
       for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
         if (epadLiteBindPoints[cntPoints].includes('pluginData')) {
           // eslint-disable-next-line prefer-destructuring
@@ -3162,9 +3175,14 @@ async function epaddb(fastify, options, done) {
       // this part is important to define auto created containers bindpoint related to user's computer path
       // here relative path does not work since epad_lite relative path will be different than auto created containers
       // this means /home/node/app does not exist in the created containrs by the plugin
-      const dock = new DockerService(fs, fastify, path);
-      const inspectResultContainerEpadLite = await dock.checkContainerExistance('epad_lite');
-      const epadLiteBindPoints = inspectResultContainerEpadLite.HostConfig.Binds;
+      let epadLiteBindPoints;
+      try {
+        epadLiteBindPoints = await fastify.getEpadLiteBindPointsInternal();
+      } catch (err) {
+        // an error thrown here would leave this promise (and the queue waiting for it) pending forever
+        reject(err);
+        return;
+      }
       let epadLitePwd = '';
       fastify.log.info(`getting epad_lite bind points to reflect : ${epadLiteBindPoints}`);
       for (let cntPoints = 0; cntPoints < epadLiteBindPoints.length; cntPoints += 1) {
