@@ -514,6 +514,72 @@ async function otherRoutes(fastify) {
   });
 
   fastify.route({
+    method: 'PUT',
+    url: '/exportlinks',
+    schema: {
+      tags: ['link'],
+      summary: 'Generate encrypted share links for a list of studies',
+      description:
+        'Accepts a list of subject/study/aimuid triples. For each entry, retrieves the AIM ' +
+        'annotation name and narrative comment, optionally fetches the study description from ' +
+        'DICOMweb, and returns an AES-256-CBC encrypted URL that can be shared to open the study ' +
+        'directly. Output can be a JSON array or a tab-separated text block.',
+      querystring: {
+        type: 'object',
+        properties: {
+          outputType: {
+            type: 'string',
+            enum: ['json', 'text'],
+            default: 'text',
+            description: 'Response format. "json" returns an array; "text" returns tab-separated lines.',
+          },
+          studyDesc: {
+            type: 'boolean',
+            default: false,
+            description: 'When true, fetches study description from DICOMweb (adds a network call per entry).',
+          },
+        },
+      },
+      body: {
+        type: 'array',
+        description: 'List of study entries to generate links for.',
+        items: {
+          type: 'object',
+          required: ['subject', 'study'],
+          properties: {
+            subject: { type: 'string', description: 'Patient ID.' },
+            study: { type: 'string', description: 'Study Instance UID.' },
+            aimuid: { type: 'string', description: 'AIM annotation UID. When provided, name and narrative comment are extracted from the annotation.' },
+          },
+        },
+      },
+      response: {
+        200: {
+          description: 'Successful response. Shape depends on outputType.',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    study_uid: { type: 'string', description: 'Study Instance UID.' },
+                    study_desc: { type: 'string', description: 'Study description from DICOMweb. Empty when studyDesc=false.' },
+                    name: { type: 'string', description: 'AIM annotation name (ImageAnnotation.name.value). Empty when aimuid is omitted.' },
+                    comment: { type: 'string', description: 'Narrative comment from AIM (text after ~~ in comment field). Empty when aimuid is omitted or no narrative was recorded.' },
+                    link: { type: 'string', description: 'AES-256-CBC encrypted URL for opening the study.' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    handler: fastify.exportLinks,
+  });
+
+  fastify.route({
     method: 'POST',
     url: '/reports/waterfall',
     schema: {
