@@ -2912,20 +2912,32 @@ async function epaddb(fastify, options, done) {
                     for (let studyCnt = 0; studyCnt < studyEntries.length; studyCnt += 1) {
                       const studyEntry = studyEntries[studyCnt];
                       fastify.log.info(`getting dicoms for study : ${studyEntry.studyUID}`);
-                      // eslint-disable-next-line no-await-in-loop
-                      const returnStudyFolder = await fastify.prepStudiesDownload(
-                        request.headers.origin,
-                        {
-                          project: projectid,
-                          subject: studyEntry.subjectID,
-                          study: studyEntry.studyUID,
-                        },
-                        { format: 'stream', includeAims: 'false' },
-                        request.epadAuth,
-                        'undefined',
-                        [{ subject: studyEntry.subjectID, study: studyEntry.studyUID }],
-                        true
-                      );
+                      let returnStudyFolder;
+                      try {
+                        // eslint-disable-next-line no-await-in-loop
+                        returnStudyFolder = await fastify.prepStudiesDownload(
+                          request.headers.origin,
+                          {
+                            project: projectid,
+                            subject: studyEntry.subjectID,
+                            study: studyEntry.studyUID,
+                          },
+                          { format: 'stream', includeAims: 'false' },
+                          request.epadAuth,
+                          'undefined',
+                          [{ subject: studyEntry.subjectID, study: studyEntry.studyUID }],
+                          true
+                        );
+                      } catch (err) {
+                        // nothing could be retrieved for the study from the dicomweb server
+                        reject(
+                          new InternalError(
+                            `Could not download the images of study ${studyEntry.studyUID} for the plugin`,
+                            err
+                          )
+                        );
+                        return;
+                      }
                       const returnStudyFolderFullPath = path.join(
                         __dirname,
                         `../${returnStudyFolder}`
@@ -12253,7 +12265,8 @@ async function epaddb(fastify, options, done) {
           fileUids,
           !returnFolder ? archive : undefined
         );
-        if (returnFolder && !isThereData) fs.rmdirSync(studyDir);
+        // the study folder has the (empty) series folders already, rmdirSync fails with ENOTEMPTY
+        if (returnFolder && !isThereData) fs.removeSync(studyDir);
         // eslint-disable-next-line no-param-reassign
         isThereDataToWrite = isThereDataToWrite || isThereData || isTherePatientData;
       }
