@@ -11284,6 +11284,7 @@ async function epaddb(fastify, options, done) {
           stream.on('data', (d) => {
             bufs.push(d);
           });
+          stream.on('error', (err) => reject(err));
           stream.on('end', () => {
             const buf = Buffer.concat(bufs);
             fastify.log.info(`Packed ${Buffer.byteLength(buf)} bytes of buffer `);
@@ -11319,6 +11320,59 @@ async function epaddb(fastify, options, done) {
       })
   );
 
+  // gets the dicom files (array of ArrayBuffers) of the instances of a series one by one in the same way
+  // the viewer gets them (wado uri, or wado rs if config.wadoType is RS, from the pacs or the archive).
+  // for servers that do not support retrieving a whole series with wado rs
+  fastify.decorate('getSeriesInstancesWado', async (params) => {
+    const qido = await fastify.queryQIDO(
+      `/studies/${params.study}/series/${params.series}/instances`
+    );
+    const instances = Array.isArray(qido.response.data) ? qido.response.data : [];
+    const isArchive = qido.source === 'archive' && this.archiveRequest;
+    const client = isArchive ? this.archiveRequest : this.request;
+    const dicomWebConfig = isArchive ? config.archiveDicomWebConfig : config.dicomWebConfig;
+    const parts = [];
+    for (let i = 0; i < instances.length; i += 1) {
+      const instance = instances[i];
+      const instanceUid =
+        instance['00080018'] && instance['00080018'].Value && instance['00080018'].Value[0];
+      const modality =
+        instance['00080060'] && instance['00080060'].Value && instance['00080060'].Value[0];
+      // same as the viewer, presentation states are not images
+      if (instanceUid && modality !== 'PR') {
+        let result;
+        if (config.wadoType === 'RS') {
+          // eslint-disable-next-line no-await-in-loop
+          result = await client.get(
+            `${dicomWebConfig.wadoSubPath}/studies/${params.study}/series/${params.series}/instances/${instanceUid}`,
+            {
+              responseType: 'stream',
+              ...(dicomWebConfig.requireJSONHeader ? { headers: { accept: '*/*' } } : {}),
+            }
+          );
+        } else {
+          // eslint-disable-next-line no-await-in-loop
+          result = await fastify.getWadoInternal({
+            source: qido.source,
+            study: params.study,
+            series: params.series,
+            image: instanceUid,
+          });
+        }
+        // eslint-disable-next-line no-await-in-loop
+        const buffer = await fastify.getMultipartBuffer(result.data);
+        const contentType = (result.headers && result.headers['content-type']) || '';
+        // wado rs is multipart, wado uri (and some servers for wado rs) return the dicom file itself
+        parts.push(
+          contentType.toLowerCase().includes('multipart')
+            ? dcmjs.utilities.message.multipartDecode(buffer)[0]
+            : buffer
+        );
+      }
+    }
+    return parts;
+  });
+
   fastify.decorate(
     'getSeriesWadoMultipart',
     (params) =>
@@ -11326,11 +11380,32 @@ async function epaddb(fastify, options, done) {
         try {
           let query = params.study ? `/${params.study}` : '';
           if (params.series) query += `/series/${params.series}`;
-          const resultStream = await this.request.get(`/studies${query}`, {
-            responseType: 'stream',
-          });
-          const res = await fastify.getMultipartBuffer(resultStream.data);
-          const parts = dcmjs.utilities.message.multipartDecode(res);
+          let parts;
+          try {
+            const resultStream = await this.request.get(
+              `${config.dicomWebConfig.wadoSubPath}/studies${query}`,
+              {
+                responseType: 'stream',
+                headers: { accept: 'multipart/related; type="application/dicom"' },
+              }
+            );
+            const res = await fastify.getMultipartBuffer(resultStream.data);
+            parts = dcmjs.utilities.message.multipartDecode(res);
+          } catch (errSeries) {
+            if (!params.series) throw errSeries;
+            // the pacs may not support wado rs on series level, get the instances one by one
+            fastify.log.warn(
+              `Series level wado rs failed for series ${params.series} (${errSeries.message}), retrieving the instances one by one`
+            );
+            try {
+              parts = await fastify.getSeriesInstancesWado(params);
+            } catch (errInstances) {
+              fastify.log.error(
+                `Retrieving the instances of series ${params.series} one by one failed: ${errInstances.message}`
+              );
+              throw errSeries;
+            }
+          }
           resolve(parts);
         } catch (err) {
           reject(err);
