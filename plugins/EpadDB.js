@@ -11719,6 +11719,11 @@ async function epaddb(fastify, options, done) {
                 'Downloading study series',
                 new ResourceNotFoundError(`Series of study ${params.study}`, missing.join(', '))
               );
+            fastify.log.info(
+              `filtering series of study ${params.study}: downloading ${seriesUIDs.length} of ${
+                studySeries.length
+              } series (${seriesUIDs.join(', ')})`
+            );
             studySeries = studySeries.filter((series) => seriesUIDs.includes(series.seriesUID));
           }
           // call fastify.prepSeriesDownloadDir(); for each
