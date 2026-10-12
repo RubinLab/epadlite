@@ -32,7 +32,7 @@ const {
 } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
 
-// serializes the duplicate check and queue insert of study triggered plugins. enough as long as pm2 runs 1 instance
+// serializes the project plugin check/creation and queue insert of study triggered plugins. enough as long as pm2 runs 1 instance
 const pqPluginTrigger = new PQueue({ concurrency: 1 });
 // limits the study triggered plugin containers running at the same time
 const pqPluginRun = new PQueue({ concurrency: config.maxConcurrentPlugins });
@@ -2537,12 +2537,24 @@ async function epaddb(fastify, options, done) {
     return pluginObj;
   });
 
-  // creates the queue item for a study (if the plugin is enabled for the project and the study was not
-  // processed by the plugin before) and schedules it. returns {queued, queueId, reason}
-  // study level queue items keep the study in aim_uid as {<studyUID>: {type: 'study', subjectID, studyUID}}
+  // creates the queue item for a study (if the plugin is enabled for the project) and schedules it.
+  // returns {queued, queueId, reason}. it can be triggered more than once for a study.
+  // request.body.seriesUIDs limits the dicoms given to the plugin to those series, all the series otherwise
+  // study level queue items keep the study in aim_uid as
+  // {<studyUID>: {type: 'study', subjectID, studyUID, seriesUIDs (only if series are given)}}
   fastify.decorate('triggerPluginForStudyInternal', async (request) => {
     const { project: projectUid, subject: subjectUid, study: studyUid, pluginid } = request.params;
-    const force = request.query && request.query.force === 'true';
+    const requestedSeries = request.body && request.body.seriesUIDs;
+    if (
+      requestedSeries !== undefined &&
+      (!Array.isArray(requestedSeries) ||
+        requestedSeries.some((seriesUid) => typeof seriesUid !== 'string' || seriesUid === ''))
+    )
+      throw new BadRequestError(
+        'Triggering plugin for the study',
+        new Error('seriesUIDs should be an array of series UIDs')
+      );
+    const seriesUIDs = requestedSeries ? [...new Set(requestedSeries)] : [];
 
     const created = await pqPluginTrigger.add(async () => {
       const project = await models.project.findOne({ where: { projectid: projectUid } });
@@ -2580,35 +2592,6 @@ async function epaddb(fastify, options, done) {
       if (projectSubject === null)
         throw new ResourceNotFoundError('Study', `${studyUid} in project ${projectUid}`);
 
-      if (!force) {
-        const existing = await models.plugin_queue.findAll({
-          where: {
-            plugin_id: plugin.id,
-            project_id: project.id,
-            [Op.or]: [{ status: { [Op.ne]: 'error' } }, { status: null }],
-          },
-          attributes: ['id', 'aim_uid'],
-        });
-        const alreadyQueued = existing.find((row) => {
-          let aims = row.aim_uid;
-          if (typeof aims === 'string') {
-            try {
-              aims = JSON.parse(aims);
-            } catch (err) {
-              return false;
-            }
-          }
-          return !!(aims && aims[studyUid] && aims[studyUid].type === 'study');
-        });
-        if (alreadyQueued)
-          return {
-            queued: false,
-            queueId: alreadyQueued.id,
-            reason:
-              'Study is already queued or processed by the plugin, use force=true to run again',
-          };
-      }
-
       const queueItem = await models.plugin_queue.create({
         plugin_id: plugin.id,
         project_id: project.id,
@@ -2616,7 +2599,14 @@ async function epaddb(fastify, options, done) {
         creator: request.epadAuth.username,
         status: 'added',
         runtime_params: {},
-        aim_uid: { [studyUid]: { type: 'study', subjectID: subjectUid, studyUID: studyUid } },
+        aim_uid: {
+          [studyUid]: {
+            type: 'study',
+            subjectID: subjectUid,
+            studyUID: studyUid,
+            ...(seriesUIDs.length > 0 ? { seriesUIDs } : {}),
+          },
+        },
         starttime: '1970-01-01 00:00:01',
         endtime: '1970-01-01 00:00:01',
       });
@@ -2903,7 +2893,8 @@ async function epaddb(fastify, options, done) {
                 }
 
                 if (studyEntries.length > 0) {
-                  // study level dicoms. all the series of the study are downloaded, the plugin decides what to process
+                  // study level dicoms. all the series of the study (or only the series given when triggered)
+                  // are downloaded, the plugin decides what to process
                   if (tempPluginparams[i].refreshdicoms === 1 || isItFirstTimeGettingDicoms) {
                     if (fs.existsSync(inputfolder)) {
                       fs.rmdirSync(inputfolder, { recursive: true });
@@ -2911,7 +2902,13 @@ async function epaddb(fastify, options, done) {
                     }
                     for (let studyCnt = 0; studyCnt < studyEntries.length; studyCnt += 1) {
                       const studyEntry = studyEntries[studyCnt];
-                      fastify.log.info(`getting dicoms for study : ${studyEntry.studyUID}`);
+                      fastify.log.info(
+                        `getting dicoms for study : ${studyEntry.studyUID}${
+                          studyEntry.seriesUIDs
+                            ? `, series: ${studyEntry.seriesUIDs.join(', ')}`
+                            : ''
+                        }`
+                      );
                       let returnStudyFolder;
                       try {
                         // eslint-disable-next-line no-await-in-loop
@@ -2925,7 +2922,13 @@ async function epaddb(fastify, options, done) {
                           { format: 'stream', includeAims: 'false' },
                           request.epadAuth,
                           'undefined',
-                          [{ subject: studyEntry.subjectID, study: studyEntry.studyUID }],
+                          [
+                            {
+                              subject: studyEntry.subjectID,
+                              study: studyEntry.studyUID,
+                              seriesUIDs: studyEntry.seriesUIDs,
+                            },
+                          ],
                           true
                         );
                       } catch (err) {
@@ -11694,17 +11697,30 @@ async function epaddb(fastify, options, done) {
 
   fastify.decorate(
     'prepStudyDownloadDir',
-    (dataDir, params, query, epadAuth, fileUids, archive) =>
+    (dataDir, studyParams, query, epadAuth, fileUids, archive) =>
       new Promise(async (resolve, reject) => {
         try {
+          // seriesUIDs (optional) limits the download to those series of the study
+          const { seriesUIDs, ...params } = studyParams;
           let isThereDataToWrite = false;
           // get study series
-          const studySeries = await fastify.getSeriesDicomOrNotInternal(
+          let studySeries = await fastify.getSeriesDicomOrNotInternal(
             { study: params.study },
             { format: 'summary', forceDicomweb: 'true' },
             epadAuth,
             true
           );
+          if (seriesUIDs && seriesUIDs.length > 0) {
+            const missing = seriesUIDs.filter(
+              (seriesUid) => !studySeries.some((series) => series.seriesUID === seriesUid)
+            );
+            if (missing.length > 0)
+              throw new BadRequestError(
+                'Downloading study series',
+                new ResourceNotFoundError(`Series of study ${params.study}`, missing.join(', '))
+              );
+            studySeries = studySeries.filter((series) => seriesUIDs.includes(series.seriesUID));
+          }
           // call fastify.prepSeriesDownloadDir(); for each
           for (let i = 0; i < studySeries.length; i += 1) {
             const seriesDir = `${dataDir}/Series-${studySeries[i].seriesUID}`;
@@ -11719,6 +11735,15 @@ async function epaddb(fastify, options, done) {
               fileUids,
               archive
             );
+            // series asked for explicitly should not be silently skipped
+            if (seriesUIDs && seriesUIDs.length > 0 && !isThereData)
+              throw new BadRequestError(
+                'Downloading study series',
+                new ResourceNotFoundError(
+                  `Images of series in study ${params.study}`,
+                  studySeries[i].seriesUID
+                )
+              );
             isThereDataToWrite = isThereDataToWrite || isThereData;
           }
           if (query.includeAims && query.includeAims === 'true') {
@@ -12264,7 +12289,12 @@ async function epaddb(fastify, options, done) {
         // eslint-disable-next-line no-await-in-loop
         const isThereData = await fastify.prepStudyDownloadDir(
           studyDir,
-          { ...params, subject: subjectUid, study: studyUid },
+          {
+            ...params,
+            subject: subjectUid,
+            study: studyUid,
+            seriesUIDs: studiesInfo[i].seriesUIDs,
+          },
           query,
           epadAuth,
           fileUids,

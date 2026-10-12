@@ -207,7 +207,8 @@ async function routes(fastify) {
     },
     handler: fastify.addPluginsToQueue,
   });
-  // queues the plugin for all the series of the study. the plugin decides what to process
+  // queues the plugin for the study. all the series are given to the plugin unless seriesUIDs is in the body.
+  // can be triggered many times for the same study. the plugin decides what to process
   fastify.route({
     method: 'POST',
     url: '/projects/:project/subjects/:subject/studies/:study/plugins/:pluginid/trigger',
@@ -222,11 +223,11 @@ async function routes(fastify) {
           pluginid: { type: 'string' },
         },
       },
-      querystring: {
-        type: 'object',
+      body: {
+        type: ['object', 'null'],
         properties: {
-          // run again even if the study was queued or processed before
-          force: { type: 'string' },
+          // only these series of the study are given to the plugin. all the series if not sent or empty
+          seriesUIDs: { type: 'array', items: { type: 'string' } },
         },
       },
     },
