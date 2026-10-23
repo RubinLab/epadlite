@@ -11316,6 +11316,7 @@ async function epaddb(fastify, options, done) {
     (segEntity) =>
       new Promise(async (resolve, reject) => {
         try {
+          // TODO missing ${config.dicomWebConfig.wadoSubPath} prefix (see getSeriesWadoMultipart), seg downloads break when a sub path is configured. consider fastify.getWadoInternal
           const result = await this.request.get(
             `/?requestType=WADO&studyUID=${segEntity.studyInstanceUid.root}&seriesUID=${segEntity.seriesInstanceUid.root}&objectUID=${segEntity.sopInstanceUid.root}`,
             { responseType: 'stream' }
