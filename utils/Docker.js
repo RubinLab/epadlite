@@ -241,6 +241,12 @@ class DockerService {
       });
   }
 
+  async imageExistsLocally(img) {
+    const imageList = await this.listImages();
+    if (!Array.isArray(imageList)) return false;
+    return imageList.some((image) => Array.isArray(image.RepoTags) && image.RepoTags.includes(img));
+  }
+
   //  does not follow image pulling process
   pullImage(img) {
     const tempFastify = this.fastify;

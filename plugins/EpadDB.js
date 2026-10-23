@@ -4484,17 +4484,29 @@ async function epaddb(fastify, options, done) {
           const dock = new DockerService(fs, fastify, path);
           let checkImageExistOnHub = false;
           let checkImageExistLocal = false;
-          try {
-            fastify.log.info(`trying to pull first : ${imageRepo}`);
+          // a pinned tag that is already local is not pulled again (saves the registry round trip on every run).
+          // latest or no tag can move, so those are always pulled
+          const imageTag = pluginQueueList[i].plugin.image_tag;
+          if (!config.alwaysPullPluginImages && imageTag && imageTag !== 'latest') {
             // eslint-disable-next-line no-await-in-loop
-            await dock.pullImageA(imageRepo);
-            checkImageExistOnHub = true;
-          } catch (err) {
-            fastify.log.info(
-              `${imageRepo} is not reachable , does not exist on the hub or requires login`
-            );
+            checkImageExistLocal = await dock.imageExistsLocally(imageRepo);
+            if (checkImageExistLocal) {
+              fastify.log.info(`image found locally, skipping pull : ${imageRepo}`);
+            }
           }
-          if (checkImageExistOnHub === false) {
+          if (checkImageExistLocal === false) {
+            try {
+              fastify.log.info(`trying to pull first : ${imageRepo}`);
+              // eslint-disable-next-line no-await-in-loop
+              await dock.pullImageA(imageRepo);
+              checkImageExistOnHub = true;
+            } catch (err) {
+              fastify.log.info(
+                `${imageRepo} is not reachable , does not exist on the hub or requires login`
+              );
+            }
+          }
+          if (checkImageExistOnHub === false && checkImageExistLocal === false) {
             // check local image existance
 
             // eslint-disable-next-line no-await-in-loop
