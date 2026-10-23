@@ -2432,7 +2432,6 @@ async function epaddb(fastify, options, done) {
       const seqresult = [];
       for (let i = 0; i < tableData.length; i += 1) {
         const data = tableData[i];
-        const nonseqresult = [];
         const pluginObj = {
           id: data.dataValues.id,
           plugin_id: data.dataValues.plugin_id,
@@ -2459,19 +2458,17 @@ async function epaddb(fastify, options, done) {
           const resInspect = await dock.checkContainerExistance(containerName);
           if (resInspect.message === '404') {
             fastify.log.info('not a real error. Container has not found so we can create new one');
-            nonseqresult.push(pluginObj);
             seqresult.push(pluginObj);
             if (!sequence) {
-              fastify.runPluginsQueueInternal(nonseqresult, request);
+              fastify.enqueuePluginRunInternal([pluginObj.id], request);
             }
           } else {
             fastify.log.info(`container is not running : ${containerName}`);
             dock.deleteContainer(containerName).then((deleteReturn) => {
               fastify.log.info(`delete container result :${deleteReturn}`);
-              nonseqresult.push(pluginObj);
               seqresult.push(pluginObj);
               if (!sequence) {
-                fastify.runPluginsQueueInternal(nonseqresult, request);
+                fastify.enqueuePluginRunInternal([pluginObj.id], request);
               }
             });
           }
@@ -2501,7 +2498,10 @@ async function epaddb(fastify, options, done) {
         for (let k = 0; indicetoremove.length; k += 1) {
           seqresult.slice(indicetoremove[k], 1);
         }
-        await fastify.runPluginsQueueInternal(seqresult, request);
+        await fastify.enqueuePluginRunInternal(
+          seqresult.map((item) => item.id),
+          request
+        );
       }
     } catch (err) {
       fastify.log.error(`runPluginsQueue error : ${err}`);
@@ -2535,6 +2535,43 @@ async function epaddb(fastify, options, done) {
       pluginObj.project = { ...data.dataValues.queueproject.dataValues };
     }
     return pluginObj;
+  });
+
+  // every plugin run (manual, study triggered, child plugin) goes through this queue, so at most
+  // config.maxConcurrentPlugins plugin containers run at the same time. the items of one call are one task
+  // and run one after the other. it returns when the items are queued, not when they are done, so a plugin
+  // can queue its children without holding up its own slot
+  fastify.decorate('enqueuePluginRunInternal', async (queueIds, request) => {
+    try {
+      // updateStatusQueueProcessInternal doesn't wait for the db, and 'inqueue' must be written before
+      // the run writes 'waiting'
+      await models.plugin_queue.update({ status: 'inqueue' }, { where: { id: queueIds } });
+    } catch (err) {
+      fastify.log.error(`could not queue the plugin queue items ${queueIds}: ${err}`);
+      return;
+    }
+    // not awaited, the plugin runs after the response. runPluginsQueueInternal handles its own errors
+    pqPluginRun
+      .add(async () => {
+        const runnable = [];
+        for (let i = 0; i < queueIds.length; i += 1) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const pluginObj = await fastify.getPluginQueueRunObjectInternal(queueIds[i]);
+            // an item that was stopped or deleted while it was waiting is not run
+            if (pluginObj.status === 'inqueue') runnable.push(pluginObj);
+            else
+              fastify.log.info(`plugin queue item ${queueIds[i]} is ${pluginObj.status}, skipping`);
+          } catch (err) {
+            fastify.log.info(`plugin queue item ${queueIds[i]} cannot be run: ${err.message}`);
+          }
+        }
+        if (runnable.length > 0) await fastify.runPluginsQueueInternal(runnable, request);
+      })
+      .catch((err) => {
+        fastify.log.error(`plugin queue items ${queueIds} failed to start: ${err}`);
+        queueIds.forEach((id) => fastify.updateStatusQueueProcessInternal(id, 'error'));
+      });
   });
 
   // creates the queue item for a study (if the plugin is enabled for the project) and schedules it.
@@ -2613,21 +2650,7 @@ async function epaddb(fastify, options, done) {
       return { queued: true, queueId: queueItem.id };
     });
 
-    if (created.queued) {
-      // updateStatusQueueProcessInternal doesn't wait for the db, and 'inqueue' must be written before
-      // the run writes 'waiting'
-      await models.plugin_queue.update({ status: 'inqueue' }, { where: { id: created.queueId } });
-      // not awaited, the plugin runs after the response. runPluginsQueueInternal handles its own errors
-      pqPluginRun
-        .add(async () => {
-          const pluginObj = await fastify.getPluginQueueRunObjectInternal(created.queueId);
-          await fastify.runPluginsQueueInternal([pluginObj], request);
-        })
-        .catch((err) => {
-          fastify.log.error(`study triggered plugin ${created.queueId} failed to start: ${err}`);
-          fastify.updateStatusQueueProcessInternal(created.queueId, 'error');
-        });
-    }
+    if (created.queued) await fastify.enqueuePluginRunInternal([created.queueId], request);
     return created;
   });
 
@@ -2672,7 +2695,6 @@ async function epaddb(fastify, options, done) {
               })
               .then((queueData) => {
                 queueData.forEach((data) => {
-                  const qresult = [];
                   const pluginObj = {
                     id: data.dataValues.id,
                     plugin_id: data.dataValues.plugin_id,
@@ -2692,8 +2714,7 @@ async function epaddb(fastify, options, done) {
                   if (data.dataValues.queueproject !== null) {
                     pluginObj.project = { ...data.dataValues.queueproject.dataValues };
                   }
-                  qresult.push(pluginObj);
-                  fastify.runPluginsQueueInternal(qresult, request);
+                  fastify.enqueuePluginRunInternal([pluginObj.id], request);
                 });
               });
             return 200;
