@@ -1,3 +1,5 @@
+const config = require('../config/index');
+
 class DockerService {
   constructor(prmFs, prmFastify, prmPath) {
     // eslint-disable-next-line global-require
@@ -106,9 +108,29 @@ class DockerService {
     // query API for container info
   }
 
+  // memory (MB) and maxruntime (seconds) are the columns of the plugin, the cpus come from the config
+  static getResourceLimits(plugin) {
+    const memoryMb = Number(plugin && plugin.memory) || 0;
+    const maxRuntime = Number(plugin && plugin.maxruntime) || config.pluginMaxRuntime;
+    // the plugin container is the first one the kernel kills when the host runs out of memory
+    const hostConfig = { OomScoreAdj: 500 };
+    if (memoryMb > 0) {
+      hostConfig.Memory = memoryMb * 1024 * 1024;
+      // same as the memory, so a runaway container is killed instead of slowly swapping
+      hostConfig.MemorySwap = hostConfig.Memory;
+    }
+    if (config.pluginCpus > 0) hostConfig.NanoCpus = Math.round(config.pluginCpus * 1e9);
+    return { hostConfig, memoryMb, maxRuntime };
+  }
+
   createContainer(imageId, containerNameToGive, params, containerInfo) {
     const tempFastify = this.fastify;
     let tmpContainer;
+    let runTimer = null;
+    let timedOut = false;
+    const { hostConfig, memoryMb, maxRuntime } = DockerService.getResourceLimits(
+      containerInfo.plugin
+    );
     const { path } = this;
     const { fs } = this;
     const tempContainerInfo = containerInfo;
@@ -129,6 +151,7 @@ class DockerService {
           StdinOnce: false,
           HostConfig: {
             Binds: dockerFoldersToBind,
+            ...hostConfig,
           },
         })
         // eslint-disable-next-line prefer-arrow-callback
@@ -163,8 +186,36 @@ class DockerService {
             const strm = fs.createWriteStream(`${filename}/logfile.txt`);
             stream.pipe(strm);
           });
-          const runRes = await tmpContainer.wait();
+          if (maxRuntime > 0) {
+            runTimer = setTimeout(() => {
+              timedOut = true;
+              tempFastify.log.info(
+                `${containerNameToGive} ran longer than ${maxRuntime} seconds, stopping it`
+              );
+              tmpContainer
+                .stop({ t: 10 })
+                .catch((err) => tempFastify.log.error(`could not stop the container: ${err}`));
+            }, maxRuntime * 1000);
+          }
+          let runRes;
+          try {
+            runRes = await tmpContainer.wait();
+          } finally {
+            clearTimeout(runTimer);
+          }
           tempFastify.log.info(`waiting result : ${JSON.stringify(runRes)}`);
+          // exit code 137 is also what a stop by the user or the kernel killing the container returns
+          const { State: state } = await tmpContainer.inspect().catch(() => ({ State: {} }));
+          if (timedOut) {
+            throw new Error(
+              `stopped, it ran longer than the maximum run time of ${maxRuntime} seconds`
+            );
+          }
+          if (state.OOMKilled) {
+            throw new Error(
+              `ran out of memory${memoryMb > 0 ? ` (the limit is ${memoryMb} MB)` : ''}`
+            );
+          }
           if (parseInt(runRes.StatusCode, 10) === 137) {
             tempFastify.log.info(
               'epad sees err code 137 as stopping container by user but out of memory also returns the same error code.Be aware of it when debugging'
