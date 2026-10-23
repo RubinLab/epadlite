@@ -292,6 +292,9 @@ async function epaddb(fastify, options, done) {
           reject(new InternalError('Creating models and syncing db', err));
         }
       });
+      fastify
+        .recoverPluginQueueInternal()
+        .catch((err) => fastify.log.warn(`could not check the plugin queue: ${err.message}`));
       return fastify.afterDBReady();
     } catch (err) {
       if (config.env !== 'test') {
@@ -2572,6 +2575,31 @@ async function epaddb(fastify, options, done) {
         fastify.log.error(`plugin queue items ${queueIds} failed to start: ${err}`);
         queueIds.forEach((id) => fastify.updateStatusQueueProcessInternal(id, 'error'));
       });
+  });
+
+  // plugin runs that were queued or running when the server stopped are not running anymore. a container
+  // that is still running is left alone. the runs are not queued again, the user triggers them again
+  fastify.decorate('recoverPluginQueueInternal', async () => {
+    const stale = await models.plugin_queue.findAll({
+      where: { status: ['inqueue', 'waiting', 'running', 'stopping'] },
+      attributes: ['id'],
+    });
+    if (stale.length === 0) return;
+    const containers = await new DockerService(fs, fastify, path).listContainers();
+    const runningNames = Array.isArray(containers)
+      ? containers.filter((c) => c.state === 'running').flatMap((c) => c.names)
+      : [];
+    const ids = stale
+      .map((item) => item.id)
+      .filter((id) => !runningNames.includes(`/epadplugin_${id}`));
+    if (ids.length === 0) return;
+    fastify.log.warn(
+      `plugin queue items ${ids} were not finished when the server stopped, marking as error`
+    );
+    await models.plugin_queue.update(
+      { status: 'error', endtime: Date.now() },
+      { where: { id: ids } }
+    );
   });
 
   // creates the queue item for a study (if the plugin is enabled for the project) and schedules it.
