@@ -28,7 +28,7 @@
     "fastify-plugin": "^4.5.0",
     "fs-extra": "^9.0.1",
     "jquery": "^3.6.0",
-    "jsdom": "^17.0.0",
+    "jsdom": "^28.1.0",
     "keycloak-backend": "^3.0.0",
     "lodash": "^4.17.20",
     "mariadb": "^3.5.5",
