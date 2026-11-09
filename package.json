@@ -74,6 +74,10 @@
     "dcmjs": {
       "adm-zip": "0.6.1"
     },
-    "nodemailer": "^10.4.0"
+    "nodemailer": "^10.4.0",
+    "cmake-js": {
+      "tar": "^7.5.22",
+      "axios": "^1.21.1"
+    }
   }
 }
