@@ -112,6 +112,22 @@ config.thickDb = config.thickDb || {
   logger: process.env.SQL_LOGGER || 'false',
 };
 config.maxConcurrent = config.maxConcurrent || 5;
+// number of plugin containers that can run at the same time for the study triggered plugins
+config.maxConcurrentPlugins =
+  parseInt(process.env.MAX_CONCURRENT_PLUGINS, 10) || config.maxConcurrentPlugins || 1;
+// cpus a plugin container can use (0 = no limit). the memory limit and the maximum run time are per plugin,
+// the memory (MB) and maxruntime (seconds) columns of the plugin table. pluginMaxRuntime is the run time
+// limit (seconds) of the plugins that have no maxruntime (0 = no limit)
+config.pluginCpus = parseFloat(process.env.PLUGIN_CPUS) || config.pluginCpus || 0;
+config.pluginMaxRuntime =
+  parseInt(process.env.PLUGIN_MAX_RUNTIME_SECONDS, 10) || config.pluginMaxRuntime || 0;
+// by default a plugin image with a pinned tag (not latest) that exists locally is not pulled again.
+// set ALWAYS_PULL_PLUGIN_IMAGES=true to check the registry on every run
+config.alwaysPullPluginImages =
+  process.env.ALWAYS_PULL_PLUGIN_IMAGES === 'true' || config.alwaysPullPluginImages || false;
+// plugin_id of a plugin that is run on the studies of teaching files. when it is triggered for a project
+// it is enabled for the project automatically
+config.teachingPluginId = process.env.TEACHING_PLUGIN_ID || config.teachingPluginId || '';
 config.disableStats = config.disableStats || false;
 config.statsEpad = config.statsEpad || 'https://epad-public.stanford.edu';
 config.limitStudies = process.env.LIMIT_STUDIES || config.limitStudies;

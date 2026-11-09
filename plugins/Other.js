@@ -1228,28 +1228,24 @@ async function other(fastify) {
 
   fastify.decorate('getAimDicomInfo', (jsonBuffer) => {
     try {
+      const collection = jsonBuffer.ImageAnnotationCollection;
+      const { person } = collection;
+      const {
+        imageStudy,
+      } = collection.imageAnnotations.ImageAnnotation[0].imageReferenceEntityCollection.ImageReferenceEntity[0];
+      // optional dicom attributes (birth date, sex, times, accession number) can be empty in the images
+      // and are then missing from the aim. don't fail because of them
+      const valueOrEmpty = (obj) => (obj && obj.value !== undefined ? obj.value : '');
       return JSON.stringify({
-        subject: jsonBuffer.ImageAnnotationCollection.person.id.value,
-        study:
-          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.instanceUid.root,
-        subjectName: jsonBuffer.ImageAnnotationCollection.person.name.value,
+        subject: person.id.value,
+        study: imageStudy.instanceUid.root,
+        subjectName: person.name.value,
         studyDesc: '',
-        insertDate:
-          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startDate.value,
-        birthdate: jsonBuffer.ImageAnnotationCollection.person.birthDate.value,
-        sex: jsonBuffer.ImageAnnotationCollection.person.sex.value,
-        studyAccessionNumber: jsonBuffer.ImageAnnotationCollection.imageAnnotations
-          .ImageAnnotation[0].imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy
-          .accessionNumber
-          ? jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-              .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.accessionNumber
-              .value
-          : '',
-        studyTime:
-          jsonBuffer.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0]
-            .imageReferenceEntityCollection.ImageReferenceEntity[0].imageStudy.startTime.value,
+        insertDate: valueOrEmpty(imageStudy.startDate),
+        birthdate: valueOrEmpty(person.birthDate),
+        sex: valueOrEmpty(person.sex),
+        studyAccessionNumber: valueOrEmpty(imageStudy.accessionNumber),
+        studyTime: valueOrEmpty(imageStudy.startTime),
       });
     } catch (err) {
       fastify.log.error(`Cannnot get DICOM info from aim. Error: ${err.message}`);
