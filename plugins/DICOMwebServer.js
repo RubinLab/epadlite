@@ -13,10 +13,10 @@ const { InternalError, ResourceNotFoundError } = require('../utils/EpadErrors');
 
 let dimse = null;
 // try to require the native dimse module only if DIMSE configured
-// eslint-disable-next-line import/no-unresolved
 if (config.dimse) {
   try {
-    // eslint-disable-next-line global-require
+    // optional dependency, it is not installed when it can't be built (no prebuilt binary/cmake)
+    // eslint-disable-next-line global-require, import/no-unresolved
     dimse = require('dicom-dimse-native');
   } catch (err) {
     // don't crash if native module is not installed or fails to load

@@ -531,12 +531,14 @@ async function otherRoutes(fastify) {
             type: 'string',
             enum: ['json', 'text'],
             default: 'text',
-            description: 'Response format. "json" returns an array; "text" returns tab-separated lines.',
+            description:
+              'Response format. "json" returns an array; "text" returns tab-separated lines.',
           },
           studyDesc: {
             type: 'boolean',
             default: false,
-            description: 'When true, fetches study description from DICOMweb (adds a network call per entry).',
+            description:
+              'When true, fetches study description from DICOMweb (adds a network call per entry).',
           },
         },
       },
@@ -549,7 +551,11 @@ async function otherRoutes(fastify) {
           properties: {
             subject: { type: 'string', description: 'Patient ID.' },
             study: { type: 'string', description: 'Study Instance UID.' },
-            aimuid: { type: 'string', description: 'AIM annotation UID. When provided, name and narrative comment are extracted from the annotation.' },
+            aimuid: {
+              type: 'string',
+              description:
+                'AIM annotation UID. When provided, name and narrative comment are extracted from the annotation.',
+            },
           },
         },
       },
@@ -564,10 +570,24 @@ async function otherRoutes(fastify) {
                   type: 'object',
                   properties: {
                     study_uid: { type: 'string', description: 'Study Instance UID.' },
-                    study_desc: { type: 'string', description: 'Study description from DICOMweb. Empty when studyDesc=false.' },
-                    name: { type: 'string', description: 'AIM annotation name (ImageAnnotation.name.value). Empty when aimuid is omitted.' },
-                    comment: { type: 'string', description: 'Narrative comment from AIM (text after ~~ in comment field). Empty when aimuid is omitted or no narrative was recorded.' },
-                    link: { type: 'string', description: 'AES-256-CBC encrypted URL for opening the study.' },
+                    study_desc: {
+                      type: 'string',
+                      description: 'Study description from DICOMweb. Empty when studyDesc=false.',
+                    },
+                    name: {
+                      type: 'string',
+                      description:
+                        'AIM annotation name (ImageAnnotation.name.value). Empty when aimuid is omitted.',
+                    },
+                    comment: {
+                      type: 'string',
+                      description:
+                        'Narrative comment from AIM (text after ~~ in comment field). Empty when aimuid is omitted or no narrative was recorded.',
+                    },
+                    link: {
+                      type: 'string',
+                      description: 'AES-256-CBC encrypted URL for opening the study.',
+                    },
                   },
                 },
               },

@@ -3207,7 +3207,9 @@ async function other(fastify) {
         reply.send(results);
       } else {
         const text = results
-          .map((r) => [r.study_uid, r.study_desc, r.name, r.comment, r.link].filter(Boolean).join('\t'))
+          .map((r) =>
+            [r.study_uid, r.study_desc, r.name, r.comment, r.link].filter(Boolean).join('\t')
+          )
           .join('\n');
         reply.type('text/plain').send(text);
       }

@@ -320,7 +320,13 @@ describe('Other Tests', () => {
           expect(res.statusCode).to.equal(200);
           expect(res.body).to.be.an('array');
           expect(res.body).to.have.lengthOf(1);
-          expect(res.body[0]).to.have.all.keys('study_desc', 'study_uid', 'name', 'comment', 'link');
+          expect(res.body[0]).to.have.all.keys(
+            'study_desc',
+            'study_uid',
+            'name',
+            'comment',
+            'link'
+          );
           done();
         })
         .catch((e) => done(e));
@@ -363,7 +369,13 @@ describe('Other Tests', () => {
         .send([{ subject, study: studyUID, aimuid: aimUID }])
         .then((res) => {
           expect(res.statusCode).to.equal(200);
-          expect(res.body[0]).to.have.all.keys('study_desc', 'study_uid', 'name', 'comment', 'link');
+          expect(res.body[0]).to.have.all.keys(
+            'study_desc',
+            'study_uid',
+            'name',
+            'comment',
+            'link'
+          );
           done();
         })
         .catch((e) => done(e));
