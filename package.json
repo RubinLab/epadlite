@@ -15,7 +15,7 @@
     "axios": "^1.21.1",
     "btoa": "^1.2.1",
     "concat-stream": "^2.0.0",
-    "csv-parse": "^5.4.0",
+    "csv-parse": "^7.0.3",
     "csv-parser": "^3.0.0",
     "csv-writer": "^1.6.0",
     "dcmjs": "^0.29.11",
