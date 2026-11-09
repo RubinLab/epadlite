@@ -37,7 +37,7 @@ const pqPluginTrigger = new PQueue({ concurrency: 1 });
 // limits the study triggered plugin containers running at the same time
 const pqPluginRun = new PQueue({ concurrency: config.maxConcurrentPlugins });
 
-async function epaddb(fastify, options, done) {
+async function epaddb(fastify) {
   const models = {};
 
   fastify.decorate('initMariaDB', async () => {
@@ -15879,7 +15879,6 @@ async function epaddb(fastify, options, done) {
   fastify.after(async () => {
     try {
       await fastify.initMariaDB();
-      done();
     } catch (err) {
       fastify.log.error(`Cannot connect to mariadb (err:${err.message}), shutting down the server`);
       fastify.close();
