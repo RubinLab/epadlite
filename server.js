@@ -32,6 +32,38 @@ function buildServer(opts = {}) {
   });
 
   // -----------------------------
+  // Route schema shorthand (fastify 4 jsonShortHand, removed in fastify 5)
+  // -----------------------------
+  // routes declare e.g. querystring: { format: { type: 'string' } } without type/properties.
+  // wrap those into full json schemas the way fastify 4 used to do implicitly
+  const isShorthandSchema = (schema) =>
+    schema &&
+    typeof schema === 'object' &&
+    !schema.$ref &&
+    !schema.oneOf &&
+    !schema.allOf &&
+    !schema.anyOf &&
+    !schema.type &&
+    !schema.properties;
+  const expandShorthand = (schema) =>
+    isShorthandSchema(schema) ? { type: 'object', properties: schema } : schema;
+  fastify.addHook('onRoute', (routeOptions) => {
+    const { schema } = routeOptions;
+    if (!schema) return;
+    ['body', 'querystring', 'params', 'headers'].forEach((key) => {
+      if (schema[key]) schema[key] = expandShorthand(schema[key]);
+    });
+    if (schema.response) {
+      Object.keys(schema.response).forEach((code) => {
+        // response entries with content are the per content-type form, not shorthand
+        if (!schema.response[code] || !schema.response[code].content) {
+          schema.response[code] = expandShorthand(schema.response[code]);
+        }
+      });
+    }
+  });
+
+  // -----------------------------
   // Schemas
   // -----------------------------
   fastify.addSchema(require('./config/schemas/epadlite_patients_output_schema.json'));

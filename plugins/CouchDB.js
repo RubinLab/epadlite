@@ -587,7 +587,7 @@ async function couchdb(fastify, options) {
                               fastify.log.info(`Zip file ready in ${result}`);
                               // get the protocol and hostname from the request
                               const link = `${config.httpsLink ? 'https' : request.protocol}://${
-                                request.hostname
+                                request.host
                               }${result}`;
                               // send notification and/or email with link
                               if (request)

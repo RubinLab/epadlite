@@ -960,7 +960,7 @@ async function other(fastify) {
               fastify.log.info(`Zip file ready in ${result}`);
               // get the protocol and hostname from the request
               const link = `${config.httpsLink ? 'https' : request.protocol}://${
-                request.hostname
+                request.host
               }${result}`;
               fastify.log.info(`LINK TO DOWNLOAD ZIP ${link}`);
               // send notification and/or email with link
@@ -2629,7 +2629,7 @@ async function other(fastify) {
         {
           username: req.epadAuth.username ? req.epadAuth.username : 'nouser',
           function: 'User Logged In',
-          params: req.hostname,
+          params: req.host,
           createdtime: new Date(),
           error: false,
           refresh: false,
@@ -2658,7 +2658,7 @@ async function other(fastify) {
         {
           username: req.epadAuth.username ? req.epadAuth.username : 'nouser',
           function: 'User Logged Out',
-          params: req.hostname,
+          params: req.host,
           createdtime: new Date(),
           error: false,
           refresh: false,
@@ -3786,7 +3786,7 @@ async function other(fastify) {
     // we have a successful request, lets get the hostname
     // getting the first one, is it better to get the last all the time?
     // eslint-disable-next-line no-param-reassign
-    if (fastify.hostname === '') fastify.hostname = request.hostname;
+    if (fastify.hostname === '') fastify.hostname = request.host;
 
     done();
   });
