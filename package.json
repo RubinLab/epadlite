@@ -73,6 +73,7 @@
   "overrides": {
     "dcmjs": {
       "adm-zip": "0.6.1"
-    }
+    },
+    "nodemailer": "^10.4.0"
   }
 }
