@@ -1,6 +1,6 @@
 # Dependency audit 1.9
 
-`npm audit` went from 49 findings (5 critical, 27 high) to 13 (2 critical, 1 high). Every change is its own commit on
+`npm audit` went from 49 findings (5 critical, 27 high) to 13 (2 critical, 0 high). Every change is its own commit on
 `fix/audit1.9`; no `npm audit fix` was used. Test baseline before and after: 674 passing and the two
 known failures (see below); the 6 tests of `extractZip` were added on top.
 
@@ -48,6 +48,7 @@ against local smoke scripts. Please check them on a real server (Stella dev):
 | `dcmjs` -> `adm-zip` 0.6.1 | dcmjs 0.29 bundles a vulnerable adm-zip; the latest dcmjs needs Node 22 and still bundles a vulnerable one. epadlite does not use adm-zip itself. |
 | `nodemailer` ^10.4.0 | `fastify-nodemailer` 5 depends on nodemailer 6. Only `createTransport`/`sendMail` are used. |
 | `cmake-js` -> `tar` ^7.5.22, `axios` ^1.21.1 | build-time dependency of the optional `dicom-dimse-native`. |
+| `glob@7`, `eslint`, `eslint-plugin-import`, `readdir-glob` -> `minimatch` ^3.1.5 | the 3.x line of minimatch has a ReDoS fix (3.1.4+) but these parents pin an older 3.x. Used by `archiver` (runtime, only for a hardcoded glob) and eslint. |
 
 Remove an override once its parent package ships a fixed version.
 
@@ -56,7 +57,7 @@ Remove an override once its parent package ships a fixed version.
 - `nano` / `request` / `qs` / `tough-cookie` / `uuid` / `form-data` / `cloudant-follow`, all via
   `fastify-couchdb`. Fixing it means replacing `nano`, whose newer versions drop the callback API
   used for CouchDB. Needs its own change.
-- `mocha` -> `glob` / `minimatch`, dev only, no fixed release yet.
+- `mocha` -> `glob` / `minimatch` 10.x, dev only, moderate, no fixed release yet.
 - `sequelize` -> `uuid`, no fixed release. The advisory is about uuid v3/v5/v6 called with a buffer;
   sequelize only uses v1 and v4.
 - `dcmjs`, low.
