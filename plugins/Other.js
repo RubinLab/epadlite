@@ -1,7 +1,6 @@
 /* eslint-disable no-async-promise-executor */
 const fp = require('fastify-plugin');
 const fs = require('fs-extra');
-const extractZip = require('extract-zip');
 const toArrayBuffer = require('to-array-buffer');
 const { default: PQueue } = require('p-queue');
 const path = require('path');
@@ -39,6 +38,7 @@ if (config.auth !== 'external') {
   });
 }
 const EpadNotification = require('../utils/EpadNotification');
+const extractZip = require('../utils/extractZip');
 
 const {
   InternalError,

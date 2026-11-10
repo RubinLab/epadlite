@@ -9,7 +9,6 @@ const os = require('os');
 const schedule = require('node-schedule-tz');
 const archiver = require('archiver');
 const toArrayBuffer = require('to-array-buffer');
-const extractZip = require('extract-zip');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csv = require('csv-parser');
 const { createOfflineAimSegmentation } = require('aimapi');
@@ -31,6 +30,7 @@ const {
   EpadError,
 } = require('../utils/EpadErrors');
 const EpadNotification = require('../utils/EpadNotification');
+const extractZip = require('../utils/extractZip');
 
 // serializes the project plugin check/creation and queue insert of study triggered plugins. enough as long as pm2 runs 1 instance
 const pqPluginTrigger = new PQueue({ concurrency: 1 });
