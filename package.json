@@ -90,6 +90,10 @@
     },
     "readdir-glob": {
       "minimatch": "^3.1.5"
+    },
+    "mocha": {
+      "glob": "^14.0.4",
+      "minimatch": "^11.0.5"
     }
   }
 }
