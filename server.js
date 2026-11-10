@@ -35,7 +35,11 @@ function buildServer(opts = {}) {
   // Route schema shorthand (fastify 4 jsonShortHand, removed in fastify 5)
   // -----------------------------
   // routes declare e.g. querystring: { format: { type: 'string' } } without type/properties.
-  // wrap those into full json schemas the way fastify 4 used to do implicitly
+  // wrap those into full json schemas the way fastify 4 used to do implicitly (jsonShortHand).
+  // fastify 5 removed that and fails to build such routes ("schema is invalid: data/format must
+  // be string"). the hook is on the root instance so it applies to the routes of every plugin.
+  // it can go away once all route schemas are written as {type: 'object', properties: {...}}.
+  // response entries are skipped when they use the per content-type form (description + content)
   const isShorthandSchema = (schema) =>
     schema &&
     typeof schema === 'object' &&

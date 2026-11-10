@@ -586,6 +586,7 @@ async function couchdb(fastify, options) {
                             .then((result) => {
                               fastify.log.info(`Zip file ready in ${result}`);
                               // get the protocol and hostname from the request
+                              // request.host keeps the port; since fastify 5 request.hostname drops it
                               const link = `${config.httpsLink ? 'https' : request.protocol}://${
                                 request.host
                               }${result}`;

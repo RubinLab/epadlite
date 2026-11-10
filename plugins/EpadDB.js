@@ -37,6 +37,8 @@ const pqPluginTrigger = new PQueue({ concurrency: 1 });
 // limits the study triggered plugin containers running at the same time
 const pqPluginRun = new PQueue({ concurrency: config.maxConcurrentPlugins });
 
+// async plugin: it must not also take/call the done callback, fastify 5 rejects plugins that mix
+// both styles. the server shuts down in fastify.after below when the db connection fails
 async function epaddb(fastify) {
   const models = {};
 

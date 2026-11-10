@@ -92,6 +92,11 @@ async function other(fastify) {
     }
     return errMessagesText;
   });
+  // saves the aim json files of a multipart upload.
+  // fastify-multipart removed the callback style request.multipart(handler, done) after v6,
+  // so the parts are read with request.files() like saveFile does. every part has to be consumed
+  // (toBuffer) before the iterator moves to the next one. a file that is not valid json or can't
+  // be saved is reported as a failed file, it doesn't fail the other files.
   fastify.decorate('saveAimFile', async (request, reply) => {
     const fileSavePromises = [];
     try {
@@ -959,6 +964,7 @@ async function other(fastify) {
             else if (typeof result === 'string') {
               fastify.log.info(`Zip file ready in ${result}`);
               // get the protocol and hostname from the request
+              // request.host keeps the port; since fastify 5 request.hostname drops it
               const link = `${config.httpsLink ? 'https' : request.protocol}://${
                 request.host
               }${result}`;
@@ -2629,6 +2635,7 @@ async function other(fastify) {
         {
           username: req.epadAuth.username ? req.epadAuth.username : 'nouser',
           function: 'User Logged In',
+          // host with port (fastify 5 request.hostname has no port)
           params: req.host,
           createdtime: new Date(),
           error: false,
@@ -2658,6 +2665,7 @@ async function other(fastify) {
         {
           username: req.epadAuth.username ? req.epadAuth.username : 'nouser',
           function: 'User Logged Out',
+          // host with port (fastify 5 request.hostname has no port)
           params: req.host,
           createdtime: new Date(),
           error: false,
@@ -3787,6 +3795,8 @@ async function other(fastify) {
   fastify.decorate('responseWrapper', (request, reply, done) => {
     // we have a successful request, lets get the hostname
     // getting the first one, is it better to get the last all the time?
+    // request.host (host:port). fastify 5 request.hostname has no port, which would break the
+    // download links and the host sent with the statistics
     // eslint-disable-next-line no-param-reassign
     if (fastify.hostname === '') fastify.hostname = request.host;
 

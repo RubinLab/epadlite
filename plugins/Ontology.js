@@ -6,6 +6,8 @@ const path = require('path');
 
 const { InternalError } = require('../utils/EpadErrors');
 
+// async plugin: it must not also take/call the done callback, fastify 5 rejects plugins that mix
+// both styles
 async function Ontology(fastify) {
   // const models = {};
   const { models } = fastify;
