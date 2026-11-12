@@ -53,6 +53,7 @@ async function dicomwebserver(fastify) {
     } catch (err) {
       if (config.env !== 'test' || config.limitStudies) {
         fastify.log.warn('Waiting for dicomweb server');
+        console.log(err);
         setTimeout(fastify.initDicomWeb, 3000);
       } else throw err;
     }
