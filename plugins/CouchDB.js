@@ -946,11 +946,19 @@ async function couchdb(fastify, options) {
               aim.ImageAnnotationCollection.imageAnnotations.ImageAnnotation[0].typeCode[0].code ===
               config.teachingTemplate
             ) {
-              fastify.copySignificantSeries(
-                studyUID,
-                request.params.project,
-                request.params.fromproject
-              );
+              // await so that concurrent copies of multiple studies do not interleave (STEL-1114)
+              try {
+                // eslint-disable-next-line no-await-in-loop
+                await fastify.copySignificantSeries(
+                  studyUID,
+                  request.params.project,
+                  request.params.fromproject
+                );
+              } catch (err) {
+                fastify.log.error(
+                  `Could not copy significant series of study ${studyUID} to project ${request.params.project}. Error: ${err.message}`
+                );
+              }
             }
           }
           if (!templateCodes.includes(templateCode)) {
