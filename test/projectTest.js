@@ -3263,12 +3263,90 @@ describe('Project Tests', () => {
           done(e);
         });
     });
+    // STEL-1114: copying a teaching file should not delete the significant series of the other studies in the project
+    it('project study add of study 1.2.752.24.7.19011385.453825 to project testaim3 should be successful for the significant series copy test', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testaim3/subjects/7/studies/1.2.752.24.7.19011385.453825')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should set 2 significant series for study 1.2.752.24.7.19011385.453825 in project testaim3', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .put('/projects/testaim3/subjects/7/studies/1.2.752.24.7.19011385.453825/significantSeries')
+        .query({ username: 'admin' })
+        .send([
+          { seriesUID: '1.2.840.113704.1.111.424.1207241028.11', significanceOrder: 1 },
+          { seriesUID: '1.2.840.113704.1.111.424.1207241028.7', significanceOrder: 2 },
+        ])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
     it('should copy 2.25.211702350959705566747388843359605362 to testaim3 project (adding the study to project too)', (done) => {
       chai
         .request(`http://${process.env.host}:${process.env.port}`)
         .post('/projects/testaim3/fromprojects/testaim/aims/copy')
         .query({ username: 'admin' })
         .send(['2.25.211702350959705566747388843359605362'])
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim3 should keep the 2 significant series of study 1.2.752.24.7.19011385.453825 after the copy', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/subjects/7/studies/1.2.752.24.7.19011385.453825/significantseries')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(2);
+          expect(res.body[0].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.11');
+          expect(res.body[0].significanceOrder).to.be.eql(1);
+          expect(res.body[1].seriesUID).to.be.eql('1.2.840.113704.1.111.424.1207241028.7');
+          expect(res.body[1].significanceOrder).to.be.eql(2);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('project testaim3 should have the copied significant series of study 0023.2015.09.28.3', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .get('/projects/testaim3/subjects/3/studies/0023.2015.09.28.3/significantseries')
+        .query({ username: 'admin' })
+        .then((res) => {
+          expect(res.statusCode).to.equal(200);
+          expect(res.body.length).to.be.eql(1);
+          expect(res.body[0].seriesUID).to.be.eql('0023.2015.09.28.3.3590');
+          expect(res.body[0].significanceOrder).to.be.eql(1);
+          done();
+        })
+        .catch((e) => {
+          done(e);
+        });
+    });
+    it('should delete study 1.2.752.24.7.19011385.453825 from project testaim3 after the significant series copy test', (done) => {
+      chai
+        .request(`http://${process.env.host}:${process.env.port}`)
+        .delete('/projects/testaim3/subjects/7/studies/1.2.752.24.7.19011385.453825')
+        .query({ username: 'admin' })
         .then((res) => {
           expect(res.statusCode).to.equal(200);
           done();

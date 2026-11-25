@@ -15734,11 +15734,20 @@ async function epaddb(fastify, options, done) {
         })
       ).dataValues.id;
 
+      if (fromProjectID === toProjectID) return;
+
       const qry = { study_id: studyID, project_id: fromProjectID };
       const significantSeries = await models.project_subject_study_series_significance.findAll({
         where: qry,
         raw: true,
       });
+      // nothing to copy, keep whatever the toProject already has for this study
+      if (significantSeries.length === 0) {
+        fastify.log.warn(
+          `No significant series found for study ${studyUID} in the from project. Not copying anything to ${toProjectUID}`
+        );
+        return;
+      }
       significantSeries.map((item) => {
         // eslint-disable-next-line no-param-reassign
         item.project_id = toProjectID;
@@ -15747,11 +15756,17 @@ async function epaddb(fastify, options, done) {
         return item;
       });
 
-      // delete the existing significant series in the toProject to avoid duplication
-      await models.project_subject_study_series_significance.destroy({
-        where: { project_id: toProjectID },
+      // replace only this study's significant series in the toProject to avoid duplication.
+      // do not touch the other studies of the toProject (STEL-1114)
+      await fastify.orm.transaction(async (transaction) => {
+        await models.project_subject_study_series_significance.destroy({
+          where: { project_id: toProjectID, study_id: studyID },
+          transaction,
+        });
+        await models.project_subject_study_series_significance.bulkCreate(significantSeries, {
+          transaction,
+        });
       });
-      await models.project_subject_study_series_significance.bulkCreate(significantSeries);
     } catch (err) {
       throw new InternalError('Copying significant series', err);
     }
